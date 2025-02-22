@@ -19,6 +19,7 @@
 
 [versions]
 errorprone = "2.36.0"
+hadoop = "3.4.1"
 iceberg = "1.9.0-authmgr"
 immutables = "2.10.1"
 mockserver = "5.15.0"
@@ -37,6 +38,8 @@ auth0-jwt = { module = "com.auth0:java-jwt", version = "4.5.0" }
 caffeine = { module = "com.github.ben-manes.caffeine:caffeine", version = "3.2.0" }
 errorprone = { module = "com.google.errorprone:error_prone_core", version.ref = "errorprone"  }
 errorprone-annotations = { module = "com.google.errorprone:error_prone_annotations", version.ref = "errorprone" }
+hadoop-client-api = { module = "org.apache.hadoop:hadoop-client-api", version.ref = "hadoop" }
+hadoop-client-runtime = { module = "org.apache.hadoop:hadoop-client-runtime", version.ref = "hadoop" }
 immutables-builder = { module = "org.immutables:builder", version.ref = "immutables" }
 immutables-value-annotations = { module = "org.immutables:value-annotations", version.ref = "immutables" }
 immutables-value-processor = { module = "org.immutables:value-processor", version.ref = "immutables" }
@@ -44,6 +47,7 @@ iceberg-bom = { module = "org.apache.iceberg:iceberg-bom", version.ref = "iceber
 jackson-bom = { module = "com.fasterxml.jackson:jackson-bom", version = "2.18.2" }
 jakarta-annotation-api = { module = "jakarta.annotation:jakarta.annotation-api", version = "3.0.0" }
 junit-bom = { module = "org.junit:junit-bom", version = "5.11.4" }
+keycloak-admin-client = { module = "org.keycloak:keycloak-admin-client", version = "26.0.4" }
 logback-classic = { module = "ch.qos.logback:logback-classic", version = "1.5.16" }
 mockito-core = { module = "org.mockito:mockito-core", version = "5.15.2" }
 mockito-junit-jupiter = { module = "org.mockito:mockito-junit-jupiter", version = "5.15.2" }
@@ -52,6 +56,7 @@ mockserver-netty = { module = "org.mock-server:mockserver-netty", version.ref = 
 slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
 spotbugs-annotations = { module = "com.github.spotbugs:spotbugs-annotations", version = "4.9.0" }
 testcontainers-bom = { module = "org.testcontainers:testcontainers-bom", version = "1.20.4" }
+testcontainers-keycloak = { module = "com.github.dasniko:testcontainers-keycloak", version = "3.6.0" }
 
 [plugins]
 rat = { id = "org.nosphere.apache.rat", version = "0.8.1" }
