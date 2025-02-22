@@ -17,48 +17,7 @@
 # under the License.
 #
 
-# Ignore Gradle wrapper jar file
-gradle/wrapper/gradle-wrapper.jar
-gradle/wrapper/gradle-wrapper-*.sha256
-
-# Avoid ignore Gradle wrappper properties
-!gradle-wrapper.properties
-
-# Cache of project
-.gradletasknamecache
-
-# Eclipse Gradle plugin generated files
-# Eclipse Core
-.project
-# JDT-specific (Eclipse Java Development Tools)
-.classpath
-.env
-
-# IntelliJ
-/.idea
-*.iml
-*.ipr
-*.iws
-
-# Gradle
-/.gradle
-/build-logic/.gradle
-/build-logic/.kotlin
-**/build/
-!src/**/build/
-
-# jenv
-.java-version
-
-# binary files
-*.class
-*.jar
-*.zip
-*.tar.gz
-*.tgz
-
-# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
-hs_err_pid*
-
-# macOS
-*.DS_Store
+[libraries]
+errorprone = { module = "net.ltgt.gradle:gradle-errorprone-plugin", version = "4.1.0" }
+idea-ext = { module = "gradle.plugin.org.jetbrains.gradle.plugin.idea-ext:gradle-idea-ext", version = "1.1.10" }
+spotless = { module = "com.diffplug.spotless:spotless-plugin-gradle", version = "7.0.2" }
