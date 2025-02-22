@@ -16,6 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-#
 
-authmgr-immutables=tools/immutables
+javax.annotation.Nullable
+javax.annotation.CheckReturnValue;
+javax.annotation.Nullable;
+javax.annotation.ParametersAreNonnullByDefault;
+javax.annotation.concurrent.Immutable;
+javax.annotation.concurrent.NotThreadSafe;
