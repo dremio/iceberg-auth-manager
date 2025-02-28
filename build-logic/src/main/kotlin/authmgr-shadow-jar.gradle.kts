@@ -17,12 +17,18 @@
  * under the License.
  */
 
-plugins { `kotlin-dsl` }
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
-dependencies {
-  implementation(gradleKotlinDsl())
-  implementation(baselibs.errorprone)
-  implementation(baselibs.idea.ext)
-  implementation(baselibs.shadow)
-  implementation(baselibs.spotless)
+plugins { id("com.gradleup.shadow") }
+
+val shadowJar = tasks.named<ShadowJar>("shadowJar")
+
+shadowJar.configure {
+  outputs.cacheIf { false } // do not cache uber/shaded jars
+  archiveClassifier = "runtime"
+  mergeServiceFiles()
 }
+
+tasks.withType<ShadowJar>().configureEach { isZip64 = true }
+
+tasks.named("assemble").configure { dependsOn("shadowJar") }
