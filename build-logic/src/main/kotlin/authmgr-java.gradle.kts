@@ -99,7 +99,6 @@ testing {
     }
 
     register<JvmTestSuite>("intTest") {
-      testType = TestSuiteType.INTEGRATION_TEST
       targets.all {
         testTask.configure { shouldRunAfter("test") }
         tasks.named("check").configure { dependsOn(testTask) }
