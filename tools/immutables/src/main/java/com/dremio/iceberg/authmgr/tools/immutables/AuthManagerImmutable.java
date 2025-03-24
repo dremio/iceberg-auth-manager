@@ -30,10 +30,11 @@ import org.immutables.value.Value;
 @Documented
 @Target(ElementType.TYPE)
 @Value.Style(
-    defaults = @Value.Immutable(lazyhash = true),
+    defaults = @Value.Immutable(prehash = true),
     forceJacksonPropertyNames = false,
     clearBuilder = true,
     depluralize = true,
     toBuilder = "toBuilder",
+    redactedMask = "****",
     get = {"get*", "is*"})
 public @interface AuthManagerImmutable {}
