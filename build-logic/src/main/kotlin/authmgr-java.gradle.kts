@@ -97,6 +97,13 @@ testing {
         )
       }
     }
+
+    register<JvmTestSuite>("intTest") {
+      targets.all {
+        testTask.configure { shouldRunAfter("test") }
+        tasks.named("check").configure { dependsOn(testTask) }
+      }
+    }
   }
 }
 
