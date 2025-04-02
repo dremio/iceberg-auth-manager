@@ -40,8 +40,23 @@ jobs:
       contents: read
 
     steps:
+
+      - name: Checkout Apache Iceberg
+        uses: actions/checkout@v4
+        with:
+          repository: apache/iceberg
+          path: iceberg
+
+      - name: Checkout Apache Polaris
+        uses: actions/checkout@v4
+        with:
+          repository: apache/polaris
+          path: polaris
+
       - name: Checkout Project
         uses: actions/checkout@v4
+        with:
+          path: authmgr
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -58,8 +73,33 @@ jobs:
           # Our `gradlew` validates the integrity of the `gradle-wrapper.jar`, so it's safe to disable this.
           validate-wrappers: false
 
-      - name: Gradle Build
-        run: ./gradlew --continue build
+      - name: Gradle Build Apache Iceberg
+        env:
+          GITHUB_WORKSPACE: ${{ github.workspace }}
+        run: |
+          cd $GITHUB_WORKSPACE/iceberg
+          echo "1.9.0-authmgr" > version.txt
+          ./gradlew :iceberg-bom:publishToMavenLocal \
+            :iceberg-api:publishToMavenLocal \
+            :iceberg-core:publishToMavenLocal \
+            :iceberg-common:publishToMavenLocal \
+            :iceberg-bundled-guava:publishToMavenLocal
+
+      - name: Gradle Build Apache Polaris
+        env:
+          GITHUB_WORKSPACE: ${{ github.workspace }}
+        run: |
+          cd $GITHUB_WORKSPACE/polaris
+          ./gradlew :polaris-quarkus-server:imageBuild \
+            -Dquarkus.container-image.tag=latest \
+            -Dquarkus.container-image.build=true
+
+      - name: Gradle Build Project
+        env:
+          GITHUB_WORKSPACE: ${{ github.workspace }}
+        run: |
+          cd $GITHUB_WORKSPACE/authmgr
+          ./gradlew --continue build
 
       - name: Archive Test Results
         uses: actions/upload-artifact@v4
@@ -70,4 +110,7 @@ jobs:
             **/build/test-results/**
 
       - name: Stop Gradle daemons
-        run: ./gradlew --stop
+        run: |
+          $GITHUB_WORKSPACE/iceberg/gradlew --stop
+          $GITHUB_WORKSPACE/polaris/gradlew --stop
+          $GITHUB_WORKSPACE/authmgr/gradlew --stop
