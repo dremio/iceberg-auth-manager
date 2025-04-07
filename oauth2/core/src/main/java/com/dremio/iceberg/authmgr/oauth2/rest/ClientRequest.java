@@ -17,6 +17,7 @@ package com.dremio.iceberg.authmgr.oauth2.rest;
 
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import jakarta.annotation.Nullable;
+import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 import org.immutables.value.Value.Redacted;
@@ -49,6 +50,13 @@ public interface ClientRequest extends PostFormRequest {
   @Redacted
   String getClientSecret();
 
+  @Nullable
+  @Redacted
+  String getClientAssertion();
+
+  @Nullable
+  URI getClientAssertionType();
+
   @Override
   default Map<String, String> asFormParameters() {
     Map<String, String> data = new HashMap<>();
@@ -57,6 +65,12 @@ public interface ClientRequest extends PostFormRequest {
     }
     if (getClientSecret() != null) {
       data.put("client_secret", getClientSecret());
+    }
+    if (getClientAssertion() != null) {
+      data.put("client_assertion", getClientAssertion());
+    }
+    if (getClientAssertionType() != null) {
+      data.put("client_assertion_type", getClientAssertionType().toString());
     }
     return Map.copyOf(data);
   }
@@ -67,5 +81,11 @@ public interface ClientRequest extends PostFormRequest {
 
     @CanIgnoreReturnValue
     B clientSecret(String clientSecret);
+
+    @CanIgnoreReturnValue
+    B clientAssertion(String clientAssertion);
+
+    @CanIgnoreReturnValue
+    B clientAssertionType(URI clientAssertionType);
   }
 }

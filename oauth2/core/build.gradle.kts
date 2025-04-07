@@ -29,6 +29,8 @@ dependencies {
   implementation("org.apache.iceberg:iceberg-api")
   implementation("org.apache.iceberg:iceberg-core")
 
+  implementation(libs.auth0.jwt)
+
   implementation(libs.slf4j.api)
   implementation(libs.caffeine)
 
@@ -56,6 +58,10 @@ dependencies {
 
   testFixturesApi(libs.assertj.core)
   testFixturesApi(libs.mockito.core)
+
+  testFixturesApi(libs.auth0.jwt)
+
+  testFixturesApi(libs.bouncycastle.bcpkix)
 
   testFixturesApi(libs.mockserver.netty)
   testFixturesApi(libs.mockserver.client.java)

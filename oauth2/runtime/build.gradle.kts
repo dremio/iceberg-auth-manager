@@ -61,9 +61,13 @@ dependencies {
 
 tasks.shadowJar {
   archiveClassifier = "" // publish the shadowed JAR instead of the original JAR
+  // relocate dependencies that are specific to the AuthManager
+  relocate("com.auth0.jwt", "com.dremio.iceberg.authmgr.shaded.com.auth0.jwt")
   // relocate to same packages as in Iceberg runtime jars
   relocate("com.fasterxml.jackson", "org.apache.iceberg.shaded.com.fasterxml.jackson")
   relocate("com.github.benmanes", "org.apache.iceberg.shaded.com.github.benmanes")
+  // exclude module-info.class
+  exclude("META-INF/**/module-info.class")
 }
 
 // Configure the source jar to copy from the core project's source jar

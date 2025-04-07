@@ -44,6 +44,12 @@ To enable this OAuth2 `AuthManager`, set the `rest.auth.type` configuration prop
 All configuration options are prefixed with `rest.auth.oauth2.`. See the
 [Configuration](./configuration.md) section for a full list of configuration options.
 
+## Client Authentication
+
+The Dremio AuthManager for Apache Iceberg supports several client authentication methods. See the
+[Client Authentication](./client-authentication.md) section for more details on how to configure
+client authentication.
+
 ## Impersonation & Delegation
 
 The Dremio AuthManager for Apache Iceberg supports impersonation and delegation using the

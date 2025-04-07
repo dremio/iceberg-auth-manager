@@ -67,6 +67,7 @@ public class KeycloakTestEnvironment extends TestEnvironmentExtension
         .authorizationEndpoint(keycloak.getAuthEndpoint())
         .deviceAuthorizationEndpoint(keycloak.getDeviceAuthEndpoint())
         .accessTokenLifespan(keycloak.getAccessTokenLifespan())
+        // must be set to the same values as the main client
         .impersonationClientId(TestConstants.CLIENT_ID1)
         .impersonationClientSecret(TestConstants.CLIENT_SECRET1)
         .impersonationScopes(List.of(TestConstants.SCOPE1))
