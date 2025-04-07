@@ -31,7 +31,8 @@ public final class FlowContextFactory {
   public static FlowContext createFlowContext(OAuth2AgentSpec spec, RESTClient restClient) {
     EndpointProvider endpointProvider =
         EndpointProviderFactory.createEndpointProvider(spec, restClient);
-    ClientAuthenticator clientAuthenticator = ClientAuthenticatorFactory.createAuthenticator(spec);
+    ClientAuthenticator clientAuthenticator =
+        ClientAuthenticatorFactory.createAuthenticator(spec, endpointProvider);
     return ImmutableFlowContext.builder()
         .restClient(restClient)
         .endpointProvider(endpointProvider)
@@ -56,7 +57,7 @@ public final class FlowContextFactory {
     EndpointProvider endpointProvider =
         EndpointProviderFactory.createImpersonatingEndpointProvider(spec, restClient);
     ClientAuthenticator clientAuthenticator =
-        ClientAuthenticatorFactory.createImpersonatingAuthenticator(spec);
+        ClientAuthenticatorFactory.createImpersonatingAuthenticator(spec, endpointProvider);
     return ImmutableFlowContext.builder()
         .restClient(restClient)
         .endpointProvider(endpointProvider)
