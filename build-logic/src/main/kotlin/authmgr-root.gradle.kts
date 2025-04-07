@@ -14,20 +14,46 @@
  * limitations under the License.
  */
 
+import com.diffplug.spotless.FormatterFunc
 import org.jetbrains.gradle.ext.copyright
 import org.jetbrains.gradle.ext.encodings
 import org.jetbrains.gradle.ext.settings
+import java.io.Serializable
 
 plugins {
   id("com.diffplug.spotless")
   id("org.jetbrains.gradle.plugin.idea-ext")
 }
 
+
 spotless {
+  java {
+    target("src/main/java/**/*.java", "src/testFixtures/java/**/*.java", "src/test/java/**/*.java")
+    googleJavaFormat()
+    licenseHeaderFile(rootProject.file("codestyle/copyright-header-java.txt"))
+    endWithNewline()
+    custom(
+      "disallowWildcardImports",
+      object : Serializable, FormatterFunc {
+        override fun apply(text: String): String {
+          val regex = "~/import .*\\.\\*;/".toRegex()
+          if (regex.matches(text)) {
+            throw GradleException("Wildcard imports disallowed - ${regex.findAll(text)}")
+          }
+          return text
+        }
+      },
+    )
+    toggleOffOn()
+  }
   kotlinGradle {
     ktfmt().googleStyle()
     licenseHeaderFile(rootProject.file("codestyle/copyright-header-java.txt"), "$")
-    target("*.gradle.kts", "build-logic/*.gradle.kts", "build-logic/src/**/*.kt*")
+    target("*.gradle.kts")
+  }
+  format("markdown") {
+    target("**/*.md")
+    licenseHeaderFile(rootProject.file("codestyle/copyright-header-md.txt"), "#")
   }
 }
 

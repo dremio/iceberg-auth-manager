@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-import com.diffplug.spotless.FormatterFunc
-import java.io.Serializable
 import net.ltgt.gradle.errorprone.errorprone
 import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.api.tasks.testing.Test
@@ -145,41 +143,6 @@ dependencies {
       GradleException("mockito-core not declared in libs.versions.toml")
     }
   )
-}
-
-spotless {
-  java {
-    target("src/main/java/**/*.java", "src/testFixtures/java/**/*.java", "src/test/java/**/*.java")
-    googleJavaFormat()
-    licenseHeaderFile(rootProject.file("codestyle/copyright-header-java.txt"))
-    endWithNewline()
-    custom(
-      "disallowWildcardImports",
-      object : Serializable, FormatterFunc {
-        override fun apply(text: String): String {
-          val regex = "~/import .*\\.\\*;/".toRegex()
-          if (regex.matches(text)) {
-            throw GradleException("Wildcard imports disallowed - ${regex.findAll(text)}")
-          }
-          return text
-        }
-      },
-    )
-    toggleOffOn()
-  }
-  kotlinGradle {
-    ktfmt().googleStyle()
-    licenseHeaderFile(rootProject.file("codestyle/copyright-header-java.txt"), "$")
-    target("*.gradle.kts")
-  }
-  format("xml") {
-    target("src/**/*.xml", "src/**/*.xsd")
-    targetExclude("codestyle/copyright-header.xml")
-    eclipseWtp(com.diffplug.spotless.extra.wtp.EclipseWtpFormatterStep.XML)
-      .configFile(rootProject.file("codestyle/org.eclipse.wst.xml.core.prefs"))
-    // getting the license-header delimiter right is a bit tricky.
-    // licenseHeaderFile(rootProject.file("codestyle/copyright-header.xml"), '<^[!?].*$')
-  }
 }
 
 dependencies { errorprone(versionCatalogs.named("libs").findLibrary("errorprone").get()) }
