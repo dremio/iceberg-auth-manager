@@ -47,12 +47,6 @@ jobs:
           repository: apache/iceberg
           path: iceberg
 
-      - name: Checkout Apache Polaris
-        uses: actions/checkout@v4
-        with:
-          repository: apache/polaris
-          path: polaris
-
       - name: Checkout Project
         uses: actions/checkout@v4
         with:
@@ -84,15 +78,6 @@ jobs:
             :iceberg-core:publishToMavenLocal \
             :iceberg-common:publishToMavenLocal \
             :iceberg-bundled-guava:publishToMavenLocal
-
-      - name: Gradle Build Apache Polaris
-        env:
-          GITHUB_WORKSPACE: ${{ github.workspace }}
-        run: |
-          cd $GITHUB_WORKSPACE/polaris
-          ./gradlew :polaris-quarkus-server:imageBuild \
-            -Dquarkus.container-image.tag=latest \
-            -Dquarkus.container-image.build=true
 
       - name: Gradle Build Project
         env:

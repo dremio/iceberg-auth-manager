@@ -36,7 +36,8 @@ public class PolarisContainer implements AutoCloseable {
   @SuppressWarnings("resource")
   public PolarisContainer() {
     polaris =
-        new GenericContainer<>("apache/polaris:latest")
+        // FIXME use an official Apache Polaris image when available
+        new GenericContainer<>("alexdut/polaris-unstable:20250408-4fc96b56")
             .withLogConsumer(new Slf4jLogConsumer(LOGGER))
             .withExposedPorts(8181, 8182)
             .waitingFor(
