@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import java.net.URI
 import org.nosphere.apache.rat.RatTask
 
 buildscript { repositories { maven { url = java.net.URI("https://plugins.gradle.org/m2/") } } }
