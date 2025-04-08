@@ -55,6 +55,17 @@ spotless {
     target("**/*.md")
     licenseHeaderFile(rootProject.file("codestyle/copyright-header-md.txt"), "#")
   }
+  yaml {
+    target("**/*.yml", "**/*.yaml")
+    // delimiter can be:
+    // - a comment sign not followed by another comment sign (reserved for the license header)
+    // - a YAML document separator
+    // - the beginning of a YAML document (key-value pair)
+    licenseHeaderFile(
+      rootProject.file("codestyle/copyright-header-yaml.txt"),
+      " *(#(?!#)|---|[^:#\\s\\{/]+\\s*:)",
+    )
+  }
 }
 
 if (System.getProperty("idea.sync.active").toBoolean()) {
