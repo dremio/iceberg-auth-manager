@@ -45,7 +45,7 @@ public class UriBuilder {
   public UriBuilder(URI baseUri) {
     if (baseUri.getScheme() == null
         || baseUri.getScheme().isEmpty()
-        || !baseUri.getScheme().equals("http") && !baseUri.getScheme().equals("https")) {
+        || (!baseUri.getScheme().equals("http") && !baseUri.getScheme().equals("https"))) {
       throw new IllegalArgumentException("baseUri must have an HTTP or HTTPS scheme");
     }
     this.baseUri = requireNonNull(baseUri, "baseUri is null");

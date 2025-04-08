@@ -68,6 +68,7 @@ public abstract class InteractiveUserEmulator implements UserEmulator {
   private volatile Throwable error;
   private volatile Consumer<Throwable> errorListener;
 
+  @SuppressWarnings("FutureReturnValueIgnored")
   public InteractiveUserEmulator(String agentName, String username, String password) {
     this.agentName = agentName;
     this.username = username;
@@ -102,6 +103,7 @@ public abstract class InteractiveUserEmulator implements UserEmulator {
     this.errorListener = callback;
   }
 
+  @SuppressWarnings("FutureReturnValueIgnored")
   private void readConsole() {
     try {
       String line;

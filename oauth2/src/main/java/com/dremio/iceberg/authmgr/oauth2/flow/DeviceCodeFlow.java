@@ -69,6 +69,7 @@ class DeviceCodeFlow extends AbstractFlow {
   private volatile Duration pollInterval;
   private volatile Future<?> pollFuture;
 
+  @SuppressWarnings("FutureReturnValueIgnored")
   DeviceCodeFlow(OAuth2AgentSpec spec, RESTClient restClient, EndpointResolver endpointResolver) {
     super(spec, restClient, endpointResolver);
     console = spec.getRuntimeConfig().getConsole();

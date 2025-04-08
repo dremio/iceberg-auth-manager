@@ -19,6 +19,7 @@ import static java.lang.String.format;
 import static java.lang.String.join;
 
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
+import com.google.errorprone.annotations.FormatMethod;
 import java.util.List;
 import org.immutables.value.Value;
 
@@ -38,13 +39,15 @@ interface ConfigViolation {
   }
 
   static ConfigViolation of(String offendingKey, String message) {
-    return of(List.of(offendingKey), message);
+    return of(List.of(offendingKey), "%s", message);
   }
 
+  @FormatMethod
   static ConfigViolation of(String offendingKey, String message, Object... args) {
     return of(offendingKey, format(message, args));
   }
 
+  @FormatMethod
   static ConfigViolation of(List<String> offendingKeys, String message, Object... args) {
     return ImmutableConfigViolation.of(offendingKeys, format(message, args));
   }

@@ -26,6 +26,7 @@ import com.dremio.iceberg.authmgr.oauth2.rest.AuthorizationCodeTokenRequest;
 import com.dremio.iceberg.authmgr.oauth2.token.Tokens;
 import com.dremio.iceberg.authmgr.oauth2.uri.UriBuilder;
 import com.dremio.iceberg.authmgr.oauth2.uri.UriUtils;
+import com.google.errorprone.annotations.FormatMethod;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
@@ -102,6 +103,7 @@ class AuthorizationCodeFlow extends AbstractFlow {
    */
   private final Phaser inflightRequestsPhaser = new Phaser(1);
 
+  @SuppressWarnings("FutureReturnValueIgnored")
   AuthorizationCodeFlow(
       OAuth2AgentSpec spec, RESTClient restClient, EndpointResolver endpointResolver) {
     super(spec, restClient, endpointResolver);
@@ -213,6 +215,7 @@ class AuthorizationCodeFlow extends AbstractFlow {
    * Subsequent requests will be processed immediately. The response to the request will be delayed
    * until the tokens are received.
    */
+  @SuppressWarnings("FutureReturnValueIgnored")
   private void doRequest(HttpExchange exchange) {
     LOGGER.debug("Authorization Code Flow: received request");
     inflightRequestsPhaser.register();
@@ -291,6 +294,7 @@ class AuthorizationCodeFlow extends AbstractFlow {
     }
   }
 
+  @FormatMethod
   private static void writeResponse(
       HttpExchange exchange, int status, String htmlTemplate, Object... args) throws IOException {
     String html = String.format(htmlTemplate, args);

@@ -467,6 +467,7 @@ public final class OAuth2Properties {
     public static final String EXTRA_PARAMS_PREFIX = Impersonation.PREFIX + "extra-params.";
   }
 
+  @SuppressWarnings("JavaLangClash")
   public static final class Runtime {
 
     public static final String PREFIX = OAuth2Properties.PREFIX + "runtime.";

@@ -25,12 +25,14 @@ public final class ConfigValidator {
 
   private final List<ConfigViolation> violations = new ArrayList<>();
 
+  @SuppressWarnings("FormatStringAnnotation")
   public void check(boolean cond, String offendingKey, String msg, Object... args) {
     if (!cond) {
       violations.add(ConfigViolation.of(offendingKey, msg, args));
     }
   }
 
+  @SuppressWarnings("FormatStringAnnotation")
   public void check(boolean cond, List<String> offendingKeys, String msg, Object... args) {
     if (!cond) {
       violations.add(ConfigViolation.of(offendingKeys, msg, args));

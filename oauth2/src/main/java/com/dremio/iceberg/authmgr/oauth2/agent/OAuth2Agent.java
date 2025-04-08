@@ -342,6 +342,7 @@ public final class OAuth2Agent implements Closeable {
     return null;
   }
 
+  @SuppressWarnings("FutureReturnValueIgnored")
   private void maybeWarn(String message, Throwable error) {
     Instant now = clock.instant();
     Instant last = lastWarn;
