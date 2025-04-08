@@ -26,6 +26,8 @@ plugins {
   alias(libs.plugins.rat)
 }
 
+apply<ReleaseSupportPlugin>()
+
 val projectName = rootProject.file("ide-name.txt").readText().trim()
 val ideName = "$projectName ${rootProject.version.toString().replace("^([0-9.]+).*", "\\1")}"
 
@@ -38,8 +40,6 @@ if (System.getProperty("idea.sync.active").toBoolean()) {
 }
 
 eclipse { project { name = ideName } }
-
-tasks.withType(JavaCompile::class.java).configureEach { options.release = 11 }
 
 tasks.named<RatTask>("rat").configure {
   // These are Gradle file pattern syntax
