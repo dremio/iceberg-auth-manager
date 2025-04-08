@@ -99,7 +99,7 @@ jobs:
           GITHUB_WORKSPACE: ${{ github.workspace }}
         run: |
           cd $GITHUB_WORKSPACE/authmgr
-          ./gradlew --continue build
+          ./gradlew --continue --scan build
 
       - name: Archive Test Results
         uses: actions/upload-artifact@v4
