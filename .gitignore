@@ -27,6 +27,9 @@ gradle/wrapper/gradle-wrapper-*.sha256
 # Cache of project
 .gradletasknamecache
 
+# User configurable, not tracked in Git
+/auth-manager-build.properties
+
 # Eclipse Gradle plugin generated files
 # Eclipse Core
 .project

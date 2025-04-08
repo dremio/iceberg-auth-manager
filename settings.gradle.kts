@@ -18,8 +18,18 @@ import java.util.Properties
 
 includeBuild("build-logic") { name = "authmgr-build-logic" }
 
-if (!JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_21)) {
-  throw GradleException("Build requires Java 21")
+var authMangerBuild = file("auth-manager-build.properties")
+
+if (authMangerBuild.exists()) {
+  val props = loadProperties(authMangerBuild)
+  val icebergDir = props.getProperty("included-build.iceberg.directory")
+  if (!(icebergDir ?: "").isEmpty()) {
+    includeBuild(icebergDir) { name = "iceberg" }
+  }
+}
+
+if (!JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_11)) {
+  throw GradleException("Build requires Java 11 or later")
 }
 
 val baseVersion = file("version.txt").readText().trim()
