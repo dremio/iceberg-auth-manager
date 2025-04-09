@@ -24,7 +24,6 @@ import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
 import com.dremio.iceberg.authmgr.oauth2.token.AccessToken;
 import com.dremio.iceberg.authmgr.oauth2.token.RefreshToken;
 import com.dremio.iceberg.authmgr.oauth2.token.Tokens;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
@@ -48,29 +47,6 @@ class ImpersonatingTokenExchangeFlowTest {
         Flow flow = env.newImpersonationFlow()) {
       Tokens tokens = flow.fetchNewTokens(currentTokens);
       assertTokens(tokens, "access_impersonated", "refresh_initial");
-    }
-  }
-
-  @Test
-  void resolvedTokenEndpoint() {
-    // should use token endpoint from impersonation config
-    try (TestEnvironment env = TestEnvironment.builder().impersonationEnabled(true).build();
-        ImpersonatingTokenExchangeFlow flow =
-            (ImpersonatingTokenExchangeFlow) env.newImpersonationFlow()) {
-      //
-      // assertThat(flow.getResolvedTokenEndpoint()).isEqualTo(env.getImpersonationTokenEndpoint());
-    }
-    // should use token endpoint from impersonation config (discovery disabled)
-    try (TestEnvironment env =
-            TestEnvironment.builder()
-                .impersonationEnabled(true)
-                .discoveryEnabled(false)
-                .impersonationDiscoveryEnabled(false)
-                .build();
-        ImpersonatingTokenExchangeFlow flow =
-            (ImpersonatingTokenExchangeFlow) env.newImpersonationFlow()) {
-      //
-      // assertThat(flow.getResolvedTokenEndpoint()).isEqualTo(env.getImpersonationTokenEndpoint());
     }
   }
 }
