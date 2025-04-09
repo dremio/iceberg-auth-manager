@@ -64,7 +64,7 @@ class BasicConfigTest {
             BasicConfig.builder()
                 .clientId("Client1")
                 .clientSecret("s3cr3t")
-                .issuerUrl(URI.create("/realms/master")),
+                .issuerUrl(URI.create("realms/master")),
             singletonList("Issuer URL must not be relative (rest.auth.oauth2.issuer-url)")),
         Arguments.of(
             BasicConfig.builder()
@@ -120,6 +120,13 @@ class BasicConfigTest {
                 .grantType(GrantType.REFRESH_TOKEN),
             singletonList(
                 "grant type must be one of: 'client_credentials', 'password', 'authorization_code', 'device_code', 'token_exchange' (rest.auth.oauth2.grant-type)")),
+        Arguments.of(
+            BasicConfig.builder()
+                .clientId("Client1")
+                .clientSecret("s3cr3t")
+                .tokenEndpoint(URI.create("/tokens")),
+            singletonList(
+                "Token endpoint must not start with a slash when it's a relative URL (rest.auth.oauth2.token-endpoint)")),
         Arguments.of(
             BasicConfig.builder()
                 .clientSecret("s3cr3t")
