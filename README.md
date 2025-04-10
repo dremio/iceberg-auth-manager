@@ -32,11 +32,6 @@ with Iceberg REST, allowing for easier migration from the latter to the former.
 To get started with Dremio AuthManager for Apache Iceberg, you can follow the instructions in the
 [documentation](./docs).
 
-## Disclaimer
-
-This project is still in its early stages and is not yet ready for production use. The API and
-functionality may change significantly in future releases.
-
 ## License
 
 Copyright (C) 2025 Dremio Corporation
