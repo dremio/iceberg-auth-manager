@@ -306,16 +306,12 @@ For token exchanges only. The logical name of the target service where the clien
 use the requested security token. This serves a purpose similar to the resource parameter but
 with the client providing a logical name for the target service.
 
-### `rest.auth.oauth2.token-exchange.current_access_token`
-
-null
-
 ### `rest.auth.oauth2.token-exchange.subject-token`
 
 For token exchanges only. The subject token to exchange. This can take 2 kinds of values:
 
 <ul>
-  <li>The value `rest.auth.oauth2.token-exchange.current_access_token`, if the agent should use its current access
+  <li>The value <code>current_access_token</code>, if the agent should use its current access
       token;
   <li>An arbitrary token: in this case, the agent will always use the static token provided
       here.
@@ -338,7 +334,7 @@ if an incorrect token type is provided here, the token exchange could fail.
 For token exchanges only. The actor token to exchange. This can take 2 kinds of values:
 
 <ul>
-  <li>The value `rest.auth.oauth2.token-exchange.current_access_token`, if the agent should use its current access
+  <li>The value <code>current_access_token</code>, if the agent should use its current access
       token;
   <li>An arbitrary token: in this case, the agent will always use the static token provided
       here.
@@ -358,7 +354,7 @@ an incorrect token type is provided here, the token exchange could fail.
 
 ### `rest.auth.oauth2.runtime.agent-name`
 
-The distinctive name of the OAuth2 agent. Defaults to `rest.auth.oauth2.runtime.oauth2-agent`. This name
+The distinctive name of the OAuth2 agent. Defaults to `oauth2-agent`. This name
 is printed in all log messages and user prompts.
 
 ### `rest.auth.oauth2.runtime.session-cache-timeout`
