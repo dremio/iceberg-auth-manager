@@ -144,7 +144,7 @@ rest.auth.oauth2.extra-params.audience=https://iceberg-rest-catalog/api
 
 ### `rest.auth.oauth2.dialect`
 
-The OAuth2 dialect. Possible values are: <code>STANDARD</code> and <code>ICEBERG</code>.
+The OAuth2 dialect. Possible values are: `standard` and `iceberg_rest`.
 
 If the Iceberg dialect is selected, the agent will behave exactly like the built-in OAuth2
 manager from Iceberg Core. This dialect should only be selected if the token endpoint is
@@ -162,8 +162,8 @@ The Iceberg dialect's main differences from standard OAuth2 are:
       authentication.
 </ul>
 
-Optional. The default value is <code>ICEBERG</code> if either `rest.auth.oauth2.token` is provided
-or `rest.auth.oauth2.token-endpoint` contains a relative URI, and <code>STANDARD</code> otherwise.
+Optional. The default value is `iceberg_rest` if either `rest.auth.oauth2.token` is provided
+or `rest.auth.oauth2.token-endpoint` contains a relative URI, and `standard` otherwise.
 
 ## Token Refresh Settings
 
@@ -259,7 +259,8 @@ Optional; if not present, a default context path will be used.
 
 ### `rest.auth.oauth2.auth-code.timeout`
 
-Defines how long the agent should wait for the authorization code flow to complete. This is only
+Defines how long the agent should wait for the authorization code flow to complete. In other words,
+how long the agent should wait for the user to log in and authorize the application. This is only
 used if the grant type to use is `authorization_code`. Optional, defaults to `PT5M`.
 
 ### `rest.auth.oauth2.auth-code.pkce.enabled`
@@ -284,7 +285,8 @@ must be set.
 
 ### `rest.auth.oauth2.device-code.timeout`
 
-Defines how long the agent should wait for the device code flow to complete. This is only
+Defines how long the agent should wait for the device code flow to complete.  In other words,
+how long the agent should wait for the user to log in and authorize the application. This is only
 used if the grant type to use is `device_code`. Optional, defaults to
 `PT5M`.
 
@@ -354,7 +356,7 @@ an incorrect token type is provided here, the token exchange could fail.
 
 ### `rest.auth.oauth2.runtime.agent-name`
 
-The distinctive name of the OAuth2 agent. Defaults to `oauth2-agent`. This name
+The distinctive name of the OAuth2 agent. Defaults to `iceberg-auth-manager`. This name
 is printed in all log messages and user prompts.
 
 ### `rest.auth.oauth2.runtime.session-cache-timeout`

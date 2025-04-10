@@ -502,7 +502,7 @@ public abstract class TestEnvironment implements AutoCloseable {
 
   @Value.Default
   public String getAgentName() {
-    return "oauth2-agent-" + FlowUtils.randomAlphaNumString(4);
+    return "iceberg-auth-manager-" + FlowUtils.randomAlphaNumString(4);
   }
 
   @Value.Derived

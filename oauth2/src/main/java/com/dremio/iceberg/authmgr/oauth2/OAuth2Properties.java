@@ -149,7 +149,7 @@ public final class OAuth2Properties {
     public static final String EXTRA_PARAMS_PREFIX = PREFIX + "extra-params.";
 
     /**
-     * The OAuth2 dialect. Possible values are: {@code STANDARD} and {@code ICEBERG}.
+     * The OAuth2 dialect. Possible values are: {@code standard} and {@code iceberg_rest}.
      *
      * <p>If the Iceberg dialect is selected, the agent will behave exactly like the built-in OAuth2
      * manager from Iceberg Core. This dialect should only be selected if the token endpoint is
@@ -167,8 +167,8 @@ public final class OAuth2Properties {
      *       authentication.
      * </ul>
      *
-     * Optional. The default value is {@code ICEBERG} if either {@value #TOKEN} is provided or
-     * {@value #TOKEN_ENDPOINT} contains a relative URI, and {@code STANDARD} otherwise.
+     * Optional. The default value is {@code iceberg_rest} if either {@value #TOKEN} is provided or
+     * {@value #TOKEN_ENDPOINT} contains a relative URI, and {@code standard} otherwise.
      */
     public static final String DIALECT = PREFIX + "dialect";
   }
@@ -293,9 +293,10 @@ public final class OAuth2Properties {
         AuthorizationCode.PREFIX + "callback-context-path";
 
     /**
-     * Defines how long the agent should wait for the authorization code flow to complete. This is
-     * only used if the grant type to use is {@value GrantCommonNames#AUTHORIZATION_CODE}. Optional,
-     * defaults to {@value #DEFAULT_TIMEOUT}.
+     * Defines how long the agent should wait for the authorization code flow to complete. In other
+     * words, how long the agent should wait for the user to log in and authorize the application.
+     * This is only used if the grant type to use is {@value GrantCommonNames#AUTHORIZATION_CODE}.
+     * Optional, defaults to {@value #DEFAULT_TIMEOUT}.
      */
     public static final String TIMEOUT = AuthorizationCode.PREFIX + "timeout";
 
@@ -333,9 +334,10 @@ public final class OAuth2Properties {
     public static final String ENDPOINT = DeviceCode.PREFIX + "endpoint";
 
     /**
-     * Defines how long the agent should wait for the device code flow to complete. This is only
-     * used if the grant type to use is {@value GrantCommonNames#DEVICE_CODE}. Optional, defaults to
-     * {@value #DEFAULT_TIMEOUT}.
+     * Defines how long the agent should wait for the device code flow to complete. In other words,
+     * how long the agent should wait for the user to log in and authorize the application. This is
+     * only used if the grant type to use is {@value GrantCommonNames#DEVICE_CODE}. Optional,
+     * defaults to {@value #DEFAULT_TIMEOUT}.
      */
     public static final String TIMEOUT = DeviceCode.PREFIX + "timeout";
 
@@ -516,7 +518,7 @@ public final class OAuth2Properties {
      */
     public static final String AGENT_NAME = Runtime.PREFIX + "agent-name";
 
-    public static final String DEFAULT_AGENT_NAME = "oauth2-agent";
+    public static final String DEFAULT_AGENT_NAME = "iceberg-auth-manager";
 
     /**
      * The session cache timeout. Cached sessions will become eligible for eviction after this
