@@ -22,7 +22,7 @@ This project contains an implementation of Apache Iceberg's `AuthManager` API fo
 ## Installation & Configuration
 
 To install the Dremio AuthManager for Apache Iceberg, you can follow the instructions in the
-[installation](./installation) section.
+[installation](./installation.md) section.
 
 ## Configuration
 
@@ -30,12 +30,12 @@ To enable this OAuth2 `AuthManager`, set the `rest.auth.type` configuration prop
 `com.dremio.iceberg.authmgr.oauth2.OAuth2Manager`.
 
 All configuration options are prefixed with `rest.auth.oauth2,`. See the
-[Configuration](./configuration) section for a full list of configuration options.
+[Configuration](./configuration.md) section for a full list of configuration options.
 
 ## Impersonation & Delegation
 
 The Dremio AuthManager for Apache Iceberg supports impersonation and delegation using the
-token exchange grant type. See the [Impersonation & Delegation](./impersonation) section for more
+token exchange grant type. See the [Impersonation & Delegation](./impersonation.md) section for more
 details on how to configure impersonation and delegation.
 
 ## Dialects
@@ -47,5 +47,5 @@ Two "dialects" of OAuth2 are supported:
 - `iceberg_rest`: this dialect reproduces the behavior of Iceberg REST's built-in OAuth2
   `AuthManager` and exhibits some non-standard behavior.
 
-For more details on the differences between the two dialects, see the [Dialects](./dialects)
+For more details on the differences between the two dialects, see the [Dialects](./dialects.md)
 section.

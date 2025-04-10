@@ -58,5 +58,5 @@ spark.jars /path/to/authmgr-oauth2-x.y.z-runtime.jar
 ```
 
 Once the jar is added to the classpath, you can use the Dremio AuthManager for Apache Iceberg in
-your Spark applications. See the [configuration](./configuration) section for more details on how to
-configure the Dremio AuthManager for Apache Iceberg.
+your Spark applications. See the [configuration](./configuration.md) section for more details on how
+to configure the Dremio AuthManager for Apache Iceberg.
