@@ -17,13 +17,28 @@ limitations under the License.
 
 This project contains an implementation of Apache Iceberg's `AuthManager` API for OAuth2.
 
-It is a general-purpose implementation that is compatible with any Apache Iceberg REST
-catalog. It aims at providing a more flexible and extensible OAuth2 manager than the one bundled
-with Iceberg REST, while strictly adhering to the OAuth2 standards.
+## Overview
 
-This `OAuthManager` can serve as a drop-in replacement for the built-in OAuth2 `AuthManager` bundled
+Dremio AuthManager for Apache Iceberg is an OAuth2 manager for Apache Iceberg REST. It is a
+general-purpose implementation that is compatible with any Apache Iceberg REST catalog. It aims at
+providing a more flexible and extensible OAuth2 manager than the one bundled with Iceberg REST,
+while strictly adhering to the OAuth2 standards.
+
+This `OAuthManager` can serve as a drop-in replacement for the built-in `OAuth2Manager` bundled
 with Iceberg REST, allowing for easier migration from the latter to the former.
 
+## Getting Started
+
+To get started with Dremio AuthManager for Apache Iceberg, you can follow the instructions in the
+[documentation](./docs).
+
+## Disclaimer
+
+This project is still in its early stages and is not yet ready for production use. The API and
+functionality may change significantly in future releases.
+
 ## License
+
+Copyright (C) 2025 Dremio Corporation
 
 This project is under the Apache License Version 2.0. See the [LICENSE](LICENSE).

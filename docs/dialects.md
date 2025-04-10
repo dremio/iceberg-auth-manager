@@ -13,26 +13,24 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-# Apache Iceberg AuthManager Implementation for OAuth2
+# Dremio AuthManager for Apache Iceberg - Supported Dialects
 
 ## Overview
 
-This project contains an implementation of Apache Iceberg's `AuthManager` API for OAuth2.
+Two "dialects" of OAuth2 are supported:
 
-It supports two "dialects" of OAuth2:
-
-- "standard": this dialect is based on the OAuth2 standard, as defined
+- `standard`: this dialect is based on the OAuth2 standard, as defined
   in [RFC 6749](https://tools.ietf.org/html/rfc6749).
-- "iceberg_rest": this dialect reproduces the behavior of Iceberg REST's built-in OAuth2 
+- `iceberg_rest`: this dialect reproduces the behavior of Iceberg REST's built-in OAuth2 
   `AuthManager` and exhibits some non-standard behavior.
 
-## Enablement & Configuration
+The dialect to use can be selected with the `rest.auth.oauth2.dialect` property. 
+By default, the dialect is set to `iceberg_rest` if either:
 
-To enable this OAuth2 `AuthManager`, set the `rest.auth.type` configuration property to
-`com.dremio.iceberg.authmgr.oauth2.OAuth2Manager`.
+* The `rest.auth.oauth2.token` property is set, or
+* The `rest.auth.oauth2.token-endpoint` property is set to a relative URL.
 
-All configuration options are prefixed with `rest.auth.oauth2,`. See `OAuth2Properties` for a full
-list of configuration options.
+In all other cases, the dialect is set to `standard`.
 
 ## Differences between "Standard" and "Iceberg" Dialects
 
@@ -65,9 +63,8 @@ The standard dialect instead follows the OAuth2 standard for token refreshes:
 The Iceberg dialect does not support delegation or impersonation. 
 
 The standard dialect supports both, allowing a user to act on behalf of another user by
-configuring a token exchange grant appropriately. In general, the token exchange happens 
-immediately after the initial token fetch, and the impersonated user is specified in the
-`subject_token` property of the token exchange request.
+configuring a token exchange grant appropriately. See [Impersonation & Delegation](./impersonation)
+for more details.
 
 ### Support for Context- and Table-level Authentication
 
@@ -86,8 +83,8 @@ OAuth2 provider.
 
 ### Support for Externally-provided Tokens
 
-Iceberg REST's built-in OAuth2 `AuthManager` supports externally-provided tokens. Such tokens are
-used as-is, without any validation, and cannot be refreshed when the OAuth2 provider is an external
-system.
+Iceberg REST's built-in OAuth2 `AuthManager` supports externally-provided tokens, mostly via the
+`token` property. Such tokens are used as-is, without any validation, and cannot be refreshed when
+the OAuth2 provider is an external system.
 
 This `AuthManager` also support externally-provided tokens, but does not encourage their use.
