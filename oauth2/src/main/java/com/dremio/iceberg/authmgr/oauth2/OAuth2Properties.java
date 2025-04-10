@@ -434,9 +434,7 @@ public final class OAuth2Properties {
      * For impersonation only. The root URL of an alternate OpenID Connect identity issuer provider,
      * to use when exchanging tokens only.
      *
-     * <p>If neither this property nor {@value #TOKEN_ENDPOINT} are defined, the global token
-     * endpoint will be used. This means that the same authorization server will be used for both
-     * the initial token request and the token exchange.
+     * <p>Either this property or {@value #TOKEN_ENDPOINT} must be set.
      *
      * <p>Endpoint discovery is performed using the OpenID Connect Discovery metadata published by
      * the issuer. See <a href="https://openid.net/specs/openid-connect-discovery-1_0.html">OpenID
@@ -448,21 +446,15 @@ public final class OAuth2Properties {
      * For impersonation only. The URL of an alternate OAuth2 token endpoint to use when exchanging
      * tokens only.
      *
-     * <p>If neither this property nor {@value #ISSUER_URL} are defined, the global token endpoint
-     * will be used. This means that the same authorization server will be used for both the initial
-     * token request and the token exchange.
+     * <p>Either this property or {@value #ISSUER_URL} must be set.
      */
     public static final String TOKEN_ENDPOINT = Impersonation.PREFIX + "token-endpoint";
 
-    /**
-     * For impersonation only. An alternate client ID to use. If not provided, the global client ID
-     * will be used. If provided, and if the client is confidential, then its secret must be
-     * provided as well with {@value #CLIENT_SECRET} – the global client secret will NOT be used.
-     */
+    /** For impersonation only. The OAUth2 client ID to use. */
     public static final String CLIENT_ID = Impersonation.PREFIX + "client-id";
 
     /**
-     * For impersonation only. An alternate client authentication method to use. Valid values are:
+     * For impersonation only. The OAUth2 client authentication method to use. Valid values are:
      *
      * <ul>
      *   <li>{@code none}: the client does not authenticate itself at the token endpoint, because it
@@ -479,15 +471,14 @@ public final class OAuth2Properties {
     public static final String CLIENT_AUTH = PREFIX + "client-auth";
 
     /**
-     * For impersonation only. The client secret to use, if {@value #CLIENT_ID} is defined and the
-     * token exchange client is confidential.
+     * For impersonation only. The OAUth2 client secret to use. Must be set if the client is private
+     * (confidential) and client authentication is done using a client secret.
      */
     public static final String CLIENT_SECRET = Impersonation.PREFIX + "client-secret";
 
     /**
      * For impersonation only. Space-separated list of scopes to include in each token exchange
-     * request to the OAuth2 server. Optional. If undefined, the global scopes configured through
-     * {@value Basic#SCOPE} will be used. If defined and null or empty, no scopes will be used.
+     * request to the OAuth2 server. Optional.
      *
      * <p>The scope names will not be validated by the OAuth2 agent; make sure they are valid
      * according to <a href="https://datatracker.ietf.org/doc/html/rfc6749#section-3.3">RFC 6749
@@ -497,7 +488,8 @@ public final class OAuth2Properties {
 
     /**
      * Extra parameters to include in each request to the token endpoint, when using impersonation.
-     * If not set, the global {@value Basic#EXTRA_PARAMS_PREFIX}, if any will be used.
+     * This is useful for custom parameters that are not covered by the standard OAuth2.0
+     * specification.
      *
      * <p>This is a prefix property, and multiple values can be set, each with a different key and
      * value. See {@value Basic#EXTRA_PARAMS_PREFIX} for more information.
