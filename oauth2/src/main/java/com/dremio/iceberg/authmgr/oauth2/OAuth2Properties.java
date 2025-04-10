@@ -149,7 +149,8 @@ public final class OAuth2Properties {
     public static final String EXTRA_PARAMS_PREFIX = PREFIX + "extra-params.";
 
     /**
-     * The OAuth2 dialect. Possible values are: {@code standard} and {@code iceberg_rest}.
+     * The OAuth2 dialect. Possible values are: {@link Dialect#STANDARD} and {@link
+     * Dialect#ICEBERG_REST}.
      *
      * <p>If the Iceberg dialect is selected, the agent will behave exactly like the built-in OAuth2
      * manager from Iceberg Core. This dialect should only be selected if the token endpoint is
