@@ -15,7 +15,7 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.config.option;
 
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.TokenExchange.CURRENT_ACCESS_TOKEN;
+import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.TokenExchange.DEFAULT_SUBJECT_TOKEN;
 import static com.dremio.iceberg.authmgr.oauth2.token.TypedToken.URN_ACCESS_TOKEN;
 
 import com.dremio.iceberg.authmgr.oauth2.token.TypedToken;
@@ -41,7 +41,7 @@ abstract class TokenProviderConfigOption extends ConfigOption<TokenProvider> {
       if (shouldSetOption(token) || shouldSetOption(tokenTypeStr)) {
         URI tokenType = Optional.ofNullable(tokenTypeStr).map(URI::create).orElse(URN_ACCESS_TOKEN);
         TokenProvider tokenProvider =
-            token == null || token.equalsIgnoreCase(CURRENT_ACCESS_TOKEN)
+            token == null || token.equalsIgnoreCase(DEFAULT_SUBJECT_TOKEN)
                 ? TokenProviders.currentAccessToken(tokenType)
                 : TokenProviders.staticToken(TypedToken.of(token, tokenType));
         setter().accept(tokenProvider);

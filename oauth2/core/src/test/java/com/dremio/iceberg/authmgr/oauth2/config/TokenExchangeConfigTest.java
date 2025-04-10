@@ -18,7 +18,7 @@ package com.dremio.iceberg.authmgr.oauth2.config;
 import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.TokenExchange.ACTOR_TOKEN;
 import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.TokenExchange.ACTOR_TOKEN_TYPE;
 import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.TokenExchange.AUDIENCE;
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.TokenExchange.CURRENT_ACCESS_TOKEN;
+import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.TokenExchange.DEFAULT_SUBJECT_TOKEN;
 import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.TokenExchange.RESOURCE;
 import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.TokenExchange.SUBJECT_TOKEN;
 import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.TokenExchange.SUBJECT_TOKEN_TYPE;
@@ -216,7 +216,7 @@ class TokenExchangeConfigTest {
   @Test
   void testTokenExchangeDynamicTokens() {
     Map<String, String> properties =
-        Map.of(SUBJECT_TOKEN, CURRENT_ACCESS_TOKEN, ACTOR_TOKEN, CURRENT_ACCESS_TOKEN);
+        Map.of(SUBJECT_TOKEN, DEFAULT_SUBJECT_TOKEN, ACTOR_TOKEN, DEFAULT_SUBJECT_TOKEN);
     TokenExchangeConfig config = TokenExchangeConfig.builder().from(properties).build();
     TypedToken subjectToken =
         config

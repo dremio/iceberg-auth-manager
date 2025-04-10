@@ -226,13 +226,13 @@ public final class OAuth2Properties {
 
     /**
      * Username to use when authenticating against the OAuth2 server. Required if using OAuth2
-     * authentication and "password" grant type, ignored otherwise.
+     * authentication and {@value GrantCommonNames#PASSWORD} grant type, ignored otherwise.
      */
     public static final String USERNAME = ResourceOwner.PREFIX + "username";
 
     /**
      * Password to use when authenticating against the OAuth2 server. Required if using OAuth2
-     * authentication and the "password" grant type, ignored otherwise.
+     * authentication and the {@value GrantCommonNames#PASSWORD} grant type, ignored otherwise.
      */
     public static final String PASSWORD = ResourceOwner.PREFIX + "password";
   }
@@ -371,13 +371,13 @@ public final class OAuth2Properties {
      */
     public static final String AUDIENCE = TokenExchange.PREFIX + "audience";
 
-    public static final String CURRENT_ACCESS_TOKEN = "current_access_token";
+    public static final String DEFAULT_SUBJECT_TOKEN = "current_access_token";
 
     /**
      * For token exchanges only. The subject token to exchange. This can take 2 kinds of values:
      *
      * <ul>
-     *   <li>The value {@value #CURRENT_ACCESS_TOKEN}, if the agent should use its current access
+     *   <li>The value {@value #DEFAULT_SUBJECT_TOKEN}, if the agent should use its current access
      *       token;
      *   <li>An arbitrary token: in this case, the agent will always use the static token provided
      *       here.
@@ -402,7 +402,7 @@ public final class OAuth2Properties {
      * For token exchanges only. The actor token to exchange. This can take 2 kinds of values:
      *
      * <ul>
-     *   <li>The value {@value #CURRENT_ACCESS_TOKEN}, if the agent should use its current access
+     *   <li>The value {@value #DEFAULT_SUBJECT_TOKEN}, if the agent should use its current access
      *       token;
      *   <li>An arbitrary token: in this case, the agent will always use the static token provided
      *       here.
@@ -495,7 +495,12 @@ public final class OAuth2Properties {
      * specification.
      *
      * <p>This is a prefix property, and multiple values can be set, each with a different key and
-     * value. See {@value Basic#EXTRA_PARAMS_PREFIX} for more information.
+     * value. The values must NOT be URL-encoded. Example:
+     *
+     * <pre>{@code
+     * rest.auth.oauth2.impersonation.extra-params.custom_param1=custom_value1"
+     * rest.auth.oauth2.impersonation.extra-params.custom_param2=custom_value2"
+     * }</pre>
      */
     public static final String EXTRA_PARAMS_PREFIX = Impersonation.PREFIX + "extra-params.";
   }
