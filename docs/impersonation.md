@@ -51,9 +51,9 @@ rest.auth.oauth2.scope=catalog1
 # Impersonation settings
 rest.auth.oauth2.impersonation.enabled=true
 rest.auth.oauth2.impersonation.issuer-url=https://$SECONDARY_IDP/realms/secondary
-rest.auth.oauth2.impersonation.scope=catalog2
 rest.auth.oauth2.impersonation.client-id=Client2
 rest.auth.oauth2.impersonation.client-secret=$CLIENT2_SECRET
+rest.auth.oauth2.impersonation.scope=catalog2
 
 # Token exchange settings to customize the impersonation
 rest.auth.oauth2.token-exchange.subject-token-type=urn:ietf:params:oauth:token-type:jwt

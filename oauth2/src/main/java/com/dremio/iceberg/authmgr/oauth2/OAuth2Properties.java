@@ -167,8 +167,8 @@ public final class OAuth2Properties {
      *       authentication.
      * </ul>
      *
-     * Optional. The default value is {@code ICEBERG} if {@value #TOKEN_ENDPOINT} contains a
-     * relative URI, and {@code STANDARD} otherwise.
+     * Optional. The default value is {@code ICEBERG} if either {@value #TOKEN} is provided or
+     * {@value #TOKEN_ENDPOINT} contains a relative URI, and {@code STANDARD} otherwise.
      */
     public static final String DIALECT = PREFIX + "dialect";
   }

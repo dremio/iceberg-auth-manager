@@ -162,8 +162,8 @@ The Iceberg dialect's main differences from standard OAuth2 are:
       authentication.
 </ul>
 
-Optional. The default value is <code>ICEBERG</code> if `rest.auth.oauth2.token-endpoint` contains a
-relative URI, and <code>STANDARD</code> otherwise.
+Optional. The default value is <code>ICEBERG</code> if either `rest.auth.oauth2.token` is provided
+or `rest.auth.oauth2.token-endpoint` contains a relative URI, and <code>STANDARD</code> otherwise.
 
 ## Token Refresh Settings
 

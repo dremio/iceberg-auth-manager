@@ -20,7 +20,7 @@ limitations under the License.
 Two "dialects" of OAuth2 are supported:
 
 - `standard`: this dialect is based on the OAuth2 standard, as defined
-  in [RFC 6749](https://tools.ietf.org/html/rfc6749).
+  in [RFC 6749](https://tools.ietf.org/html/rfc6749) and other RFCs.
 - `iceberg_rest`: this dialect reproduces the behavior of Iceberg REST's built-in OAuth2 
   `AuthManager` and exhibits some non-standard behavior.
 

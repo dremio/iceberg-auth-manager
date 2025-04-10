@@ -19,7 +19,7 @@ limitations under the License.
 
 This project contains an implementation of Apache Iceberg's `AuthManager` API for OAuth2.
 
-## Installation & Configuration
+## Installation
 
 To install the Dremio AuthManager for Apache Iceberg, you can follow the instructions in the
 [installation](./installation.md) section.
@@ -40,12 +40,5 @@ details on how to configure impersonation and delegation.
 
 ## Dialects
 
-Two "dialects" of OAuth2 are supported:
-
-- `standard`: this dialect is based on the OAuth2 standard, as defined
-  in [RFC 6749](https://tools.ietf.org/html/rfc6749) and other RFCs.
-- `iceberg_rest`: this dialect reproduces the behavior of Iceberg REST's built-in OAuth2
-  `AuthManager` and exhibits some non-standard behavior.
-
-For more details on the differences between the two dialects, see the [Dialects](./dialects.md)
-section.
+Two "dialects" of OAuth2 are supported: `standard` and `iceberg_rest`. For more details on the
+differences between the two dialects, see the [Dialects](./dialects.md) section.
