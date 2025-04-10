@@ -74,11 +74,11 @@ Discovery metadata published by the issuer.
 The grant type to use when authenticating against the OAuth2 server. Valid values are:
 
 <ul>
-  <li>`client_credentials`
-  <li>`password`
-  <li>`authorization_code`
-  <li>`device_code`
-  <li>`token_exchange`
+  <li><code>client_credentials</code>
+  <li><code>password</code>
+  <li><code>authorization_code</code>
+  <li><code>device_code</code>
+  <li><code>token_exchange</code>
 </ul>
 
 Optional, defaults to `client_credentials`.
@@ -121,7 +121,7 @@ The scope names will not be validated by the OAuth2 agent; make sure they are va
 according to <a href="https://datatracker.ietf.org/doc/html/rfc6749#section-3.3">RFC 6749
 Section 3.3</a>.
 
-### `rest.auth.oauth2.extra-params.`
+### `rest.auth.oauth2.extra-params.*`
 
 Extra parameters to include in each request to the token endpoint. This is useful for custom
 parameters that are not covered by the standard OAuth2.0 specification. Optional, defaults to
@@ -153,8 +153,8 @@ internal to the REST catalog server, and the server is configured to understand 
 The Iceberg dialect's main differences from standard OAuth2 are:
 
 <ul>
-  <li>Only `client_credentials` grant type is supported;
-  <li>Token refreshes are done with the `token_exchange` grant type;
+  <li>Only <code>client_credentials</code> grant type is supported;
+  <li>Token refreshes are done with the <code>token_exchange</code> grant type;
   <li>Token refreshes are done with Bearer authentication, not Basic authentication;
   <li>Public clients are not supported, however client secrets without client IDs are
       supported;

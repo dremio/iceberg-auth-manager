@@ -95,7 +95,7 @@ token for a new access token using the `urn:ietf:params:oauth:grant-type:token-e
 The `actor-token` property is used to specify the actor token to be used in the token exchange
 request. In this case, the actor token is a JWT token, obtained off-band.
 
-## Impersonation Settings
+## Impersonation & Delegation Settings
 
 ### `rest.auth.oauth2.impersonation.enabled`
 
@@ -153,9 +153,14 @@ The scope names will not be validated by the OAuth2 agent; make sure they are va
 according to <a href="https://datatracker.ietf.org/doc/html/rfc6749#section-3.3">RFC 6749
 Section 3.3</a>.
 
-### `rest.auth.oauth2.impersonation.extra-params.`
+### `rest.auth.oauth2.impersonation.extra-params.*`
 
 Extra parameters to include in each request to the token endpoint, when using impersonation.
 
-This is a prefix property, and multiple values can be set, each with a different key and
-value.
+This is a prefix property, and multiple values can be set, each with a different key and value. The
+values must NOT be URL-encoded. Example:
+
+<pre>
+rest.auth.oauth2.impersonation.extra-params.custom_param1=custom_value1"
+rest.auth.oauth2.impersonation.extra-params.custom_param2=custom_value2"
+</pre>
