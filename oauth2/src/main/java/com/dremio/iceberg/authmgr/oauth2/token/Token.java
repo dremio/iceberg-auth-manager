@@ -15,6 +15,7 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.token;
 
+import com.auth0.jwt.JWT;
 import jakarta.annotation.Nullable;
 import java.time.Instant;
 import org.immutables.value.Value;
@@ -36,7 +37,7 @@ public interface Token {
   @Nullable
   default Instant getJwtExpirationTime() {
     try {
-      return JwtToken.parse(getPayload()).getExpirationTime();
+      return JWT.decode(getPayload()).getExpiresAtAsInstant();
     } catch (Exception ignored) {
       return null;
     }

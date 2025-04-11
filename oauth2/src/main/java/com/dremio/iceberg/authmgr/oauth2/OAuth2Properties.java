@@ -100,6 +100,9 @@ public final class OAuth2Properties {
      *       header.
      *   <li>{@code client_secret_post}: client secret is sent in the request body as a form
      *       parameter.
+     *   <li>{@code client_secret_jwt}: client secret is used to sign a JWT token.
+     *   <li>{@code private_key_jwt}: client authenticates with a JWT assertion signed with a
+     *       private key.
      * </ul>
      *
      * The default is {@code client_secret_basic} if the client is private, or {@code none} if the
@@ -112,7 +115,8 @@ public final class OAuth2Properties {
 
     /**
      * Client secret to use when authenticating against the OAuth2 server. Required if the client is
-     * private.
+     * private and is authenticated using the standard "client-secret" methods. If other
+     * authentication methods are used, this property is ignored.
      */
     public static final String CLIENT_SECRET = PREFIX + "client-secret";
 
@@ -172,6 +176,49 @@ public final class OAuth2Properties {
      * {@value #TOKEN_ENDPOINT} contains a relative URI, and {@code standard} otherwise.
      */
     public static final String DIALECT = PREFIX + "dialect";
+  }
+
+  public static final class ClientAssertion {
+
+    public static final String PREFIX = OAuth2Properties.PREFIX + "client-assertion.jwt.";
+
+    /** The issuer of the client assertion JWT. Optional. The default is the client ID. */
+    public static final String ISSUER = PREFIX + "issuer";
+
+    /** The subject of the client assertion JWT. Optional. The default is the client ID. */
+    public static final String SUBJECT = PREFIX + "subject";
+
+    /** The audience of the client assertion JWT. Optional. The default is the token endpoint. */
+    public static final String AUDIENCE = PREFIX + "audience";
+
+    /** The expiration time of the client assertion JWT. Optional. The default is 5 minutes. */
+    public static final String TOKEN_LIFESPAN = PREFIX + "token-lifespan";
+
+    /**
+     * The signing algorithm to use for the client assertion JWT. Optional. The default is "HS256"
+     * if the authentication method is "client_secret_jwt", or "RS256" if the authentication method
+     * is "private_key_jwt".
+     *
+     * <p>Algorithm names must match either the JWS name or the JCA name of the algorithm.
+     *
+     * @see <a href="https://datatracker.ietf.org/doc/html/rfc7518#section-3.1">RFC 7518 Section
+     *     3.1</a>
+     */
+    public static final String ALGORITHM = PREFIX + "algorithm";
+
+    /**
+     * The path on the local filesystem to the private key to use for signing the client assertion
+     * JWT. Required if the authentication method is "private_key_jwt". The file must be in PEM
+     * format; it may contain a private key, or a private key and a certificate chain. Only the
+     * private key is used.
+     */
+    public static final String PRIVATE_KEY = PREFIX + "private-key";
+
+    /**
+     * Extra claims to include in the client assertion JWT. This is a prefix property, and multiple
+     * values can be set, each with a different key and value.
+     */
+    public static final String EXTRA_CLAIMS_PREFIX = PREFIX + "extra-claims.";
   }
 
   public static final class TokenRefresh {
@@ -466,6 +513,9 @@ public final class OAuth2Properties {
      *       header.
      *   <li>{@code client_secret_post}: client secret is sent in the request body as a form
      *       parameter.
+     *   <li>{@code client_secret_jwt}: client secret is used to sign a JWT token.
+     *   <li>{@code private_key_jwt}: client authenticates with a JWT assertion signed with a
+     *       private key.
      * </ul>
      *
      * The default is {@code client_secret_basic} if the client is private, or {@code none} if the
@@ -498,6 +548,61 @@ public final class OAuth2Properties {
      * value. See {@value Basic#EXTRA_PARAMS_PREFIX} for more information.
      */
     public static final String EXTRA_PARAMS_PREFIX = Impersonation.PREFIX + "extra-params.";
+  }
+
+  public static final class ImpersonationClientAssertion {
+
+    public static final String PREFIX =
+        OAuth2Properties.Impersonation.PREFIX + "client-assertion.jwt.";
+
+    /**
+     * For impersonation only. The issuer of the client assertion JWT. Optional. The default is the
+     * client ID.
+     */
+    public static final String ISSUER = PREFIX + "issuer";
+
+    /**
+     * For impersonation only. The subject of the client assertion JWT. Optional. The default is the
+     * client ID.
+     */
+    public static final String SUBJECT = PREFIX + "subject";
+
+    /**
+     * For impersonation only. The audience of the client assertion JWT. Optional. The default is
+     * the token endpoint.
+     */
+    public static final String AUDIENCE = PREFIX + "audience";
+
+    /**
+     * For impersonation only. The expiration time of the client assertion JWT. Optional. The
+     * default is 5 minutes.
+     */
+    public static final String TOKEN_LIFESPAN = PREFIX + "token-lifespan";
+
+    /**
+     * For impersonation only. The signing algorithm to use for the client assertion JWT. Optional.
+     * The default is "HS256" if the authentication method is "client_secret_jwt", or "RS256" if the
+     * authentication method is "private_key_jwt".
+     *
+     * <p>Algorithm names must match either the JWS name or the JCA name of the algorithm.
+     *
+     * @see <a href="https://datatracker.ietf.org/doc/html/rfc7518#section-3.1">RFC 7518 Section
+     *     3.1</a>
+     */
+    public static final String ALGORITHM = PREFIX + "algorithm";
+
+    /**
+     * For impersonation only. The path on the local filesystem to the private key to use for
+     * signing the client assertion JWT. Required if the authentication method is "private_key_jwt".
+     * The file must be in PEM format, and the first object in the file must be a private key.
+     */
+    public static final String PRIVATE_KEY = PREFIX + "private-key";
+
+    /**
+     * For impersonation only. Extra claims to include in the client assertion JWT. This is a prefix
+     * property, and multiple values can be set, each with a different key and value.
+     */
+    public static final String EXTRA_CLAIMS_PREFIX = PREFIX + "extra-claims.";
   }
 
   @SuppressWarnings("JavaLangClash")

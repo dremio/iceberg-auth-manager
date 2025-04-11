@@ -15,8 +15,11 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.test.container;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.dremio.iceberg.authmgr.oauth2.auth.ClientAuthentication;
 import com.dremio.iceberg.authmgr.oauth2.test.TestConstants;
+import com.dremio.iceberg.authmgr.oauth2.test.TestPemUtils;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import jakarta.ws.rs.core.Response;
@@ -26,7 +29,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import org.assertj.core.api.Assertions;
 import org.keycloak.admin.client.Keycloak;
 import org.keycloak.admin.client.resource.RealmResource;
 import org.keycloak.representations.idm.ClientRepresentation;
@@ -64,11 +66,12 @@ public class KeycloakContainer implements AutoCloseable {
             .withLogConsumer(new Slf4jLogConsumer(LOGGER))
             .withEnv(
                 "KC_LOG_LEVEL", getRootLoggerLevel() + ",org.keycloak:" + getKeycloakLoggerLevel())
-            // Useful when debugging Keycloak REST endpoints:
-            .withExposedPorts(8080, 9000, 5005)
-            .withEnv(
-                "JAVA_TOOL_OPTIONS",
-                "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005");
+            .withExposedPorts(8080, 9000 /*, 5005*/)
+    // Useful when debugging Keycloak REST endpoints:
+    // .withEnv(
+    //    "JAVA_TOOL_OPTIONS",
+    //    "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005")
+    ;
     keycloak.start();
     rootUrl = URI.create(keycloak.getAuthServerUrl());
     issuerUrl = rootUrl.resolve(CONTEXT_PATH);
@@ -86,6 +89,16 @@ public class KeycloakContainer implements AutoCloseable {
           TestConstants.CLIENT_SECRET1,
           ClientAuthentication.CLIENT_SECRET_BASIC);
       createClient(master, TestConstants.CLIENT_ID2, null, ClientAuthentication.NONE);
+      createClient(
+          master,
+          TestConstants.CLIENT_ID3,
+          TestConstants.CLIENT_SECRET3,
+          ClientAuthentication.CLIENT_SECRET_JWT);
+      createClient(
+          master,
+          TestConstants.CLIENT_ID4,
+          TestPemUtils.encodedCertificate(),
+          ClientAuthentication.PRIVATE_KEY_JWT);
     }
   }
 
@@ -146,7 +159,7 @@ public class KeycloakContainer implements AutoCloseable {
             "display.on.consent.screen",
             "true"));
     try (Response response = master.clientScopes().create(scope)) {
-      Assertions.assertThat(response.getStatus()).isEqualTo(201);
+      assertThat(response.getStatus()).isEqualTo(201);
     }
   }
 
@@ -164,23 +177,36 @@ public class KeycloakContainer implements AutoCloseable {
     client.setDirectAccessGrantsEnabled(true); // required for password grant
     client.setStandardFlowEnabled(true); // required for authorization code grant
     client.setRedirectUris(ImmutableList.of("http://localhost:*"));
-    client.setAttributes(
-        ImmutableMap.of(
-            "use.refresh.tokens",
-            "true",
-            "client_credentials.use_refresh_token",
-            "false",
-            "oauth2.device.authorization.grant.enabled",
-            "true"));
+    ImmutableMap.Builder<String, String> attributes =
+        ImmutableMap.<String, String>builder()
+            .put("use.refresh.tokens", "true")
+            .put("client_credentials.use_refresh_token", "false")
+            .put("oauth2.device.authorization.grant.enabled", "true");
     if (authenticationMethod != ClientAuthentication.NONE) {
-      client.setSecret(clientSecret);
+      switch (authenticationMethod) {
+        case CLIENT_SECRET_BASIC:
+        case CLIENT_SECRET_POST:
+          client.setPublicClient(false);
+          client.setSecret(clientSecret);
+          break;
+        case CLIENT_SECRET_JWT:
+          client.setSecret(clientSecret);
+          client.setClientAuthenticatorType("client-secret-jwt");
+          break;
+        case PRIVATE_KEY_JWT:
+          attributes.put("jwt.credential.certificate", clientSecret);
+          client.setClientAuthenticatorType("client-jwt");
+          break;
+        default:
+      }
       ResourceServerRepresentation settings = new ResourceServerRepresentation();
       settings.setPolicyEnforcementMode(PolicyEnforcementMode.DISABLED);
       client.setAuthorizationSettings(settings);
     }
+    client.setAttributes(attributes.build());
     client.setOptionalClientScopes(List.of(TestConstants.SCOPE1));
     try (Response response = master.clients().create(client)) {
-      Assertions.assertThat(response.getStatus()).isEqualTo(201);
+      assertThat(response.getStatus()).isEqualTo(201);
     }
   }
 
@@ -200,7 +226,7 @@ public class KeycloakContainer implements AutoCloseable {
     user.setEmailVerified(true);
     user.setRequiredActions(Collections.emptyList());
     try (Response response = master.users().create(user)) {
-      Assertions.assertThat(response.getStatus()).isEqualTo(201);
+      assertThat(response.getStatus()).isEqualTo(201);
     }
   }
 
