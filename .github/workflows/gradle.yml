@@ -37,12 +37,6 @@ jobs:
 
     steps:
 
-      - name: Checkout Apache Iceberg
-        uses: actions/checkout@v4
-        with:
-          repository: apache/iceberg
-          path: iceberg
-
       - name: Checkout Apache Polaris
         uses: actions/checkout@v4
         with:
@@ -68,18 +62,6 @@ jobs:
           # The setup-gradle action fails, if the wrapper is not using the right version or is not present.
           # Our `gradlew` validates the integrity of the `gradle-wrapper.jar`, so it's safe to disable this.
           validate-wrappers: false
-
-      - name: Gradle Build Apache Iceberg
-        env:
-          GITHUB_WORKSPACE: ${{ github.workspace }}
-        run: |
-          cd $GITHUB_WORKSPACE/iceberg
-          echo "1.9.0-authmgr" > version.txt
-          ./gradlew :iceberg-bom:publishToMavenLocal \
-            :iceberg-api:publishToMavenLocal \
-            :iceberg-core:publishToMavenLocal \
-            :iceberg-common:publishToMavenLocal \
-            :iceberg-bundled-guava:publishToMavenLocal
 
       - name: Gradle Build Apache Polaris
         env:
@@ -116,6 +98,5 @@ jobs:
 
       - name: Stop Gradle daemons
         run: |
-          $GITHUB_WORKSPACE/iceberg/gradlew --stop
           $GITHUB_WORKSPACE/polaris/gradlew --stop
           $GITHUB_WORKSPACE/authmgr/gradlew --stop

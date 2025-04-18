@@ -19,7 +19,7 @@
 
 [versions]
 errorprone = "2.36.0"
-iceberg = "1.9.0-authmgr"
+iceberg = "1.9.0-SNAPSHOT"
 immutables = "2.10.1"
 mockserver = "5.15.0"
 slf4j = "2.0.16"

@@ -47,6 +47,7 @@ dependencyResolutionManagement {
     mavenCentral()
     mavenLocal()
     gradlePluginPortal()
+    maven { url = uri("https://repository.apache.org/content/groups/public") }
   }
 }
 
