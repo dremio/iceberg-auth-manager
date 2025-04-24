@@ -175,8 +175,8 @@ class TokenExchangeConfigTest {
 
   @Test
   void testTokenExchangeDefaultTokens() {
-    Map<String, String> map = Map.of();
-    TokenExchangeConfig config = TokenExchangeConfig.builder().from(map).build();
+    Map<String, String> properties = Map.of();
+    TokenExchangeConfig config = TokenExchangeConfig.builder().from(properties).build();
     TypedToken subjectToken =
         config
             .getSubjectTokenProvider()
@@ -188,7 +188,7 @@ class TokenExchangeConfigTest {
 
   @Test
   void testTokenExchangeStaticTokens() {
-    Map<String, String> map =
+    Map<String, String> properties =
         Map.of(
             SUBJECT_TOKEN,
             "static-subject",
@@ -198,7 +198,7 @@ class TokenExchangeConfigTest {
             "static-actor",
             ACTOR_TOKEN_TYPE,
             TypedToken.URN_SAML2.toString());
-    TokenExchangeConfig config = TokenExchangeConfig.builder().from(map).build();
+    TokenExchangeConfig config = TokenExchangeConfig.builder().from(properties).build();
     TypedToken subjectToken =
         config
             .getSubjectTokenProvider()
@@ -215,9 +215,9 @@ class TokenExchangeConfigTest {
 
   @Test
   void testTokenExchangeDynamicTokens() {
-    Map<String, String> map =
+    Map<String, String> properties =
         Map.of(SUBJECT_TOKEN, CURRENT_ACCESS_TOKEN, ACTOR_TOKEN, CURRENT_ACCESS_TOKEN);
-    TokenExchangeConfig config = TokenExchangeConfig.builder().from(map).build();
+    TokenExchangeConfig config = TokenExchangeConfig.builder().from(properties).build();
     TypedToken subjectToken =
         config
             .getSubjectTokenProvider()
@@ -230,5 +230,25 @@ class TokenExchangeConfigTest {
             .provideToken(AccessToken.of("dynamic-access", "Bearer", null));
     assertThat(actorToken.getPayload()).isEqualTo("dynamic-access");
     assertThat(actorToken.getTokenType()).isEqualTo(TypedToken.URN_ACCESS_TOKEN);
+  }
+
+  @Test
+  void testTokenExchangeDynamicTokens2() {
+    // Only token types are provided, actual tokens are dynamically computed
+    Map<String, String> properties =
+        Map.of(SUBJECT_TOKEN_TYPE, TypedToken.URN_JWT.toString(), ACTOR_TOKEN_TYPE, TypedToken.URN_REFRESH_TOKEN.toString());
+    TokenExchangeConfig config = TokenExchangeConfig.builder().from(properties).build();
+    TypedToken subjectToken =
+        config
+            .getSubjectTokenProvider()
+            .provideToken(AccessToken.of("dynamic-access", "Bearer", null));
+    assertThat(subjectToken.getPayload()).isEqualTo("dynamic-access");
+    assertThat(subjectToken.getTokenType()).isEqualTo(TypedToken.URN_JWT);
+    TypedToken actorToken =
+        config
+            .getActorTokenProvider()
+            .provideToken(AccessToken.of("dynamic-access", "Bearer", null));
+    assertThat(actorToken.getPayload()).isEqualTo("dynamic-access");
+    assertThat(actorToken.getTokenType()).isEqualTo(TypedToken.URN_REFRESH_TOKEN);
   }
 }

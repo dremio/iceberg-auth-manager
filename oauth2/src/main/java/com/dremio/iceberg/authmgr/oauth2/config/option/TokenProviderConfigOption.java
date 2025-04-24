@@ -35,15 +35,13 @@ abstract class TokenProviderConfigOption extends ConfigOption<TokenProvider> {
 
   @Override
   public void apply(Map<String, String> properties) {
-    if (properties.containsKey(tokenOption())) {
+    if (properties.containsKey(tokenOption()) || properties.containsKey(tokenTypeOption())) {
       String token = properties.get(tokenOption());
-      if (shouldSetOption(token)) {
-        URI tokenType =
-            Optional.ofNullable(properties.get(tokenTypeOption()))
-                .map(URI::create)
-                .orElse(URN_ACCESS_TOKEN);
+      String tokenTypeStr = properties.get(tokenTypeOption());
+      if (shouldSetOption(token) || shouldSetOption(tokenTypeStr)) {
+        URI tokenType = Optional.ofNullable(tokenTypeStr).map(URI::create).orElse(URN_ACCESS_TOKEN);
         TokenProvider tokenProvider =
-            token.equalsIgnoreCase(CURRENT_ACCESS_TOKEN)
+            token == null || token.equalsIgnoreCase(CURRENT_ACCESS_TOKEN)
                 ? TokenProviders.currentAccessToken(tokenType)
                 : TokenProviders.staticToken(TypedToken.of(token, tokenType));
         setter().accept(tokenProvider);
