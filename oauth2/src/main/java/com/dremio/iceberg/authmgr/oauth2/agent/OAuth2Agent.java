@@ -108,7 +108,7 @@ public final class OAuth2Agent implements Closeable {
     if (closing.get()) {
       throw new IllegalStateException("Client is closing");
     }
-    LOGGER.debug("[{}] authenticate", name);
+    LOGGER.debug("[{}] Authenticating with current token", name);
     used.complete(null);
     maybeWakeUp();
     return getCurrentTokens();
@@ -350,7 +350,6 @@ public final class OAuth2Agent implements Closeable {
     Instant last = lastWarn;
     boolean shouldWarn =
         last == null || Duration.between(last, now).compareTo(MIN_WARN_INTERVAL) > 0;
-    LOGGER.debug("[{}] HERE", name);
     if (shouldWarn) {
       // defer logging until the agent is used to avoid confusing log messages appearing
       // before the agent is actually used
