@@ -236,7 +236,11 @@ class TokenExchangeConfigTest {
   void testTokenExchangeDynamicTokens2() {
     // Only token types are provided, actual tokens are dynamically computed
     Map<String, String> properties =
-        Map.of(SUBJECT_TOKEN_TYPE, TypedToken.URN_JWT.toString(), ACTOR_TOKEN_TYPE, TypedToken.URN_REFRESH_TOKEN.toString());
+        Map.of(
+            SUBJECT_TOKEN_TYPE,
+            TypedToken.URN_JWT.toString(),
+            ACTOR_TOKEN_TYPE,
+            TypedToken.URN_REFRESH_TOKEN.toString());
     TokenExchangeConfig config = TokenExchangeConfig.builder().from(properties).build();
     TypedToken subjectToken =
         config
