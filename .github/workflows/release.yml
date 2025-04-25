@@ -1,0 +1,145 @@
+##
+## Copyright (C) 2025 Dremio Corporation
+##
+## Licensed under the Apache License, Version 2.0 (the "License");
+## you may not use this file except in compliance with the License.
+## You may obtain a copy of the License at
+##
+##     http://www.apache.org/licenses/LICENSE-2.0
+##
+## Unless required by applicable law or agreed to in writing, software
+## distributed under the License is distributed on an "AS IS" BASIS,
+## WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+## See the License for the specific language governing permissions and
+## limitations under the License.
+##
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      releaseVersion:
+        description: 'Release version (e.g., 0.1.0)'
+        required: true
+      nextVersion:
+        description: 'Next development version (e.g., 0.1.1-SNAPSHOT)'
+        required: true
+      dryRun:
+        description: 'Dry run (true or false)'
+        required: false
+        default: false
+        type: boolean
+
+# Required permissions for pushing to main branch and creating tags, issues and discussions
+permissions:
+  contents: write
+  packages: write
+  issues: write
+  discussions: write
+
+jobs:
+  release:
+    name: Release version ${{ inputs.releaseVersion }}
+
+    # Only run in the original repository, not forks
+    if: github.repository == 'dremio/iceberg-auth-manager'
+    runs-on: ubuntu-latest
+    
+    steps:
+
+      - name: Validate inputs
+        run: |
+          if [[ "${{ github.event.inputs.releaseVersion }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+)?$ && ! "${{ github.event.inputs.releaseVersion }}" =~ -SNAPSHOT$ ]]; then
+            echo "Valid release version: ${{ github.event.inputs.releaseVersion }}"
+          else
+            echo "Invalid release version format. Expected format: x.y.z or x.y.z-qualifier"
+            exit 1
+          fi
+          if [[ "${{ github.event.inputs.nextVersion }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+-SNAPSHOT$ ]]; then
+            echo "Valid next development version: ${{ github.event.inputs.nextVersion }}"
+          else
+            echo "Invalid next development version format. Expected format: x.y.z-SNAPSHOT"
+            exit 1
+          fi
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0 # Fetch all history for all branches and tags
+          ref: main # Checkout the main branch
+
+      - name: Verify current version
+        run: |
+          if [[ ! -f version.txt ]]; then
+            echo "version.txt file not found!"
+            exit 1
+          fi
+          current_version=$(cat version.txt)
+          if [[ ! "$current_version" =~ -SNAPSHOT$ ]]; then
+              echo "Current version is not a SNAPSHOT version: $current_version"
+              exit 1
+          fi
+
+      - name: Configure Git
+        run: |
+          git config --global user.email "authmgr-release-workflow-noreply@dremio.com"
+          git config --global user.name "AuthManager Release Workflow [bot]"
+
+      - name: Update version for release
+        run: |
+          echo "${{ github.event.inputs.releaseVersion }}" > version.txt
+          git add version.txt
+          git commit -a -m "chore(release): release version ${{ github.event.inputs.releaseVersion }}"
+          git tag -f -a -m "chore(release): tag version ${{ github.event.inputs.releaseVersion }}" "authmgr-${{ github.event.inputs.releaseVersion }}"
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Build with Gradle
+        run: ./gradlew clean test publish assemble -x intTest --no-build-cache
+
+      - name: JReleaser full release
+        env:
+          JRELEASER_DRY_RUN: ${{ github.event.inputs.dryRun }}
+          JRELEASER_MAVENCENTRAL_STAGE: FULL
+          JRELEASER_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          JRELEASER_MAVENCENTRAL_USERNAME: ${{ secrets.DEVBOT_CENTRAL_USERNAME }}
+          JRELEASER_MAVENCENTRAL_PASSWORD: ${{ secrets.DEVBOT_CENTRAL_PASSWORD }}
+          JRELEASER_GPG_PASSPHRASE: ${{ secrets.DEVBOT_GPG_PASSPHRASE }}
+          JRELEASER_GPG_SECRET_KEY: ${{ secrets.DEVBOT_GPG_PRIVATE_KEY }}
+        run: ./gradlew jreleaserFullRelease
+
+      - name: Update to next development version
+        run: |
+          echo "${{ github.event.inputs.nextVersion }}" > version.txt
+          git add version.txt
+          git commit -m "chore(release): set next development version to ${{ github.event.inputs.nextVersion }}"
+
+      - name: Push changes
+        run: |
+          if [[ "${{ github.event.inputs.dryRun }}" == "false" ]]; then
+            echo "Pushing changes to main branch and tag."
+            git push origin
+          else
+            echo "Dry run enabled, not pushing changes."
+          fi
+
+      - name: Print JReleaser information
+        if: always()
+        run: |
+          if [ -f build/jreleaser/output.properties ]; then
+            echo "JReleaser output properties:"
+            cat build/jreleaser/output.properties
+          else
+            echo "No JReleaser output properties found."
+          fi
+          if [ -f build/jreleaser/trace.log ]; then
+            echo "JReleaser logs:"
+            cat build/jreleaser/trace.log
+          else
+            echo "No JReleaser logs found."
+          fi

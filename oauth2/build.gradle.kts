@@ -18,11 +18,12 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins {
   id("authmgr-java")
+  id("authmgr-maven")
   id("authmgr-shadow-jar")
 }
 
 dependencies {
-  implementation(enforcedPlatform(libs.iceberg.bom))
+  implementation(platform(libs.iceberg.bom))
   implementation("org.apache.iceberg:iceberg-api")
   implementation("org.apache.iceberg:iceberg-core")
 

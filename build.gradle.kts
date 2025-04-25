@@ -23,6 +23,7 @@ plugins {
   id("idea")
   id("eclipse")
   id("authmgr-root")
+  id("authmgr-jreleaser")
   alias(libs.plugins.rat)
 }
 

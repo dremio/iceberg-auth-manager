@@ -14,7 +14,10 @@
  * limitations under the License.
  */
 
-plugins { id("authmgr-java") }
+plugins {
+  id("authmgr-java")
+  id("authmgr-maven")
+}
 
 val processor by configurations.creating
 

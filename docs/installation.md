@@ -15,48 +15,50 @@ limitations under the License.
 -->
 # Dremio AuthManager for Apache Iceberg - Installation
 
-## Download
+## Overview
 
-The Dremio AuthManager for Apache Iceberg is available as a jar which you can download from the
+The Dremio AuthManager for Apache Iceberg can be obtained from various sources, including
+Maven Central and GitHub Releases. You can choose the method that best fits your needs.
+
+### Maven Artifacts
+
+Maven artifacts are published to 
+[Maven Central](https://central.sonatype.com/namespace/com.dremio.iceberg.authmgr). 
+You can include them directly in your project:
+
+#### Maven Dependency
+
+```xml
+<dependencies>
+  <dependency>
+    <groupId>com.dremio.iceberg.authmgr</groupId>
+    <artifactId>authmgr-oauth2</artifactId>
+    <version>0.0.2</version>
+  </dependency>
+</dependencies>
+```
+
+#### Gradle Dependency
+
+```kotlin
+dependencies {
+  implementation("com.dremio.iceberg.authmgr:authmgr-oauth2:0.0.2")
+}
+```
+
+### Direct Download
+
+Alternatively, you can download pre-built jars directly from the
 [Releases page](https://github.com/dremio/iceberg-auth-manager/releases).
 
-You should choose the `runtime` jar, e.g. `authmgr-oauth2-x.y.z-runtime.jar`.
+When running a Spark Shell session, you should choose the `runtime` jar, 
+e.g. `authmgr-oauth2-x.y.z-runtime.jar`.
 
-## Prerequisites
+### Building from Source
 
-* Iceberg Core 1.9.0 or later is required.
-* Dremio AuthManager for Apache Iceberg requires Java 11 or later for runtime.
-* Dremio AuthManager for Apache Iceberg is meant to be used in conjunction with an Iceberg engine
-  runtime jar, e.g. `iceberg-spark-runtime-3.5_2.12` or `iceberg-flink-runtime-1.20`.
+You can build the code source and publish artifacts to your local Maven repository 
+(`~/.m2/repository`) using the following command:
 
-## Usage with Spark
-
-To use the Dremio AuthManager for Apache Iceberg with Spark, you need to add the jar to your Spark
-classpath. You can do this by adding the jar to the `--jars` option when starting Spark, or by
-adding it to the `spark.jars` configuration property in your Spark configuration file.
-
-For example, if you are using the `spark-shell`, you can start it with the following command:
-
-```shell
-spark-shell \
-  --packages org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.9.0 \
-  --jars /path/to/authmgr-oauth2-x.y.z-runtime.jar
+```bash
+./gradlew clean build publishToMavenLocal
 ```
-
-Similarly, if you are using Spark SQL, you can start it with the following command:
-
-```shell
-spark-sql  \
-  --packages org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.9.0 \
-  --jars /path/to/authmgr-oauth2-x.y.z-runtime.jar
-```
-
-You can also add the jar to your spark-defaults.conf file:
-
-```
-spark.jars /path/to/authmgr-oauth2-x.y.z-runtime.jar
-```
-
-Once the jar is added to the classpath, you can use the Dremio AuthManager for Apache Iceberg in
-your Spark applications. See the [configuration](./configuration.md) section for more details on how
-to configure the Dremio AuthManager for Apache Iceberg.

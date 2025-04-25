@@ -22,4 +22,5 @@ dependencies {
   implementation(baselibs.idea.ext)
   implementation(baselibs.shadow)
   implementation(baselibs.spotless)
+  implementation(baselibs.jreleaser)
 }

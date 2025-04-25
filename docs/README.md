@@ -21,8 +21,17 @@ This project contains an implementation of Apache Iceberg's `AuthManager` API fo
 
 ## Installation
 
-To install the Dremio AuthManager for Apache Iceberg, you can follow the instructions in the
-[installation](./installation.md) section.
+Dremio Iceberg AuthManager is available as a Maven artifact from
+[Maven Central](https://central.sonatype.com/namespace/com.dremio.iceberg.authmgr).
+You can also download the latest version from the
+[GitHub Releases page](https://github.com/adutra/iceberg-auth-manager/releases).
+
+Follow the instructions in the [Installation](./installation.md) section to get started.
+
+## Usage
+
+To use the Dremio AuthManager for Apache Iceberg with Apache Spark, you can
+follow the instructions in the [Usage](usage.md) section.
 
 ## Configuration
 
