@@ -22,6 +22,9 @@ import java.time.Instant;
 @AuthManagerImmutable
 public interface RefreshToken extends Token {
 
+  @Override
+  RefreshToken withExpirationTime(@Nullable Instant expirationTime);
+
   static RefreshToken of(String payload, @Nullable Instant expirationTime) {
     return ImmutableRefreshToken.builder().payload(payload).expirationTime(expirationTime).build();
   }

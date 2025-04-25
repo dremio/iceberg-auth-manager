@@ -66,13 +66,15 @@ public abstract class AbstractTokenEndpointExpectation extends AbstractExpectati
     ImmutableTokenResponse.Builder responseBody =
         ImmutableTokenResponse.builder()
             .accessTokenPayload(accessToken)
-            .accessTokenExpiresInSeconds(TestConstants.ACCESS_TOKEN_EXPIRES_IN_SECONDS)
+            .accessTokenExpiresInSeconds(
+                (int) getTestEnvironment().getAccessTokenLifespan().toSeconds())
             .tokenType("bearer");
     if (getTestEnvironment().isReturnRefreshTokens()
         && getTestEnvironment().getGrantType() != GrantType.CLIENT_CREDENTIALS) {
       responseBody
           .refreshTokenPayload(refreshToken)
-          .refreshTokenExpiresInSeconds(TestConstants.REFRESH_TOKEN_EXPIRES_IN_SECONDS);
+          .refreshTokenExpiresInSeconds(
+              (int) getTestEnvironment().getRefreshTokenLifespan().toSeconds());
     }
     if (getTestEnvironment().getGrantType() == GrantType.TOKEN_EXCHANGE) {
       // included for completeness, but not used

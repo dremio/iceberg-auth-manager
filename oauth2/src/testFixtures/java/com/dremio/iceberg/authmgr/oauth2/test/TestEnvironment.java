@@ -391,6 +391,16 @@ public abstract class TestEnvironment implements AutoCloseable {
   }
 
   @Value.Default
+  public Duration getImpersonationAccessTokenLifespan() {
+    return getAccessTokenLifespan();
+  }
+
+  @Value.Default
+  public Duration getRefreshTokenLifespan() {
+    return TestConstants.REFRESH_TOKEN_LIFESPAN;
+  }
+
+  @Value.Default
   public ResourceOwnerConfig getResourceOwnerConfig() {
     return ResourceOwnerConfig.builder()
         .username(TestConstants.USERNAME)

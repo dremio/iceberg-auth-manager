@@ -21,6 +21,7 @@ import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.CLIENT_ID2;
 import static com.dremio.iceberg.authmgr.oauth2.test.expectation.ExpectationUtils.getParameterBody;
 
 import com.dremio.iceberg.authmgr.oauth2.rest.ImmutableTokenExchangeRequest;
+import com.dremio.iceberg.authmgr.oauth2.rest.ImmutableTokenResponse;
 import com.dremio.iceberg.authmgr.oauth2.rest.PostFormRequest;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
 import java.net.URI;
@@ -65,5 +66,13 @@ public abstract class ImpersonationTokenExchangeExpectation extends InitialToken
         .resource(RESOURCE)
         .extraParameters(Map.of("impersonation", "true"))
         .build();
+  }
+
+  @Override
+  protected ImmutableTokenResponse.Builder tokenResponseBody(
+      String accessToken, String refreshToken) {
+    return super.tokenResponseBody(accessToken, refreshToken)
+        .accessTokenExpiresInSeconds(
+            (int) getTestEnvironment().getImpersonationAccessTokenLifespan().toSeconds());
   }
 }
