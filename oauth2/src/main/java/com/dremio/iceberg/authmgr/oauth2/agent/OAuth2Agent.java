@@ -58,12 +58,13 @@ public final class OAuth2Agent implements Closeable {
   private final ScheduledExecutorService executor;
   private final String name;
   private final Clock clock;
-  private final FlowContext context;
-  private final FlowContext impersonationContext;
 
   private final CompletableFuture<Void> used = new CompletableFuture<>();
   private final AtomicBoolean closing = new AtomicBoolean();
   private final AtomicBoolean sleeping = new AtomicBoolean();
+
+  private volatile FlowContext context;
+  private volatile FlowContext impersonationContext;
 
   private volatile CompletionStage<Tokens> currentTokensStage;
   private volatile ScheduledFuture<?> tokenRefreshFuture;
@@ -71,7 +72,7 @@ public final class OAuth2Agent implements Closeable {
   private volatile Instant lastWarn;
 
   public OAuth2Agent(
-      OAuth2AgentSpec spec, RESTClient restClient, ScheduledExecutorService executor) {
+      OAuth2AgentSpec spec, ScheduledExecutorService executor, RESTClient restClient) {
     this.spec = spec;
     this.executor = executor;
     name = spec.getRuntimeConfig().getAgentName();
@@ -99,6 +100,11 @@ public final class OAuth2Agent implements Closeable {
         .whenComplete((tokens, error) -> maybeScheduleTokensRenewal(tokens));
   }
 
+  public void updateRestClient(RESTClient restClient) {
+    context = FlowContextFactory.createFlowContext(spec, restClient);
+    impersonationContext = FlowContextFactory.createImpersonationFlowContext(spec, restClient);
+  }
+
   /** Authenticates the client and returns the current access token. */
   public AccessToken authenticate() {
     return doAuthenticate().getAccessToken();
@@ -106,7 +112,7 @@ public final class OAuth2Agent implements Closeable {
 
   Tokens doAuthenticate() {
     if (closing.get()) {
-      throw new IllegalStateException("Client is closing");
+      throw new IllegalStateException("Agent is closing");
     }
     LOGGER.debug("[{}] Authenticating with current token", name);
     used.complete(null);
@@ -215,11 +221,11 @@ public final class OAuth2Agent implements Closeable {
   private void maybeScheduleTokensRenewal(@Nullable Tokens currentTokens) {
     if (!spec.getTokenRefreshConfig().isEnabled()) {
       LOGGER.debug(
-          "[{}] Client is not configured to keep tokens refreshed, skipping token renewal", name);
+          "[{}] Agent is not configured to keep tokens refreshed, skipping token renewal", name);
       return;
     }
     if (closing.get()) {
-      LOGGER.debug("[{}] Not checking if token renewal is required, client is closing", name);
+      LOGGER.debug("[{}] Not checking if token renewal is required, agent is closing", name);
       return;
     }
     Instant now = clock.instant();
@@ -237,7 +243,7 @@ public final class OAuth2Agent implements Closeable {
 
   private void scheduleTokensRenewal(Duration delay) {
     if (closing.get()) {
-      LOGGER.debug("[{}] Not scheduling token renewal, client is closing", name);
+      LOGGER.debug("[{}] Not scheduling token renewal, agent is closing", name);
       return;
     }
     LOGGER.debug("[{}] Scheduling token refresh in {}", name, delay);
@@ -298,7 +304,7 @@ public final class OAuth2Agent implements Closeable {
   private void maybeSleep(boolean onFailedRenewalSchedule) {
     if (!spec.getTokenRefreshConfig().isEnabled()) {
       LOGGER.debug(
-          "[{}] Client is not configured to keep tokens refreshed, not entering sleep", name);
+          "[{}] Agent is not configured to keep tokens refreshed, not entering sleep", name);
       return;
     }
     if (onFailedRenewalSchedule) {
@@ -318,7 +324,7 @@ public final class OAuth2Agent implements Closeable {
 
   private void wakeUp(Instant now) {
     if (closing.get()) {
-      LOGGER.debug("[{}] Not waking up, client is closing", name);
+      LOGGER.debug("[{}] Not waking up, agent is closing", name);
       return;
     }
     LOGGER.debug("[{}] Waking up...", name);

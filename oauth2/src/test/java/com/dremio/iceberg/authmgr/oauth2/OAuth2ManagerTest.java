@@ -45,6 +45,7 @@ import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.SessionCatalog;
 import org.apache.iceberg.catalog.SessionCatalog.SessionContext;
 import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.rest.HTTPClient;
 import org.apache.iceberg.rest.HTTPHeaders.HTTPHeader;
 import org.apache.iceberg.rest.HTTPRequest;
 import org.apache.iceberg.rest.HTTPRequest.HTTPMethod;
@@ -97,7 +98,7 @@ class OAuth2ManagerTest {
     }
 
     @Test
-    void catalogSessionWithInit() {
+    void catalogSessionWithInit() throws IOException {
       try (TestEnvironment env = TestEnvironment.builder().build();
           OAuth2Manager manager = new OAuth2Manager("test")) {
         Map<String, String> properties =
@@ -110,12 +111,14 @@ class OAuth2ManagerTest {
                 TestConstants.CLIENT_SECRET1,
                 Basic.SCOPE,
                 TestConstants.SCOPE1);
-        try (AuthSession session = manager.initSession(env.getHttpClient(), properties)) {
+        try (HTTPClient httpClient = env.newHttpClientBuilder(Map.of()).build();
+            AuthSession session = manager.initSession(httpClient, properties)) {
           HTTPRequest actual = session.authenticate(request);
           assertThat(actual.headers().entries("Authorization"))
               .containsOnly(HTTPHeader.of("Authorization", "Bearer access_initial"));
         }
-        try (AuthSession session = manager.catalogSession(env.getHttpClient(), properties)) {
+        try (HTTPClient httpClient = env.newHttpClientBuilder(Map.of()).build();
+            AuthSession session = manager.catalogSession(httpClient, properties)) {
           HTTPRequest actual = session.authenticate(request);
           assertThat(actual.headers().entries("Authorization"))
               .containsOnly(HTTPHeader.of("Authorization", "Bearer access_initial"));

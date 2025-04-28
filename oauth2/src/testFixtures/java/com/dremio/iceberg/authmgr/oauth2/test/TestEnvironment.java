@@ -169,7 +169,7 @@ public abstract class TestEnvironment implements AutoCloseable {
     return newHttpClientBuilder(Map.of()).build();
   }
 
-  private HTTPClient.Builder newHttpClientBuilder(Map<String, String> properties) {
+  public HTTPClient.Builder newHttpClientBuilder(Map<String, String> properties) {
     return HTTPClient.builder(properties)
         .uri(getCatalogServerUrl())
         .withAuthSession(AuthSession.EMPTY);
@@ -596,7 +596,7 @@ public abstract class TestEnvironment implements AutoCloseable {
   }
 
   public OAuth2Agent newAgent() {
-    OAuth2Agent agent = new OAuth2Agent(getAgentSpec(), getHttpClient(), getExecutor());
+    OAuth2Agent agent = new OAuth2Agent(getAgentSpec(), getExecutor(), getHttpClient());
     getUser().setErrorListener(e -> agent.close());
     return agent;
   }

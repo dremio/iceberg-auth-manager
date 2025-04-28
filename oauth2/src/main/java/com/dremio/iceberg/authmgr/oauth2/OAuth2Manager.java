@@ -56,7 +56,7 @@ public class OAuth2Manager extends RefreshingAuthManager {
     initProperties = IcebergCompatibility.migrate(initProperties);
     OAuth2AgentSpec initSpec = OAuth2AgentSpec.builder().from(initProperties).build();
     initClient = initClient.withAuthSession(AuthSession.EMPTY);
-    initSession = new OAuth2Session(initSpec, initClient, refreshExecutor());
+    initSession = new OAuth2Session(initSpec, refreshExecutor(), initClient);
     return new UncloseableAuthSession(initSession);
   }
 
@@ -67,13 +67,14 @@ public class OAuth2Manager extends RefreshingAuthManager {
     catalogProperties = IcebergCompatibility.migrate(catalogProperties);
     OAuth2AgentSpec catalogSpec = OAuth2AgentSpec.builder().from(catalogProperties).build();
     sessionCache = sessionCacheFactory.apply(name, catalogProperties);
-    AuthSession catalogSession;
+    OAuth2Session catalogSession;
     if (initSession != null && catalogSpec.equals(initSession.getSpec())) {
       // Avoid creating a new session if the properties are the same as the init session
       // as this would require users to log in again, for human-based flows.
       catalogSession = initSession;
+      catalogSession.updateRestClient(client);
     } else {
-      catalogSession = new OAuth2Session(catalogSpec, client, refreshExecutor());
+      catalogSession = new OAuth2Session(catalogSpec, refreshExecutor(), client);
       if (initSession != null) {
         initSession.close();
       }
@@ -93,7 +94,7 @@ public class OAuth2Manager extends RefreshingAuthManager {
     OAuth2AgentSpec childSpec = parentSpec.merge(contextProperties);
     if (!childSpec.equals(parentSpec)) {
       return sessionCache.cachedSession(
-          childSpec, k -> new OAuth2Session(childSpec, client, refreshExecutor()));
+          childSpec, k -> new OAuth2Session(childSpec, refreshExecutor(), client));
     }
     return parent;
   }
@@ -107,7 +108,7 @@ public class OAuth2Manager extends RefreshingAuthManager {
     OAuth2AgentSpec childSpec = parentSpec.merge(tableProperties);
     if (!childSpec.equals(parentSpec)) {
       return sessionCache.cachedSession(
-          childSpec, k -> new OAuth2Session(childSpec, client, refreshExecutor()));
+          childSpec, k -> new OAuth2Session(childSpec, refreshExecutor(), client));
     }
     return parent;
   }

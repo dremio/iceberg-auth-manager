@@ -200,10 +200,11 @@ public interface BasicConfig {
     } else if (getIssuerUrl().isEmpty() && getTokenEndpoint().isEmpty()) {
       LoggerFactory.getLogger(BasicConfig.class)
           .warn(
-              "The selected dialect is ICEBERG and the configuration does not specify a token endpoint nor an issuer URL: "
+              "The selected dialect is {} and the configuration does not specify a token endpoint nor an issuer URL: "
                   + "inferring that the token endpoint is internal to the REST catalog server. "
                   + "This automatic inference will be removed in a future release. "
                   + "Please define one of the following properties: '{}' or '{}'.",
+              Dialect.ICEBERG_REST,
               ISSUER_URL,
               TOKEN_ENDPOINT);
       basicConfig =

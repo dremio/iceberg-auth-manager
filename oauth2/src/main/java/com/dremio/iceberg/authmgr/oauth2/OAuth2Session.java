@@ -32,9 +32,13 @@ public class OAuth2Session implements AuthSession {
   private final OAuth2Agent agent;
 
   public OAuth2Session(
-      OAuth2AgentSpec spec, RESTClient restClient, ScheduledExecutorService executor) {
+      OAuth2AgentSpec spec, ScheduledExecutorService executor, RESTClient restClient) {
     this.spec = spec;
-    agent = new OAuth2Agent(spec, restClient, executor);
+    this.agent = new OAuth2Agent(spec, executor, restClient);
+  }
+
+  public void updateRestClient(RESTClient restClient) {
+    agent.updateRestClient(restClient);
   }
 
   public OAuth2AgentSpec getSpec() {
