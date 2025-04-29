@@ -101,8 +101,10 @@ public final class OAuth2Agent implements Closeable {
   }
 
   public void updateRestClient(RESTClient restClient) {
-    context = FlowContextFactory.createFlowContext(spec, restClient);
-    impersonationContext = FlowContextFactory.createImpersonationFlowContext(spec, restClient);
+    FlowContext ctx = context;
+    FlowContext impersonationCtx = impersonationContext;
+    this.context = FlowContextFactory.withRestClient(ctx, restClient);
+    this.impersonationContext = FlowContextFactory.withRestClient(impersonationCtx, restClient);
   }
 
   /** Authenticates the client and returns the current access token. */

@@ -71,4 +71,16 @@ public final class FlowContextFactory {
         .runtimeConfig(spec.getRuntimeConfig())
         .build();
   }
+
+  @Nullable
+  public static FlowContext withRestClient(@Nullable FlowContext context, RESTClient restClient) {
+    if (context == null) {
+      return null;
+    }
+    return ImmutableFlowContext.builder()
+        .from(context)
+        .restClient(restClient)
+        .endpointProvider(EndpointProvider.builder().restClient(restClient).build())
+        .build();
+  }
 }
