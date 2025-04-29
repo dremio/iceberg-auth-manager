@@ -51,6 +51,7 @@ import org.apache.iceberg.rest.HTTPRequest;
 import org.apache.iceberg.rest.HTTPRequest.HTTPMethod;
 import org.apache.iceberg.rest.ImmutableHTTPRequest;
 import org.apache.iceberg.rest.RESTCatalog;
+import org.apache.iceberg.rest.ResourcePaths;
 import org.apache.iceberg.rest.auth.AuthSession;
 import org.assertj.core.api.Assertions;
 import org.assertj.core.api.InstanceOfAssertFactory;
@@ -105,6 +106,39 @@ class OAuth2ManagerTest {
             Map.of(
                 Basic.TOKEN_ENDPOINT,
                 env.getTokenEndpoint().toString(),
+                Basic.CLIENT_ID,
+                TestConstants.CLIENT_ID1,
+                Basic.CLIENT_SECRET,
+                TestConstants.CLIENT_SECRET1,
+                Basic.SCOPE,
+                TestConstants.SCOPE1);
+        try (HTTPClient httpClient = env.newHttpClientBuilder(Map.of()).build();
+            AuthSession session = manager.initSession(httpClient, properties)) {
+          HTTPRequest actual = session.authenticate(request);
+          assertThat(actual.headers().entries("Authorization"))
+              .containsOnly(HTTPHeader.of("Authorization", "Bearer access_initial"));
+        }
+        try (HTTPClient httpClient = env.newHttpClientBuilder(Map.of()).build();
+            AuthSession session = manager.catalogSession(httpClient, properties)) {
+          HTTPRequest actual = session.authenticate(request);
+          assertThat(actual.headers().entries("Authorization"))
+              .containsOnly(HTTPHeader.of("Authorization", "Bearer access_initial"));
+        }
+      }
+    }
+
+    @Test
+    void catalogSessionWithInitAndIcebergRestDialect() throws IOException {
+      try (TestEnvironment env =
+              TestEnvironment.builder()
+                  .dialect(Dialect.ICEBERG_REST)
+                  .tokenEndpoint(URI.create(ResourcePaths.tokens()))
+                  .build();
+          OAuth2Manager manager = new OAuth2Manager("test")) {
+        Map<String, String> properties =
+            Map.of(
+                Basic.DIALECT,
+                Dialect.ICEBERG_REST.name(),
                 Basic.CLIENT_ID,
                 TestConstants.CLIENT_ID1,
                 Basic.CLIENT_SECRET,

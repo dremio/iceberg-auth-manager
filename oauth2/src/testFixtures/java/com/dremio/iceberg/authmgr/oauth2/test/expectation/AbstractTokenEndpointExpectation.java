@@ -23,15 +23,21 @@ import com.dremio.iceberg.authmgr.oauth2.rest.ImmutableTokenResponse;
 import com.dremio.iceberg.authmgr.oauth2.rest.PostFormRequest;
 import com.dremio.iceberg.authmgr.oauth2.test.TestConstants;
 import com.dremio.iceberg.authmgr.oauth2.token.TypedToken;
+import java.net.URI;
 import org.mockserver.model.HttpRequest;
 import org.mockserver.model.HttpResponse;
 
 public abstract class AbstractTokenEndpointExpectation extends AbstractExpectation {
 
   protected HttpRequest tokenRequestTemplate() {
+    URI tokenEndpoint = getTestEnvironment().getTokenEndpoint();
+    String path =
+        tokenEndpoint.isAbsolute()
+            ? tokenEndpoint.getPath()
+            : getTestEnvironment().getCatalogServerContextPath() + tokenEndpoint.getPath();
     return HttpRequest.request()
         .withMethod("POST")
-        .withPath(getTestEnvironment().getTokenEndpoint().getPath())
+        .withPath(path)
         .withHeader("Content-Type", "application/x-www-form-urlencoded")
         .withHeader("Accept", "application/json");
   }
