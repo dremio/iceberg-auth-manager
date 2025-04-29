@@ -80,7 +80,11 @@ public final class FlowContextFactory {
     return ImmutableFlowContext.builder()
         .from(context)
         .restClient(restClient)
-        .endpointProvider(EndpointProvider.builder().restClient(restClient).build())
+        .endpointProvider(
+            EndpointProvider.builder()
+                .from(context.getEndpointProvider())
+                .restClient(restClient)
+                .build())
         .build();
   }
 }

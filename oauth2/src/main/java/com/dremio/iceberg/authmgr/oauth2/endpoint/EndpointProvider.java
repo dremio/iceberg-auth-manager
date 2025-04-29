@@ -46,6 +46,9 @@ public abstract class EndpointProvider {
   public interface Builder {
 
     @CanIgnoreReturnValue
+    Builder from(EndpointProvider endpointProvider);
+
+    @CanIgnoreReturnValue
     Builder issuerUrl(URI issuerUrl);
 
     @CanIgnoreReturnValue
