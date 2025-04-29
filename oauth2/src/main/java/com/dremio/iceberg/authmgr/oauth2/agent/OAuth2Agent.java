@@ -170,7 +170,7 @@ public final class OAuth2Agent implements Closeable {
       Instant nowWithSafety = clock.instant().plus(spec.getTokenRefreshConfig().getSafetyWindow());
       if (refreshToken == null || refreshToken.isExpired(nowWithSafety)) {
         LOGGER.debug("[{}] Must fetch new tokens", name);
-        throw new MustFetchNewTokensException();
+        throw MustFetchNewTokensException.INSTANCE;
       }
     }
     LOGGER.debug("[{}] Refreshing tokens", name);
@@ -365,5 +365,12 @@ public final class OAuth2Agent implements Closeable {
     }
   }
 
-  static class MustFetchNewTokensException extends RuntimeException {}
+  static class MustFetchNewTokensException extends RuntimeException {
+
+    private static final MustFetchNewTokensException INSTANCE = new MustFetchNewTokensException();
+
+    private MustFetchNewTokensException() {
+      super(null, null, false, false);
+    }
+  }
 }
