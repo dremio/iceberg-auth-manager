@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import java.net.URI
 import org.nosphere.apache.rat.RatTask
 
 buildscript { repositories { maven { url = java.net.URI("https://plugins.gradle.org/m2/") } } }
@@ -25,6 +24,8 @@ plugins {
   id("authmgr-root")
   alias(libs.plugins.rat)
 }
+
+apply<ReleaseSupportPlugin>()
 
 val projectName = rootProject.file("ide-name.txt").readText().trim()
 val ideName = "$projectName ${rootProject.version.toString().replace("^([0-9.]+).*", "\\1")}"
@@ -38,8 +39,6 @@ if (System.getProperty("idea.sync.active").toBoolean()) {
 }
 
 eclipse { project { name = ideName } }
-
-tasks.withType(JavaCompile::class.java).configureEach { options.release = 11 }
 
 tasks.named<RatTask>("rat").configure {
   // These are Gradle file pattern syntax
