@@ -17,10 +17,12 @@ package com.dremio.iceberg.authmgr.oauth2.auth;
 
 import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2AgentSpec;
 import com.dremio.iceberg.authmgr.oauth2.config.Dialect;
+import com.dremio.iceberg.authmgr.oauth2.endpoint.EndpointProvider;
 
 public final class ClientAuthenticatorFactory {
 
-  public static ClientAuthenticator createAuthenticator(OAuth2AgentSpec spec) {
+  public static ClientAuthenticator createAuthenticator(
+      OAuth2AgentSpec spec, EndpointProvider endpointProvider) {
     if (spec.getBasicConfig().getDialect() == Dialect.ICEBERG_REST
         || spec.getBasicConfig().getToken().isPresent()) {
       return ImmutableIcebergClientAuthenticator.builder()
@@ -44,13 +46,29 @@ public final class ClientAuthenticatorFactory {
               .clientId(spec.getBasicConfig().getClientId().orElseThrow())
               .clientSecret(spec.getBasicConfig().getClientSecret().orElseThrow())
               .build();
+        case CLIENT_SECRET_JWT:
+          return ImmutableClientSecretJwtAuthenticator.builder()
+              .clientId(spec.getBasicConfig().getClientId().orElseThrow())
+              .clientSecret(spec.getBasicConfig().getClientSecret().orElseThrow())
+              .clientAssertionConfig(spec.getClientAssertionConfig())
+              .tokenEndpoint(endpointProvider.getResolvedTokenEndpoint())
+              .clock(spec.getRuntimeConfig().getClock())
+              .build();
+        case PRIVATE_KEY_JWT:
+          return ImmutablePrivateKeyJwtClientAuthenticator.builder()
+              .clientId(spec.getBasicConfig().getClientId().orElseThrow())
+              .clientAssertionConfig(spec.getClientAssertionConfig())
+              .tokenEndpoint(endpointProvider.getResolvedTokenEndpoint())
+              .clock(spec.getRuntimeConfig().getClock())
+              .build();
         default:
           throw new IllegalArgumentException("Unsupported client authentication method: " + method);
       }
     }
   }
 
-  public static ClientAuthenticator createImpersonatingAuthenticator(OAuth2AgentSpec spec) {
+  public static ClientAuthenticator createImpersonatingAuthenticator(
+      OAuth2AgentSpec spec, EndpointProvider endpointProvider) {
     ClientAuthentication method = spec.getImpersonationConfig().getClientAuthentication();
     switch (method) {
       case NONE:
@@ -66,6 +84,21 @@ public final class ClientAuthenticatorFactory {
         return ImmutableClientSecretPostAuthenticator.builder()
             .clientId(spec.getImpersonationConfig().getClientId().orElseThrow())
             .clientSecret(spec.getImpersonationConfig().getClientSecret().orElseThrow())
+            .build();
+      case CLIENT_SECRET_JWT:
+        return ImmutableClientSecretJwtAuthenticator.builder()
+            .clientId(spec.getImpersonationConfig().getClientId().orElseThrow())
+            .clientSecret(spec.getImpersonationConfig().getClientSecret().orElseThrow())
+            .clientAssertionConfig(spec.getImpersonationClientAssertionConfig())
+            .tokenEndpoint(endpointProvider.getResolvedTokenEndpoint())
+            .clock(spec.getRuntimeConfig().getClock())
+            .build();
+      case PRIVATE_KEY_JWT:
+        return ImmutablePrivateKeyJwtClientAuthenticator.builder()
+            .clientId(spec.getImpersonationConfig().getClientId().orElseThrow())
+            .clientAssertionConfig(spec.getImpersonationClientAssertionConfig())
+            .tokenEndpoint(endpointProvider.getResolvedTokenEndpoint())
+            .clock(spec.getRuntimeConfig().getClock())
             .build();
       default:
         throw new IllegalArgumentException("Unsupported client authentication method: " + method);

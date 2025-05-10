@@ -26,9 +26,11 @@ import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2AgentSpec;
 import com.dremio.iceberg.authmgr.oauth2.auth.ClientAuthentication;
 import com.dremio.iceberg.authmgr.oauth2.config.AuthorizationCodeConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.BasicConfig;
+import com.dremio.iceberg.authmgr.oauth2.config.ClientAssertionConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.ConfigUtils;
 import com.dremio.iceberg.authmgr.oauth2.config.DeviceCodeConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.Dialect;
+import com.dremio.iceberg.authmgr.oauth2.config.ImpersonationClientAssertionConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.ImpersonationConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.PkceTransformation;
 import com.dremio.iceberg.authmgr.oauth2.config.ResourceOwnerConfig;
@@ -318,6 +320,8 @@ public abstract class TestEnvironment implements AutoCloseable {
         .tokenRefreshConfig(getTokenRefreshConfig())
         .tokenExchangeConfig(getTokenExchangeConfig())
         .impersonationConfig(getImpersonationConfig())
+        .clientAssertionConfig(getClientAssertionConfig())
+        .impersonationClientAssertionConfig(getImpersonationClientAssertionConfig())
         .runtimeConfig(getRuntimeConfig())
         .build();
   }
@@ -337,6 +341,7 @@ public abstract class TestEnvironment implements AutoCloseable {
       if (isPrivateClient()) {
         builder.clientSecret(getClientSecret());
       }
+      builder.clientId(getClientId());
     }
     getClientAuthentication().ifPresent(builder::clientAuthentication);
     if (isDiscoveryEnabled()) {
@@ -479,6 +484,7 @@ public abstract class TestEnvironment implements AutoCloseable {
       } else {
         builder.tokenEndpoint(getImpersonationTokenEndpoint());
       }
+      getImpersonationClientAuthentication().ifPresent(builder::clientAuthentication);
     }
     return builder.build();
   }
@@ -496,6 +502,18 @@ public abstract class TestEnvironment implements AutoCloseable {
   @Value.Default
   public List<String> getImpersonationScopes() {
     return List.of(TestConstants.SCOPE2);
+  }
+
+  public abstract Optional<ClientAuthentication> getImpersonationClientAuthentication();
+
+  @Value.Default
+  public ClientAssertionConfig getClientAssertionConfig() {
+    return ClientAssertionConfig.DEFAULT;
+  }
+
+  @Value.Default
+  public ImpersonationClientAssertionConfig getImpersonationClientAssertionConfig() {
+    return ImpersonationClientAssertionConfig.DEFAULT;
   }
 
   @Value.Default
