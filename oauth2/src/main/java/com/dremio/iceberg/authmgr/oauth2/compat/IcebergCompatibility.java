@@ -100,7 +100,7 @@ public final class IcebergCompatibility {
               entry.getKey(),
               OAuth2Properties.Basic.ISSUER_URL,
               OAuth2Properties.Basic.TOKEN_ENDPOINT);
-          migrated.put(OAuth2Properties.Basic.ISSUER_URL, entry.getValue());
+          migrated.put(OAuth2Properties.Basic.TOKEN_ENDPOINT, entry.getValue());
           break;
         case org.apache.iceberg.rest.auth.OAuth2Properties.SCOPE:
           warnOnIcebergOAuth2Property(entry.getKey(), OAuth2Properties.Basic.SCOPE);
