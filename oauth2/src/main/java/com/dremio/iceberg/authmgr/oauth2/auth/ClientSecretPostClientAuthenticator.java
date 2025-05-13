@@ -18,25 +18,24 @@ package com.dremio.iceberg.authmgr.oauth2.auth;
 import com.dremio.iceberg.authmgr.oauth2.rest.ClientRequest;
 import com.dremio.iceberg.authmgr.oauth2.rest.ClientRequest.Builder;
 import com.dremio.iceberg.authmgr.oauth2.token.Tokens;
+import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
 import jakarta.annotation.Nullable;
 import java.util.Map;
 
 /**
- * A client authenticator. This interface is used to authenticate a client by adding the necessary
- * authentication information to the request.
+ * A Client authentication method for clients in possession of a client password, using request body
+ * parameters.
+ *
+ * @see <a href="https://datatracker.ietf.org/doc/html/rfc6749#section-2.3.1">OAuth 2.0
+ *     specification, Section 2.3.1</a>.
  */
-public interface ClientAuthenticator {
+@AuthManagerImmutable
+abstract class ClientSecretPostClientAuthenticator implements ClientSecretAuthenticator {
 
-  /**
-   * Authenticates a client by adding the necessary authentication information to the request.
-   *
-   * @param request the {@link ClientRequest.Builder request} to authenticate
-   * @param headers the current request headers; the map is mutable and can be modified
-   * @param currentTokens the current tokens; may be null if no tokens are available (this parameter
-   *     is only useful for Iceberg REST dialect authentication)
-   * @param <R> the type of the request
-   * @param <B> the type of the request builder
-   */
-  <R extends ClientRequest, B extends Builder<R, B>> void authenticate(
-      Builder<R, B> request, Map<String, String> headers, @Nullable Tokens currentTokens);
+  @Override
+  public final <R extends ClientRequest, B extends Builder<R, B>> void authenticate(
+      Builder<R, B> request, Map<String, String> headers, @Nullable Tokens currentTokens) {
+    request.clientId(getClientId());
+    request.clientSecret(getClientSecret().getSecret());
+  }
 }
