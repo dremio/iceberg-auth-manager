@@ -48,7 +48,7 @@ abstract class AbstractFlow implements Flow {
     Map<String, String> headers = getHeaders();
     context.getClientAuthenticator().authenticate(builder, headers, currentTokens);
     REQ request = builder.build();
-    LOGGER.debug("Invoking token endpoint: {}", request);
+    LOGGER.debug("Invoking token endpoint: headers: {} body: {}", headers, request);
     TokenResponse response =
         context
             .getRestClient()
@@ -71,7 +71,7 @@ abstract class AbstractFlow implements Flow {
     Map<String, String> headers = getHeaders();
     context.getClientAuthenticator().authenticate(builder, headers, currentTokens);
     DeviceAuthorizationRequest request = builder.build();
-    LOGGER.debug("Invoking device auth endpoint: {}", request);
+    LOGGER.debug("Invoking device auth endpoint: headers: {} body: {}", headers, request);
     DeviceAuthorizationResponse response =
         context
             .getRestClient()
