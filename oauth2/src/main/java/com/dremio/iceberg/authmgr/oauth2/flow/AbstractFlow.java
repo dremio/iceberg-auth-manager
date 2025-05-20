@@ -48,7 +48,8 @@ abstract class AbstractFlow implements Flow {
     Map<String, String> headers = getHeaders();
     context.getClientAuthenticator().authenticate(builder, headers, currentTokens);
     REQ request = builder.build();
-    LOGGER.debug("Invoking token endpoint: headers: {} body: {}", headers, request);
+    LOGGER.debug(
+        "Invoking token endpoint: headers: {} body: {}", filterSensitiveData(headers), request);
     TokenResponse response =
         context
             .getRestClient()
@@ -71,7 +72,10 @@ abstract class AbstractFlow implements Flow {
     Map<String, String> headers = getHeaders();
     context.getClientAuthenticator().authenticate(builder, headers, currentTokens);
     DeviceAuthorizationRequest request = builder.build();
-    LOGGER.debug("Invoking device auth endpoint: headers: {} body: {}", headers, request);
+    LOGGER.debug(
+        "Invoking device auth endpoint: headers: {} body: {}",
+        filterSensitiveData(headers),
+        request);
     DeviceAuthorizationResponse response =
         context
             .getRestClient()
@@ -89,5 +93,13 @@ abstract class AbstractFlow implements Flow {
     Map<String, String> headers = new HashMap<>();
     headers.put("Content-Type", PostFormRequest.CONTENT_TYPE);
     return headers;
+  }
+
+  private Map<String, String> filterSensitiveData(Map<String, String> headers) {
+    Map<String, String> redactedHeaders = new HashMap<>(headers);
+    if (redactedHeaders.containsKey("Authorization")) {
+      redactedHeaders.put("Authorization", "****");
+    }
+    return redactedHeaders;
   }
 }
