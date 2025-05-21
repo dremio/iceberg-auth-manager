@@ -124,7 +124,7 @@ jobs:
         run: |
           if [[ "${{ github.event.inputs.dryRun }}" == "false" ]]; then
             echo "Pushing changes to main branch and tag."
-            git push origin
+            git push origin $TAG_NAME main
           else
             echo "Dry run enabled, not pushing changes."
           fi
