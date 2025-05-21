@@ -34,7 +34,7 @@ publishing {
 
                 licenses {
                     license {
-                        name = "The Apache License, Version 2.0"
+                        name = "Apache-2.0"
                         url = "https://www.apache.org/licenses/LICENSE-2.0.txt"
                     }
                 }
@@ -51,8 +51,12 @@ publishing {
 
                 scm {
                     connection = "scm:git:git://github.com/dremio/iceberg-auth-manager.git"
-                    developerConnection = "scm:git:ssh://github.com:dremio/iceberg-auth-manager.git"
+                    developerConnection = "scm:git:git://github.com/dremio/iceberg-auth-manager.git"
                     url = "https://github.com/dremio/iceberg-auth-manager"
+                    val version = rootProject.file("version.txt").readText().trim()
+                    if (!version.endsWith("-SNAPSHOT")) {
+                        tag = "authmgr-$version"
+                    }
                 }
             }
 
