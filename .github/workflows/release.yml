@@ -22,7 +22,7 @@ on:
         description: 'Release version (e.g., 0.1.0)'
         required: true
       nextVersion:
-        description: 'Next development version (e.g., 0.1.1-SNAPSHOT)'
+        description: 'Next development version (e.g., 0.1.1 - the suffix -SNAPSHOT will be added automatically)'
         required: true
       dryRun:
         description: 'Dry run (true or false)'
@@ -50,17 +50,20 @@ jobs:
       - name: Validate inputs
         run: |
           if [[ "${{ github.event.inputs.releaseVersion }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+)?$ && ! "${{ github.event.inputs.releaseVersion }}" =~ -SNAPSHOT$ ]]; then
-            echo "Valid release version: ${{ github.event.inputs.releaseVersion }}"
+            echo RELEASE_VERSION="${{ github.event.inputs.releaseVersion }}" >> $GITHUB_ENV
+            echo "Release version: $RELEASE_VERSION"
           else
             echo "Invalid release version format. Expected format: x.y.z or x.y.z-qualifier"
             exit 1
           fi
-          if [[ "${{ github.event.inputs.nextVersion }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+-SNAPSHOT$ ]]; then
-            echo "Valid next development version: ${{ github.event.inputs.nextVersion }}"
+          if [[ "${{ github.event.inputs.nextVersion }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+)?$ && ! "${{ github.event.inputs.nextVersion }}" =~ -SNAPSHOT$ ]]; then
+            echo NEXT_VERSION="${{ github.event.inputs.nextVersion }}-SNAPSHOT" >> $GITHUB_ENV
+            echo "Next development version: $NEXT_VERSION"
           else
-            echo "Invalid next development version format. Expected format: x.y.z-SNAPSHOT"
+            echo "Invalid next development version format. Expected format: x.y.z or x.y.z-qualifier"
             exit 1
           fi
+          echo TAG_NAME="authmgr-${RELEASE_VERSION}" >> $GITHUB_ENV
 
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -80,7 +83,6 @@ jobs:
               echo "Current version is not a SNAPSHOT version: $current_version"
               exit 1
           fi
-          echo TAG_NAME="authmgr-${{ github.event.inputs.releaseVersion }}" >> $GITHUB_ENV
 
       - name: Configure Git
         run: |
@@ -89,10 +91,10 @@ jobs:
 
       - name: Update version for release
         run: |
-          echo "${{ github.event.inputs.releaseVersion }}" > version.txt
+          echo "${RELEASE_VERSION}" > version.txt
           git add version.txt
-          git commit -a -m "chore(release): release version ${{ github.event.inputs.releaseVersion }}"
-          git tag -a -m "chore(release): tag version ${{ github.event.inputs.releaseVersion }}" ${TAG_NAME}
+          git commit -a -m "chore(release): release version ${RELEASE_VERSION}"
+          git tag -a -m "chore(release): tag version ${RELEASE_VERSION}" ${TAG_NAME}
 
       - name: Push tag
         run: |
@@ -126,9 +128,9 @@ jobs:
 
       - name: Update to next development version
         run: |
-          echo "${{ github.event.inputs.nextVersion }}" > version.txt
+          echo "${NEXT_VERSION}" > version.txt
           git add version.txt
-          git commit -m "chore(release): set next development version to ${{ github.event.inputs.nextVersion }}"
+          git commit -m "chore(release): set next development version to ${NEXT_VERSION}"
 
       - name: Push main branch
         run: |
