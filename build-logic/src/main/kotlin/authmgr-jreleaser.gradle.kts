@@ -113,7 +113,6 @@ jreleaser {
       repoOwner.set("dremio")
       name.set("iceberg-auth-manager")
       branch.set("main")
-      skipTag.set(true)
       tagName.set("authmgr-{{projectVersion}}")
       commitAuthor {
         name.set("{{projectNameCapitalized}} Release Workflow [bot]")

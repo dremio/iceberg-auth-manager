@@ -92,7 +92,16 @@ jobs:
           echo "${{ github.event.inputs.releaseVersion }}" > version.txt
           git add version.txt
           git commit -a -m "chore(release): release version ${{ github.event.inputs.releaseVersion }}"
-          git tag -a -m "chore(release): tag version ${{ github.event.inputs.releaseVersion }}" $TAG_NAME
+          git tag -a -m "chore(release): tag version ${{ github.event.inputs.releaseVersion }}" ${TAG_NAME}
+
+      - name: Push tag
+        run: |
+          if [[ "${{ github.event.inputs.dryRun }}" == "false" ]]; then
+            echo "Pushing tag ${TAG_NAME}."
+            git push origin ${TAG_NAME}
+          else
+            echo "Dry run enabled, not pushing tag."
+          fi
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -106,6 +115,7 @@ jobs:
       - name: JReleaser full release
         env:
           JRELEASER_DRY_RUN: ${{ github.event.inputs.dryRun }}
+          JRELEASER_TAG_NAME: ${TAG_NAME}
           JRELEASER_MAVENCENTRAL_STAGE: FULL
           JRELEASER_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           JRELEASER_MAVENCENTRAL_USERNAME: ${{ secrets.DEVBOT_CENTRAL_USERNAME }}
@@ -120,13 +130,13 @@ jobs:
           git add version.txt
           git commit -m "chore(release): set next development version to ${{ github.event.inputs.nextVersion }}"
 
-      - name: Push changes
+      - name: Push main branch
         run: |
           if [[ "${{ github.event.inputs.dryRun }}" == "false" ]]; then
-            echo "Pushing changes to main branch and tag."
-            git push origin $TAG_NAME main
+            echo "Pushing changes to main branch."
+            git push origin main
           else
-            echo "Dry run enabled, not pushing changes."
+            echo "Dry run enabled, not pushing to main branch."
           fi
 
       - name: Print JReleaser information
