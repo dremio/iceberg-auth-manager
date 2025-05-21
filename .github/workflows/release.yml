@@ -80,6 +80,7 @@ jobs:
               echo "Current version is not a SNAPSHOT version: $current_version"
               exit 1
           fi
+          echo TAG_NAME="authmgr-${{ github.event.inputs.releaseVersion }}" >> $GITHUB_ENV
 
       - name: Configure Git
         run: |
@@ -91,7 +92,7 @@ jobs:
           echo "${{ github.event.inputs.releaseVersion }}" > version.txt
           git add version.txt
           git commit -a -m "chore(release): release version ${{ github.event.inputs.releaseVersion }}"
-          git tag -f -a -m "chore(release): tag version ${{ github.event.inputs.releaseVersion }}" "authmgr-${{ github.event.inputs.releaseVersion }}"
+          git tag -f -a -m "chore(release): tag version ${{ github.event.inputs.releaseVersion }}" $TAG_NAME
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
