@@ -100,7 +100,7 @@ jobs:
           java-version: 21
 
       - name: Build with Gradle
-        run: ./gradlew clean test publish assemble -x intTest --no-build-cache
+        run: ./gradlew build publish -x intTest
 
       - name: JReleaser full release
         env:
