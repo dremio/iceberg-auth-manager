@@ -33,7 +33,7 @@ You can include them directly in your project:
   <dependency>
     <groupId>com.dremio.iceberg.authmgr</groupId>
     <artifactId>authmgr-oauth2</artifactId>
-    <version>0.0.2</version>
+    <version>[REPLACE_WITH_VERSION]</version>
   </dependency>
 </dependencies>
 ```
@@ -42,7 +42,7 @@ You can include them directly in your project:
 
 ```kotlin
 dependencies {
-  implementation("com.dremio.iceberg.authmgr:authmgr-oauth2:0.0.2")
+  implementation("com.dremio.iceberg.authmgr:authmgr-oauth2:[REPLACE_WITH_VERSION]")
 }
 ```
 

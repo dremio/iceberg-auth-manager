@@ -37,20 +37,20 @@ If you are using the `spark-shell`, you can start it with the following command:
 
 ```shell
 spark-shell \
-  --packages org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.9.0,com.dremio.iceberg.authmgr:authmgr-oauth2:0.0.2
+  --packages org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.9.0,com.dremio.iceberg.authmgr:authmgr-oauth2:[REPLACE_WITH_VERSION]
 ```
 
 Similarly, if you are using Spark SQL, you can start it with the following command:
 
 ```shell
 spark-sql \
-  --packages org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.9.0,com.dremio.iceberg.authmgr:authmgr-oauth2:0.0.2
+  --packages org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.9.0,com.dremio.iceberg.authmgr:authmgr-oauth2:[REPLACE_WITH_VERSION]
 ```
 
 You can also add these configurations to your spark-defaults.conf file:
 
 ```
-spark.jars.packages org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.9.0,com.dremio.iceberg.authmgr:authmgr-oauth2:0.0.2
+spark.jars.packages org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.9.0,com.dremio.iceberg.authmgr:authmgr-oauth2:[REPLACE_WITH_VERSION]
 ```
 
 ### Using Downloaded JAR
