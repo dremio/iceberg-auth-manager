@@ -14,10 +14,6 @@
  * limitations under the License.
  */
 
-import java.util.Properties
-import net.ltgt.gradle.errorprone.CheckSeverity
-import net.ltgt.gradle.errorprone.errorprone
-import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.api.tasks.testing.Test
 import org.gradle.kotlin.dsl.named
 
@@ -93,4 +89,3 @@ dependencies {
     }
   )
 }
-

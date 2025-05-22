@@ -20,15 +20,11 @@ plugins {
   id("authmgr-shadow-jar")
 }
 
-dependencies {
-  implementation(project(":authmgr-oauth2-core"))
-}
+dependencies { implementation(project(":authmgr-oauth2-core")) }
 
 // all dependencies are expected to be provided by Iceberg runtime jars, except the ones
 // that are explicitly declared in the dependencies block above
-configurations.all {
-  isTransitive = false
-}
+configurations.all { isTransitive = false }
 
 tasks.shadowJar {
   archiveClassifier = "" // publish the shadowed JAR instead of the original JAR
