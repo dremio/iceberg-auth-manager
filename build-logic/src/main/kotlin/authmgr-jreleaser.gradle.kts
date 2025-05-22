@@ -150,7 +150,7 @@ jreleaser {
         }
         hide {
           categories.set(listOf("test", "tasks", "build", "docs"))
-          contributors.set(listOf("[bot]", "renovate-bot"))
+          contributors.set(listOf("[bot]", "renovate-bot", "GitHub"))
         }
       }
     }

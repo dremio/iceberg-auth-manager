@@ -39,7 +39,7 @@ permissions:
 
 jobs:
   release:
-    name: Release version ${{ inputs.releaseVersion }}
+    name: "Release version ${{ inputs.releaseVersion }} (dry run: ${{ inputs.dryRun }})"
 
     # Only run in the original repository, not forks
     if: github.repository == 'dremio/iceberg-auth-manager'
@@ -85,9 +85,10 @@ jobs:
           fi
 
       - name: Configure Git
+        # See https://github.com/actions/checkout/blob/main/README.md#push-a-commit-using-the-built-in-token
         run: |
-          git config --global user.email "authmgr-release-workflow-noreply@dremio.com"
-          git config --global user.name "AuthManager Release Workflow [bot]"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       - name: Update version for release
         run: |
@@ -124,7 +125,7 @@ jobs:
           JRELEASER_MAVENCENTRAL_PASSWORD: ${{ secrets.DEVBOT_CENTRAL_PASSWORD }}
           JRELEASER_GPG_PASSPHRASE: ${{ secrets.DEVBOT_GPG_PASSPHRASE }}
           JRELEASER_GPG_SECRET_KEY: ${{ secrets.DEVBOT_GPG_PRIVATE_KEY }}
-        run: ./gradlew jreleaserFullRelease
+        run: ./gradlew jreleaserFullRelease --info
 
       - name: Update to next development version
         run: |
