@@ -14,17 +14,14 @@
  * limitations under the License.
  */
 
+import java.time.LocalDate
 import org.jreleaser.model.Active
 import org.jreleaser.model.api.common.Apply
 import org.jreleaser.model.api.deploy.maven.MavenCentralMavenDeployer
-import java.time.LocalDate
 
-plugins {
-  id("org.jreleaser")
-}
+plugins { id("org.jreleaser") }
 
 jreleaser {
-
   gitRootSearch.set(true)
 
   project {
@@ -59,50 +56,55 @@ jreleaser {
     condition.set("'{{ Env.CI }}' == true")
     script {
       before {
-        filter {
-          includes.set(listOf("session"))
-        }
-        run.set("""
+        filter { includes.set(listOf("session")) }
+        run.set(
+          """
         echo "### {{command}}" >> ${'$'}GITHUB_STEP_SUMMARY
         echo "| Step | Outcome |" >> ${'$'}GITHUB_STEP_SUMMARY
         echo "| ---- | ------- |" >> ${'$'}GITHUB_STEP_SUMMARY
-        """.trimIndent())
+        """
+            .trimIndent()
+        )
       }
       success {
-        filter {
-          excludes.set(listOf("session"))
-        }
-        run.set("""
+        filter { excludes.set(listOf("session")) }
+        run.set(
+          """
         echo "| {{event.name}} | :white_check_mark: |" >> ${'$'}GITHUB_STEP_SUMMARY
-        """.trimIndent())
+        """
+            .trimIndent()
+        )
       }
       success {
-        filter {
-          includes.set(listOf("session"))
-        }
-        run.set("""
+        filter { includes.set(listOf("session")) }
+        run.set(
+          """
         echo "" >> ${'$'}GITHUB_STEP_SUMMARY
-        """.trimIndent())
+        """
+            .trimIndent()
+        )
       }
       failure {
-        filter {
-          excludes.set(listOf("session"))
-        }
-        run.set("""
+        filter { excludes.set(listOf("session")) }
+        run.set(
+          """
         echo "| {{event.name}} | :x: |" >> ${'$'}GITHUB_STEP_SUMMARY
-        """.trimIndent())
+        """
+            .trimIndent()
+        )
       }
       failure {
-        filter {
-          includes.set(listOf("session"))
-        }
-        run.set("""
+        filter { includes.set(listOf("session")) }
+        run.set(
+          """
         echo "" >> ${'$'}GITHUB_STEP_SUMMARY
         echo "### Failure" >> ${'$'}GITHUB_STEP_SUMMARY
         echo "\`\`\`" >> ${'$'}GITHUB_STEP_SUMMARY
         echo "{{event.stacktrace}}\`\`\`" >> ${'$'}GITHUB_STEP_SUMMARY
         echo "" >> ${'$'}GITHUB_STEP_SUMMARY
-        """.trimIndent())
+        """
+            .trimIndent()
+        )
       }
     }
   }
@@ -124,7 +126,9 @@ jreleaser {
       }
       issues {
         enabled.set(true)
-        comment.set("🎉 This issue has been resolved in version {{projectVersionNumber}} ([Release Notes]({{releaseNotesUrl}}))")
+        comment.set(
+          "🎉 This issue has been resolved in version {{projectVersionNumber}} ([Release Notes]({{releaseNotesUrl}}))"
+        )
         applyMilestone.set(Apply.ALWAYS)
       }
       discussionCategoryName.set("Announcements")
@@ -143,10 +147,13 @@ jreleaser {
           The full changelog can be found [here]({{repoUrl}}/compare/{{previousTagName}}...{{tagName}}).
           {{changelogChanges}}
           {{changelogContributors}}
-          """.trimIndent()
+          """
+            .trimIndent()
         )
         contributors {
-          format.set("- {{contributorName}}{{#contributorUsernameAsLink}} ({{.}}){{/contributorUsernameAsLink}}")
+          format.set(
+            "- {{contributorName}}{{#contributorUsernameAsLink}} ({{.}}){{/contributorUsernameAsLink}}"
+          )
         }
         hide {
           categories.set(listOf("test", "tasks", "build", "docs"))
@@ -159,13 +166,15 @@ jreleaser {
   deploy {
     maven {
       mavenCentral {
-        create("sonatype")  {
+        create("sonatype") {
           stage.set(MavenCentralMavenDeployer.Stage.FULL)
           active.set(Active.RELEASE_PRERELEASE)
           url.set("https://central.sonatype.com/api/v1/publisher")
           applyMavenCentralRules.set(true)
           subprojects.forEach { project ->
-            stagingRepository(project.layout.buildDirectory.dir("staging-deploy").get().asFile.absolutePath)
+            stagingRepository(
+              project.layout.buildDirectory.dir("staging-deploy").get().asFile.absolutePath
+            )
           }
         }
       }

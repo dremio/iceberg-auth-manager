@@ -14,61 +14,59 @@
  * limitations under the License.
  */
 
-plugins {
-    `maven-publish`
-}
+plugins { `maven-publish` }
 
 publishing {
-    publications {
+  publications {
 
-        // This publication is used by JReleaser
-        create<MavenPublication>("staging-maven") {
+    // This publication is used by JReleaser
+    create<MavenPublication>("staging-maven") {
+      from(components["java"])
 
-            from(components["java"])
+      pom {
+        name = "Auth Manager for Apache Iceberg"
+        description =
+          "Dremio AuthManager for Apache Iceberg is an OAuth2 manager for Apache Iceberg REST. It is a general-purpose implementation that is compatible with any Apache Iceberg REST catalog."
+        url.set("https://github.com/dremio/iceberg-auth-manager")
+        inceptionYear = "2025"
 
-            pom {
-                name = "Auth Manager for Apache Iceberg"
-                description = "Dremio AuthManager for Apache Iceberg is an OAuth2 manager for Apache Iceberg REST. It is a general-purpose implementation that is compatible with any Apache Iceberg REST catalog."
-                url.set("https://github.com/dremio/iceberg-auth-manager")
-                inceptionYear = "2025"
-
-                licenses {
-                    license {
-                        name = "Apache-2.0"
-                        url = "https://www.apache.org/licenses/LICENSE-2.0.txt"
-                    }
-                }
-
-                developers {
-                    developer {
-                        id = "dremio"
-                        name = "Dremio"
-                        email = "oss@dremio.com"
-                        organization = "Dremio Corporation"
-                        organizationUrl = "https://www.dremio.com"
-                    }
-                }
-
-                scm {
-                    connection = "scm:git:git://github.com/dremio/iceberg-auth-manager.git"
-                    developerConnection = "scm:git:git://github.com/dremio/iceberg-auth-manager.git"
-                    url = "https://github.com/dremio/iceberg-auth-manager"
-                    val version = rootProject.file("version.txt").readText().trim()
-                    if (!version.endsWith("-SNAPSHOT")) {
-                        tag = "authmgr-$version"
-                    }
-                }
-            }
-
-            // Suppress test fixtures capability warnings
-            suppressPomMetadataWarningsFor("testFixturesApiElements")
-            suppressPomMetadataWarningsFor("testFixturesRuntimeElements")
+        licenses {
+          license {
+            name = "Apache-2.0"
+            url = "https://www.apache.org/licenses/LICENSE-2.0.txt"
+          }
         }
-    }
-    repositories {
-        maven {
-            name = "localStaging"
-            url = layout.buildDirectory.dir("staging-deploy").get().asFile.toURI()
+
+        developers {
+          developer {
+            id = "dremio"
+            name = "Dremio"
+            email = "oss@dremio.com"
+            organization = "Dremio Corporation"
+            organizationUrl = "https://www.dremio.com"
+          }
         }
+
+        scm {
+          connection = "scm:git:git://github.com/dremio/iceberg-auth-manager.git"
+          developerConnection = "scm:git:git://github.com/dremio/iceberg-auth-manager.git"
+          url = "https://github.com/dremio/iceberg-auth-manager"
+          val version = rootProject.file("version.txt").readText().trim()
+          if (!version.endsWith("-SNAPSHOT")) {
+            tag = "authmgr-$version"
+          }
+        }
+      }
+
+      // Suppress test fixtures capability warnings
+      suppressPomMetadataWarningsFor("testFixturesApiElements")
+      suppressPomMetadataWarningsFor("testFixturesRuntimeElements")
     }
+  }
+  repositories {
+    maven {
+      name = "localStaging"
+      url = layout.buildDirectory.dir("staging-deploy").get().asFile.toURI()
+    }
+  }
 }

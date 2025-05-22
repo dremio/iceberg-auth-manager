@@ -15,16 +15,15 @@
  */
 
 import com.diffplug.spotless.FormatterFunc
+import java.io.Serializable
 import org.jetbrains.gradle.ext.copyright
 import org.jetbrains.gradle.ext.encodings
 import org.jetbrains.gradle.ext.settings
-import java.io.Serializable
 
 plugins {
   id("com.diffplug.spotless")
   id("org.jetbrains.gradle.plugin.idea-ext")
 }
-
 
 spotless {
   java {
@@ -49,7 +48,8 @@ spotless {
   kotlinGradle {
     ktfmt().googleStyle()
     licenseHeaderFile(rootProject.file("codestyle/copyright-header-java.txt"), "$")
-    target("*.gradle.kts")
+    target("**/*.gradle.kts")
+    targetExclude("**/build/**")
   }
   format("markdown") {
     target("**/*.md")
