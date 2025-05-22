@@ -51,6 +51,7 @@ jobs:
         run: |
           if [[ "${{ github.event.inputs.releaseVersion }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+)?$ && ! "${{ github.event.inputs.releaseVersion }}" =~ -SNAPSHOT$ ]]; then
             echo RELEASE_VERSION="${{ github.event.inputs.releaseVersion }}" >> $GITHUB_ENV
+            echo TAG_NAME="authmgr-${RELEASE_VERSION}" >> $GITHUB_ENV
             echo "Release version: $RELEASE_VERSION"
           else
             echo "Invalid release version format. Expected format: x.y.z or x.y.z-qualifier"
@@ -63,7 +64,6 @@ jobs:
             echo "Invalid next development version format. Expected format: x.y.z or x.y.z-qualifier"
             exit 1
           fi
-          echo TAG_NAME="authmgr-${RELEASE_VERSION}" >> $GITHUB_ENV
 
       - name: Checkout repository
         uses: actions/checkout@v4
