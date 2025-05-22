@@ -22,10 +22,17 @@ plugins {
   id("authmgr-shadow-jar")
 }
 
+val runtimeJar =
+  configurations.create("runtimeJar") {
+    description = "Used to mark dependencies for inclusion in the runtime shadowed jar"
+  }
+
 dependencies {
   implementation(platform(libs.iceberg.bom))
   implementation("org.apache.iceberg:iceberg-api")
   implementation("org.apache.iceberg:iceberg-core")
+
+  implementation(libs.auth0.jwt)
 
   implementation(libs.slf4j.api)
   implementation(libs.caffeine)
@@ -55,6 +62,8 @@ dependencies {
   testFixturesApi(libs.assertj.core)
   testFixturesApi(libs.mockito.core)
 
+  testFixturesApi(libs.auth0.jwt)
+
   testFixturesApi(libs.mockserver.netty)
   testFixturesApi(libs.mockserver.client.java)
 
@@ -77,6 +86,11 @@ dependencies {
 
   intTestCompileOnly(project(":authmgr-immutables"))
   intTestAnnotationProcessor(project(":authmgr-immutables", configuration = "processor"))
+
+  runtimeJar(libs.auth0.jwt) {
+    exclude(group = "com.fasterxml.jackson.core", module = "jackson-core")
+    exclude(group = "com.fasterxml.jackson.core", module = "jackson-databind")
+  }
 }
 
 tasks.named<Test>("test").configure { maxParallelForks = 4 }
@@ -87,11 +101,16 @@ tasks.named<Test>("intTest").configure {
 }
 
 tasks.withType<ShadowJar> {
-  // all dependencies are expected to be provided by Iceberg runtime jars
-  configurations = emptyList()
-  // relocate to same package as in Iceberg runtime jars
-  relocate("com.fasterxml.jackson", "org.apache.iceberg.shaded.com.fasterxml.jackson")
+  // all dependencies are expected to be provided by Iceberg runtime jars,
+  // except for those in the runtimeJar configuration
+  configurations = listOf(runtimeJar)
+  // relocate dependencies that are specific to this project
+  relocate("com.auth0.jwt", "com.dremio.iceberg.authmgr.shaded.com.auth0.jwt")
+  // relocate common dependencies to same package as in Iceberg runtime jars
   relocate("com.github.benmanes", "org.apache.iceberg.shaded.com.github.benmanes")
+  relocate("com.fasterxml.jackson", "org.apache.iceberg.shaded.com.fasterxml.jackson")
+  // exclude module-info.class
+  exclude("META-INF/**/module-info.class")
 }
 
 val mockitoAgent = configurations.create("mockitoAgent")

@@ -25,10 +25,13 @@ import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.ResourceOwner.U
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties;
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.AuthorizationCode;
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.DeviceCode;
+import com.dremio.iceberg.authmgr.oauth2.auth.ClientAuthentication;
 import com.dremio.iceberg.authmgr.oauth2.config.AuthorizationCodeConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.BasicConfig;
+import com.dremio.iceberg.authmgr.oauth2.config.ClientAssertionConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.DeviceCodeConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.Dialect;
+import com.dremio.iceberg.authmgr.oauth2.config.ImpersonationClientAssertionConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.ImpersonationConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.ResourceOwnerConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.RuntimeConfig;
@@ -98,6 +101,25 @@ public interface OAuth2AgentSpec {
     return RuntimeConfig.DEFAULT;
   }
 
+  /**
+   * The client JWT assertion configuration. Required when the client authentication method is
+   * {@link ClientAuthentication#PRIVATE_KEY_JWT} or {@link ClientAuthentication#CLIENT_SECRET_JWT}.
+   */
+  @Value.Default
+  default ClientAssertionConfig getClientAssertionConfig() {
+    return ClientAssertionConfig.DEFAULT;
+  }
+
+  /**
+   * The client JWT assertion configuration, for impersonation only. Required when the impersonation
+   * when the impersonation client authentication method is {@link
+   * ClientAuthentication#PRIVATE_KEY_JWT} or {@link ClientAuthentication#CLIENT_SECRET_JWT}.
+   */
+  @Value.Default
+  default ImpersonationClientAssertionConfig getImpersonationClientAssertionConfig() {
+    return ImpersonationClientAssertionConfig.DEFAULT;
+  }
+
   @Value.Check
   default void validate() {
     ConfigValidator validator = new ConfigValidator();
@@ -159,6 +181,9 @@ public interface OAuth2AgentSpec {
         .tokenRefreshConfig(getTokenRefreshConfig().merge(properties))
         .tokenExchangeConfig(getTokenExchangeConfig().merge(properties))
         .impersonationConfig(getImpersonationConfig().merge(properties))
+        .clientAssertionConfig(getClientAssertionConfig().merge(properties))
+        .impersonationClientAssertionConfig(
+            getImpersonationClientAssertionConfig().merge(properties))
         .runtimeConfig(getRuntimeConfig().merge(properties))
         .build();
   }
@@ -190,6 +215,9 @@ public interface OAuth2AgentSpec {
           .tokenRefreshConfig(TokenRefreshConfig.builder().from(properties).build())
           .tokenExchangeConfig(TokenExchangeConfig.builder().from(properties).build())
           .impersonationConfig(ImpersonationConfig.builder().from(properties).build())
+          .clientAssertionConfig(ClientAssertionConfig.builder().from(properties).build())
+          .impersonationClientAssertionConfig(
+              ImpersonationClientAssertionConfig.builder().from(properties).build())
           .runtimeConfig(RuntimeConfig.builder().from(properties).build());
     }
 
@@ -213,6 +241,13 @@ public interface OAuth2AgentSpec {
 
     @CanIgnoreReturnValue
     Builder impersonationConfig(ImpersonationConfig tokenExchangeConfig);
+
+    @CanIgnoreReturnValue
+    Builder clientAssertionConfig(ClientAssertionConfig clientAssertionConfig);
+
+    @CanIgnoreReturnValue
+    Builder impersonationClientAssertionConfig(
+        ImpersonationClientAssertionConfig impersonationClientAssertionConfig);
 
     @CanIgnoreReturnValue
     Builder runtimeConfig(RuntimeConfig runtimeConfig);
