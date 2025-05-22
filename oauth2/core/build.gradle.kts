@@ -92,19 +92,3 @@ dependencies {
 }
 
 tasks { test { jvmArgs("-javaagent:${mockitoAgent.asPath}") } }
-
-publishing {
-  publications {
-    create<MavenPublication>("relocation") {
-      pom {
-        artifactId = "authmgr-oauth2"
-        distributionManagement {
-          relocation {
-            artifactId = "authmgr-oauth2-core"
-            message = "artifactId has been changed; the runtime classifier moved to another artifact: authmgr-oauth2-runtime"
-          }
-        }
-      }
-    }
-  }
-}
