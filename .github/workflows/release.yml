@@ -59,7 +59,8 @@ jobs:
             exit 1
           fi
           if [[ "${{ github.event.inputs.nextVersion }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+)?$ && ! "${{ github.event.inputs.nextVersion }}" =~ -SNAPSHOT$ ]]; then
-            echo NEXT_VERSION="${{ github.event.inputs.nextVersion }}-SNAPSHOT" >> $GITHUB_ENV
+            NEXT_VERSION="${{ github.event.inputs.nextVersion }}-SNAPSHOT"
+            echo NEXT_VERSION="${NEXT_VERSION}" >> $GITHUB_ENV
             echo "Next development version: $NEXT_VERSION"
           else
             echo "Invalid next development version format. Expected format: x.y.z or x.y.z-qualifier"
