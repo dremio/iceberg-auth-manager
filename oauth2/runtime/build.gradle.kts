@@ -20,6 +20,10 @@ plugins {
   id("authmgr-maven")
 }
 
+description = "Runtime bundle for Dremio AuthManager for Apache Iceberg"
+
+ext { set("mavenName", "Auth Manager for Apache Iceberg - OAuth2 - Runtime") }
+
 // Create configurations to hold the core project's source and javadoc artifacts
 val coreSources by
   configurations.creating {

@@ -20,6 +20,10 @@ plugins {
   id("authmgr-maven")
 }
 
+description = "Core OAuth2 implementation for Dremio AuthManager for Apache Iceberg"
+
+ext { set("mavenName", "Auth Manager for Apache Iceberg - OAuth2 - Core") }
+
 dependencies {
   implementation(platform(libs.iceberg.bom))
   implementation("org.apache.iceberg:iceberg-api")
