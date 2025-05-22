@@ -22,7 +22,6 @@ val shadowJar = tasks.named<ShadowJar>("shadowJar")
 
 shadowJar.configure {
   outputs.cacheIf { false } // do not cache uber/shaded jars
-  archiveClassifier = "runtime"
   mergeServiceFiles()
 }
 

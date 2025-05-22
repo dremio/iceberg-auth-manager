@@ -23,8 +23,16 @@ Maven Central and GitHub Releases. You can choose the method that best fits your
 ### Maven Artifacts
 
 Maven artifacts are published to 
-[Maven Central](https://central.sonatype.com/namespace/com.dremio.iceberg.authmgr). 
-You can include them directly in your project:
+[Maven Central](https://central.sonatype.com/namespace/com.dremio.iceberg.authmgr).
+
+If you intend to simply download the artifacts for usage with Spark or other
+engines, make sure to download the `authmgr-oauth2-runtime` artifact. This
+artifact contains all the dependencies required to run the Dremio AuthManager
+for Apache Iceberg in Spark or other engines.
+
+Instead, if you are developing a Java application and need to include the Dremio
+AuthManager for Apache Iceberg as a dependency, you should use the
+`authmgr-oauth2-core` artifact:
 
 #### Maven Dependency
 
@@ -32,7 +40,7 @@ You can include them directly in your project:
 <dependencies>
   <dependency>
     <groupId>com.dremio.iceberg.authmgr</groupId>
-    <artifactId>authmgr-oauth2</artifactId>
+    <artifactId>authmgr-oauth2-core</artifactId>
     <version>[REPLACE_WITH_VERSION]</version>
   </dependency>
 </dependencies>
@@ -42,7 +50,7 @@ You can include them directly in your project:
 
 ```kotlin
 dependencies {
-  implementation("com.dremio.iceberg.authmgr:authmgr-oauth2:[REPLACE_WITH_VERSION]")
+  implementation("com.dremio.iceberg.authmgr:authmgr-oauth2-core:[REPLACE_WITH_VERSION]")
 }
 ```
 
@@ -51,8 +59,8 @@ dependencies {
 Alternatively, you can download pre-built jars directly from the
 [Releases page](https://github.com/dremio/iceberg-auth-manager/releases).
 
-When running a Spark Shell session, you should choose the `runtime` jar, 
-e.g. `authmgr-oauth2-x.y.z-runtime.jar`.
+Again, if you intend to simply download the artifacts for usage with Spark or other
+engines, make sure to download the `authmgr-oauth2-runtime` artifact.
 
 ### Building from Source
 

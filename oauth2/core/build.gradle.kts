@@ -14,12 +14,10 @@
  * limitations under the License.
  */
 
-import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-
 plugins {
   id("authmgr-java")
+  id("authmgr-java-testing")
   id("authmgr-maven")
-  id("authmgr-shadow-jar")
 }
 
 dependencies {
@@ -86,14 +84,6 @@ tasks.named<Test>("intTest").configure {
   systemProperty("authmgr.it.long.total", System.getProperty("authmgr.it.long.total", "PT30S"))
 }
 
-tasks.withType<ShadowJar> {
-  // all dependencies are expected to be provided by Iceberg runtime jars
-  configurations = emptyList()
-  // relocate to same package as in Iceberg runtime jars
-  relocate("com.fasterxml.jackson", "org.apache.iceberg.shaded.com.fasterxml.jackson")
-  relocate("com.github.benmanes", "org.apache.iceberg.shaded.com.github.benmanes")
-}
-
 val mockitoAgent = configurations.create("mockitoAgent")
 
 dependencies {
@@ -102,3 +92,19 @@ dependencies {
 }
 
 tasks { test { jvmArgs("-javaagent:${mockitoAgent.asPath}") } }
+
+publishing {
+  publications {
+    create<MavenPublication>("relocation") {
+      pom {
+        artifactId = "authmgr-oauth2"
+        distributionManagement {
+          relocation {
+            artifactId = "authmgr-oauth2-core"
+            message = "artifactId has been changed; the runtime classifier moved to another artifact: authmgr-oauth2-runtime"
+          }
+        }
+      }
+    }
+  }
+}
