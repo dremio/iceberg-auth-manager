@@ -21,7 +21,11 @@ publishing {
 
     // This publication is used by JReleaser
     create<MavenPublication>("staging-maven") {
-      from(components["java"])
+      if (project.plugins.hasPlugin("com.gradleup.shadow")) {
+        from(components["shadow"])
+      } else {
+        from(components["java"])
+      }
 
       pom {
         name = "Auth Manager for Apache Iceberg"

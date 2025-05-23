@@ -16,8 +16,8 @@
 
 plugins {
   id("authmgr-java")
-  id("authmgr-maven")
   id("authmgr-shadow-jar")
+  id("authmgr-maven")
 }
 
 // Create configurations to hold the core project's source and javadoc artifacts
@@ -76,3 +76,6 @@ tasks.named<Jar>("javadocJar") {
 
 // Skip the javadoc generation task as we'll copy from the core project
 tasks.withType<Javadoc> { enabled = false }
+
+// We're replacing the "original jar" with the uber-jar.
+tasks.named("jar") { enabled = false }
