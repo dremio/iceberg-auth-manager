@@ -21,7 +21,7 @@ plugins {
 }
 
 // Create configurations to hold the core project's source and javadoc artifacts
-val coreSourcesElements by
+val coreSources by
   configurations.creating {
     isCanBeConsumed = false
     isCanBeResolved = true
@@ -32,7 +32,7 @@ val coreSourcesElements by
     }
   }
 
-val coreJavadocElements by
+val coreJavadoc by
   configurations.creating {
     isCanBeConsumed = false
     isCanBeResolved = true
@@ -51,8 +51,8 @@ dependencies {
     exclude(group = "com.github.ben-manes.caffeine")
     exclude(group = "org.slf4j")
   }
-  coreSourcesElements(project(":authmgr-oauth2-core", "sourcesElements"))
-  coreJavadocElements(project(":authmgr-oauth2-core", "javadocElements"))
+  coreSources(project(":authmgr-oauth2-core", "sourcesElements"))
+  coreJavadoc(project(":authmgr-oauth2-core", "javadocElements"))
 }
 
 tasks.shadowJar {
@@ -65,13 +65,13 @@ tasks.shadowJar {
 // Configure the source jar to copy from the core project's source jar
 tasks.named<Jar>("sourcesJar") {
   dependsOn(":authmgr-oauth2-core:sourcesJar")
-  from({ coreSourcesElements.incoming.artifactView { lenient(true) }.files.map { zipTree(it) } })
+  from({ coreSources.incoming.artifactView { lenient(true) }.files.map { zipTree(it) } })
 }
 
 // Configure the javadoc jar to copy from the core project's javadoc jar
 tasks.named<Jar>("javadocJar") {
   dependsOn(":authmgr-oauth2-core:javadocJar")
-  from({ coreJavadocElements.incoming.artifactView { lenient(true) }.files.map { zipTree(it) } })
+  from({ coreJavadoc.incoming.artifactView { lenient(true) }.files.map { zipTree(it) } })
 }
 
 // Skip the javadoc generation task as we'll copy from the core project
