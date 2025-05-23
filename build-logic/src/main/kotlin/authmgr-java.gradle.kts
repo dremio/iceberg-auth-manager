@@ -36,6 +36,13 @@ tasks.withType(JavaCompile::class.java).configureEach {
   options.errorprone.checks.putAll(provider { memoizedErrorproneRules(errorproneRules) })
 }
 
+// ensure jars conform to reproducible builds
+// (https://docs.gradle.org/current/userguide/working_with_files.html#sec:reproducible_archives)
+tasks.withType<AbstractArchiveTask>().configureEach {
+  isPreserveFileTimestamps = false
+  isReproducibleFileOrder = true
+}
+
 private fun memoizedErrorproneRules(rulesFile: File): Map<String, CheckSeverity> =
   rulesFile.reader().use {
     val rules = Properties()
