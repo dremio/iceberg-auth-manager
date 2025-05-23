@@ -61,4 +61,8 @@ tasks.named<RatTask>("rat").configure {
 
   excludes.add("**/kotlin-compiler*")
   excludes.add("**/build-logic/.kotlin/**")
+
+  excludes.add("**/metastore_db/**")
+  excludes.add("**/derby.log")
+  excludes.add("**/spark-warehouse/**")
 }

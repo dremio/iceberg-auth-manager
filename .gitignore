@@ -65,3 +65,8 @@ hs_err_pid*
 
 # macOS
 *.DS_Store
+
+# Spark
+metastore_db/
+derby.log
+spark-warehouse/
