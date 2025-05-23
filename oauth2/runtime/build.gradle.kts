@@ -20,23 +20,59 @@ plugins {
   id("authmgr-shadow-jar")
 }
 
-dependencies { implementation(project(":authmgr-oauth2-core")) }
+// Create configurations to hold the core project's source and javadoc artifacts
+val coreSourcesElements by
+  configurations.creating {
+    isCanBeConsumed = false
+    isCanBeResolved = true
+    attributes {
+      attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category.DOCUMENTATION))
+      attribute(Bundling.BUNDLING_ATTRIBUTE, objects.named(Bundling.EXTERNAL))
+      attribute(DocsType.DOCS_TYPE_ATTRIBUTE, objects.named(DocsType.SOURCES))
+    }
+  }
 
-// don't bring in any transitive dependencies; instead, include only
-// the dependencies that are not already in the Iceberg runtime jars
-configurations.all { isTransitive = false }
+val coreJavadocElements by
+  configurations.creating {
+    isCanBeConsumed = false
+    isCanBeResolved = true
+    attributes {
+      attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category.DOCUMENTATION))
+      attribute(Bundling.BUNDLING_ATTRIBUTE, objects.named(Bundling.EXTERNAL))
+      attribute(DocsType.DOCS_TYPE_ATTRIBUTE, objects.named(DocsType.JAVADOC))
+    }
+  }
+
+dependencies {
+  implementation(project(":authmgr-oauth2-core")) {
+    // exclude dependencies that are already provided by Iceberg runtime jars
+    exclude(group = "org.apache.iceberg")
+    exclude(group = "com.fasterxml.jackson.core")
+    exclude(group = "com.github.ben-manes.caffeine")
+    exclude(group = "org.slf4j")
+  }
+  coreSourcesElements(project(":authmgr-oauth2-core", "sourcesElements"))
+  coreJavadocElements(project(":authmgr-oauth2-core", "javadocElements"))
+}
 
 tasks.shadowJar {
   archiveClassifier = "" // publish the shadowed JAR instead of the original JAR
-  // relocate to same package as in Iceberg runtime jars
+  // relocate to same packages as in Iceberg runtime jars
   relocate("com.fasterxml.jackson", "org.apache.iceberg.shaded.com.fasterxml.jackson")
   relocate("com.github.benmanes", "org.apache.iceberg.shaded.com.github.benmanes")
 }
 
-tasks.named<Javadoc>("javadoc") {
-  // Generate empty javadoc
+// Configure the source jar to copy from the core project's source jar
+tasks.named<Jar>("sourcesJar") {
+  dependsOn(":authmgr-oauth2-core:sourcesJar")
+  from({ coreSourcesElements.incoming.artifactView { lenient(true) }.files.map { zipTree(it) } })
 }
 
-tasks.named<Jar>("sourcesJar") {
-  // Generate empty sources jar
+// Configure the javadoc jar to copy from the core project's javadoc jar
+tasks.named<Jar>("javadocJar") {
+  dependsOn(":authmgr-oauth2-core:javadocJar")
+  from({ coreJavadocElements.incoming.artifactView { lenient(true) }.files.map { zipTree(it) } })
 }
+
+// Skip the javadoc generation task as we'll copy from the core project
+tasks.withType<Javadoc> { enabled = false }
