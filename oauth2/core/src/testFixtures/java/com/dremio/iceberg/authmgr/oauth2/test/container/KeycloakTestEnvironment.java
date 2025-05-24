@@ -27,12 +27,13 @@ import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 
-public class KeycloakContainerExtension extends TestEnvironmentExtension
+public class KeycloakTestEnvironment extends TestEnvironmentExtension
     implements BeforeAllCallback, AfterAllCallback {
 
   @Override
   public void beforeAll(ExtensionContext context) {
     KeycloakContainer keycloak = new KeycloakContainer();
+    keycloak.start();
     context
         .getStore(ExtensionContext.Namespace.GLOBAL)
         .put(KeycloakContainer.class.getName(), keycloak);

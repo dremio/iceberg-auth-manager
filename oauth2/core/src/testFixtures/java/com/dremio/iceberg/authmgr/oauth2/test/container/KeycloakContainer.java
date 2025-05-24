@@ -15,10 +15,13 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.test.container;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.dremio.iceberg.authmgr.oauth2.auth.ClientAuthentication;
 import com.dremio.iceberg.authmgr.oauth2.test.TestConstants;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import dasniko.testcontainers.keycloak.ExtendableKeycloakContainer;
 import jakarta.ws.rs.core.Response;
 import java.net.URI;
 import java.time.Duration;
@@ -26,12 +29,12 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import org.assertj.core.api.Assertions;
 import org.keycloak.admin.client.Keycloak;
 import org.keycloak.admin.client.resource.RealmResource;
 import org.keycloak.representations.idm.ClientRepresentation;
 import org.keycloak.representations.idm.ClientScopeRepresentation;
 import org.keycloak.representations.idm.CredentialRepresentation;
+import org.keycloak.representations.idm.ProtocolMapperRepresentation;
 import org.keycloak.representations.idm.RealmRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
 import org.keycloak.representations.idm.authorization.PolicyEnforcementMode;
@@ -40,7 +43,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
 
-public class KeycloakContainer implements AutoCloseable {
+public class KeycloakContainer extends ExtendableKeycloakContainer<KeycloakContainer> {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(KeycloakContainer.class);
 
@@ -49,34 +52,35 @@ public class KeycloakContainer implements AutoCloseable {
 
   public static final String CONTEXT_PATH = "/realms/master/";
 
-  private final dasniko.testcontainers.keycloak.KeycloakContainer keycloak;
+  private URI rootUrl;
+  private URI issuerUrl;
+  private URI tokenEndpoint;
+  private URI authEndpoint;
+  private URI deviceAuthEndpoint;
 
-  private final URI rootUrl;
-  private final URI issuerUrl;
-  private final URI tokenEndpoint;
-  private final URI authEndpoint;
-  private final URI deviceAuthEndpoint;
-
+  @SuppressWarnings("resource")
   public KeycloakContainer() {
-    keycloak =
-        new dasniko.testcontainers.keycloak.KeycloakContainer("keycloak/keycloak:26.0.4")
-            .withFeaturesEnabled("preview", "token-exchange")
-            .withLogConsumer(new Slf4jLogConsumer(LOGGER))
-            .withEnv(
-                "KC_LOG_LEVEL", getRootLoggerLevel() + ",org.keycloak:" + getKeycloakLoggerLevel())
-            // Useful when debugging Keycloak REST endpoints:
-            .withExposedPorts(8080, 9000, 5005)
-            .withEnv(
-                "JAVA_TOOL_OPTIONS",
-                "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005");
-    keycloak.start();
-    rootUrl = URI.create(keycloak.getAuthServerUrl());
+    super("keycloak/keycloak:26.0.4");
+    withFeaturesEnabled("preview", "token-exchange");
+    withLogConsumer(new Slf4jLogConsumer(LOGGER));
+    withEnv("KC_LOG_LEVEL", getRootLoggerLevel() + ",org.keycloak:" + getKeycloakLoggerLevel());
+    // Useful when debugging Keycloak REST endpoints:
+    withExposedPorts(8080, 9000, 5005)
+        .withEnv(
+            "JAVA_TOOL_OPTIONS",
+            "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005");
+  }
+
+  @Override
+  public void start() {
+    super.start();
+    rootUrl = URI.create(getAuthServerUrl());
     issuerUrl = rootUrl.resolve(CONTEXT_PATH);
     tokenEndpoint = issuerUrl.resolve("protocol/openid-connect/token");
     authEndpoint = issuerUrl.resolve("protocol/openid-connect/auth");
     deviceAuthEndpoint = issuerUrl.resolve("protocol/openid-connect/auth/device");
-    try (Keycloak keycloakAdmin = keycloak.getKeycloakAdminClient()) {
-      RealmResource master = keycloakAdmin.realms().realm("master");
+    try (Keycloak client = getKeycloakAdminClient()) {
+      RealmResource master = client.realms().realm("master");
       updateMasterRealm(master);
       createScope(master);
       createUser(master);
@@ -89,17 +93,16 @@ public class KeycloakContainer implements AutoCloseable {
     }
   }
 
-  @Override
-  public void close() {
-    keycloak.stop();
-  }
-
   public URI getRootUrl() {
     return rootUrl;
   }
 
   public URI getIssuerUrl() {
     return issuerUrl;
+  }
+
+  public String getIssuerClaim() {
+    return removeTrailingSlash(getIssuerUrl().toString());
   }
 
   public URI getTokenEndpoint() {
@@ -116,6 +119,24 @@ public class KeycloakContainer implements AutoCloseable {
 
   public Duration getAccessTokenLifespan() {
     return ACCESS_TOKEN_LIFESPAN;
+  }
+
+  public String fetchNewToken(String scope) {
+    try (Keycloak client =
+        Keycloak.getInstance(
+            getAuthServerUrl(),
+            MASTER_REALM,
+            getAdminUsername(),
+            getAdminPassword(),
+            TestConstants.CLIENT_ID1,
+            TestConstants.CLIENT_SECRET1,
+            null,
+            null,
+            false,
+            null,
+            scope)) {
+      return client.tokenManager().getAccessTokenString();
+    }
   }
 
   protected void updateMasterRealm(RealmResource master) {
@@ -146,7 +167,7 @@ public class KeycloakContainer implements AutoCloseable {
             "display.on.consent.screen",
             "true"));
     try (Response response = master.clientScopes().create(scope)) {
-      Assertions.assertThat(response.getStatus()).isEqualTo(201);
+      assertThat(response.getStatus()).isEqualTo(201);
     }
   }
 
@@ -156,7 +177,8 @@ public class KeycloakContainer implements AutoCloseable {
       String clientSecret,
       ClientAuthentication authenticationMethod) {
     ClientRepresentation client = new ClientRepresentation();
-    client.setId(UUID.randomUUID().toString());
+    String clientUuid = UUID.randomUUID().toString();
+    client.setId(clientUuid);
     client.setClientId(clientId);
     client.setPublicClient(authenticationMethod == ClientAuthentication.NONE);
     client.setServiceAccountsEnabled(
@@ -180,8 +202,10 @@ public class KeycloakContainer implements AutoCloseable {
     }
     client.setOptionalClientScopes(List.of(TestConstants.SCOPE1));
     try (Response response = master.clients().create(client)) {
-      Assertions.assertThat(response.getStatus()).isEqualTo(201);
+      assertThat(response.getStatus()).isEqualTo(201);
     }
+    addPrincipalIdClaimMapper(master, clientUuid);
+    addPrincipalRoleClaimMapper(master, clientUuid);
   }
 
   protected void createUser(RealmResource master) {
@@ -200,7 +224,49 @@ public class KeycloakContainer implements AutoCloseable {
     user.setEmailVerified(true);
     user.setRequiredActions(Collections.emptyList());
     try (Response response = master.users().create(user)) {
-      Assertions.assertThat(response.getStatus()).isEqualTo(201);
+      assertThat(response.getStatus()).isEqualTo(201);
+    }
+  }
+
+  private void addPrincipalIdClaimMapper(RealmResource master, String clientUuid) {
+    ProtocolMapperRepresentation mapper = new ProtocolMapperRepresentation();
+    mapper.setId(UUID.randomUUID().toString());
+    mapper.setName("principal-id-claim-mapper");
+    mapper.setProtocol("openid-connect");
+    mapper.setProtocolMapper("oidc-hardcoded-claim-mapper");
+    mapper.setConfig(
+        ImmutableMap.<String, String>builder()
+            .put("claim.name", "principal_id")
+            .put("claim.value", "1")
+            .put("jsonType.label", "long")
+            .put("id.token.claim", "true")
+            .put("access.token.claim", "true")
+            .put("userinfo.token.claim", "true")
+            .build());
+    try (Response response =
+        master.clients().get(clientUuid).getProtocolMappers().createMapper(mapper)) {
+      assertThat(response.getStatus()).isEqualTo(201);
+    }
+  }
+
+  private void addPrincipalRoleClaimMapper(RealmResource master, String clientUuid) {
+    ProtocolMapperRepresentation mapper = new ProtocolMapperRepresentation();
+    mapper.setId(UUID.randomUUID().toString());
+    mapper.setName("principal-role-claim-mapper");
+    mapper.setProtocol("openid-connect");
+    mapper.setProtocolMapper("oidc-hardcoded-claim-mapper");
+    mapper.setConfig(
+        ImmutableMap.<String, String>builder()
+            .put("claim.name", "groups")
+            .put("claim.value", "[\"PRINCIPAL_ROLE:ALL\"]")
+            .put("jsonType.label", "JSON")
+            .put("id.token.claim", "true")
+            .put("access.token.claim", "true")
+            .put("userinfo.token.claim", "true")
+            .build());
+    try (Response response =
+        master.clients().get(clientUuid).getProtocolMappers().createMapper(mapper)) {
+      assertThat(response.getStatus()).isEqualTo(201);
     }
   }
 
@@ -210,5 +276,9 @@ public class KeycloakContainer implements AutoCloseable {
 
   private static String getKeycloakLoggerLevel() {
     return LOGGER.isDebugEnabled() ? "DEBUG" : getRootLoggerLevel();
+  }
+
+  private static String removeTrailingSlash(String url) {
+    return url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
   }
 }

@@ -32,7 +32,7 @@ import com.dremio.iceberg.authmgr.oauth2.grant.GrantType;
 import com.dremio.iceberg.authmgr.oauth2.test.ImmutableTestEnvironment.Builder;
 import com.dremio.iceberg.authmgr.oauth2.test.TestConstants;
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
-import com.dremio.iceberg.authmgr.oauth2.test.container.KeycloakContainerExtension;
+import com.dremio.iceberg.authmgr.oauth2.test.container.KeycloakTestEnvironment;
 import com.dremio.iceberg.authmgr.oauth2.test.user.KeycloakAuthCodeUserEmulator;
 import com.dremio.iceberg.authmgr.oauth2.test.user.KeycloakDeviceCodeUserEmulator;
 import com.dremio.iceberg.authmgr.oauth2.test.user.UserEmulator;
@@ -50,7 +50,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
 
-@ExtendWith(KeycloakContainerExtension.class)
+@ExtendWith(KeycloakTestEnvironment.class)
 @ExtendWith(SoftAssertionsExtension.class)
 public class OAuth2AgentKeycloakIT {
 

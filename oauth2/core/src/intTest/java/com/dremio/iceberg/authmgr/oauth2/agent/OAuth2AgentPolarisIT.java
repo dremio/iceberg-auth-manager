@@ -20,7 +20,7 @@ import com.auth0.jwt.interfaces.DecodedJWT;
 import com.dremio.iceberg.authmgr.oauth2.flow.OAuth2Exception;
 import com.dremio.iceberg.authmgr.oauth2.test.ImmutableTestEnvironment.Builder;
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
-import com.dremio.iceberg.authmgr.oauth2.test.container.PolarisContainerExtension;
+import com.dremio.iceberg.authmgr.oauth2.test.container.PolarisTestEnvironment;
 import com.dremio.iceberg.authmgr.oauth2.token.AccessToken;
 import com.dremio.iceberg.authmgr.oauth2.token.Tokens;
 import org.assertj.core.api.SoftAssertions;
@@ -30,7 +30,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 /** Tests for {@link OAuth2Agent} with Iceberg dialect against an Apache Polaris server. */
-@ExtendWith(PolarisContainerExtension.class)
+@ExtendWith(PolarisTestEnvironment.class)
 @ExtendWith(SoftAssertionsExtension.class)
 public class OAuth2AgentPolarisIT {
 

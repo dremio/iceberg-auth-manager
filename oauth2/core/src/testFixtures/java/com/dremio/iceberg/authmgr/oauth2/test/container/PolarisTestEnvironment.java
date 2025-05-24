@@ -15,22 +15,31 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.test.container;
 
+import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.ACCESS_TOKEN_LIFESPAN;
+
 import com.dremio.iceberg.authmgr.oauth2.config.Dialect;
 import com.dremio.iceberg.authmgr.oauth2.test.ImmutableTestEnvironment.Builder;
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironmentExtension;
+import java.net.URI;
 import java.time.Clock;
 import java.util.List;
+import org.apache.iceberg.rest.ResourcePaths;
 import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 
-public class PolarisContainerExtension extends TestEnvironmentExtension
+public class PolarisTestEnvironment extends TestEnvironmentExtension
     implements BeforeAllCallback, AfterAllCallback {
 
   @Override
   public void beforeAll(ExtensionContext context) {
-    PolarisContainer polaris = new PolarisContainer();
+    PolarisContainer polaris =
+        new PolarisContainer()
+            .withEnv(
+                "polaris-authentication.token-broker.max-token-generation",
+                ACCESS_TOKEN_LIFESPAN.toString());
+    polaris.start();
     context
         .getStore(ExtensionContext.Namespace.GLOBAL)
         .put(PolarisContainer.class.getName(), polaris);
@@ -60,7 +69,7 @@ public class PolarisContainerExtension extends TestEnvironmentExtension
         .serverRootUrl(polaris.baseUri())
         .authorizationServerContextPath("/api/catalog/")
         .catalogServerContextPath("/api/catalog/")
-        .tokenEndpoint(polaris.getTokenEndpoint())
+        .tokenEndpoint(URI.create(ResourcePaths.tokens()))
         .scopes(List.of("PRINCIPAL_ROLE:ALL"))
         .impersonationEnabled(false)
         .clock(Clock.systemUTC())
