@@ -54,6 +54,20 @@ dependencies {
 }
 ```
 
+### Using Maven BOM
+
+For easier dependency management, you can use the Auth Manager BOM (Bill of Materials):
+
+```kotlin
+dependencies {
+  // Import the BOM
+  implementation(platform("com.dremio.iceberg.authmgr:authmgr-bom:[REPLACE_WITH_VERSION]"))
+  
+  // Then declare dependencies without versions
+  implementation("com.dremio.iceberg.authmgr:authmgr-oauth2-core")
+}
+```
+
 ### Direct Download
 
 Alternatively, you can download pre-built jars directly from the

@@ -14,23 +14,8 @@
  * limitations under the License.
  */
 
-plugins {
-  id("authmgr-java")
-  id("authmgr-maven")
-}
+plugins { id("authmgr-maven") }
 
-description = "Immutables annotations for Dremio AuthManager for Apache Iceberg"
+description = "Bill of Materials for Dremio AuthManager for Apache Iceberg"
 
-ext { set("mavenName", "Auth Manager for Apache Iceberg - OAuth2 - Immutables") }
-
-val processor by configurations.creating
-
-processor.extendsFrom(configurations.api.get())
-
-dependencies {
-  api(libs.immutables.builder)
-  api(libs.immutables.value.annotations)
-
-  processor(libs.immutables.value.processor)
-  processor(project)
-}
+ext { set("mavenName", "Auth Manager for Apache Iceberg - BOM") }

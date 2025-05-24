@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import java.net.URI
 import org.nosphere.apache.rat.RatTask
 
 buildscript { repositories { maven { url = java.net.URI("https://plugins.gradle.org/m2/") } } }
@@ -23,9 +22,14 @@ plugins {
   id("idea")
   id("eclipse")
   id("authmgr-root")
+  id("authmgr-maven")
   id("authmgr-jreleaser")
   alias(libs.plugins.rat)
 }
+
+description = "Parent POM for Dremio AuthManager for Apache Iceberg"
+
+ext { set("mavenName", "Auth Manager for Apache Iceberg - Parent") }
 
 val projectName = rootProject.file("ide-name.txt").readText().trim()
 val ideName = "$projectName ${rootProject.version.toString().replace("^([0-9.]+).*", "\\1")}"
@@ -65,4 +69,8 @@ tasks.named<RatTask>("rat").configure {
   excludes.add("**/metastore_db/**")
   excludes.add("**/derby.log")
   excludes.add("**/spark-warehouse/**")
+}
+
+publishing {
+  publications { named<MavenPublication>("staging-maven") { pom { packaging = "pom" } } }
 }
