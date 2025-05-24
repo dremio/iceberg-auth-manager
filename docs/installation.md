@@ -65,8 +65,6 @@ dependencies {
   
   // Then declare dependencies without versions
   implementation("com.dremio.iceberg.authmgr:authmgr-oauth2-core")
-  // or
-  implementation("com.dremio.iceberg.authmgr:authmgr-oauth2-runtime")
 }
 ```
 
