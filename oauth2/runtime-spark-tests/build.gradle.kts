@@ -57,5 +57,8 @@ dependencies {
 
 tasks.named<Test>("intTest").configure {
   dependsOn(":authmgr-oauth2-runtime:shadowJar")
+  environment("AWS_REGION", "us-west-2")
+  environment("AWS_ACCESS_KEY_ID", "fake")
+  environment("AWS_SECRET_ACCESS_KEY", "fake")
   jvmArgs("--add-exports", "java.base/sun.nio.ch=ALL-UNNAMED")
 }
