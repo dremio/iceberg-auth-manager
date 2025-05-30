@@ -39,20 +39,20 @@ If you are using the `spark-shell`, you can start it with the following command:
 
 ```shell
 spark-shell \
-  --packages org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.9.0,com.dremio.iceberg.authmgr:authmgr-oauth2-runtime:[REPLACE_WITH_VERSION]
+  --packages org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.9.1,com.dremio.iceberg.authmgr:authmgr-oauth2-runtime:[REPLACE_WITH_VERSION]
 ```
 
 Similarly, if you are using Spark SQL, you can start it with the following command:
 
 ```shell
 spark-sql \
-  --packages org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.9.0,com.dremio.iceberg.authmgr:authmgr-oauth2-runtime:[REPLACE_WITH_VERSION]
+  --packages org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.9.1,com.dremio.iceberg.authmgr:authmgr-oauth2-runtime:[REPLACE_WITH_VERSION]
 ```
 
 You can also add these configurations to your spark-defaults.conf file:
 
 ```
-spark.jars.packages org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.9.0,com.dremio.iceberg.authmgr:authmgr-oauth2-runtime:[REPLACE_WITH_VERSION]
+spark.jars.packages org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.9.1,com.dremio.iceberg.authmgr:authmgr-oauth2-runtime:[REPLACE_WITH_VERSION]
 ```
 
 ### Using Downloaded JAR
@@ -62,7 +62,7 @@ classpath using the `--jars` option:
 
 ```shell
 spark-shell \
-  --packages org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.9.0 \
+  --packages org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.9.1 \
   --jars /path/to/authmgr-oauth2-runtime-x.y.z.jar
 ```
 
@@ -70,7 +70,7 @@ Similarly, for Spark SQL:
 
 ```shell
 spark-sql \
-  --packages org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.9.0 \
+  --packages org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.9.1 \
   --jars /path/to/authmgr-oauth2-runtime-x.y.z.jar
 ```
 

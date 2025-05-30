@@ -21,7 +21,7 @@
 errorprone = "2.36.0"
 flink = "1.20.1"
 hadoop = "3.4.1"
-iceberg = "1.9.0"
+iceberg = "1.9.1"
 immutables = "2.10.1"
 mockserver = "5.15.0"
 slf4j = "2.0.16"

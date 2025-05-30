@@ -32,7 +32,7 @@ First, download the required JAR files. You'll need:
 
 ```shell
 # Download Iceberg Flink Runtime JAR
-ICEBERG_VERSION=1.9.0
+ICEBERG_VERSION=1.9.1
 FLINK_VERSION_MAJOR=1.20
 MAVEN_URL=https://repo1.maven.org/maven2
 ICEBERG_MAVEN_URL=${MAVEN_URL}/org/apache/iceberg
@@ -58,7 +58,7 @@ wget ${AUTHMGR_MAVEN_URL}/authmgr-oauth2-runtime/${AUTHMGR_VERSION}/authmgr-oaut
 Place required JAR files in Flink's `lib/` directory to make them available globally:
 
 ```shell
-cp iceberg-flink-runtime-1.20-1.9.0.jar $FLINK_HOME/lib/
+cp iceberg-flink-runtime-1.20-1.9.1.jar $FLINK_HOME/lib/
 cp authmgr-oauth2-runtime-[REPLACE_WITH_VERSION].jar $FLINK_HOME/lib/
 ```
 
