@@ -75,3 +75,17 @@ loadProperties(file("gradle/projects.main.properties")).forEach { name, director
 }
 
 rootProject.name = "authmgr"
+
+plugins { id("com.gradle.develocity") version ("4.0.1") }
+
+develocity {
+  if (System.getenv("CI") != null) {
+    buildScan {
+      termsOfUseUrl = "https://gradle.com/help/legal-terms-of-use"
+      termsOfUseAgree = "yes"
+    }
+  } else {
+    val isBuildScan = gradle.startParameter.isBuildScan
+    buildScan { publishing { onlyIf { isBuildScan } } }
+  }
+}

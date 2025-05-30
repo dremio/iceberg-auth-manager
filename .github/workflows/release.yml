@@ -115,7 +115,7 @@ jobs:
           java-version: 21
 
       - name: Build with Gradle
-        run: ./gradlew build publish -x intTest
+        run: ./gradlew --no-scan build publish -x intTest
 
       - name: JReleaser full release
         env:
@@ -127,7 +127,7 @@ jobs:
           JRELEASER_MAVENCENTRAL_PASSWORD: ${{ secrets.DEVBOT_CENTRAL_PASSWORD }}
           JRELEASER_GPG_PASSPHRASE: ${{ secrets.DEVBOT_GPG_PASSPHRASE }}
           JRELEASER_GPG_SECRET_KEY: ${{ secrets.DEVBOT_GPG_PRIVATE_KEY }}
-        run: ./gradlew jreleaserFullRelease --info
+        run: ./gradlew --no-scan jreleaserFullRelease --info
 
       - name: Update to next development version
         run: |
