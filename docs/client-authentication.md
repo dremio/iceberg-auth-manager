@@ -132,7 +132,7 @@ rest.auth.oauth2.client-assertion.jwt.audience=https://example.com/token
 rest.auth.oauth2.client-assertion.jwt.token-lifespan=PT10M
 ```
 
-The signing algorithm can be specified using the `rest.auth.oauth2.client-assertion.jwt.algorithm` property. The default is `HS256` for `client_secret_jwt` and `RS256` for `private_key_jwt`. Example:
+The signing algorithm can be specified using the `rest.auth.oauth2.client-assertion.jwt.algorithm` property. The default is `HS512` for `client_secret_jwt` and `RS512` for `private_key_jwt`. Example:
 
 ```properties
 rest.auth.oauth2.client-assertion.jwt.algorithm=HS384

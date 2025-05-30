@@ -22,10 +22,12 @@ import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
 public abstract class ClientSecretJwtAuthenticator extends JwtClientAuthenticator
     implements ClientSecretAuthenticator {
 
+  public static final JwtSigningAlgorithm DEFAULT_ALGORITHM = JwtSigningAlgorithm.HMAC_SHA512;
+
   @Override
   protected Algorithm getAlgorithm() {
     JwtSigningAlgorithm algorithm =
-        getClientAssertionConfig().getAlgorithm().orElse(JwtSigningAlgorithm.HMAC_SHA256);
+        getClientAssertionConfig().getAlgorithm().orElse(DEFAULT_ALGORITHM);
     return algorithm.getHmacAlgorithm(getClientSecret().getSecret());
   }
 }

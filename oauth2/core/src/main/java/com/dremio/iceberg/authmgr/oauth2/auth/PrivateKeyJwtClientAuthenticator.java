@@ -24,13 +24,15 @@ import org.immutables.value.Value;
 @AuthManagerImmutable
 public abstract class PrivateKeyJwtClientAuthenticator extends JwtClientAuthenticator {
 
+  public static final JwtSigningAlgorithm DEFAULT_ALGORITHM = JwtSigningAlgorithm.RSA_SHA512;
+
   @Value.Lazy
   @Override
   protected Algorithm getAlgorithm() {
     Path privateKeyPath = getClientAssertionConfig().getPrivateKey().orElseThrow();
     RSAPrivateKey privateKey = PemUtils.readPrivateKey(privateKeyPath);
     JwtSigningAlgorithm algorithm =
-        getClientAssertionConfig().getAlgorithm().orElse(JwtSigningAlgorithm.RSA_SHA256);
+        getClientAssertionConfig().getAlgorithm().orElse(DEFAULT_ALGORITHM);
     return algorithm.getRsaAlgorithm(null, privateKey);
   }
 }
