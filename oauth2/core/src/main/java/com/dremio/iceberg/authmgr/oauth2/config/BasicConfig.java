@@ -178,7 +178,10 @@ public interface BasicConfig {
    */
   @Value.Default
   default Dialect getDialect() {
-    if (getToken().isPresent() && getClientId().isEmpty()) {
+    if (getToken().isPresent()) {
+      return Dialect.ICEBERG_REST;
+    }
+    if (getClientSecret().isPresent() && getClientId().isEmpty()) {
       // Only Iceberg dialect supports this configuration
       return Dialect.ICEBERG_REST;
     }

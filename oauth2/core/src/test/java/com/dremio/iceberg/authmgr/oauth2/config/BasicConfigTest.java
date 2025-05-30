@@ -361,4 +361,50 @@ class BasicConfigTest {
                 .extraRequestParameters(Map.of("extra1", "value1"))
                 .build()));
   }
+
+  @ParameterizedTest
+  @MethodSource
+  void testDialect(Map<String, String> properties, Dialect expected) {
+    BasicConfig config = BasicConfig.builder().from(properties).build();
+    assertThat(config.getDialect()).isEqualTo(expected);
+  }
+
+  static Stream<Arguments> testDialect() {
+    return Stream.of(
+        // Explicit
+        Arguments.of(
+            Map.of(
+                ISSUER_URL,
+                "https://example.com",
+                CLIENT_ID,
+                "Client",
+                CLIENT_SECRET,
+                "secret",
+                DIALECT,
+                Dialect.STANDARD.name()),
+            Dialect.STANDARD),
+        Arguments.of(
+            Map.of(
+                ISSUER_URL,
+                "https://example.com",
+                CLIENT_SECRET,
+                "secret",
+                DIALECT,
+                Dialect.ICEBERG_REST.name()),
+            Dialect.ICEBERG_REST),
+        // Implicit
+        Arguments.of(
+            Map.of(ISSUER_URL, "https://example.com", CLIENT_ID, "Client", CLIENT_SECRET, "secret"),
+            Dialect.STANDARD),
+        // a token is present => Iceberg dialect
+        Arguments.of(
+            Map.of(ISSUER_URL, "https://example.com", TOKEN, "token"), Dialect.ICEBERG_REST),
+        // token endpoint is relative => Iceberg dialect
+        Arguments.of(
+            Map.of(TOKEN_ENDPOINT, "tokens", CLIENT_SECRET, "secret"), Dialect.ICEBERG_REST),
+        // client secret present without client ID => Iceberg dialect
+        Arguments.of(
+            Map.of(ISSUER_URL, "https://example.com", CLIENT_SECRET, "secret"),
+            Dialect.ICEBERG_REST));
+  }
 }
