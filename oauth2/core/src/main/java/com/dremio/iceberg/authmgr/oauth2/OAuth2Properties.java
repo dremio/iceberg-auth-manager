@@ -627,6 +627,11 @@ public final class OAuth2Properties {
     public static final String AGENT_NAME = Runtime.PREFIX + "agent-name";
 
     public static final String DEFAULT_AGENT_NAME = "iceberg-auth-manager";
+  }
+
+  public static final class Manager {
+
+    public static final String PREFIX = OAuth2Properties.PREFIX + "manager.";
 
     /**
      * The session cache timeout. Cached sessions will become eligible for eviction after this
@@ -640,6 +645,18 @@ public final class OAuth2Properties {
     public static final String SESSION_CACHE_TIMEOUT = Runtime.PREFIX + "session-cache-timeout";
 
     public static final String DEFAULT_SESSION_CACHE_TIMEOUT = "PT1H";
+
+    /**
+     * Whether to migrate Iceberg OAuth2 legacy properties. Defaults to {@code false}.
+     *
+     * <p>When enabled, the manager will automatically migrate legacy Iceberg OAuth2 properties to
+     * their new equivalents; e.g. it would map {@code oauth2-server-uri} to {@link
+     * Basic#TOKEN_ENDPOINT}.
+     *
+     * <p>When disabled, legacy properties are ignored.
+     */
+    public static final String MIGRATE_LEGACY_PROPERTIES =
+        Runtime.PREFIX + "migrate-legacy-properties";
   }
 
   private OAuth2Properties() {

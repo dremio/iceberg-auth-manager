@@ -18,7 +18,8 @@ package com.dremio.iceberg.authmgr.oauth2;
 import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2AgentSpec;
 import com.dremio.iceberg.authmgr.oauth2.cache.AuthSessionCache;
 import com.dremio.iceberg.authmgr.oauth2.cache.AuthSessionCacheFactory;
-import com.dremio.iceberg.authmgr.oauth2.compat.IcebergCompatibility;
+import com.dremio.iceberg.authmgr.oauth2.compat.LegacyPropertiesMigrator;
+import com.dremio.iceberg.authmgr.oauth2.compat.PropertiesSanitizer;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
@@ -29,6 +30,7 @@ import org.apache.iceberg.rest.RESTClient;
 import org.apache.iceberg.rest.RESTUtil;
 import org.apache.iceberg.rest.auth.AuthSession;
 import org.apache.iceberg.rest.auth.RefreshingAuthManager;
+import org.apache.iceberg.util.PropertyUtil;
 
 public class OAuth2Manager extends RefreshingAuthManager {
 
@@ -38,6 +40,7 @@ public class OAuth2Manager extends RefreshingAuthManager {
   private OAuth2Session initSession;
   private RESTClient client;
   private AuthSessionCache<OAuth2AgentSpec, OAuth2Session> sessionCache;
+  private boolean migrateLegacyProperties;
 
   public OAuth2Manager(String managerName) {
     this(managerName, OAuth2Manager::createSessionCache);
@@ -53,7 +56,12 @@ public class OAuth2Manager extends RefreshingAuthManager {
 
   @Override
   public AuthSession initSession(RESTClient initClient, Map<String, String> initProperties) {
-    initProperties = IcebergCompatibility.migrate(initProperties);
+    migrateLegacyProperties =
+        PropertyUtil.propertyAsBoolean(
+            initProperties, OAuth2Properties.Manager.MIGRATE_LEGACY_PROPERTIES, false);
+    if (migrateLegacyProperties) {
+      initProperties = LegacyPropertiesMigrator.migrate(initProperties);
+    }
     OAuth2AgentSpec initSpec = OAuth2AgentSpec.builder().from(initProperties).build();
     initClient = initClient.withAuthSession(AuthSession.EMPTY);
     initSession = new OAuth2Session(initSpec, refreshExecutor(), initClient);
@@ -64,7 +72,12 @@ public class OAuth2Manager extends RefreshingAuthManager {
   public AuthSession catalogSession(
       RESTClient sharedClient, Map<String, String> catalogProperties) {
     client = sharedClient.withAuthSession(AuthSession.EMPTY);
-    catalogProperties = IcebergCompatibility.migrate(catalogProperties);
+    migrateLegacyProperties =
+        PropertyUtil.propertyAsBoolean(
+            catalogProperties, OAuth2Properties.Manager.MIGRATE_LEGACY_PROPERTIES, false);
+    if (migrateLegacyProperties) {
+      catalogProperties = LegacyPropertiesMigrator.migrate(catalogProperties);
+    }
     OAuth2AgentSpec catalogSpec = OAuth2AgentSpec.builder().from(catalogProperties).build();
     sessionCache = sessionCacheFactory.apply(name, catalogProperties);
     OAuth2Session catalogSession;
@@ -86,10 +99,13 @@ public class OAuth2Manager extends RefreshingAuthManager {
   @Override
   public AuthSession contextualSession(SessionContext context, AuthSession parent) {
     Map<String, String> contextProperties =
-        IcebergCompatibility.migrate(
-            RESTUtil.merge(
-                Optional.ofNullable(context.properties()).orElseGet(Map::of),
-                Optional.ofNullable(context.credentials()).orElseGet(Map::of)));
+        RESTUtil.merge(
+            Optional.ofNullable(context.properties()).orElseGet(Map::of),
+            Optional.ofNullable(context.credentials()).orElseGet(Map::of));
+    if (migrateLegacyProperties) {
+      contextProperties = LegacyPropertiesMigrator.migrate(contextProperties);
+    }
+    contextProperties = PropertiesSanitizer.sanitizeContextProperties(contextProperties);
     OAuth2AgentSpec parentSpec = ((OAuth2Session) parent).getSpec();
     OAuth2AgentSpec childSpec = parentSpec.merge(contextProperties);
     if (!childSpec.equals(parentSpec)) {
@@ -102,8 +118,10 @@ public class OAuth2Manager extends RefreshingAuthManager {
   @Override
   public AuthSession tableSession(
       TableIdentifier table, Map<String, String> properties, AuthSession parent) {
-    Map<String, String> tableProperties =
-        IcebergCompatibility.migrate(IcebergCompatibility.sanitizeFromServer(properties));
+    if (migrateLegacyProperties) {
+      properties = LegacyPropertiesMigrator.migrate(properties);
+    }
+    Map<String, String> tableProperties = PropertiesSanitizer.sanitizeTableProperties(properties);
     OAuth2AgentSpec parentSpec = ((OAuth2Session) parent).getSpec();
     OAuth2AgentSpec childSpec = parentSpec.merge(tableProperties);
     if (!childSpec.equals(parentSpec)) {
@@ -133,8 +151,8 @@ public class OAuth2Manager extends RefreshingAuthManager {
         name,
         Duration.parse(
             properties.getOrDefault(
-                OAuth2Properties.Runtime.SESSION_CACHE_TIMEOUT,
-                OAuth2Properties.Runtime.DEFAULT_SESSION_CACHE_TIMEOUT)));
+                OAuth2Properties.Manager.SESSION_CACHE_TIMEOUT,
+                OAuth2Properties.Manager.DEFAULT_SESSION_CACHE_TIMEOUT)));
   }
 
   private static class UncloseableAuthSession implements AuthSession {

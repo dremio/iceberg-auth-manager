@@ -396,9 +396,19 @@ For impersonation only. Extra claims to include in the client assertion JWT. Thi
 
 The distinctive name of the OAuth2 agent. Defaults to `iceberg-auth-manager`. This name is printed in all log messages and user prompts.
 
-### `rest.auth.oauth2.runtime.session-cache-timeout`
+## Manager Settings
+
+### `rest.auth.oauth2.manager.session-cache-timeout`
 
 The session cache timeout. Cached sessions will become eligible for eviction after this duration of inactivity. Defaults to `PT1H`. Must be a valid [ISO-8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations).
 
 This value is used for housekeeping; it does not mean that cached sessions will stop working after this time, but that the session cache will evict the session after this time of inactivity. If the context is used again, a new session will be created and cached.
+
+### `rest.auth.oauth2.manager.migrate-legacy-properties`
+
+Whether to migrate Iceberg OAuth2 legacy properties. Defaults to `false`.
+
+When enabled, the manager will automatically migrate legacy Iceberg OAuth2 properties to their new equivalents; e.g. it would map `oauth2-server-uri` to `rest.auth.oauth2.token-endpoint`.
+
+When disabled, legacy properties are ignored.
 

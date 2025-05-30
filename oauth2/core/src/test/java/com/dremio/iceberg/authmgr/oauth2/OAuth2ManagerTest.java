@@ -29,6 +29,7 @@ import static org.assertj.core.api.InstanceOfAssertFactories.type;
 import static org.mockito.Mockito.never;
 
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.Basic;
+import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.Manager;
 import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2AgentSpec;
 import com.dremio.iceberg.authmgr.oauth2.cache.AuthSessionCache;
 import com.dremio.iceberg.authmgr.oauth2.config.Dialect;
@@ -257,7 +258,9 @@ class OAuth2ManagerTest {
                 Basic.CLIENT_SECRET,
                 TestConstants.CLIENT_SECRET1,
                 Basic.SCOPE,
-                TestConstants.SCOPE1);
+                TestConstants.SCOPE1,
+                Manager.MIGRATE_LEGACY_PROPERTIES,
+                "true");
         SessionContext context =
             new SessionContext(
                 "test",
@@ -396,7 +399,9 @@ class OAuth2ManagerTest {
                 Basic.CLIENT_ID,
                 TestConstants.CLIENT_ID1,
                 Basic.CLIENT_SECRET,
-                TestConstants.CLIENT_SECRET1);
+                TestConstants.CLIENT_SECRET1,
+                Manager.MIGRATE_LEGACY_PROPERTIES,
+                "true");
         Map<String, String> tableProperties =
             Map.of(org.apache.iceberg.rest.auth.OAuth2Properties.SCOPE, TestConstants.SCOPE1);
         try (AuthSession catalogSession =
@@ -423,8 +428,7 @@ class OAuth2ManagerTest {
                 TestConstants.CLIENT_ID1,
                 Basic.CLIENT_SECRET,
                 TestConstants.CLIENT_SECRET1);
-        Map<String, String> tableProperties =
-            Map.of(org.apache.iceberg.rest.auth.OAuth2Properties.SCOPE, TestConstants.SCOPE2);
+        Map<String, String> tableProperties = Map.of(Basic.SCOPE, TestConstants.SCOPE2);
         try (AuthSession catalogSession =
                 manager.catalogSession(env.getHttpClient(), catalogProperties);
             AuthSession tableSession1 =
@@ -485,8 +489,7 @@ class OAuth2ManagerTest {
                     TestConstants.CLIENT_SECRET2),
                 Map.of(Basic.SCOPE, TestConstants.SCOPE2));
 
-        Map<String, String> tableProperties =
-            Map.of(org.apache.iceberg.rest.auth.OAuth2Properties.SCOPE, TestConstants.SCOPE2);
+        Map<String, String> tableProperties = Map.of(Basic.SCOPE, TestConstants.SCOPE2);
 
         try (AuthSession initSession =
                 Mockito.spy(manager.initSession(env.getHttpClient(), catalogProperties));

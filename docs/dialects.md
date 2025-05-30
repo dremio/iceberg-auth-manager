@@ -25,14 +25,48 @@ Two "dialects" of OAuth2 are supported:
   `AuthManager` and exhibits some non-standard behavior.
 
 The dialect to use can be selected with the `rest.auth.oauth2.dialect` property. 
+
 By default, the dialect is set to `iceberg_rest` if either:
 
-* The `rest.auth.oauth2.token` property is set, or
-* The `rest.auth.oauth2.token-endpoint` property is set to a relative URL.
+* The `rest.auth.oauth2.token-endpoint` property is set to a relative URL, indicating that the
+  token endpoint is internal to the REST catalog server; or
+* The `rest.auth.oauth2.token` property is set, indicating the legacy behavior of using a
+  pre-defined access token; or
+* The `rest.auth.oauth2.client-secret` property is set and `rest.auth.oauth2.client-id` is not set 
+  (since only the Iceberg dialect supports client secrets without client IDs).
 
 In all other cases, the dialect is set to `standard`.
 
 ## Differences between "Standard" and "Iceberg" Dialects
+
+### Support for Legacy Configuration Properties
+
+Legacy configuration properties used by Iceberg REST's built-in OAuth2 `AuthManager` can be
+automatically migrated to their new counterparts by setting the
+`rest.auth.oauth2.manager.migrate-legacy-properties` property to `true` (the default is `false`).
+
+When migration is enabled, if any of these properties are set, a warning will be logged, and the new
+properties will be used instead. This feature is useful to enable progressive migration from the
+built-in OAuth2 `AuthManager` to this `AuthManager`.
+
+The legacy properties are listed below, along with their new counterparts:
+
+| Legacy Property         | New Property                                                      |
+|-------------------------|-------------------------------------------------------------------|
+| `oauth2-server-uri`     | `rest.auth.oauth2.token-endpoint`                                 |
+| `token`                 | `rest.auth.oauth2.token`                                          |
+| `credential`            | `rest.auth.oauth2.client-id` and `rest.auth.oauth2.client-secret` |
+| `scope`                 | `rest.auth.oauth2.scope`                                          |
+| `audience`              | `rest.auth.oauth2.token-exchange.audience`                        |
+| `resource`              | `rest.auth.oauth2.token-exchange.resource`                        |
+| `token-expires-in-ms`   | `rest.auth.oauth2.token-refresh.access-token-lifespan`            |
+| `token-refresh-enabled` | `rest.auth.oauth2.token-refresh.enabled`                          |
+
+When migration is disabled, the legacy properties are ignored.
+
+> [!WARNING]
+> Legacy properties migration is known to have issues with request signing. It is recommended to
+> disable automatic migration in this case, and to manually migrate to the new properties instead.
 
 ### Supported Grant Types
 
