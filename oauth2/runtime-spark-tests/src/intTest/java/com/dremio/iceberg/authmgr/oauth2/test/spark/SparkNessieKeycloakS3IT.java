@@ -17,7 +17,7 @@ package com.dremio.iceberg.authmgr.oauth2.test.spark;
 
 import com.dremio.iceberg.authmgr.oauth2.test.TestConstants;
 import com.dremio.iceberg.authmgr.oauth2.test.container.KeycloakContainer;
-import com.dremio.iceberg.authmgr.oauth2.test.container.PolarisContainer;
+import com.dremio.iceberg.authmgr.oauth2.test.container.NessieContainer;
 import com.google.common.collect.ImmutableMap;
 import java.nio.file.Path;
 import java.util.Map;
@@ -26,10 +26,10 @@ import org.junit.jupiter.api.AfterAll;
 import org.testcontainers.containers.Network;
 
 /**
- * A test that exercises Spark with Polaris configured with an external authentication provider
- * (Keycloak).
+ * A test that exercises Spark with Nessie configured with an external authentication provider
+ * (Keycloak) and request signing enabled.
  */
-public class SparkPolarisKeycloakS3IT extends SparkPolarisS3ITBase {
+public class SparkNessieKeycloakS3IT extends SparkNessieS3ITBase {
 
   private KeycloakContainer keycloak;
   private CompletableFuture<Void> keycloakStart;
@@ -43,18 +43,32 @@ public class SparkPolarisKeycloakS3IT extends SparkPolarisS3ITBase {
 
   @SuppressWarnings("resource")
   @Override
-  protected CompletableFuture<PolarisContainer> createPolarisContainer(Network network) {
+  protected CompletableFuture<NessieContainer> createNessieContainer(Network network) {
     return keycloakStart.thenApply(
         v ->
-            new PolarisContainer()
+            new NessieContainer()
                 .withEnv("AWS_REGION", "us-west-2")
-                .withEnv("polaris.features.\"SKIP_CREDENTIAL_SUBSCOPING_INDIRECTION\"", "true")
-                .withEnv("quarkus.oidc.tenant-enabled", "true")
+                .withEnv("nessie.catalog.default-warehouse", TestConstants.WAREHOUSE)
+                .withEnv(
+                    "nessie.catalog.warehouses." + TestConstants.WAREHOUSE + ".location",
+                    "s3://test-bucket/path/to/data")
+                .withEnv("nessie.catalog.service.s3.default-options.region", "us-west-2")
+                .withEnv("nessie.catalog.service.s3.default-options.endpoint", "http://s3:9090")
+                .withEnv(
+                    "nessie.catalog.service.s3.default-options.external-endpoint",
+                    s3.getHttpEndpoint())
+                .withEnv(
+                    "nessie.catalog.service.s3.default-options.request-signing-enabled", "true")
+                .withEnv("nessie.catalog.service.s3.default-options.path-style-access", "true")
+                .withEnv(
+                    "nessie.catalog.service.s3.default-options.access-key",
+                    "urn:nessie-secret:quarkus:nessie-catalog-secrets.s3-access-key")
+                .withEnv("nessie-catalog-secrets.s3-access-key.name", "fake")
+                .withEnv("nessie-catalog-secrets.s3-access-key.secret", "fake")
+                .withEnv("nessie.server.authentication.enabled", "true")
                 .withEnv("quarkus.oidc.auth-server-url", "http://keycloak:8080/realms/master")
                 .withEnv("quarkus.oidc.token.issuer", keycloak.getIssuerClaim())
                 .withEnv("quarkus.oidc.client-id", TestConstants.CLIENT_ID1)
-                .withEnv("polaris.authentication.type", "external")
-                .withEnv("polaris.oidc.principal-mapper.id-claim-path", "principal_id")
                 .withNetwork(network));
   }
 
@@ -71,6 +85,10 @@ public class SparkPolarisKeycloakS3IT extends SparkPolarisS3ITBase {
             "spark.sql.catalog.test.rest.auth.oauth2.issuer-url",
             keycloak.getIssuerUrl().toString())
         .put("spark.sql.catalog.test.rest.auth.oauth2.scope", TestConstants.SCOPE1)
+        // FIXME remove the workaround
+        // when https://github.com/dremio/iceberg-auth-manager/pull/75 is merged
+        .put("spark.sql.catalog.test.oauth2-server-uri", keycloak.getTokenEndpoint().toString())
+        .put("spark.sql.catalog.test.scope", TestConstants.SCOPE1)
         .build();
   }
 

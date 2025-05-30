@@ -39,6 +39,8 @@
   <logger name="com.dremio.iceberg.authmgr.oauth2.test.container.KeycloakContainer" level="WARN"/>
   <!-- Polaris container logs -->
   <logger name="com.dremio.iceberg.authmgr.oauth2.test.container.PolarisContainer" level="WARN"/>
+  <!-- Nessie container logs -->
+  <logger name="com.dremio.iceberg.authmgr.oauth2.test.container.NessieContainer" level="WARN"/>
   <!-- creates duplicated container logs -->
   <logger name="tc" level="OFF"/>
 </configuration>
