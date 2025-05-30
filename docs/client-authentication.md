@@ -93,7 +93,7 @@ Example configuration:
 rest.auth.oauth2.client-auth=client_secret_jwt
 rest.auth.oauth2.client-id=my-client
 rest.auth.oauth2.client-secret=my-secret
-rest.auth.oauth2.client-assertion.jwt.algorithm=HS256
+rest.auth.oauth2.client-assertion.jwt.algorithm=HMAC_SHA256
 ```
 
 #### `private_key_jwt`
@@ -105,7 +105,7 @@ Example configuration:
 ```properties
 rest.auth.oauth2.client-auth=private_key_jwt
 rest.auth.oauth2.client-id=my-client
-rest.auth.oauth2.client-assertion.jwt.algorithm=RS256
+rest.auth.oauth2.client-assertion.jwt.algorithm=RSA_SHA256
 rest.auth.oauth2.client-assertion.jwt.private-key=/path/to/private_key.pem
 ```
 
@@ -132,29 +132,29 @@ rest.auth.oauth2.client-assertion.jwt.audience=https://example.com/token
 rest.auth.oauth2.client-assertion.jwt.token-lifespan=PT10M
 ```
 
-The signing algorithm can be specified using the `rest.auth.oauth2.client-assertion.jwt.algorithm` property. The default is `HS512` for `client_secret_jwt` and `RS512` for `private_key_jwt`. Example:
+The signing algorithm can be specified using the `rest.auth.oauth2.client-assertion.jwt.algorithm` property. The default is `HMAC_SHA512` for `client_secret_jwt` and `RSA_SHA512` for `private_key_jwt` (algorithm names are case-insensitive). Example:
 
 ```properties
-rest.auth.oauth2.client-assertion.jwt.algorithm=HS384
+rest.auth.oauth2.client-assertion.jwt.algorithm=HMAC_SHA384
 ```
 
 Supported algorithms are:
 
 For `client_secret_jwt`:
 
-| Algorithm | Accepted Alternative Names  |
-|-----------|-----------------------------|
-| `HS256`   | `HMAC_SHA256`, `HmacSHA256` |
-| `HS384`   | `HMAC_SHA384`, `HmacSHA384` |
-| `HS512`   | `HMAC_SHA512`, `HmacSHA512` |
+| Algorithm     | Accepted Alternative Names |
+|---------------|----------------------------|
+| `HMAC_SHA256` | `HS256`, `HmacSHA256`      |
+| `HMAC_SHA384` | `HS384`, `HmacSHA384`      |
+| `HMAC_SHA512` | `HS512`, `HmacSHA512`      |
 
 For `private_key_jwt`:
 
-| Algorithm | Accepted Alternative Names    |
-|-----------|-------------------------------|
-| `RS256`   | `RSA_SHA256`, `SHA256withRSA` |
-| `RS384`   | `RSA_SHA384`, `SHA384withRSA` |
-| `RS512`   | `RSA_SHA512`, `SHA512withRSA` |
+| Algorithm    | Accepted Alternative Names |
+|--------------|----------------------------|
+| `RSA_SHA256` | `RS256`, `SHA256withRSA`   |
+| `RSA_SHA384` | `RS384`, `SHA384withRSA`   |
+| `RSA_SHA512` | `RS512`, `SHA512withRSA`   |
 
 
 And finally, extra claims can be added to the JWT assertion using the `rest.auth.oauth2.client-assertion.jwt.extra-claims.*` prefix property. Example:

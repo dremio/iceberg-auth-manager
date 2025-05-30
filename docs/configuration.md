@@ -83,6 +83,8 @@ The OAuth2 client authentication method to use. Valid values are:
 - `none`: the client does not authenticate itself at the token endpoint, because it is a public client with no client secret or other authentication mechanism.
 - `client_secret_basic`: client secret is sent in the HTTP Basic Authorization header.
 - `client_secret_post`: client secret is sent in the request body as a form parameter.
+- `client_secret_jwt`: client secret is used to sign a JWT token.
+- `private_key_jwt`: client authenticates with a JWT assertion signed with a private key.
 
 The default is `client_secret_basic` if the client is private, or `none` if the client is public.
 
@@ -90,7 +92,7 @@ This property is ignored when dialect is `iceberg_rest` or when a token (`rest.a
 
 ### `rest.auth.oauth2.client-secret`
 
-Client secret to use when authenticating against the OAuth2 server. Required if the client is private.
+Client secret to use when authenticating against the OAuth2 server. Required if the client is private and is authenticated using the standard "client-secret" methods. If other authentication methods are used, this property is ignored.
 
 ### `rest.auth.oauth2.scope`
 
@@ -130,6 +132,38 @@ The Iceberg dialect's main differences from standard OAuth2 are:
 - Client ID and client secret are sent as request body parameters, and not as Basic authentication.
 
 Optional. The default value is `iceberg_rest` if either `rest.auth.oauth2.token` is provided or `rest.auth.oauth2.token-endpoint` contains a relative URI, and `standard` otherwise.
+
+## Client Assertion Settings
+
+### `rest.auth.oauth2.client-assertion.jwt.issuer`
+
+The issuer of the client assertion JWT. Optional. The default is the client ID.
+
+### `rest.auth.oauth2.client-assertion.jwt.subject`
+
+The subject of the client assertion JWT. Optional. The default is the client ID.
+
+### `rest.auth.oauth2.client-assertion.jwt.audience`
+
+The audience of the client assertion JWT. Optional. The default is the token endpoint.
+
+### `rest.auth.oauth2.client-assertion.jwt.token-lifespan`
+
+The expiration time of the client assertion JWT. Optional. The default is 5 minutes.
+
+### `rest.auth.oauth2.client-assertion.jwt.algorithm`
+
+The signing algorithm to use for the client assertion JWT. Optional. The default is `hmac_sha512` if the authentication method is `client_secret_jwt`, or `rsa_sha512` if the authentication method is `private_key_jwt`.
+
+Algorithm names must match either the JWS name or the JCA name of the algorithm.
+
+### `rest.auth.oauth2.client-assertion.jwt.private-key`
+
+The path on the local filesystem to the private key to use for signing the client assertion JWT. Required if the authentication method is `private_key_jwt`. The file must be in PEM format; it may contain a private key, or a private key and a certificate chain. Only the private key is used.
+
+### `rest.auth.oauth2.client-assertion.jwt.extra-claims.`
+
+Extra claims to include in the client assertion JWT. This is a prefix property, and multiple values can be set, each with a different key and value.
 
 ## Token Refresh Settings
 
@@ -298,6 +332,8 @@ For impersonation only. The OAUth2 client authentication method to use. Valid va
 - `none`: the client does not authenticate itself at the token endpoint, because it is a public client with no client secret or other authentication mechanism.
 - `client_secret_basic`: client secret is sent in the HTTP Basic Authorization header.
 - `client_secret_post`: client secret is sent in the request body as a form parameter.
+- `client_secret_jwt`: client secret is used to sign a JWT token.
+- `private_key_jwt`: client authenticates with a JWT assertion signed with a private key.
 
 The default is `client_secret_basic` if the client is private, or `none` if the client is public.
 
@@ -321,6 +357,38 @@ This is a prefix property, and multiple values can be set, each with a different
 rest.auth.oauth2.impersonation.extra-params.custom_param1=custom_value1"
 rest.auth.oauth2.impersonation.extra-params.custom_param2=custom_value2"
 ```
+
+## Impersonation Client Assertion Settings
+
+### `rest.auth.oauth2.impersonation.client-assertion.jwt.issuer`
+
+For impersonation only. The issuer of the client assertion JWT. Optional. The default is the client ID.
+
+### `rest.auth.oauth2.impersonation.client-assertion.jwt.subject`
+
+For impersonation only. The subject of the client assertion JWT. Optional. The default is the client ID.
+
+### `rest.auth.oauth2.impersonation.client-assertion.jwt.audience`
+
+For impersonation only. The audience of the client assertion JWT. Optional. The default is the token endpoint.
+
+### `rest.auth.oauth2.impersonation.client-assertion.jwt.token-lifespan`
+
+For impersonation only. The expiration time of the client assertion JWT. Optional. The default is 5 minutes.
+
+### `rest.auth.oauth2.impersonation.client-assertion.jwt.algorithm`
+
+For impersonation only. The signing algorithm to use for the client assertion JWT. Optional. The default is `hmac_sha512` if the authentication method is `client_secret_jwt`, or `rsa_sha512` if the authentication method is `private_key_jwt`.
+
+Algorithm names must match either the JWS name or the JCA name of the algorithm.
+
+### `rest.auth.oauth2.impersonation.client-assertion.jwt.private-key`
+
+For impersonation only. The path on the local filesystem to the private key to use for signing the client assertion JWT. Required if the authentication method is `private_key_jwt`. The file must be in PEM format, and the first object in the file must be a private key.
+
+### `rest.auth.oauth2.impersonation.client-assertion.jwt.extra-claims.`
+
+For impersonation only. Extra claims to include in the client assertion JWT. This is a prefix property, and multiple values can be set, each with a different key and value.
 
 ## Runtime Settings
 

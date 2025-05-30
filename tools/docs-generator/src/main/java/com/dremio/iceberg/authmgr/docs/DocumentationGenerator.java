@@ -49,7 +49,8 @@ public class DocumentationGenerator {
   private static final Pattern PRE_PATTERN =
       Pattern.compile("<pre>\\s*(?:\\{@code)?(.*?)(}\\s*)?</pre>", Pattern.DOTALL);
 
-  private static final Set<String> KNOWN_ENUMS = Set.of("GrantCommonNames", "Dialect");
+  private static final Set<String> KNOWN_ENUMS =
+      Set.of("GrantCommonNames", "Dialect", "JwtSigningAlgorithm", "ClientAuthentication");
 
   private final File inputFile;
   private final String className;

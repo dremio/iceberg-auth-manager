@@ -51,4 +51,6 @@ tasks.named("build") { dependsOn(generateDocs) }
 
 tasks.named("publish") { dependsOn(generateDocs) }
 
+rootProject.tasks.named("rat") { dependsOn(generateDocs) }
+
 rootProject.tasks.named("spotlessMarkdown") { dependsOn(generateDocs) }

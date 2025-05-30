@@ -23,6 +23,7 @@ import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
+import java.util.Locale;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -34,42 +35,28 @@ class JwtSigningAlgorithmTest {
     "HS256         , HMAC_SHA256",
     "HMAC_SHA256   , HMAC_SHA256",
     "HmacSHA256    , HMAC_SHA256",
-    "hs256         , HMAC_SHA256",
-    "hmac_sha256   , HMAC_SHA256",
-    "hmacsha256    , HMAC_SHA256",
     "HS384         , HMAC_SHA384",
     "HMAC_SHA384   , HMAC_SHA384",
     "HmacSHA384    , HMAC_SHA384",
-    "hs384         , HMAC_SHA384",
-    "hmac_sha384   , HMAC_SHA384",
-    "hmacsha384    , HMAC_SHA384",
     "HMAC_SHA512   , HMAC_SHA512",
     "HS512         , HMAC_SHA512",
     "HmacSHA512    , HMAC_SHA512",
-    "hmac_sha512   , HMAC_SHA512",
-    "hs512         , HMAC_SHA512",
-    "hmacsha512    , HMAC_SHA512",
     "RS256         , RSA_SHA256",
     "RSA_SHA256    , RSA_SHA256",
     "SHA256withRSA , RSA_SHA256",
-    "rs256         , RSA_SHA256",
-    "rsa_sha256    , RSA_SHA256",
-    "sha256withrsa , RSA_SHA256",
     "RS384         , RSA_SHA384",
     "RSA_SHA384    , RSA_SHA384",
     "SHA384withRSA , RSA_SHA384",
-    "rs384         , RSA_SHA384",
-    "rsa_sha384    , RSA_SHA384",
-    "sha384withrsa , RSA_SHA384",
     "RS512         , RSA_SHA512",
     "RSA_SHA512    , RSA_SHA512",
     "SHA512withRSA , RSA_SHA512",
-    "rs512         , RSA_SHA512",
-    "rsa_sha512    , RSA_SHA512",
-    "sha512withrsa , RSA_SHA512",
   })
   void fromConfigName(String name, JwtSigningAlgorithm expected) {
     assertThat(JwtSigningAlgorithm.fromConfigName(name)).isEqualTo(expected);
+    assertThat(JwtSigningAlgorithm.fromConfigName(name.toLowerCase(Locale.ROOT)))
+        .isEqualTo(expected);
+    assertThat(JwtSigningAlgorithm.fromConfigName(name.toUpperCase(Locale.ROOT)))
+        .isEqualTo(expected);
   }
 
   @Test

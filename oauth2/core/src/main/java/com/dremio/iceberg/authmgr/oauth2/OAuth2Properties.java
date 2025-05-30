@@ -15,6 +15,8 @@
  */
 package com.dremio.iceberg.authmgr.oauth2;
 
+import com.dremio.iceberg.authmgr.oauth2.auth.ClientAuthentication;
+import com.dremio.iceberg.authmgr.oauth2.auth.JwtSigningAlgorithm;
 import com.dremio.iceberg.authmgr.oauth2.config.Dialect;
 import com.dremio.iceberg.authmgr.oauth2.grant.GrantCommonNames;
 
@@ -195,9 +197,10 @@ public final class OAuth2Properties {
     public static final String TOKEN_LIFESPAN = PREFIX + "token-lifespan";
 
     /**
-     * The signing algorithm to use for the client assertion JWT. Optional. The default is "HS256"
-     * if the authentication method is "client_secret_jwt", or "RS256" if the authentication method
-     * is "private_key_jwt".
+     * The signing algorithm to use for the client assertion JWT. Optional. The default is {@link
+     * JwtSigningAlgorithm#HMAC_SHA512} if the authentication method is {@link
+     * ClientAuthentication#CLIENT_SECRET_JWT}, or {@link JwtSigningAlgorithm#RSA_SHA512} if the
+     * authentication method is {@link ClientAuthentication#PRIVATE_KEY_JWT}.
      *
      * <p>Algorithm names must match either the JWS name or the JCA name of the algorithm.
      *
@@ -208,9 +211,9 @@ public final class OAuth2Properties {
 
     /**
      * The path on the local filesystem to the private key to use for signing the client assertion
-     * JWT. Required if the authentication method is "private_key_jwt". The file must be in PEM
-     * format; it may contain a private key, or a private key and a certificate chain. Only the
-     * private key is used.
+     * JWT. Required if the authentication method is {@link ClientAuthentication#PRIVATE_KEY_JWT}.
+     * The file must be in PEM format; it may contain a private key, or a private key and a
+     * certificate chain. Only the private key is used.
      */
     public static final String PRIVATE_KEY = PREFIX + "private-key";
 
@@ -558,7 +561,7 @@ public final class OAuth2Properties {
   public static final class ImpersonationClientAssertion {
 
     public static final String PREFIX =
-        OAuth2Properties.Impersonation.PREFIX + "client-assertion.jwt.";
+        OAuth2Properties.PREFIX + "impersonation.client-assertion.jwt.";
 
     /**
      * For impersonation only. The issuer of the client assertion JWT. Optional. The default is the
@@ -586,8 +589,9 @@ public final class OAuth2Properties {
 
     /**
      * For impersonation only. The signing algorithm to use for the client assertion JWT. Optional.
-     * The default is "HS256" if the authentication method is "client_secret_jwt", or "RS256" if the
-     * authentication method is "private_key_jwt".
+     * The default is {@link JwtSigningAlgorithm#HMAC_SHA512} if the authentication method is {@link
+     * ClientAuthentication#CLIENT_SECRET_JWT}, or {@link JwtSigningAlgorithm#RSA_SHA512} if the
+     * authentication method is {@link ClientAuthentication#PRIVATE_KEY_JWT}.
      *
      * <p>Algorithm names must match either the JWS name or the JCA name of the algorithm.
      *
@@ -598,8 +602,9 @@ public final class OAuth2Properties {
 
     /**
      * For impersonation only. The path on the local filesystem to the private key to use for
-     * signing the client assertion JWT. Required if the authentication method is "private_key_jwt".
-     * The file must be in PEM format, and the first object in the file must be a private key.
+     * signing the client assertion JWT. Required if the authentication method is {@link
+     * ClientAuthentication#PRIVATE_KEY_JWT}. The file must be in PEM format, and the first object
+     * in the file must be a private key.
      */
     public static final String PRIVATE_KEY = PREFIX + "private-key";
 
