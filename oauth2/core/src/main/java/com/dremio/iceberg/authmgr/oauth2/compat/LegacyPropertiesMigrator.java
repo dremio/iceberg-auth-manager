@@ -18,44 +18,23 @@ package com.dremio.iceberg.authmgr.oauth2.compat;
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties;
 import java.time.Duration;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.iceberg.util.PropertyUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class IcebergCompatibility {
+public final class LegacyPropertiesMigrator {
 
-  private static final Set<String> FROM_SERVER_DENY_LIST =
-      Set.of(
-          OAuth2Properties.Basic.CLIENT_ID,
-          OAuth2Properties.Basic.CLIENT_SECRET,
-          OAuth2Properties.ResourceOwner.USERNAME,
-          OAuth2Properties.ResourceOwner.PASSWORD,
-          OAuth2Properties.Impersonation.CLIENT_ID,
-          OAuth2Properties.Impersonation.CLIENT_SECRET,
-          OAuth2Properties.TokenExchange.SUBJECT_TOKEN,
-          OAuth2Properties.TokenExchange.ACTOR_TOKEN,
-          org.apache.iceberg.rest.auth.OAuth2Properties.CREDENTIAL);
+  private static final Logger LOGGER = LoggerFactory.getLogger(LegacyPropertiesMigrator.class);
 
-  private static final Set<String> FROM_SERVER_VENDED_TOKEN_LIST =
-      Set.of(OAuth2Properties.Basic.TOKEN, org.apache.iceberg.rest.auth.OAuth2Properties.TOKEN);
-
-  private static final Set<String> FROM_SERVER_VENDED_TOKEN_EXCHANGE_LIST =
-      Set.of(
-          org.apache.iceberg.rest.auth.OAuth2Properties.ACCESS_TOKEN_TYPE,
-          org.apache.iceberg.rest.auth.OAuth2Properties.ID_TOKEN_TYPE,
-          org.apache.iceberg.rest.auth.OAuth2Properties.SAML1_TOKEN_TYPE,
-          org.apache.iceberg.rest.auth.OAuth2Properties.SAML2_TOKEN_TYPE,
-          org.apache.iceberg.rest.auth.OAuth2Properties.JWT_TOKEN_TYPE);
-
-  private static final Logger LOGGER = LoggerFactory.getLogger(IcebergCompatibility.class);
-
-  /** Migrates legacy Iceberg OAuth2 properties to the new OAuth2 properties. */
+  /**
+   * Migrates legacy Iceberg OAuth2 properties to the new OAuth2 properties, and logs warnings when
+   * legacy properties are detected. Returns a copy of the input map containing only the migrated
+   * properties starting with the `rest.auth.oauth2.` prefix.
+   */
   public static Map<String, String> migrate(Map<String, String> properties) {
     Map<String, String> migrated = new HashMap<>();
     for (Entry<String, String> entry : properties.entrySet()) {
@@ -95,6 +74,12 @@ public final class IcebergCompatibility {
           migrated.put(
               OAuth2Properties.TokenRefresh.DEFAULT_ACCESS_TOKEN_LIFESPAN, duration.toString());
           break;
+        case org.apache.iceberg.rest.auth.OAuth2Properties.TOKEN_REFRESH_ENABLED:
+          warnOnIcebergOAuth2Property(entry.getKey(), OAuth2Properties.TokenRefresh.ENABLED);
+          migrated.put(
+              OAuth2Properties.TokenRefresh.ENABLED,
+              String.valueOf(Boolean.parseBoolean(entry.getValue())));
+          break;
         case org.apache.iceberg.rest.auth.OAuth2Properties.OAUTH2_SERVER_URI:
           warnOnIcebergOAuth2Property(
               entry.getKey(),
@@ -114,6 +99,15 @@ public final class IcebergCompatibility {
           warnOnIcebergOAuth2Property(entry.getKey(), OAuth2Properties.TokenExchange.RESOURCE);
           migrated.put(OAuth2Properties.TokenExchange.RESOURCE, entry.getValue());
           break;
+        case org.apache.iceberg.rest.auth.OAuth2Properties.ACCESS_TOKEN_TYPE:
+        case org.apache.iceberg.rest.auth.OAuth2Properties.ID_TOKEN_TYPE:
+        case org.apache.iceberg.rest.auth.OAuth2Properties.SAML1_TOKEN_TYPE:
+        case org.apache.iceberg.rest.auth.OAuth2Properties.SAML2_TOKEN_TYPE:
+        case org.apache.iceberg.rest.auth.OAuth2Properties.JWT_TOKEN_TYPE:
+          LOGGER.warn(
+              "Ignoring legacy property '{}': vended token exchange is not supported.",
+              entry.getKey());
+          break;
         default:
           if (entry.getKey().startsWith(OAuth2Properties.PREFIX)) {
             migrated.put(entry.getKey(), entry.getValue());
@@ -121,32 +115,6 @@ public final class IcebergCompatibility {
       }
     }
     return Map.copyOf(migrated);
-  }
-
-  /** Sanitizes properties from a server response. */
-  public static Map<String, String> sanitizeFromServer(Map<String, String> properties) {
-    properties = new HashMap<>(properties);
-    for (Iterator<String> iterator = properties.keySet().iterator(); iterator.hasNext(); ) {
-      String key = iterator.next();
-      if (FROM_SERVER_DENY_LIST.contains(key)) {
-        LOGGER.warn(
-            "Ignoring property '{}': this property is not allowed to be vended by catalog servers.",
-            key);
-        iterator.remove();
-      }
-      if (FROM_SERVER_VENDED_TOKEN_LIST.contains(key)) {
-        LOGGER.warn(
-            "Detected property '{}' in a server response. "
-                + "Vending OAuth2 tokens will be disallowed in a future release; "
-                + "catalog servers should vend OAuth2 scopes instead.",
-            key);
-      }
-      if (FROM_SERVER_VENDED_TOKEN_EXCHANGE_LIST.contains(key)) {
-        LOGGER.warn("Ignoring property '{}': vended token exchange is not supported.", key);
-        iterator.remove();
-      }
-    }
-    return properties;
   }
 
   private static void warnOnIcebergOAuth2Property(
