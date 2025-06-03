@@ -132,6 +132,24 @@ public class OAuth2Manager extends RefreshingAuthManager {
   }
 
   @Override
+  public AuthSession tableSession(RESTClient sharedClient, Map<String, String> properties) {
+    if (migrateLegacyProperties) {
+      properties = LegacyPropertiesMigrator.migrate(properties);
+    }
+    // Do NOT sanitize table properties, as they may contain credentials coming from the
+    // catalog properties.
+    OAuth2AgentSpec spec = OAuth2AgentSpec.builder().from(properties).build();
+    if (sessionCache == null) {
+      sessionCache = sessionCacheFactory.apply(name, properties);
+    }
+    if (client == null) {
+      client = sharedClient.withAuthSession(AuthSession.EMPTY);
+    }
+    return sessionCache.cachedSession(
+        spec, k -> new OAuth2Session(spec, refreshExecutor(), client));
+  }
+
+  @Override
   public void close() {
     AuthSession session = initSession;
     AuthSessionCache<OAuth2AgentSpec, OAuth2Session> cache = sessionCache;

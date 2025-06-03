@@ -443,6 +443,35 @@ class OAuth2ManagerTest {
     }
 
     @Test
+    void standaloneTableSession() {
+      try (TestEnvironment env = TestEnvironment.builder().build();
+          OAuth2Manager manager = new OAuth2Manager("test")) {
+        Map<String, String> tableProperties =
+            Map.of(
+                Basic.TOKEN_ENDPOINT,
+                env.getTokenEndpoint().toString(),
+                Basic.CLIENT_ID,
+                TestConstants.CLIENT_ID1,
+                Basic.CLIENT_SECRET,
+                TestConstants.CLIENT_SECRET1,
+                Basic.SCOPE,
+                TestConstants.SCOPE1);
+        try (AuthSession tableSession1 =
+                manager.tableSession(env.getHttpClient(), tableProperties);
+            AuthSession tableSession2 =
+                manager.tableSession(env.getHttpClient(), tableProperties)) {
+          assertThat(tableSession1).isSameAs(tableSession2);
+          HTTPRequest actual1 = tableSession1.authenticate(request);
+          assertThat(actual1.headers().entries("Authorization"))
+              .containsOnly(HTTPHeader.of("Authorization", "Bearer access_initial"));
+          HTTPRequest actual2 = tableSession2.authenticate(request);
+          assertThat(actual2.headers().entries("Authorization"))
+              .containsOnly(HTTPHeader.of("Authorization", "Bearer access_initial"));
+        }
+      }
+    }
+
+    @Test
     void close() {
 
       try (OAuth2Manager manager = new OAuth2Manager("test")) {
