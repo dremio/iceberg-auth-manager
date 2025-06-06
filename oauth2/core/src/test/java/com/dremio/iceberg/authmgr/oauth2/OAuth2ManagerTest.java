@@ -30,10 +30,12 @@ import static org.mockito.Mockito.never;
 
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.Basic;
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.Manager;
+import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.TokenExchange;
 import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2AgentSpec;
 import com.dremio.iceberg.authmgr.oauth2.cache.AuthSessionCache;
 import com.dremio.iceberg.authmgr.oauth2.config.Dialect;
 import com.dremio.iceberg.authmgr.oauth2.config.Secret;
+import com.dremio.iceberg.authmgr.oauth2.grant.GrantType;
 import com.dremio.iceberg.authmgr.oauth2.test.TestConstants;
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
 import com.github.benmanes.caffeine.cache.Cache;
@@ -302,8 +304,16 @@ class OAuth2ManagerTest {
                     Basic.CLIENT_ID,
                     TestConstants.CLIENT_ID2,
                     Basic.CLIENT_SECRET,
-                    TestConstants.CLIENT_SECRET2),
-                Map.of(Basic.SCOPE, TestConstants.SCOPE2));
+                    TestConstants.CLIENT_SECRET2,
+                    TokenExchange.SUBJECT_TOKEN,
+                    TestConstants.SUBJECT_TOKEN,
+                    TokenExchange.ACTOR_TOKEN,
+                    TestConstants.ACTOR_TOKEN),
+                Map.of(
+                    Basic.GRANT_TYPE,
+                    GrantType.TOKEN_EXCHANGE.name(),
+                    Basic.SCOPE,
+                    TestConstants.SCOPE2));
         try (AuthSession catalogSession =
                 manager.catalogSession(env.getHttpClient(), catalogProperties);
             AuthSession contextualSession1 = manager.contextualSession(context, catalogSession);
@@ -428,7 +438,16 @@ class OAuth2ManagerTest {
                 TestConstants.CLIENT_ID1,
                 Basic.CLIENT_SECRET,
                 TestConstants.CLIENT_SECRET1);
-        Map<String, String> tableProperties = Map.of(Basic.SCOPE, TestConstants.SCOPE2);
+        Map<String, String> tableProperties =
+            Map.of(
+                Basic.SCOPE,
+                TestConstants.SCOPE2,
+                Basic.GRANT_TYPE,
+                GrantType.TOKEN_EXCHANGE.name(),
+                TokenExchange.SUBJECT_TOKEN,
+                TestConstants.SUBJECT_TOKEN,
+                TokenExchange.ACTOR_TOKEN,
+                TestConstants.ACTOR_TOKEN);
         try (AuthSession catalogSession =
                 manager.catalogSession(env.getHttpClient(), catalogProperties);
             AuthSession tableSession1 =

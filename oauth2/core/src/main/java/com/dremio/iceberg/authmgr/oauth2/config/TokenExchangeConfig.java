@@ -95,7 +95,6 @@ public interface TokenExchangeConfig {
    * @see OAuth2Properties.TokenExchange#SUBJECT_TOKEN_TYPE
    */
   @Value.Default
-  @Value.Auxiliary
   default TokenProvider getSubjectTokenProvider() {
     return TokenProviders.CURRENT_ACCESS_TOKEN;
   }
@@ -120,7 +119,6 @@ public interface TokenExchangeConfig {
    * @see OAuth2Properties.TokenExchange#ACTOR_TOKEN_TYPE
    */
   @Value.Default
-  @Value.Auxiliary
   default TokenProvider getActorTokenProvider() {
     return TokenProviders.NULL_TOKEN;
   }

@@ -23,6 +23,13 @@ import jakarta.annotation.Nullable;
  * A {@link TokenProvider} is a functional interface that provides a method to obtain a {@link
  * TypedToken}, given the current {@link AccessToken}. It is used to implement different token
  * exchange strategies.
+ *
+ * @see StaticTokenProvider
+ * @see CurrentAccessTokenProvider
+ * @see NullTokenProvider
+ * @implNote Implementations of this interface must define equality and hashcode based on the
+ *     provider's configuration. This is required for correct caching behavior. This is the case for
+ *     the implementations provided by this library.
  */
 @FunctionalInterface
 public interface TokenProvider {
