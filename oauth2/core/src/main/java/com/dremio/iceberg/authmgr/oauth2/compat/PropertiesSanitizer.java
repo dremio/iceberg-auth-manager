@@ -25,9 +25,9 @@ import org.slf4j.LoggerFactory;
 
 public final class PropertiesSanitizer {
 
-  private static final Set<String> CONTEXT_DENY_LIST = Set.of(OAuth2Properties.Basic.DIALECT);
+  public static final Set<String> CONTEXT_DENY_LIST = Set.of(OAuth2Properties.Basic.DIALECT);
 
-  private static final Set<String> TABLE_DENY_LIST =
+  public static final Set<String> TABLE_DENY_LIST =
       Set.of(
           OAuth2Properties.Basic.CLIENT_ID,
           OAuth2Properties.Basic.CLIENT_SECRET,
@@ -36,8 +36,6 @@ public final class PropertiesSanitizer {
           OAuth2Properties.ResourceOwner.PASSWORD,
           OAuth2Properties.Impersonation.CLIENT_ID,
           OAuth2Properties.Impersonation.CLIENT_SECRET,
-          OAuth2Properties.TokenExchange.SUBJECT_TOKEN,
-          OAuth2Properties.TokenExchange.ACTOR_TOKEN,
           OAuth2Properties.ClientAssertion.ALGORITHM,
           OAuth2Properties.ClientAssertion.PRIVATE_KEY,
           OAuth2Properties.ImpersonationClientAssertion.ALGORITHM,
@@ -47,35 +45,28 @@ public final class PropertiesSanitizer {
 
   /** Sanitizes context properties received from the catalog's session context. */
   public static Map<String, String> sanitizeContextProperties(Map<String, String> properties) {
-    properties = new HashMap<>(properties);
-    for (Iterator<String> iterator = properties.keySet().iterator(); iterator.hasNext(); ) {
-      String key = iterator.next();
-      if (CONTEXT_DENY_LIST.contains(key)) {
-        LOGGER.warn(
-            "Ignoring property '{}': this property is not allowed in a session context.", key);
-        iterator.remove();
-      }
-    }
-    return properties;
+    return sanitizeProperties(
+        properties,
+        CONTEXT_DENY_LIST,
+        "Ignoring property '{}': this property is not allowed in a session context.");
   }
 
   /** Sanitizes table properties received from the server. */
   public static Map<String, String> sanitizeTableProperties(Map<String, String> properties) {
+    return sanitizeProperties(
+        properties,
+        TABLE_DENY_LIST,
+        "Ignoring property '{}': this property is not allowed to be vended by catalog servers.");
+  }
+
+  private static Map<String, String> sanitizeProperties(
+      Map<String, String> properties, Set<String> contextDenyList, String s) {
     properties = new HashMap<>(properties);
     for (Iterator<String> iterator = properties.keySet().iterator(); iterator.hasNext(); ) {
       String key = iterator.next();
-      if (TABLE_DENY_LIST.contains(key)) {
-        LOGGER.warn(
-            "Ignoring property '{}': this property is not allowed to be vended by catalog servers.",
-            key);
+      if (contextDenyList.contains(key)) {
+        LOGGER.warn(s, key);
         iterator.remove();
-      }
-      if (key.equals(OAuth2Properties.Basic.TOKEN)) {
-        LOGGER.warn(
-            "Detected property '{}' in a server response. "
-                + "Vending OAuth2 tokens will be disallowed in a future release; "
-                + "catalog servers should vend OAuth2 scopes instead.",
-            key);
       }
     }
     return properties;

@@ -98,6 +98,7 @@ val mockitoAgent = configurations.create("mockitoAgent")
 
 dependencies {
   testImplementation(libs.mockito.core)
+  testImplementation(libs.logback.classic)
   mockitoAgent(libs.mockito.core) { isTransitive = false }
 }
 
