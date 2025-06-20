@@ -32,8 +32,9 @@ class IcebergRefreshTokenFlowTest {
   @Test
   void fetchNewTokens() {
     try (TestEnvironment env = TestEnvironment.builder().dialect(Dialect.ICEBERG_REST).build();
-        Flow flow = env.newTokenRefreshFlow()) {
-      Tokens tokens = flow.fetchNewTokens(currentTokens);
+        FlowFactory flowFactory = env.newFlowFactory()) {
+      Flow flow = flowFactory.createTokenRefreshFlow();
+      Tokens tokens = flow.fetchNewTokens(currentTokens).toCompletableFuture().join();
       assertTokens(tokens, "access_refreshed", null);
     }
   }
@@ -45,8 +46,9 @@ class IcebergRefreshTokenFlowTest {
                 .dialect(Dialect.ICEBERG_REST)
                 .token("access_initial")
                 .build();
-        Flow flow = env.newTokenRefreshFlow()) {
-      Tokens tokens = flow.fetchNewTokens(currentTokens);
+        FlowFactory flowFactory = env.newFlowFactory()) {
+      Flow flow = flowFactory.createTokenRefreshFlow();
+      Tokens tokens = flow.fetchNewTokens(currentTokens).toCompletableFuture().join();
       assertTokens(tokens, "access_refreshed", null);
     }
   }

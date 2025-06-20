@@ -16,7 +16,6 @@
 package com.dremio.iceberg.authmgr.oauth2.auth;
 
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.ClientAssertion;
-import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.ImpersonationClientAssertion;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Map;
@@ -32,7 +31,6 @@ public interface JwtAssertion {
    * The issuer of the client assertion JWT. Optional. The default is the client ID.
    *
    * @see ClientAssertion#ISSUER
-   * @see ImpersonationClientAssertion#ISSUER
    */
   Optional<String> getIssuer();
 
@@ -40,7 +38,6 @@ public interface JwtAssertion {
    * The subject of the client assertion JWT. Optional. The default is the client ID.
    *
    * @see ClientAssertion#SUBJECT
-   * @see ImpersonationClientAssertion#SUBJECT
    */
   Optional<String> getSubject();
 
@@ -48,7 +45,6 @@ public interface JwtAssertion {
    * The audience of the client assertion JWT. Optional. The default is the token endpoint.
    *
    * @see ClientAssertion#AUDIENCE
-   * @see ImpersonationClientAssertion#AUDIENCE
    */
   Optional<String> getAudience();
 
@@ -56,7 +52,6 @@ public interface JwtAssertion {
    * The lifespan of the client assertion JWT. Optional. The default is 5 minutes.
    *
    * @see ClientAssertion#TOKEN_LIFESPAN
-   * @see ImpersonationClientAssertion#TOKEN_LIFESPAN
    */
   Optional<Duration> getTokenLifespan();
 
@@ -64,7 +59,6 @@ public interface JwtAssertion {
    * Extra claims to include in the client assertion JWT. Optional. The default is empty.
    *
    * @see ClientAssertion#EXTRA_CLAIMS_PREFIX
-   * @see ImpersonationClientAssertion#EXTRA_CLAIMS_PREFIX
    */
   Map<String, String> getExtraClaims();
 
@@ -78,7 +72,6 @@ public interface JwtAssertion {
    * @see <a href="https://datatracker.ietf.org/doc/html/rfc7518#section-3.1">RFC 7518 Section
    *     3.1</a>
    * @see ClientAssertion#ALGORITHM
-   * @see ImpersonationClientAssertion#ALGORITHM
    */
   Optional<JwtSigningAlgorithm> getAlgorithm();
 
@@ -89,7 +82,6 @@ public interface JwtAssertion {
    * private key is used.
    *
    * @see ClientAssertion#PRIVATE_KEY
-   * @see ImpersonationClientAssertion#PRIVATE_KEY
    */
   Optional<Path> getPrivateKey();
 }

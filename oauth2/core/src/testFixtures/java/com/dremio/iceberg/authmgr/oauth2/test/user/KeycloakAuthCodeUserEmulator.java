@@ -19,7 +19,6 @@ import static com.dremio.iceberg.authmgr.oauth2.uri.UriUtils.decodeParameters;
 import static java.net.HttpURLConnection.HTTP_OK;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.dremio.iceberg.authmgr.oauth2.flow.FlowUtils;
 import com.dremio.iceberg.authmgr.oauth2.uri.UriBuilder;
 import java.net.HttpURLConnection;
 import java.net.URI;
@@ -34,27 +33,22 @@ public class KeycloakAuthCodeUserEmulator extends AbstractKeycloakUserEmulator {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(KeycloakAuthCodeUserEmulator.class);
 
-  private final String msgPrefix;
-  private final String contextPath;
-
   private URI authUrl;
 
   private volatile String authorizationCodeOverride;
   private volatile int expectedCallbackStatus = HTTP_OK;
 
   /** Creates a new emulator with implicit login (for unit tests). */
-  public KeycloakAuthCodeUserEmulator(String agentName) {
-    this(agentName, null, null);
+  public KeycloakAuthCodeUserEmulator() {
+    this(null, null);
   }
 
   /**
    * Creates a new emulator with required user login using the given username and password (for
    * integration tests).
    */
-  public KeycloakAuthCodeUserEmulator(String agentName, String username, String password) {
-    super(agentName, username, password);
-    msgPrefix = FlowUtils.getMsgPrefix(agentName);
-    contextPath = FlowUtils.getContextPath(agentName);
+  public KeycloakAuthCodeUserEmulator(String username, String password) {
+    super(username, password);
   }
 
   public void overrideAuthorizationCode(String code, int expectedStatus) {
@@ -64,7 +58,7 @@ public class KeycloakAuthCodeUserEmulator extends AbstractKeycloakUserEmulator {
 
   @Override
   protected Runnable processLine(String line) {
-    if (line.startsWith(msgPrefix) && line.contains("http")) {
+    if (line.startsWith("[") && line.contains("http")) {
       authUrl = extractAuthUrl(line);
       return this::triggerAuthorizationCodeFlow;
     }
@@ -97,7 +91,7 @@ public class KeycloakAuthCodeUserEmulator extends AbstractKeycloakUserEmulator {
   /** Emulate browser being redirected to callback URL. */
   private void invokeCallbackUrl(URI callbackUrl) throws Exception {
     LOGGER.debug("Opening callback URL...");
-    assertThat(callbackUrl).hasPath(contextPath).hasParameter("code").hasParameter("state");
+    assertThat(callbackUrl).hasParameter("code").hasParameter("state");
     if (authorizationCodeOverride != null) {
       Map<String, List<String>> params = decodeParameters(callbackUrl.getQuery());
       assertThat(params.get("state")).hasSize(1);

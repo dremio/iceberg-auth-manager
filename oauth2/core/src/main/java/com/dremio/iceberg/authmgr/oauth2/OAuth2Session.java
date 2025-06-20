@@ -19,6 +19,7 @@ import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2Agent;
 import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2AgentSpec;
 import com.dremio.iceberg.authmgr.oauth2.token.AccessToken;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.function.Supplier;
 import org.apache.iceberg.rest.HTTPHeaders;
 import org.apache.iceberg.rest.HTTPHeaders.HTTPHeader;
 import org.apache.iceberg.rest.HTTPRequest;
@@ -32,13 +33,11 @@ public class OAuth2Session implements AuthSession {
   private final OAuth2Agent agent;
 
   public OAuth2Session(
-      OAuth2AgentSpec spec, ScheduledExecutorService executor, RESTClient restClient) {
+      OAuth2AgentSpec spec,
+      ScheduledExecutorService executor,
+      Supplier<RESTClient> restClientSupplier) {
     this.spec = spec;
-    this.agent = new OAuth2Agent(spec, executor, restClient);
-  }
-
-  public void updateRestClient(RESTClient restClient) {
-    agent.updateRestClient(restClient);
+    this.agent = new OAuth2Agent(spec, executor, restClientSupplier);
   }
 
   public OAuth2AgentSpec getSpec() {

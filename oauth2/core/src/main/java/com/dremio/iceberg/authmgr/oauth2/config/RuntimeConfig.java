@@ -84,6 +84,8 @@ public interface RuntimeConfig {
     Objects.requireNonNull(properties, "properties must not be null");
     RuntimeConfig.Builder builder = builder();
     builder.agentNameOption().merge(properties, getAgentName());
+    builder.clock(getClock());
+    builder.console(getConsole());
     return builder.build();
   }
 

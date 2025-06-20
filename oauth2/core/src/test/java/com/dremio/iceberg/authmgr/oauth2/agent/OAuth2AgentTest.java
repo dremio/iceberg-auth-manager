@@ -29,8 +29,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2Agent.MustFetchNewTokensException;
-import com.dremio.iceberg.authmgr.oauth2.config.AuthorizationCodeConfig;
-import com.dremio.iceberg.authmgr.oauth2.config.DeviceCodeConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.Dialect;
 import com.dremio.iceberg.authmgr.oauth2.flow.OAuth2Exception;
 import com.dremio.iceberg.authmgr.oauth2.grant.GrantType;
@@ -42,6 +40,7 @@ import com.dremio.iceberg.authmgr.oauth2.token.AccessToken;
 import com.dremio.iceberg.authmgr.oauth2.token.RefreshToken;
 import com.dremio.iceberg.authmgr.oauth2.token.Tokens;
 import java.time.Duration;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -152,18 +151,12 @@ class OAuth2AgentTest {
     try (TestEnvironment env =
             TestEnvironment.builder()
                 .grantType(GrantType.AUTHORIZATION_CODE)
-                .authorizationCodeConfig(
-                    AuthorizationCodeConfig.builder()
-                        .timeout(Duration.ofMillis(10))
-                        .minTimeout(Duration.ofMillis(10))
-                        .build())
+                .timeout(Duration.ofMillis(10))
                 .forceInactiveUser(true)
                 .build();
         OAuth2Agent agent = env.newAgent()) {
       soft.assertThatThrownBy(agent::authenticate)
-          .hasMessage("Cannot acquire a valid OAuth2 access token")
-          .cause()
-          .hasMessage("Timed out waiting waiting for authorization code")
+          .hasMessage("Timed out waiting for an access token")
           .cause()
           .isInstanceOf(TimeoutException.class);
     }
@@ -187,12 +180,6 @@ class OAuth2AgentTest {
     try (TestEnvironment env =
             TestEnvironment.builder()
                 .grantType(GrantType.DEVICE_CODE)
-                .deviceCodeConfig(
-                    DeviceCodeConfig.builder()
-                        .pollInterval(Duration.ofMillis(10))
-                        .minPollInterval(Duration.ofMillis(10))
-                        .ignoreServerPollInterval(true)
-                        .build())
                 .privateClient(privateClient)
                 .returnRefreshTokens(returnRefreshTokens)
                 .build();
@@ -210,19 +197,12 @@ class OAuth2AgentTest {
     try (TestEnvironment env =
             TestEnvironment.builder()
                 .grantType(GrantType.DEVICE_CODE)
-                .deviceCodeConfig(
-                    DeviceCodeConfig.builder()
-                        .timeout(Duration.ofMillis(10))
-                        .minTimeout(Duration.ofMillis(10))
-                        .ignoreServerPollInterval(true)
-                        .build())
+                .timeout(Duration.ofMillis(10))
                 .forceInactiveUser(true)
                 .build();
         OAuth2Agent agent = env.newAgent()) {
       soft.assertThatThrownBy(agent::authenticate)
-          .hasMessage("Cannot acquire a valid OAuth2 access token")
-          .cause()
-          .hasMessage("Timed out waiting for user to authorize device")
+          .hasMessage("Timed out waiting for an access token")
           .cause()
           .isInstanceOf(TimeoutException.class);
     }
@@ -243,7 +223,7 @@ class OAuth2AgentTest {
           Tokens.of(
               AccessToken.of("access_initial", "Bearer", ACCESS_TOKEN_EXPIRATION_TIME),
               RefreshToken.of("refresh_initial", REFRESH_TOKEN_EXPIRATION_TIME));
-      Tokens tokens = agent.refreshCurrentTokens(currentTokens);
+      Tokens tokens = agent.refreshCurrentTokens(currentTokens).toCompletableFuture().join();
       assertTokens(
           tokens,
           "access_refreshed",
@@ -257,7 +237,7 @@ class OAuth2AgentTest {
         OAuth2Agent agent = env.newAgent()) {
       Tokens currentTokens =
           Tokens.of(AccessToken.of("access_initial", "Bearer", ACCESS_TOKEN_EXPIRATION_TIME), null);
-      Tokens tokens = agent.refreshCurrentTokens(currentTokens);
+      Tokens tokens = agent.refreshCurrentTokens(currentTokens).toCompletableFuture().join();
       assertTokens(tokens, "access_refreshed", null);
     }
   }
@@ -278,29 +258,44 @@ class OAuth2AgentTest {
           Tokens.of(
               currentTokens.getAccessToken(),
               RefreshToken.of("refresh_expired", TestConstants.NOW.minusSeconds(1)));
-      soft.assertThatThrownBy(() -> agent.refreshCurrentTokens(tokens))
-          .isInstanceOf(MustFetchNewTokensException.class);
+      soft.assertThat(agent.refreshCurrentTokens(tokens))
+          .completesExceptionallyWithin(Duration.ofSeconds(10))
+          .withThrowableOfType(ExecutionException.class)
+          .withCauseInstanceOf(MustFetchNewTokensException.class);
     }
   }
 
   @ParameterizedTest
-  @CsvSource({"true, true", "true, false", "false, true", "false, false"})
-  void testImpersonate(boolean privateClient, boolean returnRefreshTokens) {
+  @CsvSource({
+    "true,  false, CLIENT_CREDENTIALS",
+    "true,  true,  PASSWORD",
+    "true,  false, PASSWORD",
+    "false, true,  PASSWORD",
+    "false, false, PASSWORD",
+    "true,  true,  AUTHORIZATION_CODE",
+    "true,  false, AUTHORIZATION_CODE",
+    "false, true,  AUTHORIZATION_CODE",
+    "false, false, AUTHORIZATION_CODE",
+    "true,  true,  DEVICE_CODE",
+    "true,  false, DEVICE_CODE",
+    "false, true,  DEVICE_CODE",
+    "false, false, DEVICE_CODE",
+  })
+  void testImpersonate(boolean privateClient, boolean returnRefreshTokens, GrantType grantType) {
     try (TestEnvironment env =
             TestEnvironment.builder()
-                .grantType(GrantType.AUTHORIZATION_CODE)
-                .forceInactiveUser(true)
-                .impersonationEnabled(true)
+                .grantType(GrantType.TOKEN_EXCHANGE)
+                .subjectGrantType(grantType)
                 .privateClient(privateClient)
                 .returnRefreshTokens(returnRefreshTokens)
                 .build();
         OAuth2Agent agent = env.newAgent()) {
-      Tokens currentTokens =
-          Tokens.of(
-              AccessToken.of("access_initial", "Bearer", ACCESS_TOKEN_EXPIRATION_TIME),
-              RefreshToken.of("refresh_initial", REFRESH_TOKEN_EXPIRATION_TIME));
-      Tokens tokens = agent.maybeImpersonate(currentTokens);
-      assertTokens(tokens, "access_impersonated", "refresh_initial");
+      Tokens tokens = agent.fetchNewTokens().toCompletableFuture().join();
+      assertTokens(tokens, "access_initial", returnRefreshTokens ? "refresh_initial" : null);
+      if (returnRefreshTokens) {
+        tokens = agent.refreshCurrentTokens(tokens).toCompletableFuture().join();
+        assertTokens(tokens, "access_refreshed", "refresh_refreshed");
+      }
     }
   }
 
@@ -317,8 +312,8 @@ class OAuth2AgentTest {
   void testSleepWakeUp() {
 
     ScheduledExecutorService executor = mock(ScheduledExecutorService.class);
-    mockInitialTokenFetch(executor);
-    AtomicReference<Runnable> currentRenewalTask = mockTokensRefreshSchedule(executor);
+    mockExecutorExecute(executor);
+    AtomicReference<Runnable> currentRenewalTask = mockExecutorSchedule(executor);
 
     try (TestEnvironment env =
             TestEnvironment.builder().grantType(GrantType.PASSWORD).executor(executor).build();
@@ -367,8 +362,9 @@ class OAuth2AgentTest {
   void testExecutionRejectedOnInitialTokenFetch() {
 
     ScheduledExecutorService executor = mock(ScheduledExecutorService.class);
+    // First token fetch will throw
     doThrow(RejectedExecutionException.class).when(executor).execute(any(Runnable.class));
-    AtomicReference<Runnable> currentRenewalTask = mockTokensRefreshSchedule(executor);
+    AtomicReference<Runnable> currentRenewalTask = mockExecutorSchedule(executor);
 
     // If the executor rejects the initial token fetch, a call to authenticate()
     // throws RejectedExecutionException immediately.
@@ -379,6 +375,9 @@ class OAuth2AgentTest {
 
       soft.assertThatThrownBy(agent::authenticate)
           .hasCauseInstanceOf(RejectedExecutionException.class);
+
+      // Next token fetch will succeed
+      mockExecutorExecute(executor);
 
       // should have scheduled a refresh, when that refresh is executed successfully,
       // agent should recover
@@ -392,8 +391,8 @@ class OAuth2AgentTest {
   void testExecutionRejectedOnTokenRefreshes() {
 
     ScheduledExecutorService executor = mock(ScheduledExecutorService.class);
-    mockInitialTokenFetch(executor);
-    AtomicReference<Runnable> currentRenewalTask = mockTokensRefreshSchedule(executor, true);
+    mockExecutorExecute(executor);
+    AtomicReference<Runnable> currentRenewalTask = mockExecutorSchedule(executor, true);
 
     // If the executor rejects a scheduled token refresh,
     // sleep mode should be activated; the first call to authenticate()
@@ -431,8 +430,8 @@ class OAuth2AgentTest {
   void testFailureRecovery() {
 
     ScheduledExecutorService executor = mock(ScheduledExecutorService.class);
-    mockInitialTokenFetch(executor);
-    AtomicReference<Runnable> currentRenewalTask = mockTokensRefreshSchedule(executor);
+    mockExecutorExecute(executor);
+    AtomicReference<Runnable> currentRenewalTask = mockExecutorSchedule(executor);
 
     try (TestEnvironment env =
             TestEnvironment.builder()
@@ -525,8 +524,8 @@ class OAuth2AgentTest {
     }
   }
 
-  /** handle the call to fetchNewTokens() for the initial token fetch. */
-  private static void mockInitialTokenFetch(ScheduledExecutorService executor) {
+  /** Mocks the executor's execute() method to run the task immediately. */
+  private static void mockExecutorExecute(ScheduledExecutorService executor) {
     doAnswer(
             invocation -> {
               Runnable runnable = invocation.getArgument(0);
@@ -537,14 +536,15 @@ class OAuth2AgentTest {
         .execute(any(Runnable.class));
   }
 
-  /** Handle successive calls to scheduleTokensRenewal(). */
-  private static AtomicReference<Runnable> mockTokensRefreshSchedule(
-      ScheduledExecutorService executor) {
-    return mockTokensRefreshSchedule(executor, false);
+  /** Mocks the executor's schedule() method to capture the scheduled task. */
+  private static AtomicReference<Runnable> mockExecutorSchedule(ScheduledExecutorService executor) {
+    return mockExecutorSchedule(executor, false);
   }
 
-  /** Handle successive calls to scheduleTokensRenewal() with option to reject scheduled tasks. */
-  private static AtomicReference<Runnable> mockTokensRefreshSchedule(
+  /**
+   * Mocks the executor's schedule() method to capture the scheduled task, optionally rejecting it.
+   */
+  private static AtomicReference<Runnable> mockExecutorSchedule(
       ScheduledExecutorService executor, boolean rejectSchedule) {
     AtomicReference<Runnable> task = new AtomicReference<>();
     when(executor.schedule(any(Runnable.class), anyLong(), any()))

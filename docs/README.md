@@ -52,9 +52,9 @@ client authentication.
 
 ## Impersonation & Delegation
 
-The Dremio AuthManager for Apache Iceberg supports impersonation and delegation using the
-token exchange grant type. See the [Impersonation & Delegation](./impersonation.md) section for more
-details on how to configure impersonation and delegation.
+The Dremio AuthManager for Apache Iceberg supports impersonation and delegation using the token
+exchange grant type. See the [Token Exchange](./token-exchange.md) section for more details on how
+to configure impersonation and delegation.
 
 ## Dialects
 

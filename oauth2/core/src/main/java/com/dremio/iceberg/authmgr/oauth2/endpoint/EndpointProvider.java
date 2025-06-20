@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Supplier;
 import org.apache.iceberg.exceptions.RESTException;
 import org.apache.iceberg.rest.RESTClient;
 import org.immutables.value.Value;
@@ -61,7 +62,7 @@ public abstract class EndpointProvider {
     Builder deviceAuthorizationEndpoint(URI deviceAuthorizationEndpoint);
 
     @CanIgnoreReturnValue
-    Builder restClient(RESTClient restClient);
+    Builder restClientSupplier(Supplier<RESTClient> restClient);
 
     EndpointProvider build();
   }
@@ -78,7 +79,7 @@ public abstract class EndpointProvider {
 
   protected abstract Optional<URI> getDeviceAuthorizationEndpoint();
 
-  protected abstract RESTClient getRestClient();
+  protected abstract Supplier<RESTClient> getRestClientSupplier();
 
   @Value.Lazy
   public URI getResolvedTokenEndpoint() {
@@ -113,7 +114,8 @@ public abstract class EndpointProvider {
     for (String path : WELL_KNOWN_PATHS) {
       try {
         URI uri = new UriBuilder(issuerUrl).path(path).build();
-        return getRestClient()
+        return getRestClientSupplier()
+            .get()
             .get(
                 uri.toString(),
                 MetadataDiscoveryResponse.class,

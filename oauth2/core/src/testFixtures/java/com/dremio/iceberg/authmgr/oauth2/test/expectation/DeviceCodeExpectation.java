@@ -16,8 +16,10 @@
 package com.dremio.iceberg.authmgr.oauth2.test.expectation;
 
 import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.CLIENT_ID1;
+import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.CLIENT_ID2;
 import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.DEVICE_CODE;
 import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.SCOPE1;
+import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.SCOPE2;
 import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.USER_CODE;
 import static org.mockserver.model.Parameter.param;
 
@@ -48,10 +50,13 @@ public abstract class DeviceCodeExpectation extends InitialTokenFetchExpectation
   @Override
   protected PostFormRequest tokenRequestBody() {
     return ImmutableDeviceAccessTokenRequest.builder()
-        .clientId(getTestEnvironment().isPrivateClient() ? null : CLIENT_ID1)
+        .clientId(
+            getTestEnvironment().isPrivateClient()
+                ? null
+                : String.format("(%s|%s)", CLIENT_ID1, CLIENT_ID2))
         .deviceCode(DEVICE_CODE)
-        .scope(SCOPE1)
-        .putExtraParameter("extra1", "value1")
+        .scope(String.format("(%s|%s)", SCOPE1, SCOPE2))
+        .putExtraParameter("(extra1|extra2)", "(value1|value2)")
         .build();
   }
 
@@ -74,7 +79,8 @@ public abstract class DeviceCodeExpectation extends InitialTokenFetchExpectation
                 .withMethod("POST")
                 .withPath(getTestEnvironment().getDeviceAuthorizationEndpoint().getPath())
                 .withContentType(MediaType.APPLICATION_FORM_URLENCODED)
-                .withBody(ParameterBody.params(param("scope", SCOPE1))))
+                .withBody(
+                    ParameterBody.params(param("scope", String.format("(%s|%s)", SCOPE1, SCOPE2)))))
         .respond(
             HttpResponse.response()
                 .withBody(

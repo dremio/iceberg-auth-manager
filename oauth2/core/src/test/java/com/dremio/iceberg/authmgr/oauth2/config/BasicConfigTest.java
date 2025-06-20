@@ -22,6 +22,7 @@ import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.Basic.EXTRA_PAR
 import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.Basic.GRANT_TYPE;
 import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.Basic.ISSUER_URL;
 import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.Basic.SCOPE;
+import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.Basic.TIMEOUT;
 import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.Basic.TOKEN;
 import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.Basic.TOKEN_ENDPOINT;
 import static java.util.Collections.singletonList;
@@ -36,6 +37,7 @@ import com.dremio.iceberg.authmgr.oauth2.grant.GrantType;
 import com.dremio.iceberg.authmgr.oauth2.test.TestConstants;
 import com.google.common.collect.ImmutableMap;
 import java.net.URI;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -137,7 +139,15 @@ class BasicConfigTest {
         Arguments.of(
             BasicConfig.builder().tokenEndpoint(URI.create(ResourcePaths.tokens())),
             singletonList(
-                "client secret must not be empty when Iceberg OAuth2 dialect is used (rest.auth.oauth2.client-secret / rest.auth.oauth2.dialect)")));
+                "client secret must not be empty when Iceberg OAuth2 dialect is used (rest.auth.oauth2.client-secret / rest.auth.oauth2.dialect)")),
+        Arguments.of(
+            BasicConfig.builder()
+                .clientId("Client1")
+                .clientSecret("s3cr3t")
+                .issuerUrl(URI.create("https://example.com"))
+                .timeout(Duration.ofSeconds(1)),
+            singletonList(
+                "timeout must be greater than or equal to PT30S (rest.auth.oauth2.timeout)")));
   }
 
   @ParameterizedTest
@@ -170,6 +180,7 @@ class BasicConfigTest {
                 .put(EXTRA_PARAMS_PREFIX + "extra2", "param 2")
                 .put(EXTRA_PARAMS_PREFIX + "extra3", "") // empty
                 .put(EXTRA_PARAMS_PREFIX, "") // malformed
+                .put(TIMEOUT, "PT1M")
                 .build(),
             BasicConfig.builder()
                 .issuerUrl(URI.create("https://example.com/"))
@@ -179,6 +190,7 @@ class BasicConfigTest {
                 .clientSecret("w00t")
                 .scopes(List.of("test"))
                 .extraRequestParameters(ImmutableMap.of("extra1", "param1", "extra2", "param 2"))
+                .timeout(Duration.ofMinutes(1))
                 .build(),
             null),
         // Iceberg OAuth2 dialect

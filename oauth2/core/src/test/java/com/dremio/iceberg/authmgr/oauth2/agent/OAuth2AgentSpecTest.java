@@ -20,7 +20,6 @@ import static java.util.Collections.singletonList;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
 import com.dremio.iceberg.authmgr.oauth2.config.BasicConfig;
-import com.dremio.iceberg.authmgr.oauth2.config.ImpersonationConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.ResourceOwnerConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.validator.ConfigValidator;
 import com.dremio.iceberg.authmgr.oauth2.grant.GrantType;
@@ -101,38 +100,6 @@ class OAuth2AgentSpecTest {
                         .clientSecret("s3cr3t")
                         .build()),
             singletonList(
-                "either issuer URL or device authorization endpoint must be set if grant type is 'device_code' (rest.auth.oauth2.issuer-url / rest.auth.oauth2.device-code.endpoint)")),
-        Arguments.of(
-            OAuth2AgentSpec.builder()
-                .basicConfig(
-                    BasicConfig.builder()
-                        .grantType(GrantType.TOKEN_EXCHANGE)
-                        .tokenEndpoint(URI.create("https://issuer.com/token"))
-                        .clientId("Client1")
-                        .clientSecret("s3cr3t")
-                        .build())
-                .impersonationConfig(
-                    ImpersonationConfig.builder()
-                        .enabled(true)
-                        .tokenEndpoint(URI.create("https://issuer.com/token"))
-                        .clientId("Client1")
-                        .build()),
-            singletonList(
-                "impersonation cannot be enabled if grant type is 'token_exchange' (rest.auth.oauth2.impersonation.enabled / rest.auth.oauth2.grant-type)")),
-        Arguments.of(
-            OAuth2AgentSpec.builder()
-                .basicConfig(
-                    BasicConfig.builder()
-                        .tokenEndpoint(URI.create("token")) // relative URI -> Iceberg Dialect
-                        .clientSecret("s3cr3t")
-                        .build())
-                .impersonationConfig(
-                    ImpersonationConfig.builder()
-                        .enabled(true)
-                        .tokenEndpoint(URI.create("https://issuer.com/token"))
-                        .clientId("Client1")
-                        .build()),
-            singletonList(
-                "Iceberg OAuth2 dialect does not support impersonation (rest.auth.oauth2.impersonation.enabled / rest.auth.oauth2.dialect)")));
+                "either issuer URL or device authorization endpoint must be set if grant type is 'device_code' (rest.auth.oauth2.issuer-url / rest.auth.oauth2.device-code.endpoint)")));
   }
 }

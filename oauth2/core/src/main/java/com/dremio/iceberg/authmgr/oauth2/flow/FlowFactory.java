@@ -15,41 +15,127 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.flow;
 
-import com.dremio.iceberg.authmgr.oauth2.config.Dialect;
+import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2AgentSpec;
+import com.dremio.iceberg.authmgr.oauth2.auth.ClientAuthenticator;
+import com.dremio.iceberg.authmgr.oauth2.auth.ClientAuthenticatorFactory;
+import com.dremio.iceberg.authmgr.oauth2.endpoint.EndpointProvider;
+import com.dremio.iceberg.authmgr.oauth2.endpoint.EndpointProviderFactory;
 import com.dremio.iceberg.authmgr.oauth2.grant.GrantType;
+import com.dremio.iceberg.authmgr.oauth2.tokenexchange.ActorTokenSupplier;
+import com.dremio.iceberg.authmgr.oauth2.tokenexchange.SubjectTokenSupplier;
+import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.function.Supplier;
+import org.apache.iceberg.rest.RESTClient;
+import org.immutables.value.Value;
 
-public class FlowFactory {
+@AuthManagerImmutable
+public abstract class FlowFactory implements AutoCloseable {
 
-  public static Flow forInitialTokenFetch(GrantType grantType, FlowContext context) {
-    switch (grantType) {
+  public static FlowFactory of(
+      OAuth2AgentSpec spec,
+      ScheduledExecutorService executor,
+      Supplier<RESTClient> restClientSupplier) {
+    return ImmutableFlowFactory.builder()
+        .spec(spec)
+        .executor(executor)
+        .restClientSupplier(restClientSupplier)
+        .build();
+  }
+
+  /** Creates a flow for fetching new tokens. This is used for the initial token fetch. */
+  public Flow createInitialFlow() {
+    return newInitialFlowBuilder()
+        .spec(getSpec())
+        .executor(getExecutor())
+        .restClient(getRestClientSupplier().get())
+        .endpointProvider(getEndpointProvider())
+        .clientAuthenticator(getClientAuthenticator())
+        .build();
+  }
+
+  /**
+   * Creates a flow for refreshing tokens. This is used for refreshing tokens when the access token
+   * expires.
+   */
+  public Flow createTokenRefreshFlow() {
+    return newTokenRefreshFlowBuilder()
+        .spec(getSpec())
+        .executor(getExecutor())
+        .restClient(getRestClientSupplier().get())
+        .endpointProvider(getEndpointProvider())
+        .clientAuthenticator(getClientAuthenticator())
+        .build();
+  }
+
+  @Override
+  @SuppressWarnings("EmptyTryBlock")
+  public void close() {
+    if (getSpec().getBasicConfig().getGrantType() == GrantType.TOKEN_EXCHANGE) {
+      SubjectTokenSupplier subjectTokenSupplier = getSubjectTokenSupplier();
+      ActorTokenSupplier actorTokenSupplier = getActorTokenSupplier();
+      try (subjectTokenSupplier;
+          actorTokenSupplier) {}
+    }
+  }
+
+  protected abstract OAuth2AgentSpec getSpec();
+
+  protected abstract ScheduledExecutorService getExecutor();
+
+  protected abstract Supplier<RESTClient> getRestClientSupplier();
+
+  @Value.Lazy
+  protected EndpointProvider getEndpointProvider() {
+    return EndpointProviderFactory.createEndpointProvider(getSpec(), getRestClientSupplier());
+  }
+
+  @Value.Lazy
+  protected ClientAuthenticator getClientAuthenticator() {
+    return ClientAuthenticatorFactory.createAuthenticator(
+        getSpec(), getEndpointProvider().getResolvedTokenEndpoint());
+  }
+
+  @Value.Lazy
+  protected SubjectTokenSupplier getSubjectTokenSupplier() {
+    return SubjectTokenSupplier.of(getSpec(), getExecutor(), getRestClientSupplier());
+  }
+
+  @Value.Lazy
+  protected ActorTokenSupplier getActorTokenSupplier() {
+    return ActorTokenSupplier.of(getSpec(), getExecutor(), getRestClientSupplier());
+  }
+
+  private AbstractFlow.Builder<?, ?> newInitialFlowBuilder() {
+    switch (getSpec().getBasicConfig().getGrantType()) {
       case CLIENT_CREDENTIALS:
-        return new ClientCredentialsFlow(context);
+        return ImmutableClientCredentialsFlow.builder();
       case PASSWORD:
-        return new PasswordFlow(context);
+        return ImmutablePasswordFlow.builder();
       case AUTHORIZATION_CODE:
-        return new AuthorizationCodeFlow(context);
+        return ImmutableAuthorizationCodeFlow.builder();
       case DEVICE_CODE:
-        return new DeviceCodeFlow(context);
+        return ImmutableDeviceCodeFlow.builder();
       case TOKEN_EXCHANGE:
-        return new TokenExchangeFlow(context);
+        return ImmutableTokenExchangeFlow.builder()
+            .subjectTokenStage(getSubjectTokenSupplier().supplyTokenAsync())
+            .actorTokenStage(getActorTokenSupplier().supplyTokenAsync());
       default:
         throw new IllegalArgumentException(
-            "Unknown or invalid grant type for initial token fetch: " + grantType);
+            "Unknown or invalid grant type for initial token fetch: "
+                + getSpec().getBasicConfig().getGrantType());
     }
   }
 
-  public static Flow forTokenRefresh(Dialect dialect, FlowContext context) {
-    switch (dialect) {
+  private AbstractFlow.Builder<?, ?> newTokenRefreshFlowBuilder() {
+    switch (getSpec().getBasicConfig().getDialect()) {
       case STANDARD:
-        return new RefreshTokenFlow(context);
+        return ImmutableRefreshTokenFlow.builder();
       case ICEBERG_REST:
-        return new IcebergRefreshTokenFlow(context);
+        return ImmutableIcebergRefreshTokenFlow.builder();
       default:
-        throw new IllegalArgumentException("Unknown or invalid dialect: " + dialect);
+        throw new IllegalArgumentException(
+            "Unknown or invalid dialect: " + getSpec().getBasicConfig().getDialect());
     }
-  }
-
-  public static Flow forImpersonation(FlowContext context) {
-    return new ImpersonatingTokenExchangeFlow(context);
   }
 }

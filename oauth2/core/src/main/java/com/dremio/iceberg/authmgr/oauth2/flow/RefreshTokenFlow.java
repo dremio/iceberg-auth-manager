@@ -17,30 +17,34 @@ package com.dremio.iceberg.authmgr.oauth2.flow;
 
 import com.dremio.iceberg.authmgr.oauth2.rest.RefreshTokenRequest;
 import com.dremio.iceberg.authmgr.oauth2.token.Tokens;
+import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
 import jakarta.annotation.Nullable;
 import java.util.Objects;
+import java.util.concurrent.CompletionStage;
 
 /**
  * An implementation of the <a href="https://datatracker.ietf.org/doc/html/rfc6749#section-6">Token
  * Refresh</a> flow.
  */
-class RefreshTokenFlow extends AbstractFlow {
+@AuthManagerImmutable
+abstract class RefreshTokenFlow extends AbstractFlow {
 
-  RefreshTokenFlow(FlowContext context) {
-    super(context);
-  }
+  interface Builder extends AbstractFlow.Builder<RefreshTokenFlow, Builder> {}
 
   @Override
-  public Tokens fetchNewTokens(@Nullable Tokens currentTokens) {
+  public CompletionStage<Tokens> fetchNewTokens(@Nullable Tokens currentTokens) {
     Objects.requireNonNull(currentTokens, "currentTokens is null");
     Objects.requireNonNull(
         currentTokens.getRefreshToken(), "currentTokens.getRefreshTokens() is null");
     RefreshTokenRequest.Builder request =
         RefreshTokenRequest.builder().refreshToken(currentTokens.getRefreshToken().getPayload());
-    Tokens tokens = invokeTokenEndpoint(currentTokens, request);
-    if (tokens.getRefreshToken() == null) {
-      tokens = Tokens.of(tokens.getAccessToken(), currentTokens.getRefreshToken());
-    }
-    return tokens;
+    return invokeTokenEndpoint(currentTokens, request)
+        .thenApply(
+            tokens -> {
+              if (tokens.getRefreshToken() == null) {
+                tokens = Tokens.of(tokens.getAccessToken(), currentTokens.getRefreshToken());
+              }
+              return tokens;
+            });
   }
 }

@@ -22,7 +22,6 @@ import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.AuthorizationCo
 import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.AuthorizationCode.PKCE_ENABLED;
 import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.AuthorizationCode.PKCE_TRANSFORMATION;
 import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.AuthorizationCode.REDIRECT_URI;
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.AuthorizationCode.TIMEOUT;
 
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties;
 import com.dremio.iceberg.authmgr.oauth2.config.option.ConfigOption;
@@ -32,7 +31,6 @@ import com.dremio.iceberg.authmgr.oauth2.grant.GrantType;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.net.URI;
-import java.time.Duration;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -51,18 +49,6 @@ public interface AuthorizationCodeConfig {
    * @see OAuth2Properties.AuthorizationCode#ENDPOINT
    */
   Optional<URI> getAuthorizationEndpoint();
-
-  /**
-   * How long to wait for an authorization code. Defaults to {@link
-   * OAuth2Properties.AuthorizationCode#DEFAULT_TIMEOUT}. Only relevant when using the {@link
-   * GrantType#AUTHORIZATION_CODE} grant type.
-   *
-   * @see OAuth2Properties.AuthorizationCode#TIMEOUT
-   */
-  @Value.Default
-  default Duration getTimeout() {
-    return ConfigConstants.AUTHORIZATION_CODE_DEFAULT_TIMEOUT;
-  }
 
   /**
    * The redirect URI. This is the value of the {@code redirect_uri} parameter in the authorization
@@ -133,18 +119,6 @@ public interface AuthorizationCodeConfig {
     return PkceTransformation.S256;
   }
 
-  /**
-   * The minimum allowed value for {@link #getTimeout()}. Defaults to 30 seconds.
-   *
-   * <p>This setting is not exposed as a configuration option and is intended for testing purposes.
-   *
-   * @hidden
-   */
-  @Value.Default
-  default Duration getMinTimeout() {
-    return Duration.ofSeconds(30);
-  }
-
   @Value.Check
   default void validate() {
     ConfigValidator validator = new ConfigValidator();
@@ -161,11 +135,7 @@ public interface AuthorizationCodeConfig {
           CALLBACK_BIND_PORT,
           "authorization code flow: callback bind port must be between 0 and 65535 (inclusive)");
     }
-    validator.check(
-        getTimeout().compareTo(getMinTimeout()) >= 0,
-        TIMEOUT,
-        "authorization code flow: timeout must be greater than or equal to %s",
-        getMinTimeout());
+
     validator.validate();
   }
 
@@ -176,7 +146,6 @@ public interface AuthorizationCodeConfig {
     Objects.requireNonNull(properties, "properties must not be null");
     AuthorizationCodeConfig.Builder builder = builder();
     builder.endpointOption().merge(properties, getAuthorizationEndpoint());
-    builder.timeoutOption().merge(properties, getTimeout());
     builder.redirectUriOption().merge(properties, getRedirectUri());
     builder.callbackBindHostOption().merge(properties, getCallbackBindHost());
     builder
@@ -201,7 +170,6 @@ public interface AuthorizationCodeConfig {
     default Builder from(Map<String, String> properties) {
       Objects.requireNonNull(properties, "properties must not be null");
       endpointOption().apply(properties);
-      timeoutOption().apply(properties);
       redirectUriOption().apply(properties);
       callbackBindHostOption().apply(properties);
       callbackBindPortOption().apply(properties);
@@ -213,9 +181,6 @@ public interface AuthorizationCodeConfig {
 
     @CanIgnoreReturnValue
     Builder authorizationEndpoint(URI authorizationEndpoint);
-
-    @CanIgnoreReturnValue
-    Builder timeout(Duration timeout);
 
     @CanIgnoreReturnValue
     Builder redirectUri(URI redirectUri);
@@ -235,17 +200,10 @@ public interface AuthorizationCodeConfig {
     @CanIgnoreReturnValue
     Builder pkceTransformation(PkceTransformation pkceTransformation);
 
-    @CanIgnoreReturnValue
-    Builder minTimeout(Duration minTimeout);
-
     AuthorizationCodeConfig build();
 
     private ConfigOption<URI> endpointOption() {
       return ConfigOptions.of(ENDPOINT, this::authorizationEndpoint, URI::create);
-    }
-
-    private ConfigOption<Duration> timeoutOption() {
-      return ConfigOptions.of(TIMEOUT, this::timeout, Duration::parse);
     }
 
     private ConfigOption<URI> redirectUriOption() {

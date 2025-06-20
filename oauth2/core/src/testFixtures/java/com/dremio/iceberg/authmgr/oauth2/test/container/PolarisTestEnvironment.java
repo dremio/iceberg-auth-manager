@@ -71,7 +71,6 @@ public class PolarisTestEnvironment extends TestEnvironmentExtension
         .catalogServerContextPath("/api/catalog/")
         .tokenEndpoint(URI.create(ResourcePaths.tokens()))
         .scopes(List.of("PRINCIPAL_ROLE:ALL"))
-        .impersonationEnabled(false)
         .clock(Clock.systemUTC())
         .accessTokenLifespan(polaris.getAccessTokenLifespan());
   }

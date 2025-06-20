@@ -15,53 +15,50 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.flow;
 
-import com.dremio.iceberg.authmgr.oauth2.config.TokenExchangeConfig;
 import com.dremio.iceberg.authmgr.oauth2.rest.TokenExchangeRequest;
-import com.dremio.iceberg.authmgr.oauth2.token.AccessToken;
 import com.dremio.iceberg.authmgr.oauth2.token.Tokens;
 import com.dremio.iceberg.authmgr.oauth2.token.TypedToken;
-import jakarta.annotation.Nullable;
+import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
+import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.util.Objects;
+import java.util.concurrent.CompletionStage;
 
 /**
  * An implementation of the <a href="https://datatracker.ietf.org/doc/html/rfc8693">Token
  * Exchange</a> flow.
  */
-class TokenExchangeFlow extends AbstractFlow {
+@AuthManagerImmutable
+abstract class TokenExchangeFlow extends AbstractFlow {
 
-  private final TokenExchangeConfig tokenExchangeConfig;
+  interface Builder extends AbstractFlow.Builder<TokenExchangeFlow, Builder> {
+    @CanIgnoreReturnValue
+    Builder subjectTokenStage(CompletionStage<TypedToken> subjectTokenStage);
 
-  TokenExchangeFlow(FlowContext context) {
-    super(context);
-    tokenExchangeConfig = context.getTokenExchangeConfig();
+    @CanIgnoreReturnValue
+    Builder actorTokenStage(CompletionStage<TypedToken> actorTokenStage);
   }
+
+  abstract CompletionStage<TypedToken> subjectTokenStage();
+
+  abstract CompletionStage<TypedToken> actorTokenStage();
 
   @Override
-  public Tokens fetchNewTokens(Tokens currentTokens) {
-    AccessToken accessToken = currentTokens == null ? null : currentTokens.getAccessToken();
-
-    TypedToken subjectToken =
-        tokenExchangeConfig.getSubjectTokenProvider().provideToken(accessToken);
-    TypedToken actorToken = tokenExchangeConfig.getActorTokenProvider().provideToken(accessToken);
-
-    return fetchNewTokens(currentTokens, subjectToken, actorToken);
-  }
-
-  protected Tokens fetchNewTokens(
-      Tokens currentTokens, TypedToken subjectToken, @Nullable TypedToken actorToken) {
-    Objects.requireNonNull(
-        subjectToken, "Cannot execute token exchange: missing required subject token");
-
-    TokenExchangeRequest.Builder request =
-        TokenExchangeRequest.builder()
-            .subjectToken(subjectToken.getPayload())
-            .subjectTokenType(subjectToken.getTokenType())
-            .actorToken(actorToken == null ? null : actorToken.getPayload())
-            .actorTokenType(actorToken == null ? null : actorToken.getTokenType())
-            .resource(tokenExchangeConfig.getResource().orElse(null))
-            .audience(tokenExchangeConfig.getAudience().orElse(null))
-            .requestedTokenType(tokenExchangeConfig.getRequestedTokenType());
-
-    return invokeTokenEndpoint(currentTokens, request);
+  public CompletionStage<Tokens> fetchNewTokens(Tokens currentTokens) {
+    return subjectTokenStage()
+        .thenCombine(
+            actorTokenStage(),
+            (subjectToken, actorToken) -> {
+              Objects.requireNonNull(
+                  subjectToken, "Cannot execute token exchange: missing required subject token");
+              return TokenExchangeRequest.builder()
+                  .subjectToken(subjectToken.getPayload())
+                  .subjectTokenType(subjectToken.getTokenType())
+                  .actorToken(actorToken == null ? null : actorToken.getPayload())
+                  .actorTokenType(actorToken == null ? null : actorToken.getTokenType())
+                  .resource(getSpec().getTokenExchangeConfig().getResource().orElse(null))
+                  .audience(getSpec().getTokenExchangeConfig().getAudience().orElse(null))
+                  .requestedTokenType(getSpec().getTokenExchangeConfig().getRequestedTokenType());
+            })
+        .thenCompose(request -> invokeTokenEndpoint(currentTokens, request));
   }
 }

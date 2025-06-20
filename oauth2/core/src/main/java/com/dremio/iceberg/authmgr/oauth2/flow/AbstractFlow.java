@@ -15,17 +15,26 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.flow;
 
+import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2AgentSpec;
+import com.dremio.iceberg.authmgr.oauth2.auth.ClientAuthenticator;
+import com.dremio.iceberg.authmgr.oauth2.config.ConfigUtils;
+import com.dremio.iceberg.authmgr.oauth2.endpoint.EndpointProvider;
 import com.dremio.iceberg.authmgr.oauth2.rest.DeviceAuthorizationRequest;
 import com.dremio.iceberg.authmgr.oauth2.rest.DeviceAuthorizationResponse;
 import com.dremio.iceberg.authmgr.oauth2.rest.PostFormRequest;
 import com.dremio.iceberg.authmgr.oauth2.rest.TokenRequest;
 import com.dremio.iceberg.authmgr.oauth2.rest.TokenResponse;
 import com.dremio.iceberg.authmgr.oauth2.token.Tokens;
+import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import jakarta.annotation.Nullable;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ScheduledExecutorService;
+import org.apache.iceberg.rest.RESTClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,68 +43,100 @@ abstract class AbstractFlow implements Flow {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(AbstractFlow.class);
 
-  private final FlowContext context;
+  interface Builder<F extends AbstractFlow, B extends Builder<F, B>> {
 
-  protected AbstractFlow(FlowContext context) {
-    this.context = context;
+    @CanIgnoreReturnValue
+    B spec(OAuth2AgentSpec spec);
+
+    @CanIgnoreReturnValue
+    B executor(ScheduledExecutorService executor);
+
+    @CanIgnoreReturnValue
+    B restClient(RESTClient restClient);
+
+    @CanIgnoreReturnValue
+    B endpointProvider(EndpointProvider endpointProvider);
+
+    @CanIgnoreReturnValue
+    B clientAuthenticator(ClientAuthenticator clientAuthenticator);
+
+    F build();
   }
 
-  protected <REQ extends TokenRequest> Tokens invokeTokenEndpoint(
+  abstract OAuth2AgentSpec getSpec();
+
+  abstract ScheduledExecutorService getExecutor();
+
+  abstract RESTClient getRestClient();
+
+  abstract EndpointProvider getEndpointProvider();
+
+  abstract ClientAuthenticator getClientAuthenticator();
+
+  protected <REQ extends TokenRequest> CompletionStage<Tokens> invokeTokenEndpoint(
       @Nullable Tokens currentTokens, TokenRequest.Builder<REQ, ?> builder) {
-    URI tokenEndpoint = context.getEndpointProvider().getResolvedTokenEndpoint();
-    builder.extraParameters(context.getExtraRequestParameters());
-    context.getScopesAsString().ifPresent(builder::scope);
+    URI tokenEndpoint = getEndpointProvider().getResolvedTokenEndpoint();
+    builder.extraParameters(getSpec().getBasicConfig().getExtraRequestParameters());
+    ConfigUtils.scopesAsString(getSpec().getBasicConfig().getScopes()).ifPresent(builder::scope);
     Map<String, String> headers = getHeaders();
-    context.getClientAuthenticator().authenticate(builder, headers, currentTokens);
+    getClientAuthenticator().authenticate(builder, headers, currentTokens);
     REQ request = builder.build();
-    LOGGER.debug(
-        "Invoking token endpoint: headers: {} body: {}", filterSensitiveData(headers), request);
-    TokenResponse response =
-        context
-            .getRestClient()
-            .postForm(
-                tokenEndpoint.toString(),
-                request.asFormParameters(),
-                TokenResponse.class,
-                headers,
-                FlowErrorHandler.INSTANCE);
-    LOGGER.debug("Token endpoint response: {}", response);
-    return response.asTokens(context.getRuntimeConfig().getClock());
+    return CompletableFuture.supplyAsync(
+        () -> {
+          LOGGER.debug(
+              "Invoking token endpoint: headers: {} body: {}",
+              filterSensitiveData(headers),
+              request);
+          TokenResponse response =
+              getRestClient()
+                  .postForm(
+                      tokenEndpoint.toString(),
+                      request.asFormParameters(),
+                      TokenResponse.class,
+                      headers,
+                      FlowErrorHandler.INSTANCE);
+          LOGGER.debug("Token endpoint response: {}", response);
+          return response.asTokens(getSpec().getRuntimeConfig().getClock());
+        },
+        getExecutor());
   }
 
-  protected DeviceAuthorizationResponse invokeDeviceAuthEndpoint(@Nullable Tokens currentTokens) {
+  protected CompletionStage<DeviceAuthorizationResponse> invokeDeviceAuthEndpoint(
+      @Nullable Tokens currentTokens) {
     URI deviceAuthorizationEndpoint =
-        Objects.requireNonNull(
-            context.getEndpointProvider().getResolvedDeviceAuthorizationEndpoint());
+        Objects.requireNonNull(getEndpointProvider().getResolvedDeviceAuthorizationEndpoint());
     DeviceAuthorizationRequest.Builder builder = DeviceAuthorizationRequest.builder();
-    context.getScopesAsString().ifPresent(builder::scope);
+    ConfigUtils.scopesAsString(getSpec().getBasicConfig().getScopes()).ifPresent(builder::scope);
     Map<String, String> headers = getHeaders();
-    context.getClientAuthenticator().authenticate(builder, headers, currentTokens);
+    getClientAuthenticator().authenticate(builder, headers, currentTokens);
     DeviceAuthorizationRequest request = builder.build();
-    LOGGER.debug(
-        "Invoking device auth endpoint: headers: {} body: {}",
-        filterSensitiveData(headers),
-        request);
-    DeviceAuthorizationResponse response =
-        context
-            .getRestClient()
-            .postForm(
-                deviceAuthorizationEndpoint.toString(),
-                request.asFormParameters(),
-                DeviceAuthorizationResponse.class,
-                headers,
-                FlowErrorHandler.INSTANCE);
-    LOGGER.debug("Device auth endpoint response: {}", response);
-    return response;
+    return CompletableFuture.supplyAsync(
+        () -> {
+          LOGGER.debug(
+              "Invoking device auth endpoint: headers: {} body: {}",
+              filterSensitiveData(headers),
+              request);
+          DeviceAuthorizationResponse response =
+              getRestClient()
+                  .postForm(
+                      deviceAuthorizationEndpoint.toString(),
+                      request.asFormParameters(),
+                      DeviceAuthorizationResponse.class,
+                      headers,
+                      FlowErrorHandler.INSTANCE);
+          LOGGER.debug("Device auth endpoint response: {}", response);
+          return response;
+        },
+        getExecutor());
   }
 
-  private Map<String, String> getHeaders() {
+  private static Map<String, String> getHeaders() {
     Map<String, String> headers = new HashMap<>();
     headers.put("Content-Type", PostFormRequest.CONTENT_TYPE);
     return headers;
   }
 
-  private Map<String, String> filterSensitiveData(Map<String, String> headers) {
+  private static Map<String, String> filterSensitiveData(Map<String, String> headers) {
     Map<String, String> redactedHeaders = new HashMap<>(headers);
     if (redactedHeaders.containsKey("Authorization")) {
       redactedHeaders.put("Authorization", "****");

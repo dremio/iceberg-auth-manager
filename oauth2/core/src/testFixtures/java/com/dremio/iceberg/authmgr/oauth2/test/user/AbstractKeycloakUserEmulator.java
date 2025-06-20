@@ -34,8 +34,8 @@ public abstract class AbstractKeycloakUserEmulator extends InteractiveUserEmulat
   private static final Pattern LOGIN_FORM_ACTION_PATTERN =
       Pattern.compile("<form.*action=\"([^\"]+)\".*>");
 
-  public AbstractKeycloakUserEmulator(String agentName, String username, String password) {
-    super(agentName, username, password);
+  public AbstractKeycloakUserEmulator(String username, String password) {
+    super(username, password);
   }
 
   @Override

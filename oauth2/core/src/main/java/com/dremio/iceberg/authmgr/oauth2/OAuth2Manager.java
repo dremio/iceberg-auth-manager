@@ -56,6 +56,7 @@ public class OAuth2Manager extends RefreshingAuthManager {
 
   @Override
   public AuthSession initSession(RESTClient initClient, Map<String, String> initProperties) {
+    client = initClient.withAuthSession(AuthSession.EMPTY);
     migrateLegacyProperties =
         PropertyUtil.propertyAsBoolean(
             initProperties, OAuth2Properties.Manager.MIGRATE_LEGACY_PROPERTIES, false);
@@ -63,8 +64,7 @@ public class OAuth2Manager extends RefreshingAuthManager {
       initProperties = LegacyPropertiesMigrator.migrate(initProperties);
     }
     OAuth2AgentSpec initSpec = OAuth2AgentSpec.builder().from(initProperties).build();
-    initClient = initClient.withAuthSession(AuthSession.EMPTY);
-    initSession = new OAuth2Session(initSpec, refreshExecutor(), initClient);
+    initSession = new OAuth2Session(initSpec, refreshExecutor(), this::getRestClient);
     return new UncloseableAuthSession(initSession);
   }
 
@@ -85,9 +85,8 @@ public class OAuth2Manager extends RefreshingAuthManager {
       // Avoid creating a new session if the properties are the same as the init session
       // as this would require users to log in again, for human-based flows.
       catalogSession = initSession;
-      catalogSession.updateRestClient(client);
     } else {
-      catalogSession = new OAuth2Session(catalogSpec, refreshExecutor(), client);
+      catalogSession = new OAuth2Session(catalogSpec, refreshExecutor(), this::getRestClient);
       if (initSession != null) {
         initSession.close();
       }
@@ -106,13 +105,7 @@ public class OAuth2Manager extends RefreshingAuthManager {
       contextProperties = LegacyPropertiesMigrator.migrate(contextProperties);
     }
     contextProperties = PropertiesSanitizer.sanitizeContextProperties(contextProperties);
-    OAuth2AgentSpec parentSpec = ((OAuth2Session) parent).getSpec();
-    OAuth2AgentSpec childSpec = parentSpec.merge(contextProperties);
-    if (!childSpec.equals(parentSpec)) {
-      return sessionCache.cachedSession(
-          childSpec, k -> new OAuth2Session(childSpec, refreshExecutor(), client));
-    }
-    return parent;
+    return maybeCacheSession(parent, contextProperties);
   }
 
   @Override
@@ -122,13 +115,16 @@ public class OAuth2Manager extends RefreshingAuthManager {
       properties = LegacyPropertiesMigrator.migrate(properties);
     }
     Map<String, String> tableProperties = PropertiesSanitizer.sanitizeTableProperties(properties);
+    return maybeCacheSession(parent, tableProperties);
+  }
+
+  private AuthSession maybeCacheSession(AuthSession parent, Map<String, String> tableProperties) {
     OAuth2AgentSpec parentSpec = ((OAuth2Session) parent).getSpec();
     OAuth2AgentSpec childSpec = parentSpec.merge(tableProperties);
-    if (!childSpec.equals(parentSpec)) {
-      return sessionCache.cachedSession(
-          childSpec, k -> new OAuth2Session(childSpec, refreshExecutor(), client));
-    }
-    return parent;
+    return childSpec.equals(parentSpec)
+        ? parent
+        : sessionCache.cachedSession(
+            childSpec, k -> new OAuth2Session(childSpec, refreshExecutor(), this::getRestClient));
   }
 
   @Override
@@ -146,7 +142,7 @@ public class OAuth2Manager extends RefreshingAuthManager {
       client = sharedClient.withAuthSession(AuthSession.EMPTY);
     }
     return sessionCache.cachedSession(
-        spec, k -> new OAuth2Session(spec, refreshExecutor(), client));
+        spec, k -> new OAuth2Session(spec, refreshExecutor(), this::getRestClient));
   }
 
   @Override
@@ -161,6 +157,10 @@ public class OAuth2Manager extends RefreshingAuthManager {
       this.sessionCache = null;
       this.client = null;
     }
+  }
+
+  private RESTClient getRestClient() {
+    return client;
   }
 
   private static AuthSessionCache<OAuth2AgentSpec, OAuth2Session> createSessionCache(

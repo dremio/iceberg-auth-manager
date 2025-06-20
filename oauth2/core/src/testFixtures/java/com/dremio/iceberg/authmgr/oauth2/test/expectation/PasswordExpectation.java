@@ -16,8 +16,10 @@
 package com.dremio.iceberg.authmgr.oauth2.test.expectation;
 
 import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.CLIENT_ID1;
+import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.CLIENT_ID2;
 import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.PASSWORD;
 import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.SCOPE1;
+import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.SCOPE2;
 import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.USERNAME;
 
 import com.dremio.iceberg.authmgr.oauth2.rest.ImmutablePasswordTokenRequest;
@@ -30,11 +32,14 @@ public abstract class PasswordExpectation extends InitialTokenFetchExpectation {
   @Override
   protected PostFormRequest tokenRequestBody() {
     return ImmutablePasswordTokenRequest.builder()
-        .clientId(getTestEnvironment().isPrivateClient() ? null : CLIENT_ID1)
+        .clientId(
+            getTestEnvironment().isPrivateClient()
+                ? null
+                : String.format("(%s|%s)", CLIENT_ID1, CLIENT_ID2))
         .username(USERNAME)
         .password(PASSWORD)
-        .scope(SCOPE1)
-        .putExtraParameter("extra1", "value1")
+        .scope(String.format("(%s|%s)", SCOPE1, SCOPE2))
+        .putExtraParameter("(extra1|extra2)", "(value1|value2)")
         .build();
   }
 }

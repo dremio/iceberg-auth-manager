@@ -43,8 +43,9 @@ class RefreshTokenFlowTest {
                 .privateClient(privateClient)
                 .returnRefreshTokens(returnRefreshTokens)
                 .build();
-        Flow flow = env.newTokenRefreshFlow()) {
-      Tokens tokens = flow.fetchNewTokens(currentTokens);
+        FlowFactory flowFactory = env.newFlowFactory()) {
+      Flow flow = flowFactory.createTokenRefreshFlow();
+      Tokens tokens = flow.fetchNewTokens(currentTokens).toCompletableFuture().join();
       assertTokens(
           tokens,
           "access_refreshed",

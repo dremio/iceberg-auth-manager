@@ -15,21 +15,20 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.config;
 
-import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.AuthorizationCode;
+import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.Basic;
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.DeviceCode;
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.TokenRefresh;
 import java.time.Duration;
 
 final class ConfigConstants {
 
-  static final String AUTHORIZATION_CODE_DEFAULT_CALLBACK_BIND_HOST = "localhost";
-  static final Duration AUTHORIZATION_CODE_DEFAULT_TIMEOUT =
-      Duration.parse(AuthorizationCode.DEFAULT_TIMEOUT);
+  static final Duration DEFAULT_TIMEOUT = Duration.parse(Basic.DEFAULT_TIMEOUT);
+  static final Duration MIN_TIMEOUT = Duration.ofSeconds(30);
 
-  static final Duration DEVICE_CODE_DEFAULT_TIMEOUT = Duration.parse(DeviceCode.DEFAULT_TIMEOUT);
+  static final String AUTHORIZATION_CODE_DEFAULT_CALLBACK_BIND_HOST = "localhost";
+
   static final Duration DEVICE_CODE_DEFAULT_POLL_INTERVAL =
       Duration.parse(DeviceCode.DEFAULT_POLL_INTERVAL);
-  static final Duration DEVICE_CODE_MIN_TIMEOUT = Duration.ofSeconds(30);
   static final Duration DEVICE_CODE_MIN_POLL_INTERVAL =
       Duration.ofSeconds(5); // mandated by the specs
 

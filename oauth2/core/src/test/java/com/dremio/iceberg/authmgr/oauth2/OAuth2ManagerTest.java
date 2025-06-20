@@ -92,7 +92,9 @@ class OAuth2ManagerTest {
                 Basic.CLIENT_SECRET,
                 TestConstants.CLIENT_SECRET1,
                 Basic.SCOPE,
-                TestConstants.SCOPE1);
+                TestConstants.SCOPE1,
+                Basic.EXTRA_PARAMS_PREFIX + "extra1",
+                "value1");
         try (AuthSession session = manager.catalogSession(env.getHttpClient(), properties)) {
           HTTPRequest actual = session.authenticate(request);
           assertThat(actual.headers().entries("Authorization"))
@@ -114,7 +116,9 @@ class OAuth2ManagerTest {
                 Basic.CLIENT_SECRET,
                 TestConstants.CLIENT_SECRET1,
                 Basic.SCOPE,
-                TestConstants.SCOPE1);
+                TestConstants.SCOPE1,
+                Basic.EXTRA_PARAMS_PREFIX + "extra1",
+                "value1");
         try (HTTPClient httpClient = env.newHttpClientBuilder(Map.of()).build();
             AuthSession session = manager.initSession(httpClient, properties)) {
           HTTPRequest actual = session.authenticate(request);
@@ -147,7 +151,9 @@ class OAuth2ManagerTest {
                 Basic.CLIENT_SECRET,
                 TestConstants.CLIENT_SECRET1,
                 Basic.SCOPE,
-                TestConstants.SCOPE1);
+                TestConstants.SCOPE1,
+                Basic.EXTRA_PARAMS_PREFIX + "extra1",
+                "value1");
         try (HTTPClient httpClient = env.newHttpClientBuilder(Map.of()).build();
             AuthSession session = manager.initSession(httpClient, properties)) {
           HTTPRequest actual = session.authenticate(request);
@@ -225,7 +231,9 @@ class OAuth2ManagerTest {
                 Basic.CLIENT_SECRET,
                 TestConstants.CLIENT_SECRET1,
                 Basic.SCOPE,
-                TestConstants.SCOPE1);
+                TestConstants.SCOPE1,
+                Basic.EXTRA_PARAMS_PREFIX + "extra1",
+                "value1");
         SessionContext context =
             new SessionContext(
                 "test",
@@ -235,14 +243,18 @@ class OAuth2ManagerTest {
                     TestConstants.CLIENT_ID2,
                     Basic.CLIENT_SECRET,
                     TestConstants.CLIENT_SECRET2),
-                Map.of(Basic.SCOPE, TestConstants.SCOPE2));
+                Map.of(
+                    Basic.SCOPE,
+                    TestConstants.SCOPE2,
+                    Basic.EXTRA_PARAMS_PREFIX + "extra2",
+                    "value2"));
         try (AuthSession catalogSession =
                 manager.catalogSession(env.getHttpClient(), catalogProperties);
             AuthSession contextualSession = manager.contextualSession(context, catalogSession)) {
           assertThat(contextualSession).isNotSameAs(catalogSession);
           HTTPRequest actual = contextualSession.authenticate(request);
           assertThat(actual.headers().entries("Authorization"))
-              .containsOnly(HTTPHeader.of("Authorization", "Bearer access_initial2"));
+              .containsOnly(HTTPHeader.of("Authorization", "Bearer access_initial"));
         }
       }
     }
@@ -262,7 +274,9 @@ class OAuth2ManagerTest {
                 Basic.SCOPE,
                 TestConstants.SCOPE1,
                 Manager.MIGRATE_LEGACY_PROPERTIES,
-                "true");
+                "true",
+                Basic.EXTRA_PARAMS_PREFIX + "extra1",
+                "value1");
         SessionContext context =
             new SessionContext(
                 "test",
@@ -277,7 +291,7 @@ class OAuth2ManagerTest {
           assertThat(contextualSession).isNotSameAs(catalogSession);
           HTTPRequest actual = contextualSession.authenticate(request);
           assertThat(actual.headers().entries("Authorization"))
-              .containsOnly(HTTPHeader.of("Authorization", "Bearer access_initial2"));
+              .containsOnly(HTTPHeader.of("Authorization", "Bearer access_initial"));
         }
       }
     }
@@ -384,8 +398,14 @@ class OAuth2ManagerTest {
                 Basic.CLIENT_ID,
                 TestConstants.CLIENT_ID1,
                 Basic.CLIENT_SECRET,
-                TestConstants.CLIENT_SECRET1);
-        Map<String, String> tableProperties = Map.of(Basic.SCOPE, TestConstants.SCOPE1);
+                TestConstants.CLIENT_SECRET1,
+                Basic.SCOPE,
+                TestConstants.SCOPE1,
+                Basic.EXTRA_PARAMS_PREFIX + "extra1",
+                "value1");
+        Map<String, String> tableProperties =
+            Map.of(
+                Basic.SCOPE, TestConstants.SCOPE2, Basic.EXTRA_PARAMS_PREFIX + "extra2", "value2");
         try (AuthSession catalogSession =
                 manager.catalogSession(env.getHttpClient(), catalogProperties);
             AuthSession tableSession =
@@ -411,7 +431,9 @@ class OAuth2ManagerTest {
                 Basic.CLIENT_SECRET,
                 TestConstants.CLIENT_SECRET1,
                 Manager.MIGRATE_LEGACY_PROPERTIES,
-                "true");
+                "true",
+                Basic.EXTRA_PARAMS_PREFIX + "extra1",
+                "value1");
         Map<String, String> tableProperties =
             Map.of(org.apache.iceberg.rest.auth.OAuth2Properties.SCOPE, TestConstants.SCOPE1);
         try (AuthSession catalogSession =
@@ -474,7 +496,9 @@ class OAuth2ManagerTest {
                 Basic.CLIENT_SECRET,
                 TestConstants.CLIENT_SECRET1,
                 Basic.SCOPE,
-                TestConstants.SCOPE1);
+                TestConstants.SCOPE1,
+                Basic.EXTRA_PARAMS_PREFIX + "extra1",
+                "value1");
         try (AuthSession tableSession1 =
                 manager.tableSession(env.getHttpClient(), tableProperties);
             AuthSession tableSession2 =

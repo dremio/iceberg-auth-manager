@@ -17,7 +17,6 @@ package com.dremio.iceberg.authmgr.oauth2.config;
 
 import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.DeviceCode.ENDPOINT;
 import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.DeviceCode.POLL_INTERVAL;
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.DeviceCode.TIMEOUT;
 
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties;
 import com.dremio.iceberg.authmgr.oauth2.config.option.ConfigOption;
@@ -48,18 +47,6 @@ public interface DeviceCodeConfig {
   Optional<URI> getDeviceAuthorizationEndpoint();
 
   /**
-   * How long to wait for the device code flow to complete. Defaults to {@link
-   * OAuth2Properties.DeviceCode#DEFAULT_TIMEOUT}. Only relevant when using the {@link
-   * GrantType#DEVICE_CODE} grant type.
-   *
-   * @see OAuth2Properties.DeviceCode#TIMEOUT
-   */
-  @Value.Default
-  default Duration getTimeout() {
-    return ConfigConstants.DEVICE_CODE_DEFAULT_TIMEOUT;
-  }
-
-  /**
    * How often to poll the token endpoint. Defaults to {@link
    * OAuth2Properties.DeviceCode#DEFAULT_POLL_INTERVAL}. Only relevant when using the {@link
    * GrantType#DEVICE_CODE} grant type.
@@ -69,18 +56,6 @@ public interface DeviceCodeConfig {
   @Value.Default
   default Duration getPollInterval() {
     return ConfigConstants.DEVICE_CODE_DEFAULT_POLL_INTERVAL;
-  }
-
-  /**
-   * The minimum timeout for the device code flow.
-   *
-   * <p>This setting is not exposed as a configuration option and is intended for testing purposes.
-   *
-   * @hidden
-   */
-  @Value.Default
-  default Duration getMinTimeout() {
-    return ConfigConstants.DEVICE_CODE_MIN_TIMEOUT;
   }
 
   /**
@@ -124,11 +99,6 @@ public interface DeviceCodeConfig {
         POLL_INTERVAL,
         "device code flow: poll interval must be greater than or equal to %s",
         getMinPollInterval());
-    validator.check(
-        getTimeout().compareTo(getMinTimeout()) >= 0,
-        TIMEOUT,
-        "device code flow: timeout must be greater than or equal to %s",
-        getMinTimeout());
     validator.validate();
   }
 
@@ -137,8 +107,9 @@ public interface DeviceCodeConfig {
     Objects.requireNonNull(properties, "properties must not be null");
     DeviceCodeConfig.Builder builder = builder();
     builder.deviceAuthorizationEndpointOption().merge(properties, getDeviceAuthorizationEndpoint());
-    builder.timeoutOption().merge(properties, getTimeout());
     builder.pollIntervalOption().merge(properties, getPollInterval());
+    builder.minPollInterval(getMinPollInterval());
+    builder.ignoreServerPollInterval(ignoreServerPollInterval());
     return builder.build();
   }
 
@@ -155,7 +126,6 @@ public interface DeviceCodeConfig {
     default Builder from(Map<String, String> properties) {
       Objects.requireNonNull(properties, "properties must not be null");
       deviceAuthorizationEndpointOption().apply(properties);
-      timeoutOption().apply(properties);
       pollIntervalOption().apply(properties);
       return this;
     }
@@ -164,13 +134,7 @@ public interface DeviceCodeConfig {
     Builder deviceAuthorizationEndpoint(URI deviceAuthorizationEndpoint);
 
     @CanIgnoreReturnValue
-    Builder timeout(Duration timeout);
-
-    @CanIgnoreReturnValue
     Builder pollInterval(Duration pollInterval);
-
-    @CanIgnoreReturnValue
-    Builder minTimeout(Duration minTimeout);
 
     @CanIgnoreReturnValue
     Builder minPollInterval(Duration minPollInterval);
@@ -182,10 +146,6 @@ public interface DeviceCodeConfig {
 
     private ConfigOption<URI> deviceAuthorizationEndpointOption() {
       return ConfigOptions.of(ENDPOINT, this::deviceAuthorizationEndpoint, URI::create);
-    }
-
-    private ConfigOption<Duration> timeoutOption() {
-      return ConfigOptions.of(TIMEOUT, this::timeout, Duration::parse);
     }
 
     private ConfigOption<Duration> pollIntervalOption() {

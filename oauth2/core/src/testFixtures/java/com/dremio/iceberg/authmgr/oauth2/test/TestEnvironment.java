@@ -30,8 +30,6 @@ import com.dremio.iceberg.authmgr.oauth2.config.ClientAssertionConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.ConfigUtils;
 import com.dremio.iceberg.authmgr.oauth2.config.DeviceCodeConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.Dialect;
-import com.dremio.iceberg.authmgr.oauth2.config.ImpersonationClientAssertionConfig;
-import com.dremio.iceberg.authmgr.oauth2.config.ImpersonationConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.PkceTransformation;
 import com.dremio.iceberg.authmgr.oauth2.config.ResourceOwnerConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.RuntimeConfig;
@@ -39,9 +37,6 @@ import com.dremio.iceberg.authmgr.oauth2.config.TokenExchangeConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.TokenRefreshConfig;
 import com.dremio.iceberg.authmgr.oauth2.endpoint.EndpointProvider;
 import com.dremio.iceberg.authmgr.oauth2.endpoint.EndpointProviderFactory;
-import com.dremio.iceberg.authmgr.oauth2.flow.Flow;
-import com.dremio.iceberg.authmgr.oauth2.flow.FlowContext;
-import com.dremio.iceberg.authmgr.oauth2.flow.FlowContextFactory;
 import com.dremio.iceberg.authmgr.oauth2.flow.FlowFactory;
 import com.dremio.iceberg.authmgr.oauth2.flow.FlowUtils;
 import com.dremio.iceberg.authmgr.oauth2.grant.GrantType;
@@ -53,7 +48,6 @@ import com.dremio.iceberg.authmgr.oauth2.test.expectation.ImmutableDeviceCodeExp
 import com.dremio.iceberg.authmgr.oauth2.test.expectation.ImmutableErrorExpectation;
 import com.dremio.iceberg.authmgr.oauth2.test.expectation.ImmutableIcebergClientCredentialsExpectation;
 import com.dremio.iceberg.authmgr.oauth2.test.expectation.ImmutableIcebergRefreshTokenExpectation;
-import com.dremio.iceberg.authmgr.oauth2.test.expectation.ImmutableImpersonationTokenExchangeExpectation;
 import com.dremio.iceberg.authmgr.oauth2.test.expectation.ImmutableLoadTableEndpointExpectation;
 import com.dremio.iceberg.authmgr.oauth2.test.expectation.ImmutableMetadataDiscoveryExpectation;
 import com.dremio.iceberg.authmgr.oauth2.test.expectation.ImmutablePasswordExpectation;
@@ -66,11 +60,10 @@ import com.dremio.iceberg.authmgr.oauth2.test.user.InteractiveUserEmulator;
 import com.dremio.iceberg.authmgr.oauth2.test.user.KeycloakAuthCodeUserEmulator;
 import com.dremio.iceberg.authmgr.oauth2.test.user.KeycloakDeviceCodeUserEmulator;
 import com.dremio.iceberg.authmgr.oauth2.test.user.UserEmulator;
-import com.dremio.iceberg.authmgr.oauth2.token.TypedToken;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import jakarta.annotation.Nullable;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.net.URI;
@@ -80,7 +73,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import org.apache.iceberg.CatalogProperties;
 import org.apache.iceberg.catalog.SessionCatalog.SessionContext;
@@ -89,8 +81,8 @@ import org.apache.iceberg.rest.RESTCatalog;
 import org.apache.iceberg.rest.ResourcePaths;
 import org.apache.iceberg.rest.auth.AuthProperties;
 import org.apache.iceberg.rest.auth.AuthSession;
+import org.apache.iceberg.util.ThreadPools;
 import org.immutables.value.Value;
-import org.testcontainers.shaded.org.checkerframework.checker.nullness.qual.Nullable;
 
 @AuthManagerImmutable
 @Value.Immutable(copy = false)
@@ -137,16 +129,6 @@ public abstract class TestEnvironment implements AutoCloseable {
   }
 
   @Value.Default
-  public boolean isImpersonationEnabled() {
-    return false;
-  }
-
-  @Value.Default
-  public boolean isImpersonationDiscoveryEnabled() {
-    return true;
-  }
-
-  @Value.Default
   public boolean isReturnRefreshTokens() {
     return true;
   }
@@ -179,23 +161,12 @@ public abstract class TestEnvironment implements AutoCloseable {
 
   @Value.Default
   public ScheduledExecutorService getExecutor() {
-    return new ScheduledThreadPoolExecutor(
-        1,
-        new ThreadFactoryBuilder()
-            .setDaemon(true)
-            .setNameFormat(getAgentName() + "-refresh-%d")
-            .build());
+    return ThreadPools.newScheduledPool(getAgentName() + "-refresh", 1);
   }
 
   @Value.Lazy
   public EndpointProvider getEndpointProvider() {
-    return EndpointProviderFactory.createEndpointProvider(getAgentSpec(), getHttpClient());
-  }
-
-  @Value.Lazy
-  public EndpointProvider getImpersonatinEndpointProvider() {
-    return EndpointProviderFactory.createImpersonatingEndpointProvider(
-        getAgentSpec(), getHttpClient());
+    return EndpointProviderFactory.createEndpointProvider(getAgentSpec(), this::getHttpClient);
   }
 
   public void reset() {
@@ -233,11 +204,6 @@ public abstract class TestEnvironment implements AutoCloseable {
   }
 
   @Value.Default
-  public String getImpersonationServerContextPath() {
-    return "/realms/other/";
-  }
-
-  @Value.Default
   public String getCatalogServerContextPath() {
     return "/api/catalog/";
   }
@@ -248,11 +214,6 @@ public abstract class TestEnvironment implements AutoCloseable {
   }
 
   @Value.Default
-  public URI getImpersonationServerUrl() {
-    return getServerRootUrl().resolve(getImpersonationServerContextPath());
-  }
-
-  @Value.Default
   public URI getCatalogServerUrl() {
     return getServerRootUrl().resolve(getCatalogServerContextPath());
   }
@@ -260,11 +221,6 @@ public abstract class TestEnvironment implements AutoCloseable {
   @Value.Default
   public URI getTokenEndpoint() {
     return getAuthorizationServerUrl().resolve("protocol/openid-connect/token");
-  }
-
-  @Value.Default
-  public URI getImpersonationTokenEndpoint() {
-    return getImpersonationServerUrl().resolve("protocol/openid-connect/token");
   }
 
   @Value.Default
@@ -306,11 +262,6 @@ public abstract class TestEnvironment implements AutoCloseable {
   }
 
   @Value.Default
-  public URI getImpersonationDiscoveryEndpoint() {
-    return getImpersonationServerUrl().resolve(getWellKnownPath());
-  }
-
-  @Value.Default
   public OAuth2AgentSpec getAgentSpec() {
     return OAuth2AgentSpec.builder()
         .basicConfig(getBasicConfig())
@@ -319,9 +270,7 @@ public abstract class TestEnvironment implements AutoCloseable {
         .deviceCodeConfig(getDeviceCodeConfig())
         .tokenRefreshConfig(getTokenRefreshConfig())
         .tokenExchangeConfig(getTokenExchangeConfig())
-        .impersonationConfig(getImpersonationConfig())
         .clientAssertionConfig(getClientAssertionConfig())
-        .impersonationClientAssertionConfig(getImpersonationClientAssertionConfig())
         .runtimeConfig(getRuntimeConfig())
         .build();
   }
@@ -333,7 +282,9 @@ public abstract class TestEnvironment implements AutoCloseable {
             .scopes(getScopes())
             .extraRequestParameters(Map.of("extra1", "value1"))
             .grantType(getGrantType())
-            .dialect(getDialect());
+            .dialect(getDialect())
+            .minTimeout(getTimeout())
+            .timeout(getTimeout());
     if (getToken().isPresent()) {
       builder.token(getToken().get());
     } else {
@@ -372,6 +323,11 @@ public abstract class TestEnvironment implements AutoCloseable {
   }
 
   @Value.Default
+  public Duration getTimeout() {
+    return Duration.ofSeconds(5);
+  }
+
+  @Value.Default
   public TokenRefreshConfig getTokenRefreshConfig() {
     return TokenRefreshConfig.builder()
         .enabled(isTokenRefreshEnabled())
@@ -393,11 +349,6 @@ public abstract class TestEnvironment implements AutoCloseable {
   @Value.Default
   public Duration getAccessTokenLifespan() {
     return TestConstants.ACCESS_TOKEN_LIFESPAN;
-  }
-
-  @Value.Default
-  public Duration getImpersonationAccessTokenLifespan() {
-    return getAccessTokenLifespan();
   }
 
   @Value.Default
@@ -423,9 +374,7 @@ public abstract class TestEnvironment implements AutoCloseable {
     AuthorizationCodeConfig.Builder builder =
         AuthorizationCodeConfig.builder()
             .pkceEnabled(isPkceEnabled())
-            .pkceTransformation(getPkceTransformation())
-            .minTimeout(Duration.ofSeconds(5))
-            .timeout(Duration.ofSeconds(5));
+            .pkceTransformation(getPkceTransformation());
     if (!isDiscoveryEnabled()) {
       builder.authorizationEndpoint(getAuthorizationEndpoint());
     }
@@ -446,10 +395,9 @@ public abstract class TestEnvironment implements AutoCloseable {
   public DeviceCodeConfig getDeviceCodeConfig() {
     DeviceCodeConfig.Builder builder =
         DeviceCodeConfig.builder()
-            .minTimeout(Duration.ofSeconds(5))
-            .timeout(Duration.ofSeconds(5))
-            .minPollInterval(Duration.ofMillis(100))
-            .pollInterval(Duration.ofMillis(100));
+            .ignoreServerPollInterval(isUnitTest())
+            .minPollInterval(Duration.ofMillis(10))
+            .pollInterval(Duration.ofMillis(10));
     if (!isDiscoveryEnabled()) {
       builder.deviceAuthorizationEndpoint(getDeviceAuthorizationEndpoint());
     }
@@ -458,62 +406,136 @@ public abstract class TestEnvironment implements AutoCloseable {
 
   @Value.Default
   public TokenExchangeConfig getTokenExchangeConfig() {
-    return TokenExchangeConfig.builder()
-        .subjectToken(TypedToken.of(TestConstants.SUBJECT_TOKEN, TestConstants.SUBJECT_TOKEN_TYPE))
-        .actorToken(TypedToken.of(TestConstants.ACTOR_TOKEN, TestConstants.ACTOR_TOKEN_TYPE))
-        .requestedTokenType(TestConstants.REQUESTED_TOKEN_TYPE)
-        .audience(TestConstants.AUDIENCE)
-        .resource(TestConstants.RESOURCE)
-        .build();
-  }
-
-  @Value.Default
-  public ImpersonationConfig getImpersonationConfig() {
-    ImpersonationConfig.Builder builder = ImpersonationConfig.builder();
-    if (isImpersonationEnabled()) {
-      builder
-          .enabled(true)
-          .extraRequestParameters(Map.of("impersonation", "true"))
-          .clientId(getImpersonationClientId())
-          .scopes(getImpersonationScopes());
-      if (isPrivateClient()) {
-        builder.clientSecret(getImpersonationClientSecret());
-      }
-      if (isImpersonationDiscoveryEnabled()) {
-        builder.issuerUrl(getImpersonationServerUrl());
-      } else {
-        builder.tokenEndpoint(getImpersonationTokenEndpoint());
-      }
-      getImpersonationClientAuthentication().ifPresent(builder::clientAuthentication);
+    TokenExchangeConfig.Builder builder =
+        TokenExchangeConfig.builder()
+            .subjectTokenType(getSubjectTokenType())
+            .actorTokenType(getActorTokenType())
+            .subjectTokenConfig(getSubjectTokenConfig())
+            .actorTokenConfig(getActorTokenConfig())
+            .requestedTokenType(getRequestedTokenType());
+    if (getSubjectToken() != null) {
+      builder.subjectToken(getSubjectToken());
+    }
+    if (getActorToken() != null) {
+      builder.actorToken(getActorToken());
+    }
+    if (getAudience() != null) {
+      builder.audience(getAudience());
+    }
+    if (getResource() != null) {
+      builder.resource(getResource());
     }
     return builder.build();
   }
 
   @Value.Default
-  public String getImpersonationClientId() {
+  @Nullable
+  public String getSubjectToken() {
+    return TestConstants.SUBJECT_TOKEN;
+  }
+
+  @Value.Default
+  public URI getSubjectTokenType() {
+    return TestConstants.SUBJECT_TOKEN_TYPE;
+  }
+
+  @Value.Default
+  public GrantType getSubjectGrantType() {
+    return GrantType.CLIENT_CREDENTIALS;
+  }
+
+  @Value.Default
+  public String getSubjectClientId() {
     return TestConstants.CLIENT_ID2;
   }
 
   @Value.Default
-  public String getImpersonationClientSecret() {
+  public String getSubjectClientSecret() {
     return TestConstants.CLIENT_SECRET2;
   }
 
   @Value.Default
-  public List<String> getImpersonationScopes() {
+  public List<String> getSubjectScopes() {
     return List.of(TestConstants.SCOPE2);
   }
 
-  public abstract Optional<ClientAuthentication> getImpersonationClientAuthentication();
+  @Value.Default
+  public Map<String, String> getSubjectTokenConfig() {
+    ImmutableMap.Builder<String, String> builder =
+        ImmutableMap.<String, String>builder()
+            .put(Basic.GRANT_TYPE, getSubjectGrantType().getCommonName())
+            .put(Basic.CLIENT_ID, getSubjectClientId())
+            .put(Basic.CLIENT_SECRET, getSubjectClientSecret())
+            .put(Basic.EXTRA_PARAMS_PREFIX + "extra2", "value2");
+    ConfigUtils.scopesAsString(getSubjectScopes())
+        .ifPresent(scope -> builder.put(Basic.SCOPE, scope));
+    return builder.build();
+  }
+
+  @Value.Default
+  @Nullable
+  public String getActorToken() {
+    return TestConstants.ACTOR_TOKEN;
+  }
+
+  @Value.Default
+  public URI getActorTokenType() {
+    return TestConstants.ACTOR_TOKEN_TYPE;
+  }
+
+  @Value.Default
+  public GrantType getActorGrantType() {
+    return GrantType.CLIENT_CREDENTIALS;
+  }
+
+  @Value.Default
+  public String getActorClientId() {
+    return TestConstants.CLIENT_ID1;
+  }
+
+  @Value.Default
+  public String getActorClientSecret() {
+    return TestConstants.CLIENT_SECRET1;
+  }
+
+  @Value.Default
+  public List<String> getActorScopes() {
+    return List.of(TestConstants.SCOPE1);
+  }
+
+  @Value.Default
+  public Map<String, String> getActorTokenConfig() {
+    ImmutableMap.Builder<String, String> builder =
+        ImmutableMap.<String, String>builder()
+            .put(Basic.GRANT_TYPE, getActorGrantType().getCommonName())
+            .put(Basic.CLIENT_ID, getActorClientId())
+            .put(Basic.CLIENT_SECRET, getActorClientSecret())
+            .put(Basic.EXTRA_PARAMS_PREFIX + "extra2", "value2");
+    ConfigUtils.scopesAsString(getActorScopes())
+        .ifPresent(scope -> builder.put(Basic.SCOPE, scope));
+    return builder.build();
+  }
+
+  @Value.Default
+  public URI getRequestedTokenType() {
+    return TestConstants.REQUESTED_TOKEN_TYPE;
+  }
+
+  @Value.Default
+  @Nullable
+  public String getAudience() {
+    return TestConstants.AUDIENCE;
+  }
+
+  @Value.Default
+  @Nullable
+  public URI getResource() {
+    return TestConstants.RESOURCE;
+  }
 
   @Value.Default
   public ClientAssertionConfig getClientAssertionConfig() {
     return ClientAssertionConfig.DEFAULT;
-  }
-
-  @Value.Default
-  public ImpersonationClientAssertionConfig getImpersonationClientAssertionConfig() {
-    return ImpersonationClientAssertionConfig.DEFAULT;
   }
 
   @Value.Default
@@ -538,17 +560,6 @@ public abstract class TestEnvironment implements AutoCloseable {
     return getUser().getConsole();
   }
 
-  @Value.Lazy
-  public FlowContext getFlowContext() {
-    return FlowContextFactory.createFlowContext(getAgentSpec(), getHttpClient());
-  }
-
-  @Value.Lazy
-  @Nullable
-  public FlowContext getImpersonationFlowContext() {
-    return FlowContextFactory.createImpersonationFlowContext(getAgentSpec(), getHttpClient());
-  }
-
   @Value.Default
   public boolean isForceInactiveUser() {
     return false;
@@ -559,19 +570,36 @@ public abstract class TestEnvironment implements AutoCloseable {
     if (isForceInactiveUser()) {
       return UserEmulator.INACTIVE;
     } else {
-      switch (getGrantType()) {
-        case AUTHORIZATION_CODE:
-          return isUnitTest()
-              ? new KeycloakAuthCodeUserEmulator(getAgentName())
-              : new KeycloakAuthCodeUserEmulator(getAgentName(), USERNAME, PASSWORD);
-        case DEVICE_CODE:
-          return isUnitTest()
-              ? new KeycloakDeviceCodeUserEmulator(getAgentName())
-              : new KeycloakDeviceCodeUserEmulator(getAgentName(), USERNAME, PASSWORD);
-        default:
-          return UserEmulator.INACTIVE;
+      GrantType mainGrant = getBasicConfig().getGrantType();
+      GrantType subjectGrant =
+          mainGrant == GrantType.TOKEN_EXCHANGE
+                  && getTokenExchangeConfig().getSubjectToken().isEmpty()
+                  && getTokenExchangeConfig().getSubjectTokenConfig().containsKey(Basic.GRANT_TYPE)
+              ? GrantType.fromConfigName(
+                  getTokenExchangeConfig().getSubjectTokenConfig().get(Basic.GRANT_TYPE))
+              : null;
+      GrantType actorGrant =
+          mainGrant == GrantType.TOKEN_EXCHANGE
+                  && getTokenExchangeConfig().getActorToken().isEmpty()
+                  && getTokenExchangeConfig().getActorTokenConfig().containsKey(Basic.GRANT_TYPE)
+              ? GrantType.fromConfigName(
+                  getTokenExchangeConfig().getActorTokenConfig().get(Basic.GRANT_TYPE))
+              : null;
+      if (mainGrant == GrantType.AUTHORIZATION_CODE
+          || subjectGrant == GrantType.AUTHORIZATION_CODE
+          || actorGrant == GrantType.AUTHORIZATION_CODE) {
+        return isUnitTest()
+            ? new KeycloakAuthCodeUserEmulator()
+            : new KeycloakAuthCodeUserEmulator(USERNAME, PASSWORD);
+      } else if (mainGrant == GrantType.DEVICE_CODE
+          || subjectGrant == GrantType.DEVICE_CODE
+          || actorGrant == GrantType.DEVICE_CODE) {
+        return isUnitTest()
+            ? new KeycloakDeviceCodeUserEmulator()
+            : new KeycloakDeviceCodeUserEmulator(USERNAME, PASSWORD);
       }
     }
+    return UserEmulator.INACTIVE;
   }
 
   @Value.Default
@@ -623,24 +651,14 @@ public abstract class TestEnvironment implements AutoCloseable {
     return catalog;
   }
 
+  public FlowFactory newFlowFactory() {
+    return FlowFactory.of(getAgentSpec(), getExecutor(), this::getHttpClient);
+  }
+
   public OAuth2Agent newAgent() {
-    OAuth2Agent agent = new OAuth2Agent(getAgentSpec(), getExecutor(), getHttpClient());
+    OAuth2Agent agent = new OAuth2Agent(getAgentSpec(), getExecutor(), this::getHttpClient);
     getUser().setErrorListener(e -> agent.close());
     return agent;
-  }
-
-  public Flow newInitialTokenFetchFlow() {
-    Flow flow = FlowFactory.forInitialTokenFetch(getGrantType(), getFlowContext());
-    getUser().setErrorListener(error -> flow.close());
-    return flow;
-  }
-
-  public Flow newTokenRefreshFlow() {
-    return FlowFactory.forTokenRefresh(getDialect(), getFlowContext());
-  }
-
-  public Flow newImpersonationFlow() {
-    return FlowFactory.forImpersonation(getImpersonationFlowContext());
   }
 
   public void createExpectations() {
@@ -654,7 +672,6 @@ public abstract class TestEnvironment implements AutoCloseable {
     ImmutableDeviceCodeExpectation.of(this).create();
     ImmutableTokenExchangeExpectation.of(this).create();
     ImmutableMetadataDiscoveryExpectation.of(this).create();
-    ImmutableImpersonationTokenExchangeExpectation.of(this).create();
     if (getDialect() == Dialect.STANDARD) {
       ImmutableRefreshTokenExpectation.of(this).create();
     } else {

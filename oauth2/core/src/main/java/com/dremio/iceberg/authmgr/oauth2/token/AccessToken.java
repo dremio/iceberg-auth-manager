@@ -25,9 +25,6 @@ public interface AccessToken extends Token {
   /** The type of the token issued, typically "Bearer". */
   String getTokenType();
 
-  @Override
-  AccessToken withExpirationTime(@Nullable Instant expirationTime);
-
   static AccessToken of(String payload) {
     return of(payload, "Bearer", null);
   }

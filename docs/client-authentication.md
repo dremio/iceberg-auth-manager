@@ -162,18 +162,3 @@ And finally, extra claims can be added to the JWT assertion using the `rest.auth
 ```properties
 rest.auth.oauth2.client-assertion.jwt.extra-claims.my-claim=my-value
 ```
-
-## Configuring Authentication Methods for Impersonation
-
-When configuring [impersonation](./impersonation.md), you can specify different authentication settings applicable only to the impersonation flow. For example:
-
-```properties
-rest.auth.oauth2.impersonation.client-auth=private_key_jwt
-rest.auth.oauth2.impersonation.client-assertion.jwt.issuer=my-impersonation-issuer
-rest.auth.oauth2.impersonation.client-assertion.jwt.subject=my-impersonation-subject
-rest.auth.oauth2.impersonation.client-assertion.jwt.audience=https://example.com/impersonation-token
-rest.auth.oauth2.impersonation.client-assertion.jwt.token-lifespan=PT10M
-rest.auth.oauth2.impersonation.client-assertion.jwt.algorithm=RS256
-rest.auth.oauth2.impersonation.client-assertion.jwt.private-key=/path/to/private_key.pem
-rest.auth.oauth2.impersonation.client-assertion.jwt.extra-claims.my-impersonation-claim=my-impersonation-value
-```

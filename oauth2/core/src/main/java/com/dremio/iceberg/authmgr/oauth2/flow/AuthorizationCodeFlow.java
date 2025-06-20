@@ -21,11 +21,13 @@ import static java.net.HttpURLConnection.HTTP_OK;
 import static java.net.HttpURLConnection.HTTP_UNAUTHORIZED;
 
 import com.dremio.iceberg.authmgr.oauth2.config.AuthorizationCodeConfig;
+import com.dremio.iceberg.authmgr.oauth2.config.ConfigUtils;
 import com.dremio.iceberg.authmgr.oauth2.config.PkceTransformation;
 import com.dremio.iceberg.authmgr.oauth2.rest.AuthorizationCodeTokenRequest;
 import com.dremio.iceberg.authmgr.oauth2.token.Tokens;
 import com.dremio.iceberg.authmgr.oauth2.uri.UriBuilder;
 import com.dremio.iceberg.authmgr.oauth2.uri.UriUtils;
+import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
 import com.google.errorprone.annotations.FormatMethod;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
@@ -37,15 +39,12 @@ import java.io.UncheckedIOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Phaser;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import org.apache.iceberg.exceptions.RESTException;
+import org.immutables.value.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,7 +53,8 @@ import org.slf4j.LoggerFactory;
  * href="https://datatracker.ietf.org/doc/html/rfc6749#section-4.1">Authorization Code Grant</a>
  * flow.
  */
-class AuthorizationCodeFlow extends AbstractFlow {
+@AuthManagerImmutable
+abstract class AuthorizationCodeFlow extends AbstractFlow {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(AuthorizationCodeFlow.class);
 
@@ -65,14 +65,83 @@ class AuthorizationCodeFlow extends AbstractFlow {
 
   private static final int STATE_LENGTH = 16;
 
-  private final PrintStream console;
-  private final String msgPrefix;
-  private final String state;
-  private final HttpServer server;
-  private final URI redirectUri;
-  private final URI authorizationUri;
-  private final Duration flowTimeout;
-  private final String codeVerifier;
+  interface Builder extends AbstractFlow.Builder<AuthorizationCodeFlow, Builder> {}
+
+  @Value.Derived
+  String getMsgPrefix() {
+    return FlowUtils.getMsgPrefix(getSpec().getRuntimeConfig().getAgentName());
+  }
+
+  @Value.Derived
+  String getState() {
+    return FlowUtils.randomAlphaNumString(STATE_LENGTH);
+  }
+
+  @Value.Derived
+  @Nullable
+  String getCodeVerifier() {
+    return getSpec().getAuthorizationCodeConfig().isPkceEnabled()
+        ? FlowUtils.generateCodeVerifier()
+        : null;
+  }
+
+  @Value.Derived
+  String getBindHost() {
+    AuthorizationCodeConfig authorizationCodeConfig = getSpec().getAuthorizationCodeConfig();
+    return authorizationCodeConfig.getCallbackBindHost();
+  }
+
+  @Value.Derived
+  int getBindPort() {
+    return getSpec().getAuthorizationCodeConfig().getCallbackBindPort().orElse(0);
+  }
+
+  @Value.Derived
+  String getContextPath() {
+    return getSpec()
+        .getAuthorizationCodeConfig()
+        .getCallbackContextPath()
+        .orElseGet(() -> FlowUtils.getContextPath(getSpec().getRuntimeConfig().getAgentName()));
+  }
+
+  @Value.Derived
+  HttpServer getServer() {
+    return createServer(getBindHost(), getBindPort(), getContextPath(), this::doRequest);
+  }
+
+  @Value.Derived
+  URI getRedirectUri() {
+    return getSpec()
+        .getAuthorizationCodeConfig()
+        .getRedirectUri()
+        .orElseGet(
+            () ->
+                defaultRedirectUri(
+                    getBindHost(), getServer().getAddress().getPort(), getContextPath()));
+  }
+
+  @Value.Derived
+  URI getAuthorizationUri() {
+    UriBuilder authorizationUriBuilder =
+        new UriBuilder(getEndpointProvider().getResolvedAuthorizationEndpoint())
+            .queryParam("response_type", "code")
+            .queryParam("client_id", getSpec().getBasicConfig().getClientId().orElseThrow())
+            .queryParam(
+                "scope",
+                ConfigUtils.scopesAsString(getSpec().getBasicConfig().getScopes()).orElse(null))
+            .queryParam("redirect_uri", getRedirectUri().toString())
+            .queryParam("state", getState());
+    if (getSpec().getAuthorizationCodeConfig().isPkceEnabled()) {
+      PkceTransformation transformation =
+          getSpec().getAuthorizationCodeConfig().getPkceTransformation();
+      String codeChallenge = FlowUtils.generateCodeChallenge(transformation, getCodeVerifier());
+      authorizationUriBuilder
+          .queryParam("code_challenge", codeChallenge)
+          .queryParam("code_challenge_method", transformation.getCanonicalName())
+          .build();
+    }
+    return authorizationUriBuilder.build();
+  }
 
   /**
    * A future that will complete when the redirect URI is called for the first time. It will then
@@ -80,130 +149,57 @@ class AuthorizationCodeFlow extends AbstractFlow {
    * not trigger any action. Note that the response to the redirect URI will be delayed until the
    * tokens are received.
    */
-  private final CompletableFuture<HttpExchange> redirectUriFuture = new CompletableFuture<>();
+  @Value.Default
+  CompletableFuture<HttpExchange> getRedirectUriFuture() {
+    return new CompletableFuture<>();
+  }
 
   /**
    * A future that will complete when the tokens are received in exchange for the authorization
    * code. Its completion will release all pending responses to the redirect URI. If the redirect
    * URI is called again after the tokens are received, the response will be immediate.
    */
-  private final CompletableFuture<Tokens> tokensFuture;
-
-  /**
-   * A future that will complete when the close() method is called. It is used merely to avoid
-   * closing resources multiple times. Its completion stops the internal HTTP server.
-   */
-  private final CompletableFuture<Void> closeFuture = new CompletableFuture<>();
+  @Value.Derived
+  @SuppressWarnings("FutureReturnValueIgnored")
+  CompletableFuture<Tokens> getTokensFuture() {
+    CompletableFuture<Tokens> future =
+        getRedirectUriFuture()
+            .thenApply(this::extractAuthorizationCode)
+            .thenCompose(this::fetchNewTokens)
+            .whenComplete((tokens, error) -> log(error));
+    future.whenCompleteAsync((tokens, error) -> stopServer(), getExecutor());
+    return future;
+  }
 
   /**
    * A phaser that will delay closing the internal HTTP server until all inflight requests have been
    * processed. It is used to avoid closing the server prematurely and leaving the user's browser
    * with an aborted HTTP request.
    */
-  private final Phaser inflightRequestsPhaser = new Phaser(1);
-
-  @SuppressWarnings("FutureReturnValueIgnored")
-  AuthorizationCodeFlow(FlowContext context) {
-    super(context);
-    console = context.getRuntimeConfig().getConsole();
-    msgPrefix = FlowUtils.getMsgPrefix(context.getRuntimeConfig().getAgentName());
-    AuthorizationCodeConfig authorizationCodeConfig = context.getAuthorizationCodeConfig();
-    flowTimeout = authorizationCodeConfig.getTimeout();
-    tokensFuture =
-        redirectUriFuture
-            .thenApply(this::extractAuthorizationCode)
-            .thenApply(this::fetchNewTokens)
-            .whenComplete((tokens, error) -> log(error));
-    closeFuture.thenRun(this::doClose);
-    String bindHost = authorizationCodeConfig.getCallbackBindHost();
-    String contextPath =
-        authorizationCodeConfig
-            .getCallbackContextPath()
-            .orElseGet(() -> FlowUtils.getContextPath(context.getRuntimeConfig().getAgentName()));
-    server =
-        createServer(
-            bindHost,
-            authorizationCodeConfig.getCallbackBindPort().orElse(0),
-            contextPath,
-            this::doRequest);
-    state = FlowUtils.randomAlphaNumString(STATE_LENGTH);
-    redirectUri =
-        authorizationCodeConfig
-            .getRedirectUri()
-            .orElseGet(
-                () -> defaultRedirectUri(bindHost, server.getAddress().getPort(), contextPath));
-    UriBuilder authorizationUriBuilder =
-        new UriBuilder(context.getEndpointProvider().getResolvedAuthorizationEndpoint())
-            .queryParam("response_type", "code")
-            .queryParam("client_id", context.getClientId().orElseThrow())
-            .queryParam("scope", context.getScopesAsString().orElse(null))
-            .queryParam("redirect_uri", redirectUri.toString())
-            .queryParam("state", state);
-    if (authorizationCodeConfig.isPkceEnabled()) {
-      codeVerifier = FlowUtils.generateCodeVerifier();
-      PkceTransformation transformation = authorizationCodeConfig.getPkceTransformation();
-      String codeChallenge = FlowUtils.generateCodeChallenge(transformation, codeVerifier);
-      authorizationUriBuilder
-          .queryParam("code_challenge", codeChallenge)
-          .queryParam("code_challenge_method", transformation.getCanonicalName())
-          .build();
-    } else {
-      codeVerifier = null;
-    }
-    authorizationUri = authorizationUriBuilder.build();
-    LOGGER.debug("Authorization Code Flow: started, redirect URI: {}", redirectUri);
+  @Value.Default
+  Phaser getInflightRequestsPhaser() {
+    return new Phaser(1);
   }
 
-  @SuppressWarnings("HttpUrlsUsage")
-  private static URI defaultRedirectUri(String bindHost, int bindPort, String contextPath) {
-    return URI.create(String.format("http://%s:%d/%s", bindHost, bindPort, contextPath))
-        .normalize();
-  }
-
-  @Override
-  public void close() {
-    closeFuture.complete(null);
-  }
-
-  private void doClose() {
-    inflightRequestsPhaser.arriveAndAwaitAdvance();
+  private void stopServer() {
+    // Wait for all in-flight requests to complete before proceeding
+    // (note: this call is potentially blocking!)
+    getInflightRequestsPhaser().arriveAndAwaitAdvance();
     LOGGER.debug("Authorization Code Flow: closing");
-    server.stop(0);
-    // don't close the HTTP client nor the console, they are not ours
-  }
-
-  private void abort() {
-    tokensFuture.cancel(true);
-    redirectUriFuture.cancel(true);
+    getServer().stop(0);
   }
 
   @Override
-  public Tokens fetchNewTokens(@Nullable Tokens ignored) {
+  public CompletionStage<Tokens> fetchNewTokens(@Nullable Tokens ignored) {
+    LOGGER.debug("Authorization Code Flow: started, redirect URI: {}", getRedirectUri());
+    PrintStream console = getSpec().getRuntimeConfig().getConsole();
     console.println();
-    console.println(msgPrefix + OAUTH2_AGENT_TITLE);
-    console.println(msgPrefix + OAUTH2_AGENT_OPEN_URL);
-    console.println(msgPrefix + authorizationUri);
+    console.println(getMsgPrefix() + OAUTH2_AGENT_TITLE);
+    console.println(getMsgPrefix() + OAUTH2_AGENT_OPEN_URL);
+    console.println(getMsgPrefix() + getAuthorizationUri());
     console.println();
     console.flush();
-    try {
-      return tokensFuture.get(flowTimeout.toMillis(), TimeUnit.MILLISECONDS);
-    } catch (TimeoutException e) {
-      LOGGER.error("Timed out waiting for authorization code.");
-      abort();
-      throw new RuntimeException("Timed out waiting waiting for authorization code", e);
-    } catch (InterruptedException e) {
-      abort();
-      Thread.currentThread().interrupt();
-      throw new RuntimeException(e);
-    } catch (ExecutionException e) {
-      abort();
-      Throwable cause = e.getCause();
-      LOGGER.error("Authentication failed: {}", cause.toString());
-      if (cause instanceof RESTException) {
-        throw (RESTException) cause;
-      }
-      throw new RESTException(cause, "Authentication failed");
-    }
+    return getTokensFuture();
   }
 
   /**
@@ -216,12 +212,12 @@ class AuthorizationCodeFlow extends AbstractFlow {
   @SuppressWarnings("FutureReturnValueIgnored")
   private void doRequest(HttpExchange exchange) {
     LOGGER.debug("Authorization Code Flow: received request");
-    inflightRequestsPhaser.register();
-    redirectUriFuture.complete(exchange); // will trigger the token fetching the first time
-    tokensFuture
+    getInflightRequestsPhaser().register();
+    getRedirectUriFuture().complete(exchange); // will trigger the token fetching the first time
+    getTokensFuture()
         .handle((tokens, error) -> doResponse(exchange, error))
         .whenComplete((v, error) -> exchange.close())
-        .whenComplete((v, error) -> inflightRequestsPhaser.arriveAndDeregister());
+        .whenComplete((v, error) -> getInflightRequestsPhaser().arriveAndDeregister());
   }
 
   /** Send the response to the incoming HTTP request to the redirect URI. */
@@ -248,7 +244,7 @@ class AuthorizationCodeFlow extends AbstractFlow {
     Map<String, List<String>> params =
         UriUtils.decodeParameters(exchange.getRequestURI().getRawQuery());
     List<String> states = params.getOrDefault("state", List.of());
-    if (states.size() != 1 || !state.equals(states.get(0))) {
+    if (states.size() != 1 || !getState().equals(states.get(0))) {
       throw new IllegalArgumentException("Missing or invalid state");
     }
     List<String> codes = params.getOrDefault("code", List.of());
@@ -258,19 +254,18 @@ class AuthorizationCodeFlow extends AbstractFlow {
     return codes.get(0);
   }
 
-  private Tokens fetchNewTokens(String code) {
+  private CompletionStage<Tokens> fetchNewTokens(String code) {
     LOGGER.debug("Authorization Code Flow: fetching new tokens");
     AuthorizationCodeTokenRequest.Builder request =
-        AuthorizationCodeTokenRequest.builder().code(code).redirectUri(redirectUri);
+        AuthorizationCodeTokenRequest.builder().code(code).redirectUri(getRedirectUri());
+    String codeVerifier = getCodeVerifier();
     if (codeVerifier != null) {
       request.codeVerifier(codeVerifier);
     }
-    Tokens tokens = invokeTokenEndpoint(null, request);
-    LOGGER.debug("Authorization Code Flow: new tokens received");
-    return tokens;
+    return invokeTokenEndpoint(null, request);
   }
 
-  private void log(Throwable error) {
+  private static void log(Throwable error) {
     if (LOGGER.isDebugEnabled()) {
       if (error == null) {
         LOGGER.debug("Authorization Code Flow: tokens received");
@@ -280,7 +275,13 @@ class AuthorizationCodeFlow extends AbstractFlow {
     }
   }
 
-  private HttpServer createServer(
+  @SuppressWarnings("HttpUrlsUsage")
+  private static URI defaultRedirectUri(String bindHost, int bindPort, String contextPath) {
+    return URI.create(java.lang.String.format("http://%s:%d/%s", bindHost, bindPort, contextPath))
+        .normalize();
+  }
+
+  private static HttpServer createServer(
       String hostname, int port, String contextPath, HttpHandler handler) {
     try {
       HttpServer server = HttpServer.create(new InetSocketAddress(hostname, port), 0);

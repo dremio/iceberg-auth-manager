@@ -23,6 +23,8 @@ import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
 import com.dremio.iceberg.authmgr.oauth2.test.container.PolarisTestEnvironment;
 import com.dremio.iceberg.authmgr.oauth2.token.AccessToken;
 import com.dremio.iceberg.authmgr.oauth2.token.Tokens;
+import java.time.Duration;
+import java.util.concurrent.ExecutionException;
 import org.assertj.core.api.SoftAssertions;
 import org.assertj.core.api.junit.jupiter.InjectSoftAssertions;
 import org.assertj.core.api.junit.jupiter.SoftAssertionsExtension;
@@ -41,11 +43,11 @@ public class OAuth2AgentPolarisIT {
     try (TestEnvironment env = envBuilder.build();
         OAuth2Agent agent = env.newAgent()) {
       // initial grant
-      Tokens firstTokens = agent.doAuthenticate();
+      Tokens firstTokens = agent.getCurrentTokens();
       introspectToken(firstTokens.getAccessToken());
       soft.assertThat(firstTokens.getRefreshToken()).isNull();
       // token refresh
-      Tokens refreshedTokens = agent.refreshCurrentTokens(firstTokens);
+      Tokens refreshedTokens = agent.refreshCurrentTokens(firstTokens).toCompletableFuture().join();
       introspectToken(refreshedTokens.getAccessToken());
       soft.assertThat(refreshedTokens.getRefreshToken()).isNull();
     }
@@ -66,18 +68,20 @@ public class OAuth2AgentPolarisIT {
     try (TestEnvironment env = envBuilder.token(accessToken.getPayload()).build();
         OAuth2Agent agent = env.newAgent()) {
       // initial grant
-      Tokens firstTokens = agent.doAuthenticate();
+      Tokens firstTokens = agent.getCurrentTokens();
       soft.assertThat(firstTokens.getAccessToken().getPayload())
           .isEqualTo(accessToken.getPayload());
       soft.assertThat(firstTokens.getRefreshToken()).isNull();
       // token refresh
-      Tokens refreshedTokens = agent.refreshCurrentTokens(firstTokens);
+      Tokens refreshedTokens = agent.refreshCurrentTokens(firstTokens).toCompletableFuture().join();
       introspectToken(refreshedTokens.getAccessToken());
       soft.assertThat(refreshedTokens.getRefreshToken()).isNull();
       // cannot fetch new tokens
-      soft.assertThatThrownBy(agent::fetchNewTokens)
-          .isInstanceOf(OAuth2Exception.class)
-          .hasMessageContaining("The Client is invalid");
+      soft.assertThat(agent.fetchNewTokens())
+          .completesExceptionallyWithin(Duration.ofSeconds(10))
+          .withThrowableOfType(ExecutionException.class)
+          .withCauseInstanceOf(OAuth2Exception.class)
+          .withMessageContaining("The Client is invalid");
     }
   }
 

@@ -16,6 +16,7 @@
 package com.dremio.iceberg.authmgr.oauth2.agent;
 
 import static com.dremio.iceberg.authmgr.oauth2.grant.GrantType.AUTHORIZATION_CODE;
+import static com.dremio.iceberg.authmgr.oauth2.grant.GrantType.TOKEN_EXCHANGE;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.auth0.jwt.JWT;
@@ -32,7 +33,7 @@ public class OAuth2AgentKeycloakLongIT extends OAuth2AgentLongITBase {
 
   @Test
   void backgroundRefreshAndSleep(Builder envBuilder1, Builder envBuilder2) {
-    run(envBuilder1, envBuilder2.grantType(AUTHORIZATION_CODE).impersonationEnabled(true));
+    run(envBuilder1, envBuilder2.grantType(TOKEN_EXCHANGE).subjectGrantType(AUTHORIZATION_CODE));
   }
 
   @Override

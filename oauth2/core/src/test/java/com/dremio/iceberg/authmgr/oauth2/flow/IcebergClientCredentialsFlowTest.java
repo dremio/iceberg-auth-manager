@@ -27,8 +27,9 @@ class IcebergClientCredentialsFlowTest {
   @Test
   void fetchNewTokens() {
     try (TestEnvironment env = TestEnvironment.builder().dialect(Dialect.ICEBERG_REST).build();
-        Flow flow = env.newInitialTokenFetchFlow()) {
-      Tokens tokens = flow.fetchNewTokens(null);
+        FlowFactory flowFactory = env.newFlowFactory()) {
+      Flow flow = flowFactory.createInitialFlow();
+      Tokens tokens = flow.fetchNewTokens(null).toCompletableFuture().join();
       assertTokens(tokens, "access_initial", null);
     }
   }

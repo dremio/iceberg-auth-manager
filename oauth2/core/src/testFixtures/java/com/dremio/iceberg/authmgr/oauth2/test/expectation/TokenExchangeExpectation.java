@@ -19,8 +19,11 @@ import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.ACTOR_TOKEN;
 import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.ACTOR_TOKEN_TYPE;
 import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.AUDIENCE;
 import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.CLIENT_ID1;
+import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.CLIENT_ID2;
 import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.REQUESTED_TOKEN_TYPE;
 import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.RESOURCE;
+import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.SCOPE1;
+import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.SCOPE2;
 import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.SUBJECT_TOKEN;
 import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.SUBJECT_TOKEN_TYPE;
 
@@ -34,15 +37,19 @@ public abstract class TokenExchangeExpectation extends InitialTokenFetchExpectat
   @Override
   protected PostFormRequest tokenRequestBody() {
     return ImmutableTokenExchangeRequest.builder()
-        .clientId(getTestEnvironment().isPrivateClient() ? null : CLIENT_ID1)
-        .subjectToken(SUBJECT_TOKEN)
+        .clientId(
+            getTestEnvironment().isPrivateClient()
+                ? null
+                : String.format("(%s|%s)", CLIENT_ID1, CLIENT_ID2))
+        .subjectToken(String.format("(%s|%s)", SUBJECT_TOKEN, "access_.*"))
         .subjectTokenType(SUBJECT_TOKEN_TYPE)
-        .actorToken(ACTOR_TOKEN)
+        .actorToken(String.format("(%s|%s)", ACTOR_TOKEN, "access_.*"))
         .actorTokenType(ACTOR_TOKEN_TYPE)
         .requestedTokenType(REQUESTED_TOKEN_TYPE)
         .audience(AUDIENCE)
         .resource(RESOURCE)
-        .putExtraParameter("extra1", "value1")
+        .scope(String.format("(%s|%s)", SCOPE1, SCOPE2))
+        .putExtraParameter("(extra1|extra2)", "(value1|value2)")
         .build();
   }
 }

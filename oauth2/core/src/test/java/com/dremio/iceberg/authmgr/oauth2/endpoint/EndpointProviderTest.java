@@ -45,19 +45,13 @@ class EndpointProviderTest {
 
   @Test
   void withoutDiscovery() {
-    try (TestEnvironment env =
-        TestEnvironment.builder().discoveryEnabled(false).impersonationEnabled(true).build()) {
-      // primary
+    try (TestEnvironment env = TestEnvironment.builder().discoveryEnabled(false).build()) {
       EndpointProvider endpointProvider = env.getEndpointProvider();
       assertThat(endpointProvider.getResolvedTokenEndpoint()).isEqualTo(env.getTokenEndpoint());
       assertThat(endpointProvider.getResolvedAuthorizationEndpoint())
           .isEqualTo(env.getAuthorizationEndpoint());
       assertThat(endpointProvider.getResolvedDeviceAuthorizationEndpoint())
           .isEqualTo(env.getDeviceAuthorizationEndpoint());
-      // impersonation
-      EndpointProvider impersonatinEndpointProvider = env.getImpersonatinEndpointProvider();
-      assertThat(impersonatinEndpointProvider.getResolvedTokenEndpoint())
-          .isEqualTo(env.getImpersonationTokenEndpoint());
     }
   }
 
@@ -66,27 +60,10 @@ class EndpointProviderTest {
   void withDiscovery(boolean includeDeviceAuthEndpoint) {
     try (TestEnvironment env =
         TestEnvironment.builder()
-            .impersonationEnabled(true)
             .includeDeviceAuthEndpointInDiscoveryMetadata(includeDeviceAuthEndpoint)
             .build()) {
-      // primary
       EndpointProvider endpointProvider = env.getEndpointProvider();
       assertThat(endpointProvider.getResolvedTokenEndpoint()).isEqualTo(env.getTokenEndpoint());
-      assertThat(endpointProvider.getResolvedAuthorizationEndpoint())
-          .isEqualTo(env.getAuthorizationEndpoint());
-      if (includeDeviceAuthEndpoint) {
-        assertThat(endpointProvider.getResolvedDeviceAuthorizationEndpoint())
-            .isEqualTo(env.getDeviceAuthorizationEndpoint());
-      } else {
-        assertThatThrownBy(endpointProvider::getResolvedDeviceAuthorizationEndpoint)
-            .isInstanceOf(IllegalStateException.class)
-            .hasMessage(
-                "OpenID provider metadata does not contain a device authorization endpoint");
-      }
-      // impersonation
-      endpointProvider = env.getImpersonatinEndpointProvider();
-      assertThat(endpointProvider.getResolvedTokenEndpoint())
-          .isEqualTo(env.getImpersonationTokenEndpoint());
       assertThat(endpointProvider.getResolvedAuthorizationEndpoint())
           .isEqualTo(env.getAuthorizationEndpoint());
       if (includeDeviceAuthEndpoint) {
@@ -117,20 +94,9 @@ class EndpointProviderTest {
         TestEnvironment.builder()
             .authorizationServerContextPath(contextPath)
             .wellKnownPath(wellKnownPath)
-            .impersonationEnabled(true)
-            .impersonationServerContextPath(contextPath)
             .build()) {
-      // primary
       EndpointProvider endpointProvider = env.getEndpointProvider();
       MetadataDiscoveryResponse actual = endpointProvider.getOpenIdProviderMetadata();
-      assertThat(actual.getIssuerUrl()).isEqualTo(env.getAuthorizationServerUrl());
-      assertThat(actual.getTokenEndpoint()).isEqualTo(env.getTokenEndpoint());
-      assertThat(actual.getAuthorizationEndpoint()).isEqualTo(env.getAuthorizationEndpoint());
-      assertThat(actual.getDeviceAuthorizationEndpoint())
-          .isEqualTo(env.getDeviceAuthorizationEndpoint());
-      // impersonation
-      endpointProvider = env.getImpersonatinEndpointProvider();
-      actual = endpointProvider.getOpenIdProviderMetadata();
       assertThat(actual.getIssuerUrl()).isEqualTo(env.getAuthorizationServerUrl());
       assertThat(actual.getTokenEndpoint()).isEqualTo(env.getTokenEndpoint());
       assertThat(actual.getAuthorizationEndpoint()).isEqualTo(env.getAuthorizationEndpoint());

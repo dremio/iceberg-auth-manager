@@ -15,12 +15,11 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.test.container;
 
-import com.dremio.iceberg.authmgr.oauth2.config.TokenExchangeConfig;
 import com.dremio.iceberg.authmgr.oauth2.test.ImmutableTestEnvironment;
 import com.dremio.iceberg.authmgr.oauth2.test.TestConstants;
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironmentExtension;
-import com.dremio.iceberg.authmgr.oauth2.token.provider.TokenProviders;
+import com.dremio.iceberg.authmgr.oauth2.token.TypedToken;
 import java.time.Clock;
 import java.util.List;
 import org.junit.jupiter.api.extension.AfterAllCallback;
@@ -61,19 +60,23 @@ public class KeycloakTestEnvironment extends TestEnvironmentExtension
         .clock(Clock.systemUTC())
         .serverRootUrl(keycloak.getRootUrl())
         .authorizationServerUrl(keycloak.getIssuerUrl())
-        .impersonationServerUrl(keycloak.getIssuerUrl())
         .tokenEndpoint(keycloak.getTokenEndpoint())
-        .impersonationTokenEndpoint(keycloak.getTokenEndpoint())
         .authorizationEndpoint(keycloak.getAuthEndpoint())
         .deviceAuthorizationEndpoint(keycloak.getDeviceAuthEndpoint())
         .accessTokenLifespan(keycloak.getAccessTokenLifespan())
+        .subjectToken(null) // dynamic by default
+        .actorToken(null) // dynamic by default
+        .subjectTokenType(TypedToken.URN_ACCESS_TOKEN)
+        .actorTokenType(TypedToken.URN_ACCESS_TOKEN)
         // must be set to the same values as the main client
-        .impersonationClientId(TestConstants.CLIENT_ID1)
-        .impersonationClientSecret(TestConstants.CLIENT_SECRET1)
-        .impersonationScopes(List.of(TestConstants.SCOPE1))
-        .tokenExchangeConfig(
-            TokenExchangeConfig.builder()
-                .subjectTokenProvider(TokenProviders.CURRENT_ACCESS_TOKEN)
-                .build());
+        .subjectClientId(TestConstants.CLIENT_ID1)
+        .subjectClientSecret(TestConstants.CLIENT_SECRET1)
+        .subjectScopes(List.of(TestConstants.SCOPE1))
+        .actorClientId(TestConstants.CLIENT_ID1)
+        .actorClientSecret(TestConstants.CLIENT_SECRET1)
+        .actorScopes(List.of(TestConstants.SCOPE1))
+        // Unused
+        .audience(null)
+        .resource(null);
   }
 }

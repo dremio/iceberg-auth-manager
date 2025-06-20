@@ -17,35 +17,19 @@ package com.dremio.iceberg.authmgr.oauth2.test.expectation;
 
 import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.SCOPE1;
 import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.SCOPE2;
-import static com.dremio.iceberg.authmgr.oauth2.test.expectation.ExpectationUtils.getParameterBody;
 
 import com.dremio.iceberg.authmgr.oauth2.rest.ImmutableClientCredentialsTokenRequest;
 import com.dremio.iceberg.authmgr.oauth2.rest.PostFormRequest;
-import com.dremio.iceberg.authmgr.oauth2.test.TestConstants;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
-import org.mockserver.model.HttpRequest;
 
 @AuthManagerImmutable
 public abstract class ClientCredentialsExpectation extends InitialTokenFetchExpectation {
 
   @Override
-  public void create() {
-    super.create();
-    // Some tests also require a second expectation for CLIENT_ID2 + SCOPE2, returning
-    // access_initial2 + refresh_initial2
-    HttpRequest request =
-        tokenRequestTemplate()
-            .withHeader("Authorization", "Basic " + TestConstants.CLIENT_CREDENTIALS2_BASE_64)
-            .withBody(
-                getParameterBody(
-                    ImmutableClientCredentialsTokenRequest.builder().scope(SCOPE2).build()));
-    getClientAndServer()
-        .when(request)
-        .respond(httpRequest -> tokenResponse(httpRequest, "access_initial2", "refresh_initial2"));
-  }
-
-  @Override
   protected PostFormRequest tokenRequestBody() {
-    return ImmutableClientCredentialsTokenRequest.builder().scope(SCOPE1).build();
+    return ImmutableClientCredentialsTokenRequest.builder()
+        .scope(String.format("(%s|%s)", SCOPE1, SCOPE2))
+        .putExtraParameter("(extra1|extra2)", "(value1|value2)")
+        .build();
   }
 }

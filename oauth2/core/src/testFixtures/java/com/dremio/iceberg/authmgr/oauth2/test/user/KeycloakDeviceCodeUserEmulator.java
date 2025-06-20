@@ -18,7 +18,6 @@ package com.dremio.iceberg.authmgr.oauth2.test.user;
 import static java.net.HttpURLConnection.HTTP_OK;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.dremio.iceberg.authmgr.oauth2.flow.FlowUtils;
 import com.google.common.collect.ImmutableMap;
 import java.net.HttpURLConnection;
 import java.net.URI;
@@ -41,8 +40,7 @@ public class KeycloakDeviceCodeUserEmulator extends AbstractKeycloakUserEmulator
   private static final Pattern HIDDEN_CODE_PATTERN =
       Pattern.compile("<input type=\"hidden\" name=\"code\" value=\"([^\"]+)\">");
 
-  private final String msgPrefix;
-  private final Pattern userCodePattern;
+  private static final Pattern USER_CODE_PATTERN = Pattern.compile("\\[.*] (\\w{4}-\\w{4})");
 
   private URI authUrl;
   private String userCode;
@@ -50,18 +48,16 @@ public class KeycloakDeviceCodeUserEmulator extends AbstractKeycloakUserEmulator
   private volatile boolean denyConsent = false;
 
   /** Creates a new emulator with implicit login (for unit tests). */
-  public KeycloakDeviceCodeUserEmulator(String agentName) {
-    this(agentName, null, null);
+  public KeycloakDeviceCodeUserEmulator() {
+    this(null, null);
   }
 
   /**
    * Creates a new emulator with required user login using the given username and password (for
    * integration tests).
    */
-  public KeycloakDeviceCodeUserEmulator(String agentName, String username, String password) {
-    super(agentName, username, password);
-    msgPrefix = FlowUtils.getMsgPrefix(agentName);
-    userCodePattern = Pattern.compile(Pattern.quote(msgPrefix) + "\\w{4}-\\w{4}");
+  public KeycloakDeviceCodeUserEmulator(String username, String password) {
+    super(username, password);
   }
 
   public void denyConsent() {
@@ -70,12 +66,13 @@ public class KeycloakDeviceCodeUserEmulator extends AbstractKeycloakUserEmulator
 
   @Override
   protected Runnable processLine(String line) {
-    if (line.startsWith(msgPrefix) && line.contains("http")) {
+    if (line.startsWith("[") && line.contains("http")) {
       authUrl = extractAuthUrl(line);
     }
-    if (userCodePattern.matcher(line).matches()) {
+    Matcher matcher = USER_CODE_PATTERN.matcher(line);
+    if (matcher.matches()) {
       assertThat(authUrl).isNotNull();
-      userCode = line.substring(msgPrefix.length());
+      userCode = matcher.group(1);
       return this::triggerDeviceCodeFlow;
     }
     return null;

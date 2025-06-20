@@ -54,7 +54,6 @@ public abstract class InteractiveUserEmulator implements UserEmulator {
 
   private final AtomicInteger counter = new AtomicInteger(1);
 
-  protected final String agentName;
   protected final String username;
   protected final String password;
 
@@ -69,8 +68,7 @@ public abstract class InteractiveUserEmulator implements UserEmulator {
   private volatile Consumer<Throwable> errorListener;
 
   @SuppressWarnings("FutureReturnValueIgnored")
-  public InteractiveUserEmulator(String agentName, String username, String password) {
-    this.agentName = agentName;
+  public InteractiveUserEmulator(String username, String password) {
     this.username = username;
     this.password = password;
     try {
@@ -84,7 +82,7 @@ public abstract class InteractiveUserEmulator implements UserEmulator {
     }
     executor =
         Executors.newFixedThreadPool(
-            2, r -> new Thread(r, agentName + "-user-emulator-" + counter.getAndIncrement()));
+            2, r -> new Thread(r, "user-emulator-" + counter.getAndIncrement()));
     executor.submit(this::readConsole);
   }
 

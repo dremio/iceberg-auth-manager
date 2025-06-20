@@ -17,21 +17,22 @@ package com.dremio.iceberg.authmgr.oauth2.flow;
 
 import com.dremio.iceberg.authmgr.oauth2.rest.ClientCredentialsTokenRequest;
 import com.dremio.iceberg.authmgr.oauth2.token.Tokens;
+import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
 import jakarta.annotation.Nullable;
+import java.util.concurrent.CompletionStage;
 
 /**
  * An implementation of the <a
  * href="https://datatracker.ietf.org/doc/html/rfc6749#section-4.4">Client Credentials Grant</a>
  * flow.
  */
-class ClientCredentialsFlow extends AbstractFlow {
+@AuthManagerImmutable
+abstract class ClientCredentialsFlow extends AbstractFlow {
 
-  ClientCredentialsFlow(FlowContext context) {
-    super(context);
-  }
+  interface Builder extends AbstractFlow.Builder<ClientCredentialsFlow, Builder> {}
 
   @Override
-  public Tokens fetchNewTokens(@Nullable Tokens currentTokens) {
+  public CompletionStage<Tokens> fetchNewTokens(@Nullable Tokens currentTokens) {
     ClientCredentialsTokenRequest.Builder request = ClientCredentialsTokenRequest.builder();
     return invokeTokenEndpoint(currentTokens, request);
   }

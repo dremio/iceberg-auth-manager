@@ -36,6 +36,7 @@ public abstract class IcebergClientCredentialsExpectation extends InitialTokenFe
         .clientId(String.format("(%s|%s)", CLIENT_ID1, CLIENT_ID2))
         .clientSecret(String.format("(%s|%s)", CLIENT_SECRET1, CLIENT_SECRET2))
         .scope(String.format("(%s|%s)", SCOPE1, SCOPE2))
+        .putExtraParameter("(extra1|extra2)", "(value1|value2)")
         .build();
   }
 

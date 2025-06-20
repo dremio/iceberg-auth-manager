@@ -15,26 +15,38 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.flow;
 
+import com.dremio.iceberg.authmgr.oauth2.rest.TokenExchangeRequest;
 import com.dremio.iceberg.authmgr.oauth2.token.Tokens;
 import com.dremio.iceberg.authmgr.oauth2.token.TypedToken;
+import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
 import java.util.Objects;
+import java.util.concurrent.CompletionStage;
 
 /**
  * A specialized {@link TokenExchangeFlow} that is used to refresh access tokens, for the Iceberg
  * dialect only.
  */
-class IcebergRefreshTokenFlow extends TokenExchangeFlow {
+@AuthManagerImmutable
+abstract class IcebergRefreshTokenFlow extends AbstractFlow {
 
-  IcebergRefreshTokenFlow(FlowContext context) {
-    super(context);
-  }
+  interface Builder extends AbstractFlow.Builder<IcebergRefreshTokenFlow, Builder> {}
 
   @Override
-  public Tokens fetchNewTokens(Tokens currentTokens) {
+  public CompletionStage<Tokens> fetchNewTokens(Tokens currentTokens) {
     Objects.requireNonNull(currentTokens, "currentTokens is null");
     Objects.requireNonNull(
         currentTokens.getAccessToken(), "currentTokens.getAccessToken() is null");
+
     TypedToken subjectToken = TypedToken.of(currentTokens.getAccessToken());
-    return fetchNewTokens(currentTokens, subjectToken, null);
+
+    TokenExchangeRequest.Builder request =
+        TokenExchangeRequest.builder()
+            .subjectToken(subjectToken.getPayload())
+            .subjectTokenType(subjectToken.getTokenType())
+            .resource(getSpec().getTokenExchangeConfig().getResource().orElse(null))
+            .audience(getSpec().getTokenExchangeConfig().getAudience().orElse(null))
+            .requestedTokenType(getSpec().getTokenExchangeConfig().getRequestedTokenType());
+
+    return invokeTokenEndpoint(currentTokens, request);
   }
 }

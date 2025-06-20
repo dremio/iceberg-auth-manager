@@ -15,7 +15,6 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.config.option;
 
-import com.dremio.iceberg.authmgr.oauth2.token.provider.TokenProvider;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -44,11 +43,11 @@ public final class ConfigOptions {
     return ImmutablePrefixMapConfigOption.builder().prefix(prefix).setter(setter).build();
   }
 
-  public static ConfigOption<TokenProvider> ofTokenProvider(
-      String tokenOption, String tokenTypeOption, Consumer<TokenProvider> setter) {
-    return ImmutableTokenProviderConfigOption.builder()
-        .tokenOption(tokenOption)
-        .tokenTypeOption(tokenTypeOption)
+  public static ConfigOption<Map<String, String>> ofPrefix(
+      String prefix, String replacementPrefix, Consumer<Map<String, String>> setter) {
+    return ImmutablePrefixMapConfigOption.builder()
+        .prefix(prefix)
+        .replacementPrefix(replacementPrefix)
         .setter(setter)
         .build();
   }

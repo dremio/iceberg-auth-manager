@@ -16,6 +16,7 @@
 package com.dremio.iceberg.authmgr.oauth2.test.expectation;
 
 import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.SCOPE1;
+import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.SCOPE2;
 
 import com.dremio.iceberg.authmgr.oauth2.rest.ImmutableTokenExchangeRequest;
 import com.dremio.iceberg.authmgr.oauth2.rest.PostFormRequest;
@@ -44,8 +45,8 @@ public abstract class IcebergRefreshTokenExpectation extends AbstractTokenEndpoi
     return ImmutableTokenExchangeRequest.builder()
         .subjectToken("access_.*")
         .subjectTokenType(TypedToken.URN_ACCESS_TOKEN)
-        .scope(SCOPE1)
-        .putExtraParameter("extra1", "value1")
+        .scope(String.format("(%s|%s)", SCOPE1, SCOPE2))
+        .putExtraParameter("(extra1|extra2)", "(value1|value2)")
         .build();
   }
 }

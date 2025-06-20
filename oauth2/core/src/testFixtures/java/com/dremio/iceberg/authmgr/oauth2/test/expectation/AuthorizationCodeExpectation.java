@@ -61,7 +61,7 @@ public abstract class AuthorizationCodeExpectation extends InitialTokenFetchExpe
         .code(AUTHORIZATION_CODE)
         .redirectUri(URI.create("http://.*"))
         .scope(String.format("(%s|%s)", SCOPE1, SCOPE2))
-        .putExtraParameter("extra1", "value1")
+        .putExtraParameter("(extra1|extra2)", "(value1|value2)")
         .build();
   }
 

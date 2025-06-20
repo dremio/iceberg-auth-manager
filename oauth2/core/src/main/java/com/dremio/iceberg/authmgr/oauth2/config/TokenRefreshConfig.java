@@ -154,6 +154,9 @@ public interface TokenRefreshConfig {
     builder.accessTokenLifespanOption().merge(properties, getAccessTokenLifespan());
     builder.safetyWindowOption().merge(properties, getSafetyWindow());
     builder.idleTimeoutOption().merge(properties, getIdleTimeout());
+    builder.minAccessTokenLifespan(getMinAccessTokenLifespan());
+    builder.minRefreshDelay(getMinRefreshDelay());
+    builder.minIdleTimeout(getMinIdleTimeout());
     return builder.build();
   }
 

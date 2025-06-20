@@ -15,34 +15,33 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.flow;
 
-import com.dremio.iceberg.authmgr.oauth2.config.ResourceOwnerConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.Secret;
 import com.dremio.iceberg.authmgr.oauth2.rest.PasswordTokenRequest;
 import com.dremio.iceberg.authmgr.oauth2.token.Tokens;
+import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
 import jakarta.annotation.Nullable;
+import java.util.concurrent.CompletionStage;
 
 /**
  * An implementation of the <a
  * href="https://datatracker.ietf.org/doc/html/rfc6749#section-4.3">Resource Owner Password
  * Credentials Grant</a> flow.
  */
-class PasswordFlow extends AbstractFlow {
+@AuthManagerImmutable
+abstract class PasswordFlow extends AbstractFlow {
 
-  private final ResourceOwnerConfig resourceOwnerConfig;
-
-  PasswordFlow(FlowContext context) {
-    super(context);
-    resourceOwnerConfig = context.getResourceOwnerConfig();
-  }
+  interface Builder extends AbstractFlow.Builder<PasswordFlow, Builder> {}
 
   @Override
-  public Tokens fetchNewTokens(@Nullable Tokens currentTokens) {
+  public CompletionStage<Tokens> fetchNewTokens(@Nullable Tokens currentTokens) {
     String username =
-        resourceOwnerConfig
+        getSpec()
+            .getResourceOwnerConfig()
             .getUsername()
             .orElseThrow(() -> new IllegalStateException("Username is required"));
     String password =
-        resourceOwnerConfig
+        getSpec()
+            .getResourceOwnerConfig()
             .getPassword()
             .map(Secret::getSecret)
             .orElseThrow(() -> new IllegalStateException("Password is required"));

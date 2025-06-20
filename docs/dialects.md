@@ -94,11 +94,14 @@ The standard dialect instead follows the OAuth2 standard for token refreshes:
 
 ### Support for Delegation and Impersonation
 
-The Iceberg dialect does not support delegation or impersonation. 
+Impersonation and delegation are two different ways of allowing a user to act on behalf of another
+user. When using OAuth2, they generally leverage the token exchange grant type.
 
-The standard dialect supports both, allowing a user to act on behalf of another user by
-configuring a token exchange grant appropriately. See [Impersonation & Delegation](./impersonation.md)
-for more details.
+The Iceberg dialect does not support initial token exchange grants, and therefore does not support
+impersonation and delegation. 
+
+The standard dialect supports token exchange for initial token fetches, and therefore supports
+impersonation and delegation. See [Token Exchange](./token-exchange.md) for more details.
 
 ### Support for Context- and Table-level Authentication
 

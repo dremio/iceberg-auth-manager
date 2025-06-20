@@ -63,7 +63,4 @@ public interface Token {
     Instant exp = getResolvedExpirationTime();
     return exp != null && !exp.isAfter(when);
   }
-
-  /** Returns a new token with the same payload but a different expiration time. */
-  Token withExpirationTime(@Nullable Instant expirationTime);
 }

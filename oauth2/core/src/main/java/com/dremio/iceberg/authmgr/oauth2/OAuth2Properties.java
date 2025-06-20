@@ -178,6 +178,14 @@ public final class OAuth2Properties {
      * {@value #TOKEN_ENDPOINT} contains a relative URI, and {@code standard} otherwise.
      */
     public static final String DIALECT = PREFIX + "dialect";
+
+    /**
+     * Defines how long the agent should wait for tokens to be acquired. Optional, defaults to
+     * {@value #DEFAULT_TIMEOUT}.
+     */
+    public static final String TIMEOUT = PREFIX + "timeout";
+
+    public static final String DEFAULT_TIMEOUT = "PT5M";
   }
 
   public static final class ClientAssertion {
@@ -344,16 +352,6 @@ public final class OAuth2Properties {
         AuthorizationCode.PREFIX + "callback-context-path";
 
     /**
-     * Defines how long the agent should wait for the authorization code flow to complete. In other
-     * words, how long the agent should wait for the user to log in and authorize the application.
-     * This is only used if the grant type to use is {@value GrantCommonNames#AUTHORIZATION_CODE}.
-     * Optional, defaults to {@value #DEFAULT_TIMEOUT}.
-     */
-    public static final String TIMEOUT = AuthorizationCode.PREFIX + "timeout";
-
-    public static final String DEFAULT_TIMEOUT = "PT5M";
-
-    /**
      * Whether to enable PKCE (Proof Key for Code Exchange) for the authorization code flow. The
      * default is {@code true}.
      *
@@ -385,16 +383,6 @@ public final class OAuth2Properties {
     public static final String ENDPOINT = DeviceCode.PREFIX + "endpoint";
 
     /**
-     * Defines how long the agent should wait for the device code flow to complete. In other words,
-     * how long the agent should wait for the user to log in and authorize the application. This is
-     * only used if the grant type to use is {@value GrantCommonNames#DEVICE_CODE}. Optional,
-     * defaults to {@value #DEFAULT_TIMEOUT}.
-     */
-    public static final String TIMEOUT = DeviceCode.PREFIX + "timeout";
-
-    public static final String DEFAULT_TIMEOUT = "PT5M";
-
-    /**
      * Defines how often the agent should poll the OAuth2 server for the device code flow to
      * complete. This is only used if the grant type to use is {@value
      * GrantCommonNames#DEVICE_CODE}. Optional, defaults to {@value #DEFAULT_POLL_INTERVAL}.
@@ -409,6 +397,102 @@ public final class OAuth2Properties {
     public static final String PREFIX = OAuth2Properties.PREFIX + "token-exchange.";
 
     /**
+     * For token exchanges only. The subject token to exchange.
+     *
+     * <p>If this value is present, the subject token will be used as-is. If this value is not
+     * present, the subject token will be dynamically fetched using the configuration provided under
+     * the {@value #SUBJECT_CONFIG_PREFIX} prefix.
+     */
+    public static final String SUBJECT_TOKEN = TokenExchange.PREFIX + "subject-token";
+
+    /**
+     * For token exchanges only. The type of the subject token. Must be a valid URN. The default is
+     * {@code urn:ietf:params:oauth:token-type:access_token}.
+     */
+    public static final String SUBJECT_TOKEN_TYPE = TokenExchange.PREFIX + "subject-token-type";
+
+    /**
+     * For token exchanges only. The actor token to exchange.
+     *
+     * <p>If this value is present, the actor token will be used as-is. If this value is not
+     * present, the actor token will be dynamically fetched using the configuration provided under
+     * the {@value #ACTOR_CONFIG_PREFIX} prefix. If no configuration is provided, no actor token
+     * will be used.
+     */
+    public static final String ACTOR_TOKEN = TokenExchange.PREFIX + "actor-token";
+
+    /**
+     * For token exchanges only. The type of the actor token. Must be a valid URN. The default is
+     * {@code urn:ietf:params:oauth:token-type:access_token}.
+     *
+     * <p>If the agent is configured to dynamically fetch the actor token, this property is ignored
+     * since only access tokens can be dynamically fetched.
+     */
+    public static final String ACTOR_TOKEN_TYPE = TokenExchange.PREFIX + "actor-token-type";
+
+    /**
+     * For token exchanges only. The type of the requested security token. Must be a valid URN. The
+     * default is {@code urn:ietf:params:oauth:token-type:access_token}.
+     */
+    public static final String REQUESTED_TOKEN_TYPE = TokenExchange.PREFIX + "requested-token-type";
+
+    /**
+     * For token exchanges only. The configuration to use for fetching the subject token. Required
+     * if {@value #SUBJECT_TOKEN} is not set.
+     *
+     * <p>This is a prefix property; any property that can be set under the {@value
+     * OAuth2Properties#PREFIX} prefix can also be set under this prefix.
+     *
+     * <p>The effective subject token fetch configuration will be the result of merging the
+     * subject-specific configuration with the main configuration.
+     *
+     * <p>Example:
+     *
+     * <pre>{@code
+     * rest.auth.oauth2.grant-type=token_exchange
+     * rest.auth.oauth2.token-endpoint=https://main-token-endpoint.com/token
+     * rest.auth.oauth2.client-id=main-client-id
+     * rest.auth.oauth2.client-secret=main-client-secret
+     * rest.auth.oauth2.token-exchange.subject-token.grant-type=client_credentials
+     * rest.auth.oauth2.token-exchange.subject-token.client-id=subject-client-id
+     * rest.auth.oauth2.token-exchange.subject-token.client-secret=subject-client-secret
+     * }</pre>
+     *
+     * The above configuration will result in a token exchange where the subject token is obtained
+     * using the client credentials grant type, with specific client ID and secret, but sharing the
+     * token endpoint, client authentication method and other settings with the main agent.
+     */
+    public static final String SUBJECT_CONFIG_PREFIX = TokenExchange.PREFIX + "subject-token.";
+
+    /**
+     * For token exchanges only. The configuration to use for fetching the actor token. Optional;
+     * required only if {@value #ACTOR_TOKEN} is not set but an actor token is required.
+     *
+     * <p>This is a prefix property; any property that can be set under the {@value
+     * OAuth2Properties#PREFIX} prefix can also be set under this prefix.
+     *
+     * <p>The effective actor token fetch configuration will be the result of merging the
+     * actor-specific configuration with the main configuration.
+     *
+     * <p>Example:
+     *
+     * <pre>{@code
+     * rest.auth.oauth2.grant-type=token_exchange
+     * rest.auth.oauth2.token-endpoint=https://main-token-endpoint.com/token
+     * rest.auth.oauth2.client-id=main-client-id
+     * rest.auth.oauth2.client-secret=main-client-secret
+     * rest.auth.oauth2.token-exchange.actor-token.grant-type=client_credentials
+     * rest.auth.oauth2.token-exchange.actor-token.client-id=actor-client-id
+     * rest.auth.oauth2.token-exchange.actor-token.client-secret=actor-client-secret
+     * }</pre>
+     *
+     * The above configuration will result in a token exchange where the actor token is obtained
+     * using the client credentials grant type, with specific client ID and secret, but sharing the
+     * token endpoint, client authentication method and other settings with the main agent.
+     */
+    public static final String ACTOR_CONFIG_PREFIX = TokenExchange.PREFIX + "actor-token.";
+
+    /**
      * For token exchanges only. A URI that indicates the target service or resource where the
      * client intends to use the requested security token. Optional.
      */
@@ -420,199 +504,6 @@ public final class OAuth2Properties {
      * with the client providing a logical name for the target service.
      */
     public static final String AUDIENCE = TokenExchange.PREFIX + "audience";
-
-    public static final String DEFAULT_SUBJECT_TOKEN = "current_access_token";
-
-    /**
-     * For token exchanges only. The subject token to exchange. This can take 2 kinds of values:
-     *
-     * <ul>
-     *   <li>The value {@value #DEFAULT_SUBJECT_TOKEN}, if the agent should use its current access
-     *       token;
-     *   <li>An arbitrary token: in this case, the agent will always use the static token provided
-     *       here.
-     * </ul>
-     *
-     * The default is to use the current access token. Note: when using token exchange as the
-     * initial grant type, no current access token will be available: in this case, a valid, static
-     * subject token to exchange must be provided via configuration.
-     */
-    public static final String SUBJECT_TOKEN = TokenExchange.PREFIX + "subject-token";
-
-    /**
-     * For token exchanges only. The type of the subject token. Must be a valid URN. The default is
-     * {@code urn:ietf:params:oauth:token-type:access_token}.
-     *
-     * <p>If the agent is configured to use its access token as the subject token, please note that
-     * if an incorrect token type is provided here, the token exchange could fail.
-     */
-    public static final String SUBJECT_TOKEN_TYPE = TokenExchange.PREFIX + "subject-token-type";
-
-    /**
-     * For token exchanges only. The actor token to exchange. This can take 2 kinds of values:
-     *
-     * <ul>
-     *   <li>The value {@value #DEFAULT_SUBJECT_TOKEN}, if the agent should use its current access
-     *       token;
-     *   <li>An arbitrary token: in this case, the agent will always use the static token provided
-     *       here.
-     * </ul>
-     *
-     * The default is to not include any actor token.
-     */
-    public static final String ACTOR_TOKEN = TokenExchange.PREFIX + "actor-token";
-
-    /**
-     * For token exchanges only. The type of the actor token. Must be a valid URN. The default is
-     * {@code urn:ietf:params:oauth:token-type:access_token}.
-     *
-     * <p>If the agent is configured to use its access token as the actor token, please note that if
-     * an incorrect token type is provided here, the token exchange could fail.
-     */
-    public static final String ACTOR_TOKEN_TYPE = TokenExchange.PREFIX + "actor-token-type";
-  }
-
-  public static final class Impersonation {
-
-    public static final String PREFIX = OAuth2Properties.PREFIX + "impersonation.";
-
-    /**
-     * Whether to enable "impersonation" mode. If enabled, each access token obtained from the
-     * OAuth2 server using the configured initial grant type will be exchanged for a new token,
-     * using the token exchange grant type.
-     */
-    public static final String ENABLED = Impersonation.PREFIX + "enabled";
-
-    /**
-     * For impersonation only. The root URL of an alternate OpenID Connect identity issuer provider,
-     * to use when exchanging tokens only.
-     *
-     * <p>Either this property or {@value #TOKEN_ENDPOINT} must be set.
-     *
-     * <p>Endpoint discovery is performed using the OpenID Connect Discovery metadata published by
-     * the issuer. See <a href="https://openid.net/specs/openid-connect-discovery-1_0.html">OpenID
-     * Connect Discovery 1.0</a> for more information.
-     */
-    public static final String ISSUER_URL = Impersonation.PREFIX + "issuer-url";
-
-    /**
-     * For impersonation only. The URL of an alternate OAuth2 token endpoint to use when exchanging
-     * tokens only.
-     *
-     * <p>Either this property or {@value #ISSUER_URL} must be set.
-     */
-    public static final String TOKEN_ENDPOINT = Impersonation.PREFIX + "token-endpoint";
-
-    /** For impersonation only. The OAUth2 client ID to use. */
-    public static final String CLIENT_ID = Impersonation.PREFIX + "client-id";
-
-    /**
-     * For impersonation only. The OAUth2 client authentication method to use. Valid values are:
-     *
-     * <ul>
-     *   <li>{@code none}: the client does not authenticate itself at the token endpoint, because it
-     *       is a public client with no client secret or other authentication mechanism.
-     *   <li>{@code client_secret_basic}: client secret is sent in the HTTP Basic Authorization
-     *       header.
-     *   <li>{@code client_secret_post}: client secret is sent in the request body as a form
-     *       parameter.
-     *   <li>{@code client_secret_jwt}: client secret is used to sign a JWT token.
-     *   <li>{@code private_key_jwt}: client authenticates with a JWT assertion signed with a
-     *       private key.
-     * </ul>
-     *
-     * The default is {@code client_secret_basic} if the client is private, or {@code none} if the
-     * client is public.
-     */
-    public static final String CLIENT_AUTH = PREFIX + "client-auth";
-
-    /**
-     * For impersonation only. The OAUth2 client secret to use. Must be set if the client is private
-     * (confidential) and client authentication is done using a client secret.
-     */
-    public static final String CLIENT_SECRET = Impersonation.PREFIX + "client-secret";
-
-    /**
-     * For impersonation only. Space-separated list of scopes to include in each token exchange
-     * request to the OAuth2 server. Optional.
-     *
-     * <p>The scope names will not be validated by the OAuth2 agent; make sure they are valid
-     * according to <a href="https://datatracker.ietf.org/doc/html/rfc6749#section-3.3">RFC 6749
-     * Section 3.3</a>.
-     */
-    public static final String SCOPE = Impersonation.PREFIX + "scope";
-
-    /**
-     * Extra parameters to include in each request to the token endpoint, when using impersonation.
-     * This is useful for custom parameters that are not covered by the standard OAuth2.0
-     * specification.
-     *
-     * <p>This is a prefix property, and multiple values can be set, each with a different key and
-     * value. The values must NOT be URL-encoded. Example:
-     *
-     * <pre>{@code
-     * rest.auth.oauth2.impersonation.extra-params.custom_param1=custom_value1"
-     * rest.auth.oauth2.impersonation.extra-params.custom_param2=custom_value2"
-     * }</pre>
-     */
-    public static final String EXTRA_PARAMS_PREFIX = Impersonation.PREFIX + "extra-params.";
-  }
-
-  public static final class ImpersonationClientAssertion {
-
-    public static final String PREFIX =
-        OAuth2Properties.PREFIX + "impersonation.client-assertion.jwt.";
-
-    /**
-     * For impersonation only. The issuer of the client assertion JWT. Optional. The default is the
-     * client ID.
-     */
-    public static final String ISSUER = PREFIX + "issuer";
-
-    /**
-     * For impersonation only. The subject of the client assertion JWT. Optional. The default is the
-     * client ID.
-     */
-    public static final String SUBJECT = PREFIX + "subject";
-
-    /**
-     * For impersonation only. The audience of the client assertion JWT. Optional. The default is
-     * the token endpoint.
-     */
-    public static final String AUDIENCE = PREFIX + "audience";
-
-    /**
-     * For impersonation only. The expiration time of the client assertion JWT. Optional. The
-     * default is 5 minutes.
-     */
-    public static final String TOKEN_LIFESPAN = PREFIX + "token-lifespan";
-
-    /**
-     * For impersonation only. The signing algorithm to use for the client assertion JWT. Optional.
-     * The default is {@link JwtSigningAlgorithm#HMAC_SHA512} if the authentication method is {@link
-     * ClientAuthentication#CLIENT_SECRET_JWT}, or {@link JwtSigningAlgorithm#RSA_SHA512} if the
-     * authentication method is {@link ClientAuthentication#PRIVATE_KEY_JWT}.
-     *
-     * <p>Algorithm names must match either the JWS name or the JCA name of the algorithm.
-     *
-     * @see <a href="https://datatracker.ietf.org/doc/html/rfc7518#section-3.1">RFC 7518 Section
-     *     3.1</a>
-     */
-    public static final String ALGORITHM = PREFIX + "algorithm";
-
-    /**
-     * For impersonation only. The path on the local filesystem to the private key to use for
-     * signing the client assertion JWT. Required if the authentication method is {@link
-     * ClientAuthentication#PRIVATE_KEY_JWT}. The file must be in PEM format, and the first object
-     * in the file must be a private key.
-     */
-    public static final String PRIVATE_KEY = PREFIX + "private-key";
-
-    /**
-     * For impersonation only. Extra claims to include in the client assertion JWT. This is a prefix
-     * property, and multiple values can be set, each with a different key and value.
-     */
-    public static final String EXTRA_CLAIMS_PREFIX = PREFIX + "extra-claims.";
   }
 
   @SuppressWarnings("JavaLangClash")
@@ -650,7 +541,7 @@ public final class OAuth2Properties {
      * Whether to migrate Iceberg OAuth2 legacy properties. Defaults to {@code false}.
      *
      * <p>When enabled, the manager will automatically migrate legacy Iceberg OAuth2 properties to
-     * their new equivalents; e.g. it would map {@code oauth2-server-uri} to {@link
+     * their new equivalents; e.g. it would map {@code oauth2-server-uri} to {@value
      * Basic#TOKEN_ENDPOINT}.
      *
      * <p>When disabled, legacy properties are ignored.

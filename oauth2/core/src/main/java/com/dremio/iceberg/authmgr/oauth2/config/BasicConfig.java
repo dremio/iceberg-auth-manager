@@ -23,6 +23,7 @@ import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.Basic.EXTRA_PAR
 import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.Basic.GRANT_TYPE;
 import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.Basic.ISSUER_URL;
 import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.Basic.SCOPE;
+import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.Basic.TIMEOUT;
 import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.Basic.TOKEN;
 import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.Basic.TOKEN_ENDPOINT;
 
@@ -36,6 +37,7 @@ import com.dremio.iceberg.authmgr.oauth2.token.AccessToken;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.net.URI;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -191,6 +193,29 @@ public interface BasicConfig {
         .orElse(Dialect.STANDARD);
   }
 
+  /**
+   * Defines how long the agent should wait for tokens to be acquired. Defaults to {@link
+   * OAuth2Properties.Basic#DEFAULT_TIMEOUT}.
+   *
+   * @see OAuth2Properties.Basic#TIMEOUT
+   */
+  @Value.Default
+  default Duration getTimeout() {
+    return ConfigConstants.DEFAULT_TIMEOUT;
+  }
+
+  /**
+   * The minimum allowed value for {@link #getTimeout()}. Defaults to 30 seconds.
+   *
+   * <p>This setting is not exposed as a configuration option and is intended for testing purposes.
+   *
+   * @hidden
+   */
+  @Value.Default
+  default Duration getMinTimeout() {
+    return ConfigConstants.MIN_TIMEOUT;
+  }
+
   @Value.Check
   default BasicConfig validate() {
     ConfigValidator validator = new ConfigValidator();
@@ -269,6 +294,11 @@ public interface BasicConfig {
         }
       }
     }
+    validator.check(
+        getTimeout().compareTo(getMinTimeout()) >= 0,
+        TIMEOUT,
+        "timeout must be greater than or equal to %s",
+        getMinTimeout());
     validator.validate();
     return basicConfig;
   }
@@ -287,6 +317,8 @@ public interface BasicConfig {
     builder.scopesOption().merge(properties, getScopes());
     builder.dialectOption().merge(properties, getDialect());
     builder.extraRequestParametersOption().merge(properties, getExtraRequestParameters());
+    builder.timeoutOption().merge(properties, getTimeout());
+    builder.minTimeout(getMinTimeout());
     return builder.build();
   }
 
@@ -312,6 +344,7 @@ public interface BasicConfig {
       scopesOption().apply(properties);
       dialectOption().apply(properties);
       extraRequestParametersOption().apply(properties);
+      timeoutOption().apply(properties);
       return this;
     }
 
@@ -355,6 +388,12 @@ public interface BasicConfig {
     @CanIgnoreReturnValue
     Builder dialect(Dialect dialect);
 
+    @CanIgnoreReturnValue
+    Builder timeout(Duration timeout);
+
+    @CanIgnoreReturnValue
+    Builder minTimeout(Duration minTimeout);
+
     BasicConfig build();
 
     private ConfigOption<AccessToken> tokenOption() {
@@ -396,6 +435,10 @@ public interface BasicConfig {
 
     private ConfigOption<Map<String, String>> extraRequestParametersOption() {
       return ConfigOptions.ofPrefix(EXTRA_PARAMS_PREFIX, this::extraRequestParameters);
+    }
+
+    private ConfigOption<Duration> timeoutOption() {
+      return ConfigOptions.of(TIMEOUT, this::timeout, Duration::parse);
     }
   }
 }

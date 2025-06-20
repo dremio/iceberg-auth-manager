@@ -43,8 +43,41 @@ class TokenExchangeFlowTest {
                 .privateClient(privateClient)
                 .returnRefreshTokens(returnRefreshTokens)
                 .build();
-        Flow flow = env.newInitialTokenFetchFlow()) {
-      Tokens tokens = flow.fetchNewTokens(currentTokens);
+        FlowFactory flowFactory = env.newFlowFactory()) {
+      Flow flow = flowFactory.createInitialFlow();
+      Tokens tokens = flow.fetchNewTokens(currentTokens).toCompletableFuture().join();
+      assertTokens(tokens, "access_initial", returnRefreshTokens ? "refresh_initial" : null);
+    }
+  }
+
+  @ParameterizedTest
+  @CsvSource({
+    "true,  false, CLIENT_CREDENTIALS",
+    "true,  true,  PASSWORD",
+    "true,  false, PASSWORD",
+    "false, true,  PASSWORD",
+    "false, false, PASSWORD",
+    "true,  true,  AUTHORIZATION_CODE",
+    "true,  false, AUTHORIZATION_CODE",
+    "false, true,  AUTHORIZATION_CODE",
+    "false, false, AUTHORIZATION_CODE",
+    "true,  true,  DEVICE_CODE",
+    "true,  false, DEVICE_CODE",
+    "false, true,  DEVICE_CODE",
+    "false, false, DEVICE_CODE",
+  })
+  void fetchNewTokensDynamic(
+      boolean privateClient, boolean returnRefreshTokens, GrantType grantType) {
+    try (TestEnvironment env =
+            TestEnvironment.builder()
+                .grantType(GrantType.TOKEN_EXCHANGE)
+                .privateClient(privateClient)
+                .returnRefreshTokens(returnRefreshTokens)
+                .subjectGrantType(grantType)
+                .build();
+        FlowFactory flowFactory = env.newFlowFactory()) {
+      Flow flow = flowFactory.createInitialFlow();
+      Tokens tokens = flow.fetchNewTokens(currentTokens).toCompletableFuture().join();
       assertTokens(tokens, "access_initial", returnRefreshTokens ? "refresh_initial" : null);
     }
   }

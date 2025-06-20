@@ -47,24 +47,5 @@ public abstract class MetadataDiscoveryExpectation extends AbstractExpectation {
                   .withHeader("Accept", "application/json"))
           .respond(HttpResponse.response().withBody(getJsonBody(builder.build())));
     }
-    if (getTestEnvironment().isImpersonationDiscoveryEnabled()) {
-      URI issuerUrl = getTestEnvironment().getImpersonationServerUrl();
-      URI discoveryEndpoint = getTestEnvironment().getImpersonationDiscoveryEndpoint();
-      ImmutableMetadataDiscoveryResponse.Builder builder =
-          ImmutableMetadataDiscoveryResponse.builder()
-              .issuerUrl(issuerUrl)
-              .tokenEndpoint(getTestEnvironment().getImpersonationTokenEndpoint())
-              .authorizationEndpoint(getTestEnvironment().getAuthorizationEndpoint());
-      if (getTestEnvironment().isIncludeDeviceAuthEndpointInDiscoveryMetadata()) {
-        builder.deviceAuthorizationEndpoint(getTestEnvironment().getDeviceAuthorizationEndpoint());
-      }
-      getClientAndServer()
-          .when(
-              HttpRequest.request()
-                  .withMethod("GET")
-                  .withPath(discoveryEndpoint.getPath())
-                  .withHeader("Accept", "application/json"))
-          .respond(HttpResponse.response().withBody(getJsonBody(builder.build())));
-    }
   }
 }

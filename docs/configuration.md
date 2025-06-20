@@ -133,6 +133,10 @@ The Iceberg dialect's main differences from standard OAuth2 are:
 
 Optional. The default value is `iceberg_rest` if either `rest.auth.oauth2.token` is provided or `rest.auth.oauth2.token-endpoint` contains a relative URI, and `standard` otherwise.
 
+### `rest.auth.oauth2.timeout`
+
+Defines how long the agent should wait for tokens to be acquired. Optional, defaults to `PT5M`.
+
 ## Client Assertion Settings
 
 ### `rest.auth.oauth2.client-assertion.jwt.issuer`
@@ -233,10 +237,6 @@ Context path of the OAuth2 authorization code flow local web server.
 
 Optional; if not present, a default context path will be used.
 
-### `rest.auth.oauth2.auth-code.timeout`
-
-Defines how long the agent should wait for the authorization code flow to complete. In other words, how long the agent should wait for the user to log in and authorize the application. This is only used if the grant type to use is `authorization_code`. Optional, defaults to `PT5M`.
-
 ### `rest.auth.oauth2.auth-code.pkce.enabled`
 
 Whether to enable PKCE (Proof Key for Code Exchange) for the authorization code flow. The default is `true`.
@@ -253,15 +253,81 @@ URL of the OAuth2 device authorization endpoint. For Keycloak, this is typically
 
 If using the "Device Code" grant type, either this property or `rest.auth.oauth2.issuer-url` must be set.
 
-### `rest.auth.oauth2.device-code.timeout`
-
-Defines how long the agent should wait for the device code flow to complete. In other words, how long the agent should wait for the user to log in and authorize the application. This is only used if the grant type to use is `device_code`. Optional, defaults to `PT5M`.
-
 ### `rest.auth.oauth2.device-code.poll-interval`
 
 Defines how often the agent should poll the OAuth2 server for the device code flow to complete. This is only used if the grant type to use is `device_code`. Optional, defaults to `PT5S`.
 
 ## Token Exchange Settings
+
+### `rest.auth.oauth2.token-exchange.subject-token`
+
+For token exchanges only. The subject token to exchange.
+
+If this value is present, the subject token will be used as-is. If this value is not present, the subject token will be dynamically fetched using the configuration provided under the `rest.auth.oauth2.token-exchange.subject-token.` prefix.
+
+### `rest.auth.oauth2.token-exchange.subject-token-type`
+
+For token exchanges only. The type of the subject token. Must be a valid URN. The default is `urn:ietf:params:oauth:token-type:access_token`.
+
+### `rest.auth.oauth2.token-exchange.actor-token`
+
+For token exchanges only. The actor token to exchange.
+
+If this value is present, the actor token will be used as-is. If this value is not present, the actor token will be dynamically fetched using the configuration provided under the `rest.auth.oauth2.token-exchange.actor-token.` prefix. If no configuration is provided, no actor token will be used.
+
+### `rest.auth.oauth2.token-exchange.actor-token-type`
+
+For token exchanges only. The type of the actor token. Must be a valid URN. The default is `urn:ietf:params:oauth:token-type:access_token`.
+
+If the agent is configured to dynamically fetch the actor token, this property is ignored since only access tokens can be dynamically fetched.
+
+### `rest.auth.oauth2.token-exchange.requested-token-type`
+
+For token exchanges only. The type of the requested security token. Must be a valid URN. The default is `urn:ietf:params:oauth:token-type:access_token`.
+
+### `rest.auth.oauth2.token-exchange.subject-token.`
+
+For token exchanges only. The configuration to use for fetching the subject token. Required if `rest.auth.oauth2.token-exchange.subject-token` is not set.
+
+This is a prefix property; any property that can be set under the `rest.auth.oauth2.` prefix can also be set under this prefix.
+
+The effective subject token fetch configuration will be the result of merging the subject-specific configuration with the main configuration.
+
+Example:
+
+```
+rest.auth.oauth2.grant-type=token_exchange
+rest.auth.oauth2.token-endpoint=https://main-token-endpoint.com/token
+rest.auth.oauth2.client-id=main-client-id
+rest.auth.oauth2.client-secret=main-client-secret
+rest.auth.oauth2.token-exchange.subject-token.grant-type=client_credentials
+rest.auth.oauth2.token-exchange.subject-token.client-id=subject-client-id
+rest.auth.oauth2.token-exchange.subject-token.client-secret=subject-client-secret
+```
+
+The above configuration will result in a token exchange where the subject token is obtained using the client credentials grant type, with specific client ID and secret, but sharing the token endpoint, client authentication method and other settings with the main agent.
+
+### `rest.auth.oauth2.token-exchange.actor-token.`
+
+For token exchanges only. The configuration to use for fetching the actor token. Optional; required only if `rest.auth.oauth2.token-exchange.actor-token` is not set but an actor token is required.
+
+This is a prefix property; any property that can be set under the `rest.auth.oauth2.` prefix can also be set under this prefix.
+
+The effective actor token fetch configuration will be the result of merging the actor-specific configuration with the main configuration.
+
+Example:
+
+```
+rest.auth.oauth2.grant-type=token_exchange
+rest.auth.oauth2.token-endpoint=https://main-token-endpoint.com/token
+rest.auth.oauth2.client-id=main-client-id
+rest.auth.oauth2.client-secret=main-client-secret
+rest.auth.oauth2.token-exchange.actor-token.grant-type=client_credentials
+rest.auth.oauth2.token-exchange.actor-token.client-id=actor-client-id
+rest.auth.oauth2.token-exchange.actor-token.client-secret=actor-client-secret
+```
+
+The above configuration will result in a token exchange where the actor token is obtained using the client credentials grant type, with specific client ID and secret, but sharing the token endpoint, client authentication method and other settings with the main agent.
 
 ### `rest.auth.oauth2.token-exchange.resource`
 
@@ -270,125 +336,6 @@ For token exchanges only. A URI that indicates the target service or resource wh
 ### `rest.auth.oauth2.token-exchange.audience`
 
 For token exchanges only. The logical name of the target service where the client intends to use the requested security token. This serves a purpose similar to the resource parameter but with the client providing a logical name for the target service.
-
-### `rest.auth.oauth2.token-exchange.subject-token`
-
-For token exchanges only. The subject token to exchange. This can take 2 kinds of values:
-
-- The value `current_access_token`, if the agent should use its current access token;
-- An arbitrary token: in this case, the agent will always use the static token provided here.
-
-The default is to use the current access token. Note: when using token exchange as the initial grant type, no current access token will be available: in this case, a valid, static subject token to exchange must be provided via configuration.
-
-### `rest.auth.oauth2.token-exchange.subject-token-type`
-
-For token exchanges only. The type of the subject token. Must be a valid URN. The default is `urn:ietf:params:oauth:token-type:access_token`.
-
-If the agent is configured to use its access token as the subject token, please note that if an incorrect token type is provided here, the token exchange could fail.
-
-### `rest.auth.oauth2.token-exchange.actor-token`
-
-For token exchanges only. The actor token to exchange. This can take 2 kinds of values:
-
-- The value `current_access_token`, if the agent should use its current access token;
-- An arbitrary token: in this case, the agent will always use the static token provided here.
-
-The default is to not include any actor token.
-
-### `rest.auth.oauth2.token-exchange.actor-token-type`
-
-For token exchanges only. The type of the actor token. Must be a valid URN. The default is `urn:ietf:params:oauth:token-type:access_token`.
-
-If the agent is configured to use its access token as the actor token, please note that if an incorrect token type is provided here, the token exchange could fail.
-
-## Impersonation Settings
-
-### `rest.auth.oauth2.impersonation.enabled`
-
-Whether to enable "impersonation" mode. If enabled, each access token obtained from the OAuth2 server using the configured initial grant type will be exchanged for a new token, using the token exchange grant type.
-
-### `rest.auth.oauth2.impersonation.issuer-url`
-
-For impersonation only. The root URL of an alternate OpenID Connect identity issuer provider, to use when exchanging tokens only.
-
-Either this property or `rest.auth.oauth2.impersonation.token-endpoint` must be set.
-
-Endpoint discovery is performed using the OpenID Connect Discovery metadata published by the issuer. See [OpenID Connect Discovery 1.0](https://openid.net/specs/openid-connect-discovery-1_0.html) for more information.
-
-### `rest.auth.oauth2.impersonation.token-endpoint`
-
-For impersonation only. The URL of an alternate OAuth2 token endpoint to use when exchanging tokens only.
-
-Either this property or `rest.auth.oauth2.impersonation.issuer-url` must be set.
-
-### `rest.auth.oauth2.impersonation.client-id`
-
-For impersonation only. The OAUth2 client ID to use.
-
-### `rest.auth.oauth2.impersonation.client-auth`
-
-For impersonation only. The OAUth2 client authentication method to use. Valid values are:
-
-- `none`: the client does not authenticate itself at the token endpoint, because it is a public client with no client secret or other authentication mechanism.
-- `client_secret_basic`: client secret is sent in the HTTP Basic Authorization header.
-- `client_secret_post`: client secret is sent in the request body as a form parameter.
-- `client_secret_jwt`: client secret is used to sign a JWT token.
-- `private_key_jwt`: client authenticates with a JWT assertion signed with a private key.
-
-The default is `client_secret_basic` if the client is private, or `none` if the client is public.
-
-### `rest.auth.oauth2.impersonation.client-secret`
-
-For impersonation only. The OAUth2 client secret to use. Must be set if the client is private (confidential) and client authentication is done using a client secret.
-
-### `rest.auth.oauth2.impersonation.scope`
-
-For impersonation only. Space-separated list of scopes to include in each token exchange request to the OAuth2 server. Optional.
-
-The scope names will not be validated by the OAuth2 agent; make sure they are valid according to [RFC 6749 Section 3.3](https://datatracker.ietf.org/doc/html/rfc6749#section-3.3).
-
-### `rest.auth.oauth2.impersonation.extra-params.`
-
-Extra parameters to include in each request to the token endpoint, when using impersonation. This is useful for custom parameters that are not covered by the standard OAuth2.0 specification.
-
-This is a prefix property, and multiple values can be set, each with a different key and value. The values must NOT be URL-encoded. Example:
-
-```
-rest.auth.oauth2.impersonation.extra-params.custom_param1=custom_value1"
-rest.auth.oauth2.impersonation.extra-params.custom_param2=custom_value2"
-```
-
-## Impersonation Client Assertion Settings
-
-### `rest.auth.oauth2.impersonation.client-assertion.jwt.issuer`
-
-For impersonation only. The issuer of the client assertion JWT. Optional. The default is the client ID.
-
-### `rest.auth.oauth2.impersonation.client-assertion.jwt.subject`
-
-For impersonation only. The subject of the client assertion JWT. Optional. The default is the client ID.
-
-### `rest.auth.oauth2.impersonation.client-assertion.jwt.audience`
-
-For impersonation only. The audience of the client assertion JWT. Optional. The default is the token endpoint.
-
-### `rest.auth.oauth2.impersonation.client-assertion.jwt.token-lifespan`
-
-For impersonation only. The expiration time of the client assertion JWT. Optional. The default is 5 minutes.
-
-### `rest.auth.oauth2.impersonation.client-assertion.jwt.algorithm`
-
-For impersonation only. The signing algorithm to use for the client assertion JWT. Optional. The default is `hmac_sha512` if the authentication method is `client_secret_jwt`, or `rsa_sha512` if the authentication method is `private_key_jwt`.
-
-Algorithm names must match either the JWS name or the JCA name of the algorithm.
-
-### `rest.auth.oauth2.impersonation.client-assertion.jwt.private-key`
-
-For impersonation only. The path on the local filesystem to the private key to use for signing the client assertion JWT. Required if the authentication method is `private_key_jwt`. The file must be in PEM format, and the first object in the file must be a private key.
-
-### `rest.auth.oauth2.impersonation.client-assertion.jwt.extra-claims.`
-
-For impersonation only. Extra claims to include in the client assertion JWT. This is a prefix property, and multiple values can be set, each with a different key and value.
 
 ## Runtime Settings
 

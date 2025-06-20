@@ -131,9 +131,13 @@ public class DocumentationGenerator {
     return className.replaceAll("([A-Z])", " $1").trim() + " Settings";
   }
 
-  private String resolvePrefix(JavaClass nestedClass) {
-    JavaField prefixField = nestedClass.getFieldByName("PREFIX");
+  private String resolvePrefix(JavaClass classRef) {
+    if (classRef == topClass) {
+      return "";
+    }
+    JavaField prefixField = classRef.getFieldByName("PREFIX");
     if (prefixField == null) {
+      // Basic config: shares the root prefix
       return rootPrefix;
     } else {
       return rootPrefix
@@ -211,7 +215,10 @@ public class DocumentationGenerator {
     if (KNOWN_ENUMS.contains(className)) {
       refTarget = fieldName.toLowerCase(Locale.ROOT);
     } else {
-      JavaClass classRef = topClass.getNestedClassByName(className);
+      JavaClass classRef =
+          className.equals("OAuth2Properties")
+              ? topClass
+              : topClass.getNestedClassByName(className);
       JavaField field = classRef.getFieldByName(fieldName);
       if (fieldName.startsWith("DEFAULT_")) {
         refTarget = field.getInitializationExpression().replace("\"", "");

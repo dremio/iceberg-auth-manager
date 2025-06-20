@@ -15,10 +15,13 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.config;
 
+import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.TokenExchange.ACTOR_CONFIG_PREFIX;
 import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.TokenExchange.ACTOR_TOKEN;
 import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.TokenExchange.ACTOR_TOKEN_TYPE;
 import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.TokenExchange.AUDIENCE;
+import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.TokenExchange.REQUESTED_TOKEN_TYPE;
 import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.TokenExchange.RESOURCE;
+import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.TokenExchange.SUBJECT_CONFIG_PREFIX;
 import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.TokenExchange.SUBJECT_TOKEN;
 import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.TokenExchange.SUBJECT_TOKEN_TYPE;
 import static com.dremio.iceberg.authmgr.oauth2.token.TypedToken.URN_ACCESS_TOKEN;
@@ -26,9 +29,8 @@ import static com.dremio.iceberg.authmgr.oauth2.token.TypedToken.URN_ACCESS_TOKE
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties;
 import com.dremio.iceberg.authmgr.oauth2.config.option.ConfigOption;
 import com.dremio.iceberg.authmgr.oauth2.config.option.ConfigOptions;
+import com.dremio.iceberg.authmgr.oauth2.config.validator.ConfigValidator;
 import com.dremio.iceberg.authmgr.oauth2.token.TypedToken;
-import com.dremio.iceberg.authmgr.oauth2.token.provider.TokenProvider;
-import com.dremio.iceberg.authmgr.oauth2.token.provider.TokenProviders;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.net.URI;
@@ -49,10 +51,59 @@ public interface TokenExchangeConfig {
   TokenExchangeConfig DEFAULT = builder().build();
 
   /**
+   * The subject token to exchange.
+   *
+   * <p>If this value is present, the subject token will be used as-is. If this value is not
+   * present, the subject token will be dynamically fetched using the configuration provided under
+   * {@link #getSubjectTokenConfig()}.
+   *
+   * @see OAuth2Properties.TokenExchange#SUBJECT_TOKEN
+   */
+  Optional<String> getSubjectToken();
+
+  /**
+   * The type of the subject token. Must be a valid URN. The default is {@link
+   * TypedToken#URN_ACCESS_TOKEN}.
+   *
+   * <p>If the agent is configured to dynamically fetch the subject token, this property is ignored
+   * since only access tokens can be dynamically fetched.
+   *
+   * @see OAuth2Properties.TokenExchange#SUBJECT_TOKEN_TYPE
+   */
+  @Value.Default
+  default URI getSubjectTokenType() {
+    return TypedToken.URN_ACCESS_TOKEN;
+  }
+
+  /**
+   * The actor token to exchange.
+   *
+   * <p>If this value is present, the actor token will be used as-is. If this value is not present,
+   * the actor token will be dynamically fetched using the configuration provided under {@link
+   * #getActorTokenConfig()}. If no configuration is provided, no actor token will be used.
+   *
+   * @see OAuth2Properties.TokenExchange#ACTOR_TOKEN
+   */
+  Optional<String> getActorToken();
+
+  /**
+   * The type of the actor token. Must be a valid URN. The default is {@link
+   * TypedToken#URN_ACCESS_TOKEN}.
+   *
+   * <p>If the agent is configured to dynamically fetch the actor token, this property is ignored
+   * since only access tokens can be dynamically fetched.
+   *
+   * @see OAuth2Properties.TokenExchange#ACTOR_TOKEN_TYPE
+   */
+  @Value.Default
+  default URI getActorTokenType() {
+    return TypedToken.URN_ACCESS_TOKEN;
+  }
+
+  /**
    * The type of the requested security token. By default, {@link TypedToken#URN_ACCESS_TOKEN}.
    *
-   * <p>Currently, it is not possible to request any other token type, so this property is not
-   * configurable through system properties.
+   * @see OAuth2Properties.TokenExchange#REQUESTED_TOKEN_TYPE
    */
   @Value.Default
   default URI getRequestedTokenType() {
@@ -77,50 +128,39 @@ public interface TokenExchangeConfig {
   Optional<String> getAudience();
 
   /**
-   * The subject token provider. The provider will be invoked with the current access token; it
-   * should return a {@link TypedToken} representing the subject token. It must NOT return null.
+   * The configuration to use for fetching the subject token. Required if {@link #getSubjectToken()}
+   * is not set.
    *
-   * <p>Note that the current access token may be null if token exchange is used as an initial
-   * grant. It is the responsibility of the provider to handle this case. The current access token
-   * will never be null, however, if token exchange is used for impersonation.
-   *
-   * <p>By default, the provider will return the current access token. This should be suitable for
-   * most cases.
-   *
-   * <p>This property cannot be set through configuration, but only programmatically. The
-   * configuration exposes two options: the subject token and its type. These options allow to pass
-   * a static subject token only.
-   *
-   * @see OAuth2Properties.TokenExchange#SUBJECT_TOKEN
-   * @see OAuth2Properties.TokenExchange#SUBJECT_TOKEN_TYPE
+   * <p>Note: validation of this configuration is done lazily, when the token is actually fetched.
    */
-  @Value.Default
-  default TokenProvider getSubjectTokenProvider() {
-    return TokenProviders.CURRENT_ACCESS_TOKEN;
-  }
+  Map<String, String> getSubjectTokenConfig();
 
   /**
-   * The actor token provider. The provider will be invoked with the current access token (never
-   * null) and the current refresh token, or null if none available; and should return a {@link
-   * TypedToken} representing the actor token. If the provider returns null, then no actor token
-   * will be used.
+   * The configuration to use for fetching the actor token. Required if {@link #getActorToken()} is
+   * not set but an actor token is required.
    *
-   * <p>Note that the current access token may be null if token exchange is used as an initial
-   * grant. It is the responsibility of the provider to handle this case. The current access token
-   * will never be null, however, if token exchange is used for impersonation.
-   *
-   * <p>Actor tokens are useful in delegation scenarios. By default, no actor token is used.
-   *
-   * <p>This property cannot be set through configuration, but only programmatically. The
-   * configuration exposes two options: the actor token and its type. These options allow to pass a
-   * static actor token only.
-   *
-   * @see OAuth2Properties.TokenExchange#ACTOR_TOKEN
-   * @see OAuth2Properties.TokenExchange#ACTOR_TOKEN_TYPE
+   * <p>Note: validation of this configuration is done lazily, when the token is actually fetched.
    */
-  @Value.Default
-  default TokenProvider getActorTokenProvider() {
-    return TokenProviders.NULL_TOKEN;
+  Map<String, String> getActorTokenConfig();
+
+  @Value.Check
+  default void validate() {
+    ConfigValidator validator = new ConfigValidator();
+    if (getSubjectToken().isEmpty()) {
+      validator.check(
+          getSubjectTokenType().equals(TypedToken.URN_ACCESS_TOKEN),
+          SUBJECT_TOKEN_TYPE,
+          "subject token type must be %s when using dynamic subject token",
+          TypedToken.URN_ACCESS_TOKEN);
+    }
+    if (getActorToken().isEmpty()) {
+      validator.check(
+          getActorTokenType().equals(TypedToken.URN_ACCESS_TOKEN),
+          ACTOR_TOKEN_TYPE,
+          "actor token type must be %s when using dynamic actor token",
+          TypedToken.URN_ACCESS_TOKEN);
+    }
+    validator.validate();
   }
 
   /** Merges the given properties into this {@link TokenExchangeConfig} and returns the result. */
@@ -129,8 +169,13 @@ public interface TokenExchangeConfig {
     TokenExchangeConfig.Builder builder = builder();
     builder.resourceOption().merge(properties, getResource());
     builder.audienceOption().merge(properties, getAudience());
-    builder.subjectTokenProviderOption().merge(properties, getSubjectTokenProvider());
-    builder.actorTokenProviderOption().merge(properties, getActorTokenProvider());
+    builder.subjectTokenOption().merge(properties, getSubjectToken());
+    builder.actorTokenOption().merge(properties, getActorToken());
+    builder.subjectTokenTypeOption().merge(properties, getSubjectTokenType());
+    builder.actorTokenTypeOption().merge(properties, getActorTokenType());
+    builder.subjectTokenConfigOption().merge(properties, getSubjectTokenConfig());
+    builder.actorTokenConfigOption().merge(properties, getActorTokenConfig());
+    builder.requestedTokenTypeOption().merge(properties, getRequestedTokenType());
     return builder.build();
   }
 
@@ -148,8 +193,13 @@ public interface TokenExchangeConfig {
       Objects.requireNonNull(properties, "properties must not be null");
       resourceOption().apply(properties);
       audienceOption().apply(properties);
-      subjectTokenProviderOption().apply(properties);
-      actorTokenProviderOption().apply(properties);
+      subjectTokenOption().apply(properties);
+      actorTokenOption().apply(properties);
+      subjectTokenTypeOption().apply(properties);
+      actorTokenTypeOption().apply(properties);
+      subjectTokenConfigOption().apply(properties);
+      actorTokenConfigOption().apply(properties);
+      requestedTokenTypeOption().apply(properties);
       return this;
     }
 
@@ -163,20 +213,22 @@ public interface TokenExchangeConfig {
     Builder audience(String audience);
 
     @CanIgnoreReturnValue
-    Builder subjectTokenProvider(TokenProvider provider);
+    Builder subjectToken(String token);
 
     @CanIgnoreReturnValue
-    Builder actorTokenProvider(TokenProvider provider);
+    Builder actorToken(String token);
 
     @CanIgnoreReturnValue
-    default Builder subjectToken(TypedToken token) {
-      return subjectTokenProvider(TokenProviders.staticToken(token));
-    }
+    Builder subjectTokenType(URI tokenType);
 
     @CanIgnoreReturnValue
-    default Builder actorToken(TypedToken token) {
-      return actorTokenProvider(TokenProviders.staticToken(token));
-    }
+    Builder actorTokenType(URI tokenType);
+
+    @CanIgnoreReturnValue
+    Builder subjectTokenConfig(Map<String, ? extends String> config);
+
+    @CanIgnoreReturnValue
+    Builder actorTokenConfig(Map<String, ? extends String> config);
 
     TokenExchangeConfig build();
 
@@ -188,13 +240,34 @@ public interface TokenExchangeConfig {
       return ConfigOptions.of(AUDIENCE, this::audience);
     }
 
-    private ConfigOption<TokenProvider> subjectTokenProviderOption() {
-      return ConfigOptions.ofTokenProvider(
-          SUBJECT_TOKEN, SUBJECT_TOKEN_TYPE, this::subjectTokenProvider);
+    private ConfigOption<String> subjectTokenOption() {
+      return ConfigOptions.of(SUBJECT_TOKEN, this::subjectToken);
     }
 
-    private ConfigOption<TokenProvider> actorTokenProviderOption() {
-      return ConfigOptions.ofTokenProvider(ACTOR_TOKEN, ACTOR_TOKEN_TYPE, this::actorTokenProvider);
+    private ConfigOption<String> actorTokenOption() {
+      return ConfigOptions.of(ACTOR_TOKEN, this::actorToken);
+    }
+
+    private ConfigOption<URI> subjectTokenTypeOption() {
+      return ConfigOptions.of(SUBJECT_TOKEN_TYPE, this::subjectTokenType, URI::create);
+    }
+
+    private ConfigOption<URI> actorTokenTypeOption() {
+      return ConfigOptions.of(ACTOR_TOKEN_TYPE, this::actorTokenType, URI::create);
+    }
+
+    private ConfigOption<Map<String, String>> subjectTokenConfigOption() {
+      return ConfigOptions.ofPrefix(
+          SUBJECT_CONFIG_PREFIX, OAuth2Properties.PREFIX, this::subjectTokenConfig);
+    }
+
+    private ConfigOption<Map<String, String>> actorTokenConfigOption() {
+      return ConfigOptions.ofPrefix(
+          ACTOR_CONFIG_PREFIX, OAuth2Properties.PREFIX, this::actorTokenConfig);
+    }
+
+    private ConfigOption<URI> requestedTokenTypeOption() {
+      return ConfigOptions.of(REQUESTED_TOKEN_TYPE, this::requestedTokenType, URI::create);
     }
   }
 }

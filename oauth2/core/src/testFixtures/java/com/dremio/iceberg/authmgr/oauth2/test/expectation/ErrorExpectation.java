@@ -50,11 +50,6 @@ public abstract class ErrorExpectation extends AbstractExpectation {
     getClientAndServer()
         .when(
             HttpRequest.request()
-                .withPath(getTestEnvironment().getImpersonationServerContextPath() + ".*"))
-        .respond(AUTHORIZATION_SERVER_ERROR_RESPONSE);
-    getClientAndServer()
-        .when(
-            HttpRequest.request()
                 .withPath(getTestEnvironment().getCatalogServerContextPath() + ".*"))
         .respond(CATALLG_SERVER_ERROR_RESPONSE);
   }

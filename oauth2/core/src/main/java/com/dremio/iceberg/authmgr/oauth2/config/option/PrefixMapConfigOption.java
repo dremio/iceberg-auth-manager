@@ -19,12 +19,15 @@ import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import org.apache.iceberg.rest.RESTUtil;
 
 @AuthManagerImmutable
 abstract class PrefixMapConfigOption extends ConfigOption<Map<String, String>> {
 
   protected abstract String prefix();
+
+  protected abstract Optional<String> replacementPrefix();
 
   @Override
   public void apply(Map<String, String> properties) {
@@ -33,11 +36,12 @@ abstract class PrefixMapConfigOption extends ConfigOption<Map<String, String>> {
       Map<String, String> merged = new HashMap<>(fallback().orElse(Map.of()));
       for (Entry<String, String> entry : updates.entrySet()) {
         String value = entry.getValue();
+        String key = replacementPrefix().map(p -> p + entry.getKey()).orElse(entry.getKey());
         if (shouldSetOption(value)) {
-          merged.put(entry.getKey(), value.trim());
+          merged.put(key, value.trim());
         } else {
           // consider an empty or null value as a map entry removal
-          merged.remove(entry.getKey());
+          merged.remove(key);
         }
       }
       setter().accept(merged);

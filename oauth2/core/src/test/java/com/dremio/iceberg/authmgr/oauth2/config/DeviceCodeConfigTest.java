@@ -17,7 +17,6 @@ package com.dremio.iceberg.authmgr.oauth2.config;
 
 import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.DeviceCode.ENDPOINT;
 import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.DeviceCode.POLL_INTERVAL;
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.DeviceCode.TIMEOUT;
 import static java.util.Collections.singletonList;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
@@ -62,12 +61,6 @@ class DeviceCodeConfigTest {
         Arguments.of(
             DeviceCodeConfig.builder()
                 .deviceAuthorizationEndpoint(URI.create("https://example.com"))
-                .timeout(Duration.ofSeconds(1)),
-            singletonList(
-                "device code flow: timeout must be greater than or equal to PT30S (rest.auth.oauth2.device-code.timeout)")),
-        Arguments.of(
-            DeviceCodeConfig.builder()
-                .deviceAuthorizationEndpoint(URI.create("https://example.com"))
                 .pollInterval(Duration.ofSeconds(1)),
             singletonList(
                 "device code flow: poll interval must be greater than or equal to PT5S (rest.auth.oauth2.device-code.poll-interval)")));
@@ -92,11 +85,10 @@ class DeviceCodeConfigTest {
     return Stream.of(
         Arguments.of(null, null, new NullPointerException("properties must not be null")),
         Arguments.of(
-            Map.of(ENDPOINT, "https://example.com/device", POLL_INTERVAL, "PT8S", TIMEOUT, "PT45S"),
+            Map.of(ENDPOINT, "https://example.com/device", POLL_INTERVAL, "PT8S"),
             DeviceCodeConfig.builder()
                 .deviceAuthorizationEndpoint(URI.create("https://example.com/device"))
                 .pollInterval(Duration.ofSeconds(8))
-                .timeout(Duration.ofSeconds(45))
                 .build(),
             null));
   }
@@ -112,44 +104,37 @@ class DeviceCodeConfigTest {
     return Stream.of(
         Arguments.of(
             DeviceCodeConfig.builder().build(),
-            Map.of(ENDPOINT, "https://example.com/device", POLL_INTERVAL, "PT8S", TIMEOUT, "PT45S"),
+            Map.of(ENDPOINT, "https://example.com/device", POLL_INTERVAL, "PT8S"),
             DeviceCodeConfig.builder()
                 .deviceAuthorizationEndpoint(URI.create("https://example.com/device"))
                 .pollInterval(Duration.ofSeconds(8))
-                .timeout(Duration.ofSeconds(45))
                 .build()),
         Arguments.of(
             DeviceCodeConfig.builder()
                 .deviceAuthorizationEndpoint(URI.create("https://example.com/device"))
                 .pollInterval(Duration.ofSeconds(8))
-                .timeout(Duration.ofSeconds(45))
                 .build(),
             Map.of(),
             DeviceCodeConfig.builder()
                 .deviceAuthorizationEndpoint(URI.create("https://example.com/device"))
                 .pollInterval(Duration.ofSeconds(8))
-                .timeout(Duration.ofSeconds(45))
                 .build()),
         Arguments.of(
             DeviceCodeConfig.builder()
                 .deviceAuthorizationEndpoint(URI.create("https://example.com/device"))
                 .pollInterval(Duration.ofSeconds(8))
-                .timeout(Duration.ofSeconds(45))
                 .build(),
-            Map.of(
-                ENDPOINT, "https://example2.com/device", POLL_INTERVAL, "PT9S", TIMEOUT, "PT50S"),
+            Map.of(ENDPOINT, "https://example2.com/device", POLL_INTERVAL, "PT9S"),
             DeviceCodeConfig.builder()
                 .deviceAuthorizationEndpoint(URI.create("https://example2.com/device"))
                 .pollInterval(Duration.ofSeconds(9))
-                .timeout(Duration.ofSeconds(50))
                 .build()),
         Arguments.of(
             DeviceCodeConfig.builder()
                 .deviceAuthorizationEndpoint(URI.create("https://example.com/device"))
                 .pollInterval(Duration.ofSeconds(8))
-                .timeout(Duration.ofSeconds(45))
                 .build(),
-            Map.of(ENDPOINT, "", POLL_INTERVAL, "", TIMEOUT, ""),
+            Map.of(ENDPOINT, "", POLL_INTERVAL, ""),
             DeviceCodeConfig.builder().build()));
   }
 }

@@ -201,7 +201,8 @@ public class KeycloakContainer extends ExtendableKeycloakContainer<KeycloakConta
         ImmutableMap.<String, String>builder()
             .put("use.refresh.tokens", "true")
             .put("client_credentials.use_refresh_token", "false")
-            .put("oauth2.device.authorization.grant.enabled", "true");
+            .put("oauth2.device.authorization.grant.enabled", "true")
+            .put("oidc.token.exchange.allow.refresh.token", "true");
     if (authenticationMethod != ClientAuthentication.NONE) {
       switch (authenticationMethod) {
         case CLIENT_SECRET_BASIC:

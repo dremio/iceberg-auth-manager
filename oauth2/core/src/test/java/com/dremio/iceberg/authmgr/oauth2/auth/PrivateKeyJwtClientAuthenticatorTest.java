@@ -43,7 +43,7 @@ class PrivateKeyJwtClientAuthenticatorTest {
   static Path privateKeyFile;
 
   @BeforeAll
-  static void createPrivateKeyFile(@TempDir Path tempDir) throws Exception {
+  static void createPrivateKeyFile(@TempDir Path tempDir) {
     privateKeyFile = Paths.get(tempDir.toString(), "key.pem");
     TestPemUtils.copyPrivateKey(privateKeyFile);
   }

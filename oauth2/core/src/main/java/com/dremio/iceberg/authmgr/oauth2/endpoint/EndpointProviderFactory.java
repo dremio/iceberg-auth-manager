@@ -16,7 +16,7 @@
 package com.dremio.iceberg.authmgr.oauth2.endpoint;
 
 import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2AgentSpec;
-import jakarta.annotation.Nullable;
+import java.util.function.Supplier;
 import org.apache.iceberg.rest.RESTClient;
 
 public final class EndpointProviderFactory {
@@ -24,8 +24,8 @@ public final class EndpointProviderFactory {
   private EndpointProviderFactory() {}
 
   public static EndpointProvider createEndpointProvider(
-      OAuth2AgentSpec spec, RESTClient restClient) {
-    EndpointProvider.Builder builder = EndpointProvider.builder().restClient(restClient);
+      OAuth2AgentSpec spec, Supplier<RESTClient> restClient) {
+    EndpointProvider.Builder builder = EndpointProvider.builder().restClientSupplier(restClient);
     spec.getBasicConfig().getIssuerUrl().ifPresent(builder::issuerUrl);
     spec.getBasicConfig().getTokenEndpoint().ifPresent(builder::tokenEndpoint);
     spec.getAuthorizationCodeConfig()
@@ -34,15 +34,6 @@ public final class EndpointProviderFactory {
     spec.getDeviceCodeConfig()
         .getDeviceAuthorizationEndpoint()
         .ifPresent(builder::deviceAuthorizationEndpoint);
-    return builder.build();
-  }
-
-  @Nullable
-  public static EndpointProvider createImpersonatingEndpointProvider(
-      OAuth2AgentSpec spec, RESTClient restClient) {
-    EndpointProvider.Builder builder = EndpointProvider.builder().restClient(restClient);
-    spec.getImpersonationConfig().getIssuerUrl().ifPresent(builder::issuerUrl);
-    spec.getImpersonationConfig().getTokenEndpoint().ifPresent(builder::tokenEndpoint);
     return builder.build();
   }
 }
