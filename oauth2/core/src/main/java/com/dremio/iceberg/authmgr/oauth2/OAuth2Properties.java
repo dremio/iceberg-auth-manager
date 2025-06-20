@@ -642,7 +642,7 @@ public final class OAuth2Properties {
      * working after this time, but that the session cache will evict the session after this time of
      * inactivity. If the context is used again, a new session will be created and cached.
      */
-    public static final String SESSION_CACHE_TIMEOUT = Runtime.PREFIX + "session-cache-timeout";
+    public static final String SESSION_CACHE_TIMEOUT = Manager.PREFIX + "session-cache-timeout";
 
     public static final String DEFAULT_SESSION_CACHE_TIMEOUT = "PT1H";
 
@@ -656,7 +656,7 @@ public final class OAuth2Properties {
      * <p>When disabled, legacy properties are ignored.
      */
     public static final String MIGRATE_LEGACY_PROPERTIES =
-        Runtime.PREFIX + "migrate-legacy-properties";
+        Manager.PREFIX + "migrate-legacy-properties";
   }
 
   private OAuth2Properties() {
