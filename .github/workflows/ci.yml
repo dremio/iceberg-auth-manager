@@ -69,10 +69,10 @@ jobs:
         run: |
           echo "::group::Build Apache Polaris"
           cd $GITHUB_WORKSPACE/polaris
-          # The `:polaris-quarkus-server:quarkusAppPartsBuild --rerun` is REQUIRED to trigger the
+          # The `:polaris-server:quarkusAppPartsBuild --rerun` is REQUIRED to trigger the
           # Docker image build regardless of whether the Gradle task's up-to-date/cached.
-          ./gradlew --no-scan :polaris-quarkus-server:imageBuild \
-            :polaris-quarkus-server:quarkusAppPartsBuild --rerun \
+          ./gradlew --no-scan :polaris-server:imageBuild \
+            :polaris-server:quarkusAppPartsBuild --rerun \
             -Dquarkus.container-image.tag=latest \
             -Dquarkus.container-image.build=true
           echo "::endgroup::"
