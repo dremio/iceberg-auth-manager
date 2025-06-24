@@ -37,16 +37,8 @@ jobs:
 
     steps:
 
-      - name: Checkout Apache Polaris
-        uses: actions/checkout@v4
-        with:
-          repository: apache/polaris
-          path: polaris
-
       - name: Checkout Project
         uses: actions/checkout@v4
-        with:
-          path: authmgr
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -63,36 +55,15 @@ jobs:
           # Our `gradlew` validates the integrity of the `gradle-wrapper.jar`, so it's safe to disable this.
           validate-wrappers: false
 
-      - name: Gradle Build Apache Polaris
-        env:
-          GITHUB_WORKSPACE: ${{ github.workspace }}
-        run: |
-          echo "::group::Build Apache Polaris"
-          cd $GITHUB_WORKSPACE/polaris
-          # The `:polaris-server:quarkusAppPartsBuild --rerun` is REQUIRED to trigger the
-          # Docker image build regardless of whether the Gradle task's up-to-date/cached.
-          ./gradlew --no-scan :polaris-server:imageBuild \
-            :polaris-server:quarkusAppPartsBuild --rerun \
-            -Dquarkus.container-image.tag=latest \
-            -Dquarkus.container-image.build=true
-          echo "::endgroup::"
-
-          echo "::group::List Docker images"
-          docker image ls -a
-          echo "::endgroup::"
-
       - name: Gradle Build Project
         env:
           GITHUB_WORKSPACE: ${{ github.workspace }}
-        run: |
-          cd $GITHUB_WORKSPACE/authmgr
-          ./gradlew --continue --scan build publish
+        run: ./gradlew --continue --scan build publish
 
       - name: Gradle Check Generated Docs
         env:
           GITHUB_WORKSPACE: ${{ github.workspace }}
         run: |
-          cd $GITHUB_WORKSPACE/authmgr
           ./gradlew --no-scan :authmgr-docs-generator:generateDocs
           git diff --exit-code docs/configuration.md
           if [ $? -ne 0 ]; then
@@ -107,8 +78,3 @@ jobs:
           name: upload-test-artifacts
           path: |
             **/build/test-results/**
-
-      - name: Stop Gradle daemons
-        run: |
-          $GITHUB_WORKSPACE/polaris/gradlew --stop
-          $GITHUB_WORKSPACE/authmgr/gradlew --stop
