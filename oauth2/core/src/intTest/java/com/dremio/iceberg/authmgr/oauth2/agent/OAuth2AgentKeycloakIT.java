@@ -269,14 +269,13 @@ public class OAuth2AgentKeycloakIT {
   /**
    * Tests a simple impersonation scenario with the agent using its own token as the subject token,
    * and no actor token. The agent swaps its token for another one, roughly equivalent. Refresh
-   * tokens are present, except when the subject token's grant was client credentials: since no
-   * refresh token is returned in this case for the subject token, the exchanged token does not have
-   * a refresh token either.
+   * tokens are present, which is why the client credentials grant cannot be used for the subject
+   * token.
    */
   @ParameterizedTest
   @EnumSource(
       value = GrantType.class,
-      names = {"CLIENT_CREDENTIALS", "PASSWORD", "AUTHORIZATION_CODE", "DEVICE_CODE"})
+      names = {"PASSWORD", "AUTHORIZATION_CODE", "DEVICE_CODE"})
   void impersonation2(GrantType subjectGrantType, Builder envBuilder) {
     try (TestEnvironment env =
             envBuilder
@@ -290,26 +289,25 @@ public class OAuth2AgentKeycloakIT {
       Tokens impersonatedTokens = agent.authenticateInternal();
       introspectToken(impersonatedTokens.getAccessToken(), TestConstants.CLIENT_ID1);
       // token refresh
-      if (subjectGrantType == GrantType.CLIENT_CREDENTIALS) {
-        soft.assertThat(impersonatedTokens.getRefreshToken()).isNull();
-      } else {
-        soft.assertThat(impersonatedTokens.getRefreshToken()).isNotNull();
-        Tokens refreshedTokens =
-            agent.refreshCurrentTokens(impersonatedTokens).toCompletableFuture().join();
-        introspectToken(refreshedTokens.getAccessToken(), TestConstants.CLIENT_ID1);
-        soft.assertThat(refreshedTokens.getRefreshToken()).isNotNull();
-      }
+      soft.assertThat(impersonatedTokens.getRefreshToken()).isNotNull();
+      Tokens refreshedTokens =
+          agent.refreshCurrentTokens(impersonatedTokens).toCompletableFuture().join();
+      introspectToken(refreshedTokens.getAccessToken(), TestConstants.CLIENT_ID1);
+      soft.assertThat(refreshedTokens.getRefreshToken()).isNotNull();
       // fetch new tokens
       Tokens renewedTokens = agent.fetchNewTokens().toCompletableFuture().join();
       introspectToken(renewedTokens.getAccessToken(), TestConstants.CLIENT_ID1);
     }
   }
 
-  /** Tests client assertions with subject impersonation. */
+  /**
+   * Tests client assertions with subject impersonation. Refresh tokens are present, which is why
+   * the client credentials grant cannot be used for the subject token.
+   */
   @ParameterizedTest
   @EnumSource(
       value = GrantType.class,
-      names = {"CLIENT_CREDENTIALS", "PASSWORD", "AUTHORIZATION_CODE", "DEVICE_CODE"})
+      names = {"PASSWORD", "AUTHORIZATION_CODE", "DEVICE_CODE"})
   void impersonation3(GrantType subjectGrantType, Builder envBuilder) {
     try (TestEnvironment env =
             envBuilder
@@ -347,15 +345,11 @@ public class OAuth2AgentKeycloakIT {
       Tokens impersonatedTokens = agent.authenticateInternal();
       introspectToken(impersonatedTokens.getAccessToken(), TestConstants.CLIENT_ID4);
       // token refresh
-      if (subjectGrantType == GrantType.CLIENT_CREDENTIALS) {
-        soft.assertThat(impersonatedTokens.getRefreshToken()).isNull();
-      } else {
-        soft.assertThat(impersonatedTokens.getRefreshToken()).isNotNull();
-        Tokens refreshedTokens =
-            agent.refreshCurrentTokens(impersonatedTokens).toCompletableFuture().join();
-        introspectToken(refreshedTokens.getAccessToken(), TestConstants.CLIENT_ID4);
-        soft.assertThat(refreshedTokens.getRefreshToken()).isNotNull();
-      }
+      soft.assertThat(impersonatedTokens.getRefreshToken()).isNotNull();
+      Tokens refreshedTokens =
+          agent.refreshCurrentTokens(impersonatedTokens).toCompletableFuture().join();
+      introspectToken(refreshedTokens.getAccessToken(), TestConstants.CLIENT_ID4);
+      soft.assertThat(refreshedTokens.getRefreshToken()).isNotNull();
       // fetch new tokens
       Tokens renewedTokens = agent.fetchNewTokens().toCompletableFuture().join();
       introspectToken(renewedTokens.getAccessToken(), TestConstants.CLIENT_ID4);
@@ -403,12 +397,13 @@ public class OAuth2AgentKeycloakIT {
   /**
    * Tests a delegation scenario where both the subject and actor tokens are dynamically obtained.
    * The subject token is obtained using the authorization code grant, and the actor token using the
-   * client credentials grant. Refresh tokens are present.
+   * client credentials grant. Refresh tokens are present, which is why the client credentials grant
+   * cannot be used for the subject token.
    */
   @ParameterizedTest
   @EnumSource(
       value = GrantType.class,
-      names = {"CLIENT_CREDENTIALS", "PASSWORD", "AUTHORIZATION_CODE", "DEVICE_CODE"})
+      names = {"PASSWORD", "AUTHORIZATION_CODE", "DEVICE_CODE"})
   void delegation3(GrantType subjectGrantType, Builder envBuilder) {
     try (TestEnvironment env =
             envBuilder
@@ -425,15 +420,11 @@ public class OAuth2AgentKeycloakIT {
       Tokens impersonatedTokens = agent.authenticateInternal();
       introspectToken(impersonatedTokens.getAccessToken(), TestConstants.CLIENT_ID1);
       // token refresh
-      if (subjectGrantType == GrantType.CLIENT_CREDENTIALS) {
-        soft.assertThat(impersonatedTokens.getRefreshToken()).isNull();
-      } else {
-        soft.assertThat(impersonatedTokens.getRefreshToken()).isNotNull();
-        Tokens refreshedTokens =
-            agent.refreshCurrentTokens(impersonatedTokens).toCompletableFuture().join();
-        introspectToken(refreshedTokens.getAccessToken(), TestConstants.CLIENT_ID1);
-        soft.assertThat(refreshedTokens.getRefreshToken()).isNotNull();
-      }
+      soft.assertThat(impersonatedTokens.getRefreshToken()).isNotNull();
+      Tokens refreshedTokens =
+          agent.refreshCurrentTokens(impersonatedTokens).toCompletableFuture().join();
+      introspectToken(refreshedTokens.getAccessToken(), TestConstants.CLIENT_ID1);
+      soft.assertThat(refreshedTokens.getRefreshToken()).isNotNull();
       // fetch new tokens
       Tokens renewedTokens = agent.fetchNewTokens().toCompletableFuture().join();
       introspectToken(renewedTokens.getAccessToken(), TestConstants.CLIENT_ID1);

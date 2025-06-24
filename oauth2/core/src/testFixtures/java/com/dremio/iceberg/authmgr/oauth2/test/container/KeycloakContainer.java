@@ -61,8 +61,7 @@ public class KeycloakContainer extends ExtendableKeycloakContainer<KeycloakConta
 
   @SuppressWarnings("resource")
   public KeycloakContainer() {
-    super("keycloak/keycloak:26.0.4");
-    withFeaturesEnabled("preview", "token-exchange");
+    super("keycloak/keycloak:26.2.5");
     withLogConsumer(new Slf4jLogConsumer(LOGGER));
     withEnv("KC_LOG_LEVEL", getRootLoggerLevel() + ",org.keycloak:" + getKeycloakLoggerLevel());
     // Useful when debugging Keycloak REST endpoints:
@@ -202,7 +201,8 @@ public class KeycloakContainer extends ExtendableKeycloakContainer<KeycloakConta
             .put("use.refresh.tokens", "true")
             .put("client_credentials.use_refresh_token", "false")
             .put("oauth2.device.authorization.grant.enabled", "true")
-            .put("oidc.token.exchange.allow.refresh.token", "true");
+            .put("standard.token.exchange.enabled", "true")
+            .put("standard.token.exchange.enableRefreshRequestedTokenType", "SAME_SESSION");
     if (authenticationMethod != ClientAuthentication.NONE) {
       switch (authenticationMethod) {
         case CLIENT_SECRET_BASIC:
