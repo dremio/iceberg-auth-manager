@@ -45,6 +45,11 @@ abstract class DeviceCodeFlow extends AbstractFlow {
   interface Builder extends AbstractFlow.Builder<DeviceCodeFlow, Builder> {}
 
   @Value.Derived
+  String getAgentName() {
+    return getSpec().getRuntimeConfig().getAgentName();
+  }
+
+  @Value.Derived
   String getMsgPrefix() {
     return FlowUtils.getMsgPrefix(getSpec().getRuntimeConfig().getAgentName());
   }
@@ -68,7 +73,7 @@ abstract class DeviceCodeFlow extends AbstractFlow {
   private volatile Future<?> pollFuture;
 
   private void stopPolling() {
-    LOGGER.debug("Device Auth Flow: closing");
+    LOGGER.debug("[{}] Device Auth Flow: closing", getAgentName());
     Future<?> pollFuture = this.pollFuture;
     if (pollFuture != null) {
       pollFuture.cancel(true);
@@ -78,7 +83,7 @@ abstract class DeviceCodeFlow extends AbstractFlow {
 
   @Override
   public CompletionStage<Tokens> fetchNewTokens(@Nullable Tokens currentTokens) {
-    LOGGER.debug("Device Auth Flow: started");
+    LOGGER.debug("[{}] Device Auth Flow: started", getAgentName());
     return invokeDeviceAuthEndpoint(currentTokens)
         .thenCompose(
             response -> {
@@ -105,7 +110,8 @@ abstract class DeviceCodeFlow extends AbstractFlow {
         && serverPollInterval != null
         && serverPollInterval > pollInterval.getSeconds()) {
       LOGGER.debug(
-          "Device Auth Flow: server requested minimum poll interval of {} seconds",
+          "[{}] Device Auth Flow: server requested minimum poll interval of {} seconds",
+          getAgentName(),
           serverPollInterval);
       pollInterval = Duration.ofSeconds(serverPollInterval);
     }
@@ -125,14 +131,14 @@ abstract class DeviceCodeFlow extends AbstractFlow {
   }
 
   private void pollForNewTokens(String deviceCode) {
-    LOGGER.debug("Device Auth Flow: polling for new tokens");
+    LOGGER.debug("[{}] Device Auth Flow: polling for new tokens", getAgentName());
     DeviceAccessTokenRequest.Builder request =
         DeviceAccessTokenRequest.builder().deviceCode(deviceCode);
     invokeTokenEndpoint(null, request)
         .whenComplete(
             (tokens, error) -> {
               if (error == null) {
-                LOGGER.debug("Device Auth Flow: new tokens received");
+                LOGGER.debug("[{}] Device Auth Flow: new tokens received", getAgentName());
                 getTokensFuture().complete(tokens);
               } else {
                 if (error instanceof CompletionException) {
@@ -141,7 +147,9 @@ abstract class DeviceCodeFlow extends AbstractFlow {
                 if (error instanceof OAuth2Exception) {
                   switch (((OAuth2Exception) error).getErrorResponse().type()) {
                     case "authorization_pending":
-                      LOGGER.debug("Device Auth Flow: waiting for authorization to complete");
+                      LOGGER.debug(
+                          "[{}] Device Auth Flow: waiting for authorization to complete",
+                          getAgentName());
                       pollFuture =
                           getExecutor()
                               .schedule(
@@ -150,7 +158,8 @@ abstract class DeviceCodeFlow extends AbstractFlow {
                                   TimeUnit.MILLISECONDS);
                       return;
                     case "slow_down":
-                      LOGGER.debug("Device Auth Flow: server requested to slow down");
+                      LOGGER.debug(
+                          "[{}] Device Auth Flow: server requested to slow down", getAgentName());
                       Duration pollInterval = this.pollInterval;
                       boolean ignoreServerPollInterval =
                           getSpec().getDeviceCodeConfig().ignoreServerPollInterval();

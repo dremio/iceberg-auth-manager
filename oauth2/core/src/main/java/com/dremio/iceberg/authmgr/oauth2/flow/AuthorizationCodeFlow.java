@@ -68,6 +68,11 @@ abstract class AuthorizationCodeFlow extends AbstractFlow {
   interface Builder extends AbstractFlow.Builder<AuthorizationCodeFlow, Builder> {}
 
   @Value.Derived
+  String getAgentName() {
+    return getSpec().getRuntimeConfig().getAgentName();
+  }
+
+  @Value.Derived
   String getMsgPrefix() {
     return FlowUtils.getMsgPrefix(getSpec().getRuntimeConfig().getAgentName());
   }
@@ -185,13 +190,16 @@ abstract class AuthorizationCodeFlow extends AbstractFlow {
     // Wait for all in-flight requests to complete before proceeding
     // (note: this call is potentially blocking!)
     getInflightRequestsPhaser().arriveAndAwaitAdvance();
-    LOGGER.debug("Authorization Code Flow: closing");
+    LOGGER.debug("[{}] Authorization Code Flow: closing", getAgentName());
     getServer().stop(0);
   }
 
   @Override
   public CompletionStage<Tokens> fetchNewTokens(@Nullable Tokens ignored) {
-    LOGGER.debug("Authorization Code Flow: started, redirect URI: {}", getRedirectUri());
+    LOGGER.debug(
+        "[{}] Authorization Code Flow: started, redirect URI: {}",
+        getAgentName(),
+        getRedirectUri());
     PrintStream console = getSpec().getRuntimeConfig().getConsole();
     console.println();
     console.println(getMsgPrefix() + OAUTH2_AGENT_TITLE);
@@ -211,7 +219,7 @@ abstract class AuthorizationCodeFlow extends AbstractFlow {
    */
   @SuppressWarnings("FutureReturnValueIgnored")
   private void doRequest(HttpExchange exchange) {
-    LOGGER.debug("Authorization Code Flow: received request");
+    LOGGER.debug("[{}] Authorization Code Flow: received request", getAgentName());
     getInflightRequestsPhaser().register();
     getRedirectUriFuture().complete(exchange); // will trigger the token fetching the first time
     getTokensFuture()
@@ -224,7 +232,8 @@ abstract class AuthorizationCodeFlow extends AbstractFlow {
   private Void doResponse(HttpExchange exchange, Throwable error) {
     if (LOGGER.isDebugEnabled()) {
       LOGGER.debug(
-          "Authorization Code Flow: sending response, error: {}",
+          "[{}] Authorization Code Flow: sending response, error: {}",
+          getAgentName(),
           error == null ? "none" : error.toString());
     }
     try {
@@ -234,13 +243,13 @@ abstract class AuthorizationCodeFlow extends AbstractFlow {
         writeResponse(exchange, HTTP_UNAUTHORIZED, HTML_TEMPLATE_FAILED, error.toString());
       }
     } catch (IOException e) {
-      LOGGER.debug("Authorization Code Flow: error writing response", e);
+      LOGGER.debug("[{}] Authorization Code Flow: error writing response", getAgentName(), e);
     }
     return null;
   }
 
   private String extractAuthorizationCode(HttpExchange exchange) {
-    LOGGER.debug("Authorization Code Flow: extracting code");
+    LOGGER.debug("[{}] Authorization Code Flow: extracting code", getAgentName());
     Map<String, List<String>> params =
         UriUtils.decodeParameters(exchange.getRequestURI().getRawQuery());
     List<String> states = params.getOrDefault("state", List.of());
@@ -255,7 +264,7 @@ abstract class AuthorizationCodeFlow extends AbstractFlow {
   }
 
   private CompletionStage<Tokens> fetchNewTokens(String code) {
-    LOGGER.debug("Authorization Code Flow: fetching new tokens");
+    LOGGER.debug("[{}] Authorization Code Flow: fetching new tokens", getAgentName());
     AuthorizationCodeTokenRequest.Builder request =
         AuthorizationCodeTokenRequest.builder().code(code).redirectUri(getRedirectUri());
     String codeVerifier = getCodeVerifier();
@@ -265,12 +274,15 @@ abstract class AuthorizationCodeFlow extends AbstractFlow {
     return invokeTokenEndpoint(null, request);
   }
 
-  private static void log(Throwable error) {
+  private void log(Throwable error) {
     if (LOGGER.isDebugEnabled()) {
       if (error == null) {
-        LOGGER.debug("Authorization Code Flow: tokens received");
+        LOGGER.debug("[{}] Authorization Code Flow: tokens received", getAgentName());
       } else {
-        LOGGER.debug("Authorization Code Flow: error fetching tokens: {}", error.toString());
+        LOGGER.debug(
+            "[{}] Authorization Code Flow: error fetching tokens: {}",
+            getAgentName(),
+            error.toString());
       }
     }
   }

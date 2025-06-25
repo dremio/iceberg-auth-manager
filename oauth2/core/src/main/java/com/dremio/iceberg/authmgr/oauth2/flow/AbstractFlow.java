@@ -35,6 +35,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ScheduledExecutorService;
 import org.apache.iceberg.rest.RESTClient;
+import org.apache.iceberg.rest.RESTResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -82,23 +83,23 @@ abstract class AbstractFlow implements Flow {
     getClientAuthenticator().authenticate(builder, headers, currentTokens);
     REQ request = builder.build();
     return CompletableFuture.supplyAsync(
-        () -> {
-          LOGGER.debug(
-              "Invoking token endpoint: headers: {} body: {}",
-              filterSensitiveData(headers),
-              request);
-          TokenResponse response =
-              getRestClient()
+            () -> {
+              LOGGER.debug(
+                  "[{}] Invoking token endpoint: headers: {} body: {}",
+                  getSpec().getRuntimeConfig().getAgentName(),
+                  filterSensitiveData(headers),
+                  request);
+              return getRestClient()
                   .postForm(
                       tokenEndpoint.toString(),
                       request.asFormParameters(),
                       TokenResponse.class,
                       headers,
                       FlowErrorHandler.INSTANCE);
-          LOGGER.debug("Token endpoint response: {}", response);
-          return response.asTokens(getSpec().getRuntimeConfig().getClock());
-        },
-        getExecutor());
+            },
+            getExecutor())
+        .whenComplete((resp, error) -> log("token endpoint", resp, error))
+        .thenApply(resp -> resp.asTokens(getSpec().getRuntimeConfig().getClock()));
   }
 
   protected CompletionStage<DeviceAuthorizationResponse> invokeDeviceAuthEndpoint(
@@ -111,23 +112,31 @@ abstract class AbstractFlow implements Flow {
     getClientAuthenticator().authenticate(builder, headers, currentTokens);
     DeviceAuthorizationRequest request = builder.build();
     return CompletableFuture.supplyAsync(
-        () -> {
-          LOGGER.debug(
-              "Invoking device auth endpoint: headers: {} body: {}",
-              filterSensitiveData(headers),
-              request);
-          DeviceAuthorizationResponse response =
-              getRestClient()
+            () -> {
+              LOGGER.debug(
+                  "[{}] Invoking device auth endpoint: headers: {} body: {}",
+                  getSpec().getRuntimeConfig().getAgentName(),
+                  filterSensitiveData(headers),
+                  request);
+              return getRestClient()
                   .postForm(
                       deviceAuthorizationEndpoint.toString(),
                       request.asFormParameters(),
                       DeviceAuthorizationResponse.class,
                       headers,
                       FlowErrorHandler.INSTANCE);
-          LOGGER.debug("Device auth endpoint response: {}", response);
-          return response;
-        },
-        getExecutor());
+            },
+            getExecutor())
+        .whenComplete((resp, error) -> log("device auth endpoint", resp, error));
+  }
+
+  private void log(String endpoint, RESTResponse response, Throwable error) {
+    String agentName = getSpec().getRuntimeConfig().getAgentName();
+    if (error == null) {
+      LOGGER.debug("[{}] Received response from {}: {}", agentName, endpoint, response);
+    } else {
+      LOGGER.debug("[{}] Error invoking {}: {}", agentName, endpoint, error.toString());
+    }
   }
 
   private static Map<String, String> getHeaders() {

@@ -217,7 +217,10 @@ public final class OAuth2Agent implements Closeable {
       if (error instanceof CompletionException) {
         error = error.getCause();
       }
-      maybeWarn("Failed to fetch new tokens", error);
+      // Don't include the stack trace if the error is a RESTException,
+      // since it's not very useful and just clutters the logs.
+      Object arg = error instanceof RESTException ? error.toString() : error;
+      maybeWarn("[{}] Failed to fetch new tokens", name, arg);
     }
   }
 
@@ -277,7 +280,9 @@ public final class OAuth2Agent implements Closeable {
     if (expirationTime == null) {
       Duration defaultLifespan = spec.getTokenRefreshConfig().getAccessTokenLifespan();
       maybeWarn(
-          "Access token has no expiration time, assuming lifespan of " + defaultLifespan, null);
+          "[{}] Access token has no expiration time, assuming lifespan of {}",
+          name,
+          defaultLifespan);
       expirationTime = now.plus(defaultLifespan);
     }
     Duration delay =
@@ -314,7 +319,7 @@ public final class OAuth2Agent implements Closeable {
       return;
     }
     if (onFailedRenewalSchedule) {
-      maybeWarn("Failed to schedule next token renewal, forcibly sleeping", null);
+      maybeWarn("[{}] Failed to schedule next token renewal, forcibly sleeping", name);
     }
     sleeping.set(true);
     LOGGER.debug("[{}] Sleeping...", name);
@@ -361,23 +366,18 @@ public final class OAuth2Agent implements Closeable {
   }
 
   @SuppressWarnings("FutureReturnValueIgnored")
-  private void maybeWarn(String message, Throwable error) {
+  private void maybeWarn(String message, Object... args) {
     Instant now = clock.instant();
     Instant last = lastWarn;
     boolean shouldWarn =
         last == null || Duration.between(last, now).compareTo(MIN_WARN_INTERVAL) > 0;
-    if (shouldWarn) {
+    if (shouldWarn && LOGGER.isWarnEnabled()) {
       // defer logging until the agent is used to avoid confusing log messages appearing
       // before the agent is actually used
-      if (error instanceof RESTException) {
-        used.thenRun(() -> LOGGER.warn(message, name, error.toString()));
-      } else {
-        used.thenRun(() -> LOGGER.warn(message, name, error));
-      }
+      used.thenRun(() -> LOGGER.warn(message, args));
       lastWarn = now;
-    } else if (LOGGER.isDebugEnabled()) {
-      String debugMsg = "[{}] " + message;
-      LOGGER.debug(debugMsg, name, error);
+    } else {
+      LOGGER.debug(message, args);
     }
   }
 
