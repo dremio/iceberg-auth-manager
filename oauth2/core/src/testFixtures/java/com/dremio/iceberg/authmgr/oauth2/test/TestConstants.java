@@ -79,7 +79,7 @@ public class TestConstants {
   public static final String AUDIENCE = "audience";
 
   public static final URI SUBJECT_TOKEN_TYPE = TypedToken.URN_ACCESS_TOKEN;
-  public static final URI ACTOR_TOKEN_TYPE = TypedToken.URN_ID_TOKEN;
+  public static final URI ACTOR_TOKEN_TYPE = TypedToken.URN_ACCESS_TOKEN;
   public static final URI REQUESTED_TOKEN_TYPE = TypedToken.URN_ACCESS_TOKEN;
   public static final URI RESOURCE = URI.create("urn:authmgr:test:resource");
 

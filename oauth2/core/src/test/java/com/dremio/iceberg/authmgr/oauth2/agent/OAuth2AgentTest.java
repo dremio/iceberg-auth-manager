@@ -285,6 +285,7 @@ class OAuth2AgentTest {
     try (TestEnvironment env =
             TestEnvironment.builder()
                 .grantType(GrantType.TOKEN_EXCHANGE)
+                .subjectToken(null)
                 .subjectGrantType(grantType)
                 .privateClient(privateClient)
                 .returnRefreshTokens(returnRefreshTokens)

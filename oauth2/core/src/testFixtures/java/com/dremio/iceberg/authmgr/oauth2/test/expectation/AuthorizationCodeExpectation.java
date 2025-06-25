@@ -92,7 +92,7 @@ public abstract class AuthorizationCodeExpectation extends InitialTokenFetchExpe
             .withQueryStringParameter("client_id", String.format("(%s|%s)", CLIENT_ID1, CLIENT_ID2))
             .withQueryStringParameter("scope", String.format("(%s|%s)", SCOPE1, SCOPE2))
             .withQueryStringParameter(
-                "redirect_uri", "http://localhost:\\d+/iceberg-auth-manager-\\w+/auth")
+                "redirect_uri", "http://localhost:\\d+/iceberg-auth-manager-\\w+(-\\w+)?/auth")
             .withQueryStringParameter("state", "\\w+");
     if (getTestEnvironment().isPkceEnabled()) {
       request.withQueryStringParameter("code_challenge", "[a-zA-Z0-9-._~]+");

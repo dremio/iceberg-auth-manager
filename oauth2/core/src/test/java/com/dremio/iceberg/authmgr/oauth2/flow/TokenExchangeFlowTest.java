@@ -73,7 +73,10 @@ class TokenExchangeFlowTest {
                 .grantType(GrantType.TOKEN_EXCHANGE)
                 .privateClient(privateClient)
                 .returnRefreshTokens(returnRefreshTokens)
+                .subjectToken(null)
                 .subjectGrantType(grantType)
+                .actorToken(null)
+                .actorGrantType(grantType)
                 .build();
         FlowFactory flowFactory = env.newFlowFactory()) {
       Flow flow = flowFactory.createInitialFlow();
