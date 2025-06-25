@@ -31,7 +31,8 @@ on:
 jobs:
   build:
 
-    runs-on: ubuntu-latest
+    # TODO: revert this image to ubuntu-latest when Polaris Docker images are available for linux/amd64
+    runs-on: ubuntu-24.04-arm
     permissions:
       contents: read
 
