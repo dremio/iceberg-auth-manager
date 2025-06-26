@@ -25,7 +25,6 @@ import java.util.Map;
 import java.util.Optional;
 import org.apache.iceberg.catalog.SessionCatalog.SessionContext;
 import org.apache.iceberg.catalog.TableIdentifier;
-import org.apache.iceberg.rest.HTTPRequest;
 import org.apache.iceberg.rest.RESTClient;
 import org.apache.iceberg.rest.RESTUtil;
 import org.apache.iceberg.rest.auth.AuthSession;
@@ -65,7 +64,7 @@ public class OAuth2Manager extends RefreshingAuthManager {
     }
     OAuth2AgentSpec initSpec = OAuth2AgentSpec.builder().from(initProperties).build();
     initSession = new OAuth2Session(initSpec, refreshExecutor(), this::getRestClient);
-    return new UncloseableAuthSession(initSession);
+    return initSession;
   }
 
   @Override
@@ -82,14 +81,11 @@ public class OAuth2Manager extends RefreshingAuthManager {
     sessionCache = sessionCacheFactory.apply(name, catalogProperties);
     OAuth2Session catalogSession;
     if (initSession != null && catalogSpec.equals(initSession.getSpec())) {
-      // Avoid creating a new session if the properties are the same as the init session
-      // as this would require users to log in again, for human-based flows.
-      catalogSession = initSession;
+      // Copy the existing session if the properties are the same as the init session
+      // to avoid requiring from users to log in again, for human-based flows.
+      catalogSession = initSession.copy();
     } else {
       catalogSession = new OAuth2Session(catalogSpec, refreshExecutor(), this::getRestClient);
-      if (initSession != null) {
-        initSession.close();
-      }
     }
     initSession = null;
     return catalogSession;
@@ -171,24 +167,5 @@ public class OAuth2Manager extends RefreshingAuthManager {
             properties.getOrDefault(
                 OAuth2Properties.Manager.SESSION_CACHE_TIMEOUT,
                 OAuth2Properties.Manager.DEFAULT_SESSION_CACHE_TIMEOUT)));
-  }
-
-  private static class UncloseableAuthSession implements AuthSession {
-
-    private final AuthSession delegate;
-
-    UncloseableAuthSession(AuthSession delegate) {
-      this.delegate = delegate;
-    }
-
-    @Override
-    public HTTPRequest authenticate(HTTPRequest request) {
-      return delegate.authenticate(request);
-    }
-
-    @Override
-    public void close() {
-      // Do nothing
-    }
   }
 }

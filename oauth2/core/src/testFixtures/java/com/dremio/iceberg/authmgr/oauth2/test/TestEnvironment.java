@@ -671,7 +671,6 @@ public abstract class TestEnvironment implements AutoCloseable {
     ImmutableAuthorizationCodeExpectation.of(this).create();
     ImmutableDeviceCodeExpectation.of(this).create();
     ImmutableTokenExchangeExpectation.of(this).create();
-    ImmutableMetadataDiscoveryExpectation.of(this).create();
     if (getDialect() == Dialect.STANDARD) {
       ImmutableRefreshTokenExpectation.of(this).create();
     } else {
@@ -679,7 +678,12 @@ public abstract class TestEnvironment implements AutoCloseable {
     }
     ImmutableConfigEndpointExpectation.of(this).create();
     ImmutableLoadTableEndpointExpectation.of(this).create();
+    createMetadataDiscoveryExpectations();
     createErrorExpectations();
+  }
+
+  public void createMetadataDiscoveryExpectations() {
+    ImmutableMetadataDiscoveryExpectation.of(this).create();
   }
 
   public void createErrorExpectations() {

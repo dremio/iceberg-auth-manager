@@ -40,6 +40,14 @@ public abstract class SubjectTokenSupplier extends AbstractTokenSupplier {
         .build();
   }
 
+  @Override
+  public SubjectTokenSupplier copy() {
+    return ImmutableSubjectTokenSupplier.builder()
+        .from(this)
+        .tokenAgent(getTokenAgent() == null ? null : getTokenAgent().copy())
+        .build();
+  }
+
   @Value.Check
   protected void validate() {
     if (getToken().isEmpty() && getTokenConfig().isEmpty()) {

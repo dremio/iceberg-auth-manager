@@ -18,7 +18,9 @@ package com.dremio.iceberg.authmgr.oauth2.tokenexchange;
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties;
 import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2Agent;
 import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2AgentSpec;
+import com.dremio.iceberg.authmgr.oauth2.grant.GrantType;
 import com.dremio.iceberg.authmgr.oauth2.token.TypedToken;
+import jakarta.annotation.Nullable;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
@@ -41,8 +43,8 @@ public abstract class AbstractTokenSupplier implements AutoCloseable {
    * <p>If no token is configured, the returned stage will be already completed, with a null value.
    */
   public CompletionStage<TypedToken> supplyTokenAsync() {
-    if (getTokenAgent().isPresent()) {
-      return getTokenAgent().get().authenticateAsync().thenApply(TypedToken::of);
+    if (getTokenAgent() != null) {
+      return getTokenAgent().authenticateAsync().thenApply(TypedToken::of);
     }
     return getToken().isPresent()
         ? CompletableFuture.completedFuture(TypedToken.of(getToken().get(), getTokenType()))
@@ -50,13 +52,23 @@ public abstract class AbstractTokenSupplier implements AutoCloseable {
   }
 
   /**
-   * Returns the agent to use for fetching the token. Returns empty if the token is static or not
+   * Returns a copy of this token supplier. The copy will share the same spec, executor and REST
+   * client supplier as the original supplier, as well as its static token, if any. If the token is
+   * dynamic, the original agent will be copied.
+   */
+  public abstract AbstractTokenSupplier copy();
+
+  /**
+   * Returns the agent to use for fetching the token. Returns null if the token is static or not
    * configured.
    */
-  @Value.Lazy
-  protected Optional<OAuth2Agent> getTokenAgent() {
-    if (getToken().isPresent() || getTokenConfig().isEmpty()) {
-      return Optional.empty();
+  @Value.Default
+  @Nullable
+  protected OAuth2Agent getTokenAgent() {
+    if (getMainSpec().getBasicConfig().getGrantType() != GrantType.TOKEN_EXCHANGE
+        || getToken().isPresent()
+        || getTokenConfig().isEmpty()) {
+      return null;
     }
     Map<String, String> config = getTokenConfig();
     if (!config.containsKey(OAuth2Properties.Runtime.AGENT_NAME)) {
@@ -64,12 +76,14 @@ public abstract class AbstractTokenSupplier implements AutoCloseable {
       config.put(OAuth2Properties.Runtime.AGENT_NAME, getDefaultAgentName());
     }
     OAuth2AgentSpec tokenSpec = getMainSpec().merge(config);
-    return Optional.of(new OAuth2Agent(tokenSpec, getExecutor(), getRestClientSupplier()));
+    return new OAuth2Agent(tokenSpec, getExecutor(), getRestClientSupplier());
   }
 
   @Override
   public void close() {
-    getTokenAgent().ifPresent(OAuth2Agent::close);
+    if (getTokenAgent() != null) {
+      getTokenAgent().close();
+    }
   }
 
   protected abstract OAuth2AgentSpec getMainSpec();

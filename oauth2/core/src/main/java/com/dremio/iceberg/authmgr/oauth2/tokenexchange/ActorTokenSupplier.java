@@ -40,6 +40,14 @@ public abstract class ActorTokenSupplier extends AbstractTokenSupplier {
   }
 
   @Override
+  public ActorTokenSupplier copy() {
+    return ImmutableActorTokenSupplier.builder()
+        .from(this)
+        .tokenAgent(getTokenAgent() == null ? null : getTokenAgent().copy())
+        .build();
+  }
+
+  @Override
   protected Optional<String> getToken() {
     return getMainSpec().getTokenExchangeConfig().getActorToken();
   }

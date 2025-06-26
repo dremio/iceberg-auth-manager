@@ -29,19 +29,29 @@ import org.apache.iceberg.rest.auth.AuthSession;
 
 public class OAuth2Session implements AuthSession {
 
-  private final OAuth2AgentSpec spec;
   private final OAuth2Agent agent;
 
   public OAuth2Session(
       OAuth2AgentSpec spec,
       ScheduledExecutorService executor,
       Supplier<RESTClient> restClientSupplier) {
-    this.spec = spec;
     this.agent = new OAuth2Agent(spec, executor, restClientSupplier);
   }
 
+  private OAuth2Session(OAuth2Session toCopy) {
+    this.agent = toCopy.agent.copy();
+  }
+
   public OAuth2AgentSpec getSpec() {
-    return spec;
+    return agent.getSpec();
+  }
+
+  /**
+   * Copies this session and the underlying agent. This is only needed when reusing an init session
+   * as a catalog session.
+   */
+  public OAuth2Session copy() {
+    return new OAuth2Session(this);
   }
 
   @Override

@@ -96,6 +96,41 @@ public final class OAuth2Agent implements Closeable {
         .whenComplete((tokens, error) -> maybeScheduleTokensRenewal(tokens));
   }
 
+  /** Copy constructor. */
+  private OAuth2Agent(OAuth2Agent toCopy) {
+    LOGGER.debug("[{}] Copying agent", toCopy.name);
+    spec = toCopy.spec;
+    executor = toCopy.executor;
+    flowFactory = toCopy.flowFactory.copy();
+    name = toCopy.name;
+    clock = toCopy.clock;
+    lastAccess = toCopy.lastAccess;
+    lastWarn = toCopy.lastWarn;
+    tokenRefreshFuture = null;
+    Tokens currentTokens = toCopy.getCurrentTokensIfAvailable();
+    if (currentTokens != null) {
+      currentTokensStage = CompletableFuture.completedFuture(currentTokens);
+    } else {
+      currentTokensStage =
+          CompletableFuture.supplyAsync(this::fetchNewTokens, executor)
+              .thenCompose(Function.identity());
+    }
+    currentTokensStage.whenComplete((tokens, error) -> maybeScheduleTokensRenewal(tokens));
+  }
+
+  public OAuth2AgentSpec getSpec() {
+    return spec;
+  }
+
+  /**
+   * Creates a copy of this agent. The copy will share the same spec, executor and REST client
+   * supplier as the original agent, as well as its current tokens, if any. If token refresh is
+   * enabled, the copy will have its own token refresh schedule.
+   */
+  public OAuth2Agent copy() {
+    return new OAuth2Agent(this);
+  }
+
   /**
    * Authenticates the client synchronously, waiting for the authentication to complete, and returns
    * the current access token. If the authentication fails, an exception is thrown.
@@ -161,16 +196,20 @@ public final class OAuth2Agent implements Closeable {
       LOGGER.debug("[{}] Closing...", name);
       try (flowFactory) {
         currentTokensStage.toCompletableFuture().cancel(true);
-        ScheduledFuture<?> tokenRefreshFuture = this.tokenRefreshFuture;
-        if (tokenRefreshFuture != null) {
-          tokenRefreshFuture.cancel(true);
-        }
+        cancelTokenRefresh();
       } finally {
         // Cancel this future to invalidate any pending log messages
         used.cancel(true);
-        tokenRefreshFuture = null;
       }
       LOGGER.debug("[{}] Closed", name);
+    }
+  }
+
+  private void cancelTokenRefresh() {
+    ScheduledFuture<?> tokenRefreshFuture = this.tokenRefreshFuture;
+    this.tokenRefreshFuture = null;
+    if (tokenRefreshFuture != null) {
+      tokenRefreshFuture.cancel(true);
     }
   }
 
@@ -179,6 +218,9 @@ public final class OAuth2Agent implements Closeable {
         "[{}] Fetching new access token using {}", name, spec.getBasicConfig().getGrantType());
     Flow flow = flowFactory.createInitialFlow();
     CompletionStage<Tokens> newTokensStage = flow.fetchNewTokens(getCurrentTokensIfAvailable());
+    // If the flow requires user interaction, update the last access time once the flow completes,
+    // in order to better reflect when the agent was actually accessed for the last time.
+    // This prevents the agent from going to sleep too early when the user is interacting with it.
     return spec.getBasicConfig().getGrantType().requiresUserInteraction()
         ? newTokensStage.whenComplete((tokens, error) -> lastAccess = clock.instant())
         : newTokensStage;
@@ -242,7 +284,7 @@ public final class OAuth2Agent implements Closeable {
     boolean idle = timeSinceLastAccess.compareTo(spec.getTokenRefreshConfig().getIdleTimeout()) > 0;
     LOGGER.debug("[{}] Time since last access: {}, idle: {}", name, timeSinceLastAccess, idle);
     if (idle) {
-      maybeSleep(false);
+      maybeSleep();
     } else {
       Duration delay =
           nextTokenRefresh(currentTokens, now, spec.getTokenRefreshConfig().getMinRefreshDelay());
@@ -260,16 +302,18 @@ public final class OAuth2Agent implements Closeable {
       tokenRefreshFuture =
           executor.schedule(this::renewTokens, delay.toMillis(), TimeUnit.MILLISECONDS);
       if (closing.get()) {
-        // We raced with close() but the executor wasn't closed yet,
-        // so the task was accepted: cancel the future now.
-        tokenRefreshFuture.cancel(true);
+        // We raced with close(): since we can't know if the volatile write above to the
+        // tokenRefreshFuture field was done before or after the close() thread read the field,
+        // we must cancel the future here as well.
+        cancelTokenRefresh();
       }
     } catch (RejectedExecutionException e) {
       if (closing.get()) {
         // We raced with close(), ignore
         return;
       }
-      maybeSleep(true);
+      maybeWarn("[{}] Failed to schedule next token renewal, forcibly sleeping", name);
+      sleep();
     }
   }
 
@@ -315,15 +359,16 @@ public final class OAuth2Agent implements Closeable {
         .whenComplete((tokens, error) -> maybeScheduleTokensRenewal(tokens));
   }
 
-  private void maybeSleep(boolean onFailedRenewalSchedule) {
+  private void maybeSleep() {
     if (!spec.getTokenRefreshConfig().isEnabled()) {
       LOGGER.debug(
           "[{}] Agent is not configured to keep tokens refreshed, not entering sleep", name);
       return;
     }
-    if (onFailedRenewalSchedule) {
-      maybeWarn("[{}] Failed to schedule next token renewal, forcibly sleeping", name);
-    }
+    sleep();
+  }
+
+  private void sleep() {
     sleeping.set(true);
     LOGGER.debug("[{}] Sleeping...", name);
   }

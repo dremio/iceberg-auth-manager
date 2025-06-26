@@ -24,6 +24,8 @@ import com.dremio.iceberg.authmgr.oauth2.grant.GrantType;
 import com.dremio.iceberg.authmgr.oauth2.tokenexchange.ActorTokenSupplier;
 import com.dremio.iceberg.authmgr.oauth2.tokenexchange.SubjectTokenSupplier;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
+import jakarta.annotation.Nullable;
+import java.util.Objects;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Supplier;
 import org.apache.iceberg.rest.RESTClient;
@@ -79,31 +81,48 @@ public abstract class FlowFactory implements AutoCloseable {
     }
   }
 
+  public FlowFactory copy() {
+    SubjectTokenSupplier subjectTokenSupplier = getSubjectTokenSupplier();
+    ActorTokenSupplier actorTokenSupplier = getActorTokenSupplier();
+    return ImmutableFlowFactory.builder()
+        .from(this)
+        // Copy the token suppliers to also create copies of their internal agents.
+        .subjectTokenSupplier(subjectTokenSupplier == null ? null : subjectTokenSupplier.copy())
+        .actorTokenSupplier(actorTokenSupplier == null ? null : actorTokenSupplier.copy())
+        .build();
+  }
+
   protected abstract OAuth2AgentSpec getSpec();
 
   protected abstract ScheduledExecutorService getExecutor();
 
   protected abstract Supplier<RESTClient> getRestClientSupplier();
 
-  @Value.Lazy
+  @Value.Default
   protected EndpointProvider getEndpointProvider() {
     return EndpointProviderFactory.createEndpointProvider(getSpec(), getRestClientSupplier());
   }
 
-  @Value.Lazy
+  @Value.Default
   protected ClientAuthenticator getClientAuthenticator() {
     return ClientAuthenticatorFactory.createAuthenticator(
         getSpec(), getEndpointProvider().getResolvedTokenEndpoint());
   }
 
-  @Value.Lazy
+  @Value.Default
+  @Nullable
   protected SubjectTokenSupplier getSubjectTokenSupplier() {
-    return SubjectTokenSupplier.of(getSpec(), getExecutor(), getRestClientSupplier());
+    return getSpec().getBasicConfig().getGrantType() != GrantType.TOKEN_EXCHANGE
+        ? null
+        : SubjectTokenSupplier.of(getSpec(), getExecutor(), getRestClientSupplier());
   }
 
-  @Value.Lazy
+  @Value.Default
+  @Nullable
   protected ActorTokenSupplier getActorTokenSupplier() {
-    return ActorTokenSupplier.of(getSpec(), getExecutor(), getRestClientSupplier());
+    return getSpec().getBasicConfig().getGrantType() != GrantType.TOKEN_EXCHANGE
+        ? null
+        : ActorTokenSupplier.of(getSpec(), getExecutor(), getRestClientSupplier());
   }
 
   private AbstractFlow.Builder<?, ?> newInitialFlowBuilder() {
@@ -118,8 +137,8 @@ public abstract class FlowFactory implements AutoCloseable {
         return ImmutableDeviceCodeFlow.builder();
       case TOKEN_EXCHANGE:
         return ImmutableTokenExchangeFlow.builder()
-            .subjectTokenStage(getSubjectTokenSupplier().supplyTokenAsync())
-            .actorTokenStage(getActorTokenSupplier().supplyTokenAsync());
+            .subjectTokenStage(Objects.requireNonNull(getSubjectTokenSupplier()).supplyTokenAsync())
+            .actorTokenStage(Objects.requireNonNull(getActorTokenSupplier()).supplyTokenAsync());
       default:
         throw new IllegalArgumentException(
             "Unknown or invalid grant type for initial token fetch: "

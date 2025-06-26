@@ -75,10 +75,7 @@ public class OAuth2AgentKeycloakIT {
   @ParameterizedTest
   @EnumSource(
       value = GrantType.class,
-      names = {
-        "CLIENT_CREDENTIALS", "PASSWORD",
-        "AUTHORIZATION_CODE", "DEVICE_CODE"
-      })
+      names = {"CLIENT_CREDENTIALS", "PASSWORD", "AUTHORIZATION_CODE", "DEVICE_CODE"})
   void clientSecretBasic(GrantType initialGrantType, Builder envBuilder) {
     try (TestEnvironment env =
             envBuilder
@@ -86,18 +83,15 @@ public class OAuth2AgentKeycloakIT {
                 .clientAuthentication(ClientAuthentication.CLIENT_SECRET_BASIC)
                 .build();
         OAuth2Agent agent = env.newAgent()) {
-      // initial grant
-      Tokens firstTokens = agent.authenticateInternal();
-      introspectToken(firstTokens.getAccessToken(), TestConstants.CLIENT_ID1);
-      if (initialGrantType == GrantType.CLIENT_CREDENTIALS) {
-        soft.assertThat(firstTokens.getRefreshToken()).isNull();
-      } else {
-        soft.assertThat(firstTokens.getRefreshToken()).isNotNull();
-        // token refresh
-        Tokens refreshedTokens =
-            agent.refreshCurrentTokens(firstTokens).toCompletableFuture().join();
-        introspectToken(refreshedTokens.getAccessToken(), TestConstants.CLIENT_ID1);
-        soft.assertThat(refreshedTokens.getRefreshToken()).isNotNull();
+      boolean expectRefreshToken = initialGrantType != GrantType.CLIENT_CREDENTIALS;
+      assertAgent(agent, TestConstants.CLIENT_ID1, expectRefreshToken);
+      // also test copy before and after close
+      try (OAuth2Agent agent2 = agent.copy()) {
+        assertAgent(agent2, TestConstants.CLIENT_ID1, expectRefreshToken);
+      }
+      agent.close();
+      try (OAuth2Agent agent3 = agent.copy()) {
+        assertAgent(agent3, TestConstants.CLIENT_ID1, expectRefreshToken);
       }
     }
   }
@@ -113,19 +107,8 @@ public class OAuth2AgentKeycloakIT {
                 .clientAuthentication(ClientAuthentication.CLIENT_SECRET_POST)
                 .build();
         OAuth2Agent agent = env.newAgent()) {
-      // initial grant
-      Tokens firstTokens = agent.authenticateInternal();
-      introspectToken(firstTokens.getAccessToken(), TestConstants.CLIENT_ID1);
-      if (initialGrantType == GrantType.CLIENT_CREDENTIALS) {
-        soft.assertThat(firstTokens.getRefreshToken()).isNull();
-      } else {
-        soft.assertThat(firstTokens.getRefreshToken()).isNotNull();
-        // token refresh
-        Tokens refreshedTokens =
-            agent.refreshCurrentTokens(firstTokens).toCompletableFuture().join();
-        introspectToken(refreshedTokens.getAccessToken(), TestConstants.CLIENT_ID1);
-        soft.assertThat(refreshedTokens.getRefreshToken()).isNotNull();
-      }
+      assertAgent(
+          agent, TestConstants.CLIENT_ID1, initialGrantType != GrantType.CLIENT_CREDENTIALS);
     }
   }
 
@@ -143,14 +126,8 @@ public class OAuth2AgentKeycloakIT {
                 .clientSecret(TestConstants.CLIENT_SECRET2)
                 .build();
         OAuth2Agent agent = env.newAgent()) {
-      // initial grant
-      Tokens firstTokens = agent.authenticateInternal();
-      introspectToken(firstTokens.getAccessToken(), TestConstants.CLIENT_ID2);
-      soft.assertThat(firstTokens.getRefreshToken()).isNotNull();
-      // token refresh
-      Tokens refreshedTokens = agent.refreshCurrentTokens(firstTokens).toCompletableFuture().join();
-      introspectToken(refreshedTokens.getAccessToken(), TestConstants.CLIENT_ID2);
-      soft.assertThat(refreshedTokens.getRefreshToken()).isNotNull();
+      assertAgent(
+          agent, TestConstants.CLIENT_ID2, initialGrantType != GrantType.CLIENT_CREDENTIALS);
     }
   }
 
@@ -167,19 +144,8 @@ public class OAuth2AgentKeycloakIT {
                 .clientAuthentication(ClientAuthentication.CLIENT_SECRET_JWT)
                 .build();
         OAuth2Agent agent = env.newAgent()) {
-      // initial grant
-      Tokens firstTokens = agent.authenticateInternal();
-      introspectToken(firstTokens.getAccessToken(), TestConstants.CLIENT_ID3);
-      if (initialGrantType == GrantType.CLIENT_CREDENTIALS) {
-        soft.assertThat(firstTokens.getRefreshToken()).isNull();
-      } else {
-        soft.assertThat(firstTokens.getRefreshToken()).isNotNull();
-        // token refresh
-        Tokens refreshedTokens =
-            agent.refreshCurrentTokens(firstTokens).toCompletableFuture().join();
-        introspectToken(refreshedTokens.getAccessToken(), TestConstants.CLIENT_ID3);
-        soft.assertThat(refreshedTokens.getRefreshToken()).isNotNull();
-      }
+      assertAgent(
+          agent, TestConstants.CLIENT_ID3, initialGrantType != GrantType.CLIENT_CREDENTIALS);
     }
   }
 
@@ -200,19 +166,8 @@ public class OAuth2AgentKeycloakIT {
                         .build())
                 .build();
         OAuth2Agent agent = env.newAgent()) {
-      // initial grant
-      Tokens firstTokens = agent.authenticateInternal();
-      introspectToken(firstTokens.getAccessToken(), TestConstants.CLIENT_ID4);
-      if (initialGrantType == GrantType.CLIENT_CREDENTIALS) {
-        soft.assertThat(firstTokens.getRefreshToken()).isNull();
-      } else {
-        soft.assertThat(firstTokens.getRefreshToken()).isNotNull();
-        // token refresh
-        Tokens refreshedTokens =
-            agent.refreshCurrentTokens(firstTokens).toCompletableFuture().join();
-        introspectToken(refreshedTokens.getAccessToken(), TestConstants.CLIENT_ID4);
-        soft.assertThat(refreshedTokens.getRefreshToken()).isNotNull();
-      }
+      assertAgent(
+          agent, TestConstants.CLIENT_ID4, initialGrantType != GrantType.CLIENT_CREDENTIALS);
     }
   }
 
@@ -226,14 +181,7 @@ public class OAuth2AgentKeycloakIT {
                 .pkceTransformation(transformation)
                 .build();
         OAuth2Agent agent = env.newAgent()) {
-      // initial grant
-      Tokens firstTokens = agent.authenticateInternal();
-      introspectToken(firstTokens.getAccessToken(), TestConstants.CLIENT_ID1);
-      soft.assertThat(firstTokens.getRefreshToken()).isNotNull();
-      // token refresh
-      Tokens refreshedTokens = agent.refreshCurrentTokens(firstTokens).toCompletableFuture().join();
-      introspectToken(refreshedTokens.getAccessToken(), TestConstants.CLIENT_ID1);
-      soft.assertThat(refreshedTokens.getRefreshToken()).isNotNull();
+      assertAgent(agent, TestConstants.CLIENT_ID1, true);
     }
   }
 
@@ -254,15 +202,7 @@ public class OAuth2AgentKeycloakIT {
                 .subjectGrantType(subjectGrantType)
                 .build();
         OAuth2Agent agent = env.newAgent()) {
-      // initial grant + impersonation
-      Tokens impersonatedTokens = agent.authenticateInternal();
-      introspectToken(impersonatedTokens.getAccessToken(), TestConstants.CLIENT_ID1);
-      // token refresh
-      soft.assertThat(impersonatedTokens.getRefreshToken()).isNull();
-      // fetch new tokens
-      Tokens renewedTokens = agent.fetchNewTokens().toCompletableFuture().join();
-      introspectToken(renewedTokens.getAccessToken(), TestConstants.CLIENT_ID1);
-      soft.assertThat(renewedTokens.getRefreshToken()).isNull();
+      assertAgent(agent, TestConstants.CLIENT_ID1, false);
     }
   }
 
@@ -285,74 +225,8 @@ public class OAuth2AgentKeycloakIT {
                 .subjectGrantType(subjectGrantType)
                 .build();
         OAuth2Agent agent = env.newAgent()) {
-      // initial grant + impersonation
-      Tokens impersonatedTokens = agent.authenticateInternal();
-      introspectToken(impersonatedTokens.getAccessToken(), TestConstants.CLIENT_ID1);
-      // token refresh
-      soft.assertThat(impersonatedTokens.getRefreshToken()).isNotNull();
-      Tokens refreshedTokens =
-          agent.refreshCurrentTokens(impersonatedTokens).toCompletableFuture().join();
-      introspectToken(refreshedTokens.getAccessToken(), TestConstants.CLIENT_ID1);
-      soft.assertThat(refreshedTokens.getRefreshToken()).isNotNull();
-      // fetch new tokens
-      Tokens renewedTokens = agent.fetchNewTokens().toCompletableFuture().join();
-      introspectToken(renewedTokens.getAccessToken(), TestConstants.CLIENT_ID1);
-    }
-  }
-
-  /**
-   * Tests client assertions with subject impersonation. Refresh tokens are present, which is why
-   * the client credentials grant cannot be used for the subject token.
-   */
-  @ParameterizedTest
-  @EnumSource(
-      value = GrantType.class,
-      names = {"PASSWORD", "AUTHORIZATION_CODE", "DEVICE_CODE"})
-  void impersonation3(GrantType subjectGrantType, Builder envBuilder) {
-    try (TestEnvironment env =
-            envBuilder
-                .grantType(TOKEN_EXCHANGE)
-                .clientId(TestConstants.CLIENT_ID4)
-                .clientAuthentication(ClientAuthentication.PRIVATE_KEY_JWT)
-                .clientAssertionConfig(
-                    ClientAssertionConfig.builder()
-                        .algorithm(JwtSigningAlgorithm.RSA_SHA256)
-                        .privateKey(privateKeyPath)
-                        .build())
-                .requestedTokenType(
-                    TypedToken.URN_REFRESH_TOKEN) // request access and refresh tokens
-                .subjectTokenConfig(
-                    Map.of(
-                        OAuth2Properties.Basic.GRANT_TYPE, subjectGrantType.name(),
-                        OAuth2Properties.Basic.SCOPE, TestConstants.SCOPE1,
-                        OAuth2Properties.Basic.CLIENT_ID, TestConstants.CLIENT_ID4,
-                        OAuth2Properties.Basic.CLIENT_AUTH,
-                            ClientAuthentication.PRIVATE_KEY_JWT.name(),
-                        OAuth2Properties.ClientAssertion.PRIVATE_KEY, privateKeyPath.toString(),
-                        OAuth2Properties.ClientAssertion.ALGORITHM,
-                            JwtSigningAlgorithm.RSA_SHA256.name()))
-                .actorTokenConfig(
-                    Map.of(
-                        OAuth2Properties.Basic.GRANT_TYPE, GrantType.CLIENT_CREDENTIALS.name(),
-                        OAuth2Properties.Basic.SCOPE, TestConstants.SCOPE1,
-                        OAuth2Properties.Basic.CLIENT_ID, TestConstants.CLIENT_ID1,
-                        OAuth2Properties.Basic.CLIENT_SECRET, TestConstants.CLIENT_SECRET1,
-                        OAuth2Properties.Basic.CLIENT_AUTH,
-                            ClientAuthentication.CLIENT_SECRET_BASIC.name()))
-                .build();
-        OAuth2Agent agent = env.newAgent()) {
-      // initial grant + impersonation
-      Tokens impersonatedTokens = agent.authenticateInternal();
-      introspectToken(impersonatedTokens.getAccessToken(), TestConstants.CLIENT_ID4);
-      // token refresh
-      soft.assertThat(impersonatedTokens.getRefreshToken()).isNotNull();
-      Tokens refreshedTokens =
-          agent.refreshCurrentTokens(impersonatedTokens).toCompletableFuture().join();
-      introspectToken(refreshedTokens.getAccessToken(), TestConstants.CLIENT_ID4);
-      soft.assertThat(refreshedTokens.getRefreshToken()).isNotNull();
-      // fetch new tokens
-      Tokens renewedTokens = agent.fetchNewTokens().toCompletableFuture().join();
-      introspectToken(renewedTokens.getAccessToken(), TestConstants.CLIENT_ID4);
+      assertAgent(
+          agent, TestConstants.CLIENT_ID1, subjectGrantType != GrantType.CLIENT_CREDENTIALS);
     }
   }
 
@@ -397,37 +271,94 @@ public class OAuth2AgentKeycloakIT {
   /**
    * Tests a delegation scenario where both the subject and actor tokens are dynamically obtained.
    * The subject token is obtained using the authorization code grant, and the actor token using the
-   * client credentials grant. Refresh tokens are present, which is why the client credentials grant
-   * cannot be used for the subject token.
+   * client credentials grant. Refresh tokens are requested, except for the client credentials grant
+   * where they are not supported.
    */
   @ParameterizedTest
   @EnumSource(
       value = GrantType.class,
-      names = {"PASSWORD", "AUTHORIZATION_CODE", "DEVICE_CODE"})
+      names = {"CLIENT_CREDENTIALS", "PASSWORD", "AUTHORIZATION_CODE", "DEVICE_CODE"})
   void delegation3(GrantType subjectGrantType, Builder envBuilder) {
+    boolean expectRefreshToken = subjectGrantType != GrantType.CLIENT_CREDENTIALS;
     try (TestEnvironment env =
             envBuilder
                 .grantType(TOKEN_EXCHANGE)
                 .requestedTokenType(
-                    TypedToken.URN_REFRESH_TOKEN) // request access and refresh tokens
+                    expectRefreshToken ? TypedToken.URN_REFRESH_TOKEN : TypedToken.URN_ACCESS_TOKEN)
                 .subjectTokenConfig(
                     Map.of(OAuth2Properties.Basic.GRANT_TYPE, subjectGrantType.getCanonicalName()))
                 .actorTokenConfig(
                     Map.of(OAuth2Properties.Basic.GRANT_TYPE, GrantType.CLIENT_CREDENTIALS.name()))
                 .build();
         OAuth2Agent agent = env.newAgent()) {
-      // initial grant + impersonation
-      Tokens impersonatedTokens = agent.authenticateInternal();
-      introspectToken(impersonatedTokens.getAccessToken(), TestConstants.CLIENT_ID1);
-      // token refresh
-      soft.assertThat(impersonatedTokens.getRefreshToken()).isNotNull();
-      Tokens refreshedTokens =
-          agent.refreshCurrentTokens(impersonatedTokens).toCompletableFuture().join();
-      introspectToken(refreshedTokens.getAccessToken(), TestConstants.CLIENT_ID1);
-      soft.assertThat(refreshedTokens.getRefreshToken()).isNotNull();
-      // fetch new tokens
-      Tokens renewedTokens = agent.fetchNewTokens().toCompletableFuture().join();
-      introspectToken(renewedTokens.getAccessToken(), TestConstants.CLIENT_ID1);
+      assertAgent(agent, TestConstants.CLIENT_ID1, expectRefreshToken);
+    }
+  }
+
+  /**
+   * Tests a delegation scenario where both the subject and actor tokens are dynamically obtained,
+   * with the subject token agent using private key JWT authentication.
+   *
+   * <p>This test also tests the copying of agents, including subject and actor token agents.
+   * Refresh tokens are requested except for the client credentials grant where they are not
+   * supported.
+   */
+  @ParameterizedTest
+  @EnumSource(
+      value = GrantType.class,
+      names = {"CLIENT_CREDENTIALS", "PASSWORD", "AUTHORIZATION_CODE", "DEVICE_CODE"})
+  void delegation4(GrantType subjectGrantType, Builder envBuilder) {
+    boolean expectRefreshToken = subjectGrantType != GrantType.CLIENT_CREDENTIALS;
+    try (TestEnvironment env =
+            envBuilder
+                .grantType(TOKEN_EXCHANGE)
+                .clientId(TestConstants.CLIENT_ID4)
+                .clientAuthentication(ClientAuthentication.PRIVATE_KEY_JWT)
+                .clientAssertionConfig(
+                    ClientAssertionConfig.builder()
+                        .algorithm(JwtSigningAlgorithm.RSA_SHA256)
+                        .privateKey(privateKeyPath)
+                        .build())
+                .requestedTokenType(
+                    expectRefreshToken ? TypedToken.URN_REFRESH_TOKEN : TypedToken.URN_ACCESS_TOKEN)
+                .subjectGrantType(subjectGrantType)
+                .subjectTokenConfig(
+                    Map.of(
+                        OAuth2Properties.Basic.GRANT_TYPE,
+                        subjectGrantType.name(),
+                        OAuth2Properties.Basic.SCOPE,
+                        TestConstants.SCOPE1,
+                        OAuth2Properties.Basic.CLIENT_ID,
+                        TestConstants.CLIENT_ID4,
+                        OAuth2Properties.Basic.CLIENT_AUTH,
+                        ClientAuthentication.PRIVATE_KEY_JWT.name(),
+                        OAuth2Properties.ClientAssertion.PRIVATE_KEY,
+                        privateKeyPath.toString(),
+                        OAuth2Properties.ClientAssertion.ALGORITHM,
+                        JwtSigningAlgorithm.RSA_SHA256.name()))
+                .actorTokenConfig(
+                    Map.of(
+                        OAuth2Properties.Basic.GRANT_TYPE,
+                        GrantType.CLIENT_CREDENTIALS.name(),
+                        OAuth2Properties.Basic.SCOPE,
+                        TestConstants.SCOPE1,
+                        OAuth2Properties.Basic.CLIENT_ID,
+                        TestConstants.CLIENT_ID1,
+                        OAuth2Properties.Basic.CLIENT_SECRET,
+                        TestConstants.CLIENT_SECRET1,
+                        OAuth2Properties.Basic.CLIENT_AUTH,
+                        ClientAuthentication.CLIENT_SECRET_BASIC.name()))
+                .build();
+        OAuth2Agent agent = env.newAgent()) {
+      assertAgent(agent, TestConstants.CLIENT_ID4, expectRefreshToken);
+      // test copy before and after close
+      try (OAuth2Agent agent2 = agent.copy()) {
+        assertAgent(agent2, TestConstants.CLIENT_ID4, expectRefreshToken);
+      }
+      agent.close();
+      try (OAuth2Agent agent3 = agent.copy()) {
+        assertAgent(agent3, TestConstants.CLIENT_ID4, expectRefreshToken);
+      }
     }
   }
 
@@ -527,6 +458,29 @@ public class OAuth2AgentKeycloakIT {
             .extracting(ErrorResponse::code, ErrorResponse::type)
             .containsExactly(400, "access_denied"); // Keycloak replies with 400 instead of 401
       }
+    }
+  }
+
+  private void assertAgent(OAuth2Agent agent, String clientId, boolean expectRefreshToken) {
+    // initial grant
+    Tokens initial = agent.authenticateInternal();
+    introspectToken(initial.getAccessToken(), clientId);
+    // token refresh
+    if (expectRefreshToken) {
+      soft.assertThat(initial.getRefreshToken()).isNotNull();
+      Tokens refreshed = agent.refreshCurrentTokens(initial).toCompletableFuture().join();
+      introspectToken(refreshed.getAccessToken(), clientId);
+      soft.assertThat(refreshed.getRefreshToken()).isNotNull();
+    } else {
+      soft.assertThat(initial.getRefreshToken()).isNull();
+    }
+    // fetch new tokens
+    Tokens renewed = agent.fetchNewTokens().toCompletableFuture().join();
+    introspectToken(renewed.getAccessToken(), clientId);
+    if (expectRefreshToken) {
+      soft.assertThat(renewed.getRefreshToken()).isNotNull();
+    } else {
+      soft.assertThat(renewed.getRefreshToken()).isNull();
     }
   }
 
