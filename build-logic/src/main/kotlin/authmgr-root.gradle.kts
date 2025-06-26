@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-import com.diffplug.spotless.FormatterFunc
-import java.io.Serializable
 import org.jetbrains.gradle.ext.copyright
 import org.jetbrains.gradle.ext.encodings
 import org.jetbrains.gradle.ext.settings
@@ -31,19 +29,6 @@ spotless {
     googleJavaFormat()
     licenseHeaderFile(rootProject.file("codestyle/copyright-header-java.txt"))
     endWithNewline()
-    custom(
-      "disallowWildcardImports",
-      object : Serializable, FormatterFunc {
-        override fun apply(text: String): String {
-          val regex = "~/import .*\\.\\*;/".toRegex()
-          if (regex.matches(text)) {
-            throw GradleException("Wildcard imports disallowed - ${regex.findAll(text)}")
-          }
-          return text
-        }
-      },
-    )
-    toggleOffOn()
   }
   kotlinGradle {
     ktfmt().googleStyle()

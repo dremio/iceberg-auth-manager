@@ -16,7 +16,6 @@
 package com.dremio.iceberg.authmgr.oauth2.auth;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.*;
 
 import com.dremio.iceberg.authmgr.oauth2.rest.ClientCredentialsTokenRequest;
 import com.dremio.iceberg.authmgr.oauth2.test.TestConstants;
