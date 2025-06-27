@@ -87,7 +87,11 @@ dependencies {
   intTestAnnotationProcessor(project(":authmgr-immutables", configuration = "processor"))
 }
 
-tasks.named<Test>("test").configure { maxParallelForks = 4 }
+tasks.named<Test>("test").configure {
+  if (System.getenv("CI") == null) {
+    maxParallelForks = 4
+  }
+}
 
 tasks.named<Test>("intTest").configure {
   if (System.getenv("CI") == null) {
