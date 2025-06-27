@@ -25,10 +25,12 @@ import com.dremio.iceberg.authmgr.oauth2.test.ImmutableTestEnvironment.Builder;
 import com.dremio.iceberg.authmgr.oauth2.test.TestConstants;
 import com.dremio.iceberg.authmgr.oauth2.test.container.KeycloakTestEnvironment;
 import com.dremio.iceberg.authmgr.oauth2.token.AccessToken;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 @ExtendWith(KeycloakTestEnvironment.class)
+@Tag("long")
 public class OAuth2AgentKeycloakLongIT extends OAuth2AgentLongITBase {
 
   @Test

@@ -90,8 +90,14 @@ dependencies {
 tasks.named<Test>("test").configure { maxParallelForks = 4 }
 
 tasks.named<Test>("intTest").configure {
-  maxParallelForks = 2
+  if (System.getenv("CI") == null) {
+    maxParallelForks = 2
+  }
   systemProperty("authmgr.it.long.total", System.getProperty("authmgr.it.long.total", "PT30S"))
+  useJUnitPlatform {
+    project.findProperty("includeTags")?.let { includeTags = (it as String).split(',').toSet() }
+    project.findProperty("excludeTags")?.let { excludeTags = (it as String).split(',').toSet() }
+  }
 }
 
 val mockitoAgent = configurations.create("mockitoAgent")

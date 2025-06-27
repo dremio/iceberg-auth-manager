@@ -29,10 +29,11 @@ on:
     branches: [ "main" ]
 
 jobs:
+
   build:
 
-    # TODO: revert this image to ubuntu-latest when Polaris Docker images are available for linux/amd64
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-latest
+    name: Build & Publish
     permissions:
       contents: read
 
@@ -56,24 +57,17 @@ jobs:
           # Our `gradlew` validates the integrity of the `gradle-wrapper.jar`, so it's safe to disable this.
           validate-wrappers: false
 
-      - name: Gradle Build Project Core & Runtime
+      - name: Gradle Build & Publish
         env:
           GITHUB_WORKSPACE: ${{ github.workspace }}
         run: |
-          cd $GITHUB_WORKSPACE/authmgr
-          ./gradlew --continue --scan :authmgr-oauth2-core:build :authmgr-oauth2-runtime:build --info --stacktrace
+          ./gradlew --continue --scan build publish -x intTest
 
-      - name: Gradle Build Project Spark Tests
+      - name: Gradle OAuth2 Core Integration Tests
         env:
           GITHUB_WORKSPACE: ${{ github.workspace }}
         run: |
-          cd $GITHUB_WORKSPACE/authmgr
-          ./gradlew --continue --scan :authmgr-oauth2-runtime-spark-tests:build --info --stacktrace
-
-      - name: Gradle Build Project Flink Tests
-        env:
-          GITHUB_WORKSPACE: ${{ github.workspace }}
-        run: ./gradlew --continue --scan :authmgr-oauth2-runtime-flink-tests:build --info --stacktrace
+          ./gradlew --continue --scan :authmgr-oauth2-core:intTest -PexcludeTags=long
 
       - name: Gradle Check Generated Docs
         env:
@@ -85,6 +79,129 @@ jobs:
             echo "Generated documentation does not match existing documentation. Please run './gradlew :authmgr-docs-generator:generateDocs' and commit the changes."
             exit 1
           fi
+
+      - name: Archive Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: upload-test-artifacts
+          path: |
+            **/build/test-results/**
+
+  long-tests:
+
+    runs-on: ubuntu-latest
+    name: Long Running Tests
+    permissions:
+      contents: read
+
+    steps:
+
+      - name: Checkout Project
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      # Configure Gradle for optimal use in GiHub Actions, including caching of downloaded dependencies.
+      # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          # The setup-gradle action fails, if the wrapper is not using the right version or is not present.
+          # Our `gradlew` validates the integrity of the `gradle-wrapper.jar`, so it's safe to disable this.
+          validate-wrappers: false
+
+      - name: Gradle Run Long Tests
+        env:
+          GITHUB_WORKSPACE: ${{ github.workspace }}
+        run: |
+          ./gradlew --continue --scan :authmgr-oauth2-core:intTest -PincludeTags=long -Dauthmgr.it.long.total=PT1M
+
+      - name: Archive Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: upload-test-artifacts
+          path: |
+            **/build/test-results/**
+
+  spark-tests:
+
+    runs-on: ubuntu-latest
+    name: Spark Runtime Tests
+    permissions:
+      contents: read
+
+    steps:
+
+      - name: Checkout Project
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      # Configure Gradle for optimal use in GiHub Actions, including caching of downloaded dependencies.
+      # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          # The setup-gradle action fails, if the wrapper is not using the right version or is not present.
+          # Our `gradlew` validates the integrity of the `gradle-wrapper.jar`, so it's safe to disable this.
+          validate-wrappers: false
+
+      - name: Gradle Run Spark Tests
+        env:
+          GITHUB_WORKSPACE: ${{ github.workspace }}
+        run: |
+          cd $GITHUB_WORKSPACE/authmgr
+          ./gradlew --continue --scan :authmgr-oauth2-runtime-spark-tests:intTest
+
+      - name: Archive Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: upload-test-artifacts
+          path: |
+            **/build/test-results/**
+
+  flink-tests:
+
+    runs-on: ubuntu-latest
+    name: Flink Runtime Tests
+    permissions:
+      contents: read
+
+    steps:
+
+      - name: Checkout Project
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      # Configure Gradle for optimal use in GiHub Actions, including caching of downloaded dependencies.
+      # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          # The setup-gradle action fails, if the wrapper is not using the right version or is not present.
+          # Our `gradlew` validates the integrity of the `gradle-wrapper.jar`, so it's safe to disable this.
+          validate-wrappers: false
+
+      - name: Gradle Build Project Flink Tests
+        env:
+          GITHUB_WORKSPACE: ${{ github.workspace }}
+        run: ./gradlew --continue --scan :authmgr-oauth2-runtime-flink-tests:intTest
 
       - name: Archive Test Results
         uses: actions/upload-artifact@v4
