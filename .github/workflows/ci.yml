@@ -58,20 +58,14 @@ jobs:
           validate-wrappers: false
 
       - name: Gradle Build & Publish
-        env:
-          GITHUB_WORKSPACE: ${{ github.workspace }}
         run: |
           ./gradlew --continue --scan build publish -x intTest
 
       - name: Gradle OAuth2 Core Integration Tests
-        env:
-          GITHUB_WORKSPACE: ${{ github.workspace }}
         run: |
           ./gradlew --continue --scan :authmgr-oauth2-core:intTest -PexcludeTags=long
 
       - name: Gradle Check Generated Docs
-        env:
-          GITHUB_WORKSPACE: ${{ github.workspace }}
         run: |
           ./gradlew --no-scan :authmgr-docs-generator:generateDocs
           git diff --exit-code docs/configuration.md
@@ -106,18 +100,12 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      # Configure Gradle for optimal use in GiHub Actions, including caching of downloaded dependencies.
-      # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          # The setup-gradle action fails, if the wrapper is not using the right version or is not present.
-          # Our `gradlew` validates the integrity of the `gradle-wrapper.jar`, so it's safe to disable this.
           validate-wrappers: false
 
       - name: Gradle Run Long Tests
-        env:
-          GITHUB_WORKSPACE: ${{ github.workspace }}
         run: |
           ./gradlew --continue --scan :authmgr-oauth2-core:intTest -PincludeTags=long -Dauthmgr.it.long.total=PT1M
 
@@ -147,20 +135,18 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      # Configure Gradle for optimal use in GiHub Actions, including caching of downloaded dependencies.
-      # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          # The setup-gradle action fails, if the wrapper is not using the right version or is not present.
-          # Our `gradlew` validates the integrity of the `gradle-wrapper.jar`, so it's safe to disable this.
           validate-wrappers: false
 
-      - name: Gradle Run Spark & Flink Tests
-        env:
-          GITHUB_WORKSPACE: ${{ github.workspace }}
+      - name: Gradle Run Spark Tests
         run: |
-          ./gradlew --continue --scan :authmgr-oauth2-runtime-spark-tests:intTest :authmgr-oauth2-runtime-flink-tests:intTest
+          ./gradlew --continue --scan :authmgr-oauth2-runtime-spark-tests:intTest
+
+      - name: Gradle Run Flink Tests
+        run: |
+          ./gradlew --continue --scan :authmgr-oauth2-runtime-flink-tests:intTest
 
       - name: Archive Test Results
         uses: actions/upload-artifact@v4

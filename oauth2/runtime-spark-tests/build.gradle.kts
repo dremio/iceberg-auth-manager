@@ -56,6 +56,9 @@ dependencies {
 }
 
 tasks.named<Test>("intTest").configure {
+  if (System.getenv("CI") == null) {
+    maxParallelForks = 2
+  }
   dependsOn(":authmgr-oauth2-runtime:shadowJar")
   environment("AWS_REGION", "us-west-2")
   environment("AWS_ACCESS_KEY_ID", "fake")
