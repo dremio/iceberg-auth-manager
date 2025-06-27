@@ -56,10 +56,24 @@ jobs:
           # Our `gradlew` validates the integrity of the `gradle-wrapper.jar`, so it's safe to disable this.
           validate-wrappers: false
 
-      - name: Gradle Build Project
+      - name: Gradle Build Project Core & Runtime
         env:
           GITHUB_WORKSPACE: ${{ github.workspace }}
-        run: ./gradlew --continue --scan build publish
+        run: |
+          cd $GITHUB_WORKSPACE/authmgr
+          ./gradlew --continue --scan :authmgr-oauth2-core:build :authmgr-oauth2-runtime:build --info --stacktrace
+
+      - name: Gradle Build Project Spark Tests
+        env:
+          GITHUB_WORKSPACE: ${{ github.workspace }}
+        run: |
+          cd $GITHUB_WORKSPACE/authmgr
+          ./gradlew --continue --scan :authmgr-oauth2-runtime-spark-tests:build --info --stacktrace
+
+      - name: Gradle Build Project Flink Tests
+        env:
+          GITHUB_WORKSPACE: ${{ github.workspace }}
+        run: ./gradlew --continue --scan :authmgr-oauth2-runtime-flink-tests:build --info --stacktrace
 
       - name: Gradle Check Generated Docs
         env:
