@@ -84,7 +84,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: upload-test-artifacts
+          name: build-test-results
           path: |
             **/build/test-results/**
 
@@ -125,7 +125,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: upload-test-artifacts
+          name: long-tests-results
           path: |
             **/build/test-results/**
 
@@ -160,14 +160,13 @@ jobs:
         env:
           GITHUB_WORKSPACE: ${{ github.workspace }}
         run: |
-          cd $GITHUB_WORKSPACE/authmgr
           ./gradlew --continue --scan :authmgr-oauth2-runtime-spark-tests:intTest
 
       - name: Archive Test Results
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: upload-test-artifacts
+          name: spark-tests-results
           path: |
             **/build/test-results/**
 
@@ -201,12 +200,13 @@ jobs:
       - name: Gradle Build Project Flink Tests
         env:
           GITHUB_WORKSPACE: ${{ github.workspace }}
-        run: ./gradlew --continue --scan :authmgr-oauth2-runtime-flink-tests:intTest
+        run: |
+          ./gradlew --continue --scan :authmgr-oauth2-runtime-flink-tests:intTest
 
       - name: Archive Test Results
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: upload-test-artifacts
+          name: flink-tests-results
           path: |
             **/build/test-results/**
