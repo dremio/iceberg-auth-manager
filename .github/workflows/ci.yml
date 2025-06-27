@@ -129,10 +129,10 @@ jobs:
           path: |
             **/build/test-results/**
 
-  spark-tests:
+  runtime-tests:
 
     runs-on: ubuntu-latest
-    name: Spark Runtime Tests
+    name: Spark & Flink Tests
     permissions:
       contents: read
 
@@ -156,57 +156,16 @@ jobs:
           # Our `gradlew` validates the integrity of the `gradle-wrapper.jar`, so it's safe to disable this.
           validate-wrappers: false
 
-      - name: Gradle Run Spark Tests
+      - name: Gradle Run Spark & Flink Tests
         env:
           GITHUB_WORKSPACE: ${{ github.workspace }}
         run: |
-          ./gradlew --continue --scan :authmgr-oauth2-runtime-spark-tests:intTest
+          ./gradlew --continue --scan :authmgr-oauth2-runtime-spark-tests:intTest :authmgr-oauth2-runtime-flink-tests:intTest
 
       - name: Archive Test Results
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: spark-tests-results
-          path: |
-            **/build/test-results/**
-
-  flink-tests:
-
-    runs-on: ubuntu-latest
-    name: Flink Runtime Tests
-    permissions:
-      contents: read
-
-    steps:
-
-      - name: Checkout Project
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'temurin'
-
-      # Configure Gradle for optimal use in GiHub Actions, including caching of downloaded dependencies.
-      # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          # The setup-gradle action fails, if the wrapper is not using the right version or is not present.
-          # Our `gradlew` validates the integrity of the `gradle-wrapper.jar`, so it's safe to disable this.
-          validate-wrappers: false
-
-      - name: Gradle Build Project Flink Tests
-        env:
-          GITHUB_WORKSPACE: ${{ github.workspace }}
-        run: |
-          ./gradlew --continue --scan :authmgr-oauth2-runtime-flink-tests:intTest
-
-      - name: Archive Test Results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: flink-tests-results
+          name: runtime-tests-results
           path: |
             **/build/test-results/**
