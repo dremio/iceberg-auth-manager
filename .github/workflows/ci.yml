@@ -59,7 +59,7 @@ jobs:
 
       - name: Gradle Build & Publish
         run: |
-          ./gradlew --continue --scan build publish -x intTest --info --stacktrace
+          ./gradlew --continue --scan build publish -x intTest
 
       - name: Gradle OAuth2 Core Integration Tests
         run: |
