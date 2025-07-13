@@ -42,8 +42,7 @@ public class PolarisContainer extends GenericContainer<PolarisContainer> {
 
   @SuppressWarnings("resource")
   public PolarisContainer() {
-    // TODO use apache/polaris:1.0.0 once it's available
-    super("alexdut/polaris:1.0.0-incubating-rc2");
+    super("apache/polaris:1.0.0-incubating");
     withLogConsumer(new Slf4jLogConsumer(LOGGER));
     withExposedPorts(8181, 8182);
     waitingFor(
