@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
+
 plugins {
   id("authmgr-java")
   id("authmgr-java-testing")
@@ -97,7 +100,15 @@ tasks.named<Test>("intTest").configure {
   if (System.getenv("CI") == null) {
     maxParallelForks = 2
   }
-  systemProperty("authmgr.it.long.total", System.getProperty("authmgr.it.long.total", "PT30S"))
+  if (System.getProperty("authmgr.it.long.total") != null) {
+    val total = Duration.parse(System.getProperty("authmgr.it.long.total"))
+    systemProperty("authmgr.it.long.total", total.toIsoString())
+    // Add a 10-second safety window to the tests default timeout
+    systemProperty(
+      "junit.jupiter.execution.timeout.testable.method.default",
+      (total + 10.seconds).inWholeSeconds.toString() + " s",
+    )
+  }
   useJUnitPlatform {
     project.findProperty("includeTags")?.let { includeTags = (it as String).split(',').toSet() }
     project.findProperty("excludeTags")?.let { excludeTags = (it as String).split(',').toSet() }
