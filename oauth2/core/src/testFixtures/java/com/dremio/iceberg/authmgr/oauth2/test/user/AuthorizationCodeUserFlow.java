@@ -17,9 +17,11 @@ package com.dremio.iceberg.authmgr.oauth2.test.user;
 
 import static com.dremio.iceberg.authmgr.oauth2.uri.UriUtils.decodeParameters;
 import static java.net.HttpURLConnection.HTTP_OK;
+import static java.net.HttpURLConnection.HTTP_UNAUTHORIZED;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.dremio.iceberg.authmgr.oauth2.uri.UriBuilder;
+import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.util.HashSet;
@@ -29,62 +31,31 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class KeycloakAuthCodeUserEmulator extends AbstractKeycloakUserEmulator {
+/** A user flow for Authorization Code flows that is compatible with Keycloak. */
+@AuthManagerImmutable
+public abstract class AuthorizationCodeUserFlow extends UserFlow {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(KeycloakAuthCodeUserEmulator.class);
-
-  private URI authUrl;
-
-  private volatile String authorizationCodeOverride;
-  private volatile int expectedCallbackStatus = HTTP_OK;
-
-  /** Creates a new emulator with implicit login (for unit tests). */
-  public KeycloakAuthCodeUserEmulator() {
-    this(null, null);
-  }
-
-  /**
-   * Creates a new emulator with required user login using the given username and password (for
-   * integration tests).
-   */
-  public KeycloakAuthCodeUserEmulator(String username, String password) {
-    super(username, password);
-  }
-
-  public void overrideAuthorizationCode(String code, int expectedStatus) {
-    authorizationCodeOverride = code;
-    expectedCallbackStatus = expectedStatus;
-  }
+  private static final Logger LOGGER = LoggerFactory.getLogger(AuthorizationCodeUserFlow.class);
 
   @Override
-  protected Runnable processLine(String line) {
-    if (line.startsWith("[") && line.contains("http")) {
-      authUrl = extractAuthUrl(line);
-      return this::triggerAuthorizationCodeFlow;
-    }
-    return null;
-  }
-
-  /**
-   * Emulate user browsing to the authorization URL printed on the console, then following the
-   * instructions and optionally logging in with their credentials.
-   */
-  private void triggerAuthorizationCodeFlow() {
+  public void run() {
     try {
-      LOGGER.debug("Starting authorization code flow.");
+      LOGGER.debug("Starting authorization code user flow.");
       Set<String> cookies = new HashSet<>();
       URI callbackUri;
-      if (username == null || password == null) {
-        HttpURLConnection conn = (HttpURLConnection) authUrl.toURL().openConnection();
+      if (getUserBehavior().getUsername().isEmpty()) {
+        HttpURLConnection conn = (HttpURLConnection) getAuthUrl().toURL().openConnection();
         callbackUri = readRedirectUrl(conn, cookies);
         conn.disconnect();
       } else {
-        callbackUri = login(authUrl, cookies);
+        var username = getUserBehavior().getRequiredUsername();
+        var password = getUserBehavior().getRequiredPassword();
+        callbackUri = login(getAuthUrl(), username, password, cookies);
       }
       invokeCallbackUrl(callbackUri);
-      LOGGER.debug("Authorization code flow completed.");
+      LOGGER.debug("Authorization code user flow completed.");
     } catch (Exception | AssertionError t) {
-      recordFailure(t);
+      getErrorListener().accept(t);
     }
   }
 
@@ -92,13 +63,14 @@ public class KeycloakAuthCodeUserEmulator extends AbstractKeycloakUserEmulator {
   private void invokeCallbackUrl(URI callbackUrl) throws Exception {
     LOGGER.debug("Opening callback URL...");
     assertThat(callbackUrl).hasParameter("code").hasParameter("state");
-    if (authorizationCodeOverride != null) {
+    boolean useWrongConde = getUserBehavior().isEmulateFailure();
+    if (useWrongConde) {
       Map<String, List<String>> params = decodeParameters(callbackUrl.getQuery());
       assertThat(params.get("state")).hasSize(1);
       callbackUrl =
           new UriBuilder(callbackUrl)
               .clearQueryParams()
-              .queryParam("code", authorizationCodeOverride)
+              .queryParam("code", "WRONG-CODE")
               .queryParam("state", params.get("state").get(0))
               .build();
     }
@@ -106,6 +78,6 @@ public class KeycloakAuthCodeUserEmulator extends AbstractKeycloakUserEmulator {
     conn.setRequestMethod("GET");
     int status = conn.getResponseCode();
     conn.disconnect();
-    assertThat(status).isEqualTo(expectedCallbackStatus);
+    assertThat(status).isEqualTo(useWrongConde ? HTTP_UNAUTHORIZED : HTTP_OK);
   }
 }

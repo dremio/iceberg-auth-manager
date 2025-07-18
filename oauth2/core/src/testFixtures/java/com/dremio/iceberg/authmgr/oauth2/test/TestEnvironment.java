@@ -15,9 +15,6 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.test;
 
-import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.PASSWORD;
-import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.USERNAME;
-
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Manager;
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.Basic;
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.Runtime;
@@ -57,8 +54,7 @@ import com.dremio.iceberg.authmgr.oauth2.test.server.HttpServer;
 import com.dremio.iceberg.authmgr.oauth2.test.server.IntegrationTestHttpServer;
 import com.dremio.iceberg.authmgr.oauth2.test.server.UnitTestHttpServer;
 import com.dremio.iceberg.authmgr.oauth2.test.user.InteractiveUserEmulator;
-import com.dremio.iceberg.authmgr.oauth2.test.user.KeycloakAuthCodeUserEmulator;
-import com.dremio.iceberg.authmgr.oauth2.test.user.KeycloakDeviceCodeUserEmulator;
+import com.dremio.iceberg.authmgr.oauth2.test.user.UserBehavior;
 import com.dremio.iceberg.authmgr.oauth2.test.user.UserEmulator;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
 import com.google.common.base.Preconditions;
@@ -161,7 +157,12 @@ public abstract class TestEnvironment implements AutoCloseable {
 
   @Value.Default
   public ScheduledExecutorService getExecutor() {
-    return ThreadPools.newScheduledPool(getAgentName() + "-refresh", 1);
+    return ThreadPools.newScheduledPool(getAgentName() + "-refresh", getExecutorPoolSize());
+  }
+
+  @Value.Default
+  public int getExecutorPoolSize() {
+    return 1;
   }
 
   @Value.Lazy
@@ -566,6 +567,11 @@ public abstract class TestEnvironment implements AutoCloseable {
   }
 
   @Value.Default
+  public UserBehavior getUserBehavior() {
+    return isUnitTest() ? UserBehavior.UNIT_TESTS : UserBehavior.INTEGRATION_TESTS;
+  }
+
+  @Value.Default
   public UserEmulator getUser() {
     if (isForceInactiveUser()) {
       return UserEmulator.INACTIVE;
@@ -577,26 +583,18 @@ public abstract class TestEnvironment implements AutoCloseable {
                   && getTokenExchangeConfig().getSubjectTokenConfig().containsKey(Basic.GRANT_TYPE)
               ? GrantType.fromConfigName(
                   getTokenExchangeConfig().getSubjectTokenConfig().get(Basic.GRANT_TYPE))
-              : null;
+              : GrantType.CLIENT_CREDENTIALS;
       GrantType actorGrant =
           mainGrant == GrantType.TOKEN_EXCHANGE
                   && getTokenExchangeConfig().getActorToken().isEmpty()
                   && getTokenExchangeConfig().getActorTokenConfig().containsKey(Basic.GRANT_TYPE)
               ? GrantType.fromConfigName(
                   getTokenExchangeConfig().getActorTokenConfig().get(Basic.GRANT_TYPE))
-              : null;
-      if (mainGrant == GrantType.AUTHORIZATION_CODE
-          || subjectGrant == GrantType.AUTHORIZATION_CODE
-          || actorGrant == GrantType.AUTHORIZATION_CODE) {
-        return isUnitTest()
-            ? new KeycloakAuthCodeUserEmulator()
-            : new KeycloakAuthCodeUserEmulator(USERNAME, PASSWORD);
-      } else if (mainGrant == GrantType.DEVICE_CODE
-          || subjectGrant == GrantType.DEVICE_CODE
-          || actorGrant == GrantType.DEVICE_CODE) {
-        return isUnitTest()
-            ? new KeycloakDeviceCodeUserEmulator()
-            : new KeycloakDeviceCodeUserEmulator(USERNAME, PASSWORD);
+              : GrantType.CLIENT_CREDENTIALS;
+      if (mainGrant.requiresUserInteraction()
+          || subjectGrant.requiresUserInteraction()
+          || actorGrant.requiresUserInteraction()) {
+        return new InteractiveUserEmulator(getUserBehavior());
       }
     }
     return UserEmulator.INACTIVE;
@@ -634,12 +632,7 @@ public abstract class TestEnvironment implements AutoCloseable {
     RESTCatalog catalog =
         new RESTCatalog(getSessionContext(), config -> newHttpClientBuilder(config).build());
     UserEmulator user = getUser();
-    if (user instanceof InteractiveUserEmulator) {
-      // when testing a RESTCatalog, we need to replace system out
-      // since we don't have access to the RuntimeConfig
-      ((InteractiveUserEmulator) user).replaceSystemOut();
-    }
-    user.setErrorListener(
+    user.addErrorListener(
         e -> {
           try {
             catalog.close();
@@ -657,7 +650,7 @@ public abstract class TestEnvironment implements AutoCloseable {
 
   public OAuth2Agent newAgent() {
     OAuth2Agent agent = new OAuth2Agent(getAgentSpec(), getExecutor(), this::getHttpClient);
-    getUser().setErrorListener(e -> agent.close());
+    getUser().addErrorListener(e -> agent.close());
     return agent;
   }
 
