@@ -201,12 +201,14 @@ abstract class AuthorizationCodeFlow extends AbstractFlow implements InitialFlow
         getAgentName(),
         getRedirectUri());
     PrintStream console = getSpec().getRuntimeConfig().getConsole();
-    console.println();
-    console.println(getMsgPrefix() + OAUTH2_AGENT_TITLE);
-    console.println(getMsgPrefix() + OAUTH2_AGENT_OPEN_URL);
-    console.println(getMsgPrefix() + getAuthorizationUri());
-    console.println();
-    console.flush();
+    synchronized (console) {
+      console.println();
+      console.println(getMsgPrefix() + OAUTH2_AGENT_TITLE);
+      console.println(getMsgPrefix() + OAUTH2_AGENT_OPEN_URL);
+      console.println(getMsgPrefix() + getAuthorizationUri());
+      console.println();
+      console.flush();
+    }
     return getTokensFuture();
   }
 

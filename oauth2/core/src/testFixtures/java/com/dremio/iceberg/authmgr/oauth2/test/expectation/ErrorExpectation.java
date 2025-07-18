@@ -32,7 +32,7 @@ public abstract class ErrorExpectation extends AbstractExpectation {
               JsonBody.json(
                   "{\"error\":\"invalid_request\",\"error_description\":\"Invalid request\"}"));
 
-  public static final HttpResponse CATALLG_SERVER_ERROR_RESPONSE =
+  public static final HttpResponse CATALOG_SERVER_ERROR_RESPONSE =
       HttpResponse.response()
           .withStatusCode(401)
           .withContentType(MediaType.APPLICATION_JSON)
@@ -51,6 +51,6 @@ public abstract class ErrorExpectation extends AbstractExpectation {
         .when(
             HttpRequest.request()
                 .withPath(getTestEnvironment().getCatalogServerContextPath() + ".*"))
-        .respond(CATALLG_SERVER_ERROR_RESPONSE);
+        .respond(CATALOG_SERVER_ERROR_RESPONSE);
   }
 }

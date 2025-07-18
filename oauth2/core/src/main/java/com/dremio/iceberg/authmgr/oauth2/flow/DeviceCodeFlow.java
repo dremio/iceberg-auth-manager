@@ -89,15 +89,17 @@ abstract class DeviceCodeFlow extends AbstractFlow implements InitialFlow {
               pollInterval = getSpec().getDeviceCodeConfig().getPollInterval();
               checkPollInterval(response.getIntervalSeconds());
               PrintStream console = getSpec().getRuntimeConfig().getConsole();
-              console.println();
-              console.println(getMsgPrefix() + OAUTH2_AGENT_TITLE);
-              console.println(getMsgPrefix() + OAUTH2_AGENT_OPEN_URL);
-              console.println(getMsgPrefix() + response.getVerificationUri());
-              console.println(getMsgPrefix() + "And enter the code:");
-              console.println(getMsgPrefix() + response.getUserCode());
-              printExpirationNotice(response.getExpiresInSeconds());
-              console.println();
-              console.flush();
+              synchronized (console) {
+                console.println();
+                console.println(getMsgPrefix() + OAUTH2_AGENT_TITLE);
+                console.println(getMsgPrefix() + OAUTH2_AGENT_OPEN_URL);
+                console.println(getMsgPrefix() + response.getVerificationUri());
+                console.println(getMsgPrefix() + "And enter the code:");
+                console.println(getMsgPrefix() + response.getUserCode());
+                printExpirationNotice(response.getExpiresInSeconds());
+                console.println();
+                console.flush();
+              }
               pollFuture = getExecutor().submit(() -> pollForNewTokens(response.getDeviceCode()));
               return getTokensFuture();
             });

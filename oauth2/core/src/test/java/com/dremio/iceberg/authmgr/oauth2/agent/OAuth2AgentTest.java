@@ -35,7 +35,7 @@ import com.dremio.iceberg.authmgr.oauth2.grant.GrantType;
 import com.dremio.iceberg.authmgr.oauth2.test.TestClock;
 import com.dremio.iceberg.authmgr.oauth2.test.TestConstants;
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
-import com.dremio.iceberg.authmgr.oauth2.test.user.KeycloakAuthCodeUserEmulator;
+import com.dremio.iceberg.authmgr.oauth2.test.user.UserBehavior;
 import com.dremio.iceberg.authmgr.oauth2.token.AccessToken;
 import com.dremio.iceberg.authmgr.oauth2.token.RefreshToken;
 import com.dremio.iceberg.authmgr.oauth2.token.Tokens;
@@ -157,9 +157,11 @@ class OAuth2AgentTest {
   @Test
   void testAuthorizationCodeWrongCode() {
     try (TestEnvironment env =
-            TestEnvironment.builder().grantType(GrantType.AUTHORIZATION_CODE).build();
+            TestEnvironment.builder()
+                .grantType(GrantType.AUTHORIZATION_CODE)
+                .userBehavior(UserBehavior.builder().emulateFailure(true).build())
+                .build();
         OAuth2Agent agent = env.newAgent()) {
-      ((KeycloakAuthCodeUserEmulator) env.getUser()).overrideAuthorizationCode("wrong-code", 401);
       soft.assertThatThrownBy(agent::authenticate)
           .isInstanceOf(OAuth2Exception.class)
           .hasMessageContaining("OAuth2 request failed: Invalid request");

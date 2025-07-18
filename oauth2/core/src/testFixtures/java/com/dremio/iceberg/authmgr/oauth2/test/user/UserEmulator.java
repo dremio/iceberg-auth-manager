@@ -19,18 +19,23 @@ import java.io.PrintStream;
 import java.util.function.Consumer;
 
 /**
- * Emulates a resource owner (user) that "reads" the console (system out) and "uses" their browser
- * to authenticate against an authorization server.
+ * Emulates a resource owner (user) that "reads" the console (system out) and follows the
+ * instructions printed there.
  */
 public interface UserEmulator extends AutoCloseable {
 
   UserEmulator INACTIVE = new UserEmulator() {};
 
+  /** The {@link PrintStream} to use for console output. Defaults to {@link System#out}. */
   default PrintStream getConsole() {
     return System.out;
   }
 
-  default void setErrorListener(Consumer<Throwable> callback) {}
+  /**
+   * Sets a callback to invoke when an error occurs. Allows signaling user emulator failures,
+   * including from running user flows, back to the thread running the test.
+   */
+  default void addErrorListener(Consumer<Throwable> callback) {}
 
   @Override
   default void close() {

@@ -46,11 +46,6 @@ public class TestConstants {
   public static final String SCOPE2 = "session";
   public static final String SCOPE3 = "table";
 
-  public static final String AUTHORIZATION_CODE = "CAFE-BABE";
-
-  public static final String USER_CODE = "CAFE-BABE";
-  public static final String DEVICE_CODE = "XYZ-123";
-
   public static final String CLIENT_CREDENTIALS1_BASE_64 =
       Base64.getEncoder()
           .encodeToString((CLIENT_ID1 + ":" + CLIENT_SECRET1).getBytes(StandardCharsets.UTF_8));

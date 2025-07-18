@@ -45,32 +45,37 @@ class TokenExchangeFlowTest {
 
   @ParameterizedTest
   @CsvSource({
-    "true,  false, CLIENT_CREDENTIALS",
-    "true,  true,  PASSWORD",
-    "true,  false, PASSWORD",
-    "false, true,  PASSWORD",
-    "false, false, PASSWORD",
-    "true,  true,  AUTHORIZATION_CODE",
-    "true,  false, AUTHORIZATION_CODE",
-    "false, true,  AUTHORIZATION_CODE",
-    "false, false, AUTHORIZATION_CODE",
-    "true,  true,  DEVICE_CODE",
-    "true,  false, DEVICE_CODE",
-    "false, true,  DEVICE_CODE",
-    "false, false, DEVICE_CODE",
+    "true,  false, CLIENT_CREDENTIALS , CLIENT_CREDENTIALS",
+    "true,  true,  PASSWORD           , PASSWORD",
+    "true,  false, PASSWORD           , PASSWORD",
+    "false, true,  PASSWORD           , PASSWORD",
+    "false, false, PASSWORD           , PASSWORD",
+    "true,  true,  AUTHORIZATION_CODE , DEVICE_CODE",
+    "true,  false, AUTHORIZATION_CODE , DEVICE_CODE",
+    "false, true,  AUTHORIZATION_CODE , DEVICE_CODE",
+    "false, false, AUTHORIZATION_CODE , DEVICE_CODE",
+    "true,  true,  DEVICE_CODE        , AUTHORIZATION_CODE",
+    "true,  false, DEVICE_CODE        , AUTHORIZATION_CODE",
+    "false, true,  DEVICE_CODE        , AUTHORIZATION_CODE",
+    "false, false, DEVICE_CODE        , AUTHORIZATION_CODE",
   })
   void fetchNewTokensDynamic(
-      boolean privateClient, boolean returnRefreshTokens, GrantType grantType)
+      boolean privateClient,
+      boolean returnRefreshTokens,
+      GrantType subjectGrantType,
+      GrantType actorGrantType)
       throws InterruptedException, ExecutionException {
     try (TestEnvironment env =
             TestEnvironment.builder()
                 .grantType(GrantType.TOKEN_EXCHANGE)
                 .privateClient(privateClient)
+                // increase concurrency so that token fetches can happen in parallel
+                .executorPoolSize(3)
                 .returnRefreshTokens(returnRefreshTokens)
                 .subjectToken(null)
-                .subjectGrantType(grantType)
+                .subjectGrantType(subjectGrantType)
                 .actorToken(null)
-                .actorGrantType(grantType)
+                .actorGrantType(actorGrantType)
                 .build();
         FlowFactory flowFactory = env.newFlowFactory()) {
       InitialFlow flow = flowFactory.createInitialFlow();
