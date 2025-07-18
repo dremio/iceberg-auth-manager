@@ -22,6 +22,7 @@ import com.dremio.iceberg.authmgr.oauth2.config.Dialect;
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
 import com.dremio.iceberg.authmgr.oauth2.token.AccessToken;
 import com.dremio.iceberg.authmgr.oauth2.token.Tokens;
+import java.util.concurrent.ExecutionException;
 import org.junit.jupiter.api.Test;
 
 class IcebergRefreshTokenFlowTest {
@@ -30,17 +31,17 @@ class IcebergRefreshTokenFlowTest {
       Tokens.of(AccessToken.of("access_initial", "Bearer", ACCESS_TOKEN_EXPIRATION_TIME), null);
 
   @Test
-  void fetchNewTokens() {
+  void fetchNewTokens() throws InterruptedException, ExecutionException {
     try (TestEnvironment env = TestEnvironment.builder().dialect(Dialect.ICEBERG_REST).build();
         FlowFactory flowFactory = env.newFlowFactory()) {
       Flow flow = flowFactory.createTokenRefreshFlow();
-      Tokens tokens = flow.fetchNewTokens(currentTokens).toCompletableFuture().join();
+      Tokens tokens = flow.fetchNewTokens(currentTokens).toCompletableFuture().get();
       assertTokens(tokens, "access_refreshed", null);
     }
   }
 
   @Test
-  void fetchNewTokensBearerAuth() {
+  void fetchNewTokensBearerAuth() throws InterruptedException, ExecutionException {
     try (TestEnvironment env =
             TestEnvironment.builder()
                 .dialect(Dialect.ICEBERG_REST)
@@ -48,7 +49,7 @@ class IcebergRefreshTokenFlowTest {
                 .build();
         FlowFactory flowFactory = env.newFlowFactory()) {
       Flow flow = flowFactory.createTokenRefreshFlow();
-      Tokens tokens = flow.fetchNewTokens(currentTokens).toCompletableFuture().join();
+      Tokens tokens = flow.fetchNewTokens(currentTokens).toCompletableFuture().get();
       assertTokens(tokens, "access_refreshed", null);
     }
   }

@@ -28,6 +28,7 @@ import com.google.common.collect.Iterators;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
 import org.junit.jupiter.api.AfterAll;
@@ -45,9 +46,9 @@ public abstract class FlinkPolarisS3ITBase {
   protected TableEnvironment flink;
 
   @BeforeAll
-  public void setup() {
+  public void setup() throws ExecutionException, InterruptedException {
     var network = Network.newNetwork();
-    startAllContainers(network).join();
+    startAllContainers(network).get();
     EnvironmentSettings settings = EnvironmentSettings.newInstance().inBatchMode().build();
     flink = TableEnvironment.create(settings);
     createFlinkCatalog(flinkCatalogOptions());

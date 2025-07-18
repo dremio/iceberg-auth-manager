@@ -24,6 +24,7 @@ import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
 import com.dremio.iceberg.authmgr.oauth2.token.AccessToken;
 import com.dremio.iceberg.authmgr.oauth2.token.RefreshToken;
 import com.dremio.iceberg.authmgr.oauth2.token.Tokens;
+import java.util.concurrent.ExecutionException;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
@@ -36,7 +37,8 @@ class TokenExchangeFlowTest {
 
   @ParameterizedTest
   @CsvSource({"true, true", "true, false", "false, true", "false, false"})
-  void fetchNewTokens(boolean privateClient, boolean returnRefreshTokens) {
+  void fetchNewTokens(boolean privateClient, boolean returnRefreshTokens)
+      throws InterruptedException, ExecutionException {
     try (TestEnvironment env =
             TestEnvironment.builder()
                 .grantType(GrantType.TOKEN_EXCHANGE)
@@ -45,7 +47,7 @@ class TokenExchangeFlowTest {
                 .build();
         FlowFactory flowFactory = env.newFlowFactory()) {
       Flow flow = flowFactory.createInitialFlow();
-      Tokens tokens = flow.fetchNewTokens(currentTokens).toCompletableFuture().join();
+      Tokens tokens = flow.fetchNewTokens(currentTokens).toCompletableFuture().get();
       assertTokens(tokens, "access_initial", returnRefreshTokens ? "refresh_initial" : null);
     }
   }
@@ -67,7 +69,8 @@ class TokenExchangeFlowTest {
     "false, false, DEVICE_CODE",
   })
   void fetchNewTokensDynamic(
-      boolean privateClient, boolean returnRefreshTokens, GrantType grantType) {
+      boolean privateClient, boolean returnRefreshTokens, GrantType grantType)
+      throws InterruptedException, ExecutionException {
     try (TestEnvironment env =
             TestEnvironment.builder()
                 .grantType(GrantType.TOKEN_EXCHANGE)
@@ -80,7 +83,7 @@ class TokenExchangeFlowTest {
                 .build();
         FlowFactory flowFactory = env.newFlowFactory()) {
       Flow flow = flowFactory.createInitialFlow();
-      Tokens tokens = flow.fetchNewTokens(currentTokens).toCompletableFuture().join();
+      Tokens tokens = flow.fetchNewTokens(currentTokens).toCompletableFuture().get();
       assertTokens(tokens, "access_initial", returnRefreshTokens ? "refresh_initial" : null);
     }
   }

@@ -211,7 +211,8 @@ class OAuth2AgentTest {
 
   @ParameterizedTest
   @CsvSource({"true, true", "true, false", "false, true", "false, false"})
-  void testRefreshToken(boolean privateClient, boolean returnRefreshTokens) {
+  void testRefreshToken(boolean privateClient, boolean returnRefreshTokens)
+      throws InterruptedException, ExecutionException {
     try (TestEnvironment env =
             TestEnvironment.builder()
                 .grantType(GrantType.AUTHORIZATION_CODE)
@@ -224,7 +225,7 @@ class OAuth2AgentTest {
           Tokens.of(
               AccessToken.of("access_initial", "Bearer", ACCESS_TOKEN_EXPIRATION_TIME),
               RefreshToken.of("refresh_initial", REFRESH_TOKEN_EXPIRATION_TIME));
-      Tokens tokens = agent.refreshCurrentTokens(currentTokens).toCompletableFuture().join();
+      Tokens tokens = agent.refreshCurrentTokens(currentTokens).toCompletableFuture().get();
       assertTokens(
           tokens,
           "access_refreshed",
@@ -233,12 +234,12 @@ class OAuth2AgentTest {
   }
 
   @Test
-  void testRefreshTokenIcebergDialect() {
+  void testRefreshTokenIcebergDialect() throws InterruptedException, ExecutionException {
     try (TestEnvironment env = TestEnvironment.builder().dialect(Dialect.ICEBERG_REST).build();
         OAuth2Agent agent = env.newAgent()) {
       Tokens currentTokens =
           Tokens.of(AccessToken.of("access_initial", "Bearer", ACCESS_TOKEN_EXPIRATION_TIME), null);
-      Tokens tokens = agent.refreshCurrentTokens(currentTokens).toCompletableFuture().join();
+      Tokens tokens = agent.refreshCurrentTokens(currentTokens).toCompletableFuture().get();
       assertTokens(tokens, "access_refreshed", null);
     }
   }
@@ -282,7 +283,8 @@ class OAuth2AgentTest {
     "false, true,  DEVICE_CODE",
     "false, false, DEVICE_CODE",
   })
-  void testImpersonate(boolean privateClient, boolean returnRefreshTokens, GrantType grantType) {
+  void testImpersonate(boolean privateClient, boolean returnRefreshTokens, GrantType grantType)
+      throws InterruptedException, ExecutionException {
     try (TestEnvironment env =
             TestEnvironment.builder()
                 .grantType(GrantType.TOKEN_EXCHANGE)
@@ -292,10 +294,10 @@ class OAuth2AgentTest {
                 .returnRefreshTokens(returnRefreshTokens)
                 .build();
         OAuth2Agent agent = env.newAgent()) {
-      Tokens tokens = agent.fetchNewTokens().toCompletableFuture().join();
+      Tokens tokens = agent.fetchNewTokens().toCompletableFuture().get();
       assertTokens(tokens, "access_initial", returnRefreshTokens ? "refresh_initial" : null);
       if (returnRefreshTokens) {
-        tokens = agent.refreshCurrentTokens(tokens).toCompletableFuture().join();
+        tokens = agent.refreshCurrentTokens(tokens).toCompletableFuture().get();
         assertTokens(tokens, "access_refreshed", "refresh_refreshed");
       }
     }
@@ -317,7 +319,7 @@ class OAuth2AgentTest {
   }
 
   @Test
-  void testStaticTokenIcebergDialect() {
+  void testStaticTokenIcebergDialect() throws InterruptedException, ExecutionException {
     try (TestEnvironment env =
             TestEnvironment.builder()
                 .dialect(Dialect.ICEBERG_REST)
@@ -328,7 +330,7 @@ class OAuth2AgentTest {
       assertAccessToken(actual.getAccessToken(), "access_initial", null);
       // Iceberg dialect is able to refresh a static token without a refresh token
       // (using token exchange with the static token as subject token)
-      Tokens refreshed = agent.refreshCurrentTokens(actual).toCompletableFuture().join();
+      Tokens refreshed = agent.refreshCurrentTokens(actual).toCompletableFuture().get();
       assertTokens(refreshed, "access_refreshed", null);
     }
   }
@@ -340,7 +342,7 @@ class OAuth2AgentTest {
    * not yet closed when it's copied, since nothing in the API prevents that.
    */
   @Test
-  void testCopyAfterSuccessfulAuth() {
+  void testCopyAfterSuccessfulAuth() throws InterruptedException, ExecutionException {
     try (TestEnvironment env =
             TestEnvironment.builder()
                 .grantType(GrantType.TOKEN_EXCHANGE)
@@ -362,11 +364,11 @@ class OAuth2AgentTest {
         soft.assertThat(agent2).extracting("tokenRefreshFuture").isNotNull();
         // Should be able to refresh tokens
         assertTokens(
-            agent2.refreshCurrentTokens(tokens).toCompletableFuture().join(),
+            agent2.refreshCurrentTokens(tokens).toCompletableFuture().get(),
             "access_refreshed",
             "refresh_refreshed");
         // Should be able to fetch new tokens
-        soft.assertThat(agent2.fetchNewTokens().toCompletableFuture().join()).isEqualTo(tokens);
+        soft.assertThat(agent2.fetchNewTokens().toCompletableFuture().get()).isEqualTo(tokens);
       }
       // 2) Test copy after close
       try (OAuth2Agent agent3 = agent1.copy()) {
@@ -376,11 +378,11 @@ class OAuth2AgentTest {
         soft.assertThat(agent3).extracting("tokenRefreshFuture").isNotNull();
         // Should be able to refresh tokens
         assertTokens(
-            agent3.refreshCurrentTokens(tokens).toCompletableFuture().join(),
+            agent3.refreshCurrentTokens(tokens).toCompletableFuture().get(),
             "access_refreshed",
             "refresh_refreshed");
         // Should be able to fetch new tokens
-        soft.assertThat(agent3.fetchNewTokens().toCompletableFuture().join()).isEqualTo(tokens);
+        soft.assertThat(agent3.fetchNewTokens().toCompletableFuture().get()).isEqualTo(tokens);
       }
     }
   }
@@ -392,7 +394,7 @@ class OAuth2AgentTest {
    * should add tests for it.
    */
   @Test
-  void testCopyAfterFailedAuth() {
+  void testCopyAfterFailedAuth() throws InterruptedException, ExecutionException {
     try (TestEnvironment env =
         TestEnvironment.builder()
             .grantType(GrantType.TOKEN_EXCHANGE)
@@ -421,11 +423,11 @@ class OAuth2AgentTest {
           soft.assertThat(agent2).extracting("tokenRefreshFuture").isNotNull();
           // Should be able to refresh tokens
           assertTokens(
-              agent2.refreshCurrentTokens(tokens).toCompletableFuture().join(),
+              agent2.refreshCurrentTokens(tokens).toCompletableFuture().get(),
               "access_refreshed",
               "refresh_refreshed");
           // Should be able to fetch new tokens
-          soft.assertThat(agent2.fetchNewTokens().toCompletableFuture().join()).isEqualTo(tokens);
+          soft.assertThat(agent2.fetchNewTokens().toCompletableFuture().get()).isEqualTo(tokens);
         }
         // 2) Test copy after close
         try (OAuth2Agent agent3 = agent1.copy()) {
@@ -434,11 +436,11 @@ class OAuth2AgentTest {
           soft.assertThat(tokens).isNotNull();
           // Should be able to refresh tokens
           assertTokens(
-              agent3.refreshCurrentTokens(tokens).toCompletableFuture().join(),
+              agent3.refreshCurrentTokens(tokens).toCompletableFuture().get(),
               "access_refreshed",
               "refresh_refreshed");
           // Should be able to fetch new tokens
-          soft.assertThat(agent3.fetchNewTokens().toCompletableFuture().join()).isEqualTo(tokens);
+          soft.assertThat(agent3.fetchNewTokens().toCompletableFuture().get()).isEqualTo(tokens);
         }
       }
     }

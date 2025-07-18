@@ -20,16 +20,17 @@ import static com.dremio.iceberg.authmgr.oauth2.test.TokenAssertions.assertToken
 import com.dremio.iceberg.authmgr.oauth2.config.Dialect;
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
 import com.dremio.iceberg.authmgr.oauth2.token.Tokens;
+import java.util.concurrent.ExecutionException;
 import org.junit.jupiter.api.Test;
 
 class IcebergClientCredentialsFlowTest {
 
   @Test
-  void fetchNewTokens() {
+  void fetchNewTokens() throws InterruptedException, ExecutionException {
     try (TestEnvironment env = TestEnvironment.builder().dialect(Dialect.ICEBERG_REST).build();
         FlowFactory flowFactory = env.newFlowFactory()) {
       Flow flow = flowFactory.createInitialFlow();
-      Tokens tokens = flow.fetchNewTokens(null).toCompletableFuture().join();
+      Tokens tokens = flow.fetchNewTokens(null).toCompletableFuture().get();
       assertTokens(tokens, "access_initial", null);
     }
   }

@@ -39,7 +39,7 @@ public class OAuth2AgentPolarisIT {
   @InjectSoftAssertions private SoftAssertions soft;
 
   @Test
-  void clientCredentials(Builder envBuilder) {
+  void clientCredentials(Builder envBuilder) throws ExecutionException, InterruptedException {
     try (TestEnvironment env = envBuilder.build();
         OAuth2Agent agent = env.newAgent()) {
       // initial grant
@@ -47,7 +47,7 @@ public class OAuth2AgentPolarisIT {
       introspectToken(firstTokens.getAccessToken());
       soft.assertThat(firstTokens.getRefreshToken()).isNull();
       // token refresh
-      Tokens refreshedTokens = agent.refreshCurrentTokens(firstTokens).toCompletableFuture().join();
+      Tokens refreshedTokens = agent.refreshCurrentTokens(firstTokens).toCompletableFuture().get();
       introspectToken(refreshedTokens.getAccessToken());
       soft.assertThat(refreshedTokens.getRefreshToken()).isNull();
     }
@@ -59,7 +59,7 @@ public class OAuth2AgentPolarisIT {
    * and secret to authenticate with.
    */
   @Test
-  void fixedToken(Builder envBuilder) {
+  void fixedToken(Builder envBuilder) throws ExecutionException, InterruptedException {
     AccessToken accessToken;
     try (TestEnvironment env = envBuilder.build();
         OAuth2Agent agent = env.newAgent()) {
@@ -73,7 +73,7 @@ public class OAuth2AgentPolarisIT {
           .isEqualTo(accessToken.getPayload());
       soft.assertThat(firstTokens.getRefreshToken()).isNull();
       // token refresh
-      Tokens refreshedTokens = agent.refreshCurrentTokens(firstTokens).toCompletableFuture().join();
+      Tokens refreshedTokens = agent.refreshCurrentTokens(firstTokens).toCompletableFuture().get();
       introspectToken(refreshedTokens.getAccessToken());
       soft.assertThat(refreshedTokens.getRefreshToken()).isNull();
       // cannot fetch new tokens

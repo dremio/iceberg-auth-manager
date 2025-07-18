@@ -23,6 +23,7 @@ import com.dremio.iceberg.authmgr.oauth2.test.ImmutableTestEnvironment.Builder;
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.function.LongSupplier;
 
 public abstract class OAuth2AgentLongITBase {
@@ -35,7 +36,8 @@ public abstract class OAuth2AgentLongITBase {
 
   private CompletableFuture<Void> stop;
 
-  protected void run(Builder envBuilder1, Builder envBuilder2) {
+  protected void run(Builder envBuilder1, Builder envBuilder2)
+      throws ExecutionException, InterruptedException {
     try (TestEnvironment env1 = envBuilder1.build();
         TestEnvironment env2 = envBuilder2.build();
         OAuth2Agent fast = env1.newAgent();
@@ -43,7 +45,7 @@ public abstract class OAuth2AgentLongITBase {
       stop = CompletableFuture.runAsync(() -> {}, delayedExecutor(total.toSeconds(), SECONDS));
       CompletableFuture<Void> future1 = schedule(fast, shortDelay);
       CompletableFuture<Void> future2 = schedule(slow, longDelay);
-      stop.join();
+      stop.get();
       future1.complete(null);
       future2.complete(null);
       assertThat(future1).isNotCompletedExceptionally();

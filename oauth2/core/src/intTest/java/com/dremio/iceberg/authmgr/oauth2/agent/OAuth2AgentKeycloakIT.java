@@ -76,7 +76,8 @@ public class OAuth2AgentKeycloakIT {
   @EnumSource(
       value = GrantType.class,
       names = {"CLIENT_CREDENTIALS", "PASSWORD", "AUTHORIZATION_CODE", "DEVICE_CODE"})
-  void clientSecretBasic(GrantType initialGrantType, Builder envBuilder) {
+  void clientSecretBasic(GrantType initialGrantType, Builder envBuilder)
+      throws ExecutionException, InterruptedException {
     try (TestEnvironment env =
             envBuilder
                 .grantType(initialGrantType)
@@ -100,7 +101,8 @@ public class OAuth2AgentKeycloakIT {
   @EnumSource(
       value = GrantType.class,
       names = {"CLIENT_CREDENTIALS", "PASSWORD", "AUTHORIZATION_CODE", "DEVICE_CODE"})
-  void clientSecretPost(GrantType initialGrantType, Builder envBuilder) {
+  void clientSecretPost(GrantType initialGrantType, Builder envBuilder)
+      throws ExecutionException, InterruptedException {
     try (TestEnvironment env =
             envBuilder
                 .grantType(initialGrantType)
@@ -116,7 +118,8 @@ public class OAuth2AgentKeycloakIT {
   @EnumSource(
       value = GrantType.class,
       names = {"PASSWORD", "AUTHORIZATION_CODE", "DEVICE_CODE"})
-  void publicClient(GrantType initialGrantType, Builder envBuilder) {
+  void publicClient(GrantType initialGrantType, Builder envBuilder)
+      throws ExecutionException, InterruptedException {
     try (TestEnvironment env =
             envBuilder
                 .grantType(initialGrantType)
@@ -135,7 +138,8 @@ public class OAuth2AgentKeycloakIT {
   @EnumSource(
       value = GrantType.class,
       names = {"CLIENT_CREDENTIALS", "PASSWORD", "AUTHORIZATION_CODE", "DEVICE_CODE"})
-  void clientSecretJwt(GrantType initialGrantType, Builder envBuilder) {
+  void clientSecretJwt(GrantType initialGrantType, Builder envBuilder)
+      throws ExecutionException, InterruptedException {
     try (TestEnvironment env =
             envBuilder
                 .grantType(initialGrantType)
@@ -153,7 +157,8 @@ public class OAuth2AgentKeycloakIT {
   @EnumSource(
       value = GrantType.class,
       names = {"CLIENT_CREDENTIALS", "PASSWORD", "AUTHORIZATION_CODE", "DEVICE_CODE"})
-  void privateKeyJwt(GrantType initialGrantType, Builder envBuilder) {
+  void privateKeyJwt(GrantType initialGrantType, Builder envBuilder)
+      throws ExecutionException, InterruptedException {
     try (TestEnvironment env =
             envBuilder
                 .grantType(initialGrantType)
@@ -173,7 +178,8 @@ public class OAuth2AgentKeycloakIT {
 
   @ParameterizedTest
   @CsvSource({"false, S256", "true, S256", "true, PLAIN"})
-  void pkce(boolean enabled, PkceTransformation transformation, Builder envBuilder) {
+  void pkce(boolean enabled, PkceTransformation transformation, Builder envBuilder)
+      throws ExecutionException, InterruptedException {
     try (TestEnvironment env =
             envBuilder
                 .grantType(AUTHORIZATION_CODE)
@@ -194,7 +200,8 @@ public class OAuth2AgentKeycloakIT {
   @EnumSource(
       value = GrantType.class,
       names = {"CLIENT_CREDENTIALS", "PASSWORD", "AUTHORIZATION_CODE", "DEVICE_CODE"})
-  void impersonation1(GrantType subjectGrantType, Builder envBuilder) {
+  void impersonation1(GrantType subjectGrantType, Builder envBuilder)
+      throws ExecutionException, InterruptedException {
     try (TestEnvironment env =
             envBuilder
                 .grantType(TOKEN_EXCHANGE)
@@ -216,7 +223,8 @@ public class OAuth2AgentKeycloakIT {
   @EnumSource(
       value = GrantType.class,
       names = {"PASSWORD", "AUTHORIZATION_CODE", "DEVICE_CODE"})
-  void impersonation2(GrantType subjectGrantType, Builder envBuilder) {
+  void impersonation2(GrantType subjectGrantType, Builder envBuilder)
+      throws ExecutionException, InterruptedException {
     try (TestEnvironment env =
             envBuilder
                 .grantType(TOKEN_EXCHANGE)
@@ -278,7 +286,8 @@ public class OAuth2AgentKeycloakIT {
   @EnumSource(
       value = GrantType.class,
       names = {"CLIENT_CREDENTIALS", "PASSWORD", "AUTHORIZATION_CODE", "DEVICE_CODE"})
-  void delegation3(GrantType subjectGrantType, Builder envBuilder) {
+  void delegation3(GrantType subjectGrantType, Builder envBuilder)
+      throws ExecutionException, InterruptedException {
     boolean expectRefreshToken = subjectGrantType != GrantType.CLIENT_CREDENTIALS;
     try (TestEnvironment env =
             envBuilder
@@ -307,7 +316,8 @@ public class OAuth2AgentKeycloakIT {
   @EnumSource(
       value = GrantType.class,
       names = {"CLIENT_CREDENTIALS", "PASSWORD", "AUTHORIZATION_CODE", "DEVICE_CODE"})
-  void delegation4(GrantType subjectGrantType, Builder envBuilder) {
+  void delegation4(GrantType subjectGrantType, Builder envBuilder)
+      throws ExecutionException, InterruptedException {
     boolean expectRefreshToken = subjectGrantType != GrantType.CLIENT_CREDENTIALS;
     try (TestEnvironment env =
             envBuilder
@@ -461,21 +471,22 @@ public class OAuth2AgentKeycloakIT {
     }
   }
 
-  private void assertAgent(OAuth2Agent agent, String clientId, boolean expectRefreshToken) {
+  private void assertAgent(OAuth2Agent agent, String clientId, boolean expectRefreshToken)
+      throws ExecutionException, InterruptedException {
     // initial grant
     Tokens initial = agent.authenticateInternal();
     introspectToken(initial.getAccessToken(), clientId);
     // token refresh
     if (expectRefreshToken) {
       soft.assertThat(initial.getRefreshToken()).isNotNull();
-      Tokens refreshed = agent.refreshCurrentTokens(initial).toCompletableFuture().join();
+      Tokens refreshed = agent.refreshCurrentTokens(initial).toCompletableFuture().get();
       introspectToken(refreshed.getAccessToken(), clientId);
       soft.assertThat(refreshed.getRefreshToken()).isNotNull();
     } else {
       soft.assertThat(initial.getRefreshToken()).isNull();
     }
     // fetch new tokens
-    Tokens renewed = agent.fetchNewTokens().toCompletableFuture().join();
+    Tokens renewed = agent.fetchNewTokens().toCompletableFuture().get();
     introspectToken(renewed.getAccessToken(), clientId);
     if (expectRefreshToken) {
       soft.assertThat(renewed.getRefreshToken()).isNotNull();

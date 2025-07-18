@@ -24,6 +24,7 @@ import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
 import com.dremio.iceberg.authmgr.oauth2.token.AccessToken;
 import com.dremio.iceberg.authmgr.oauth2.token.RefreshToken;
 import com.dremio.iceberg.authmgr.oauth2.token.Tokens;
+import java.util.concurrent.ExecutionException;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
@@ -36,7 +37,8 @@ class RefreshTokenFlowTest {
 
   @ParameterizedTest
   @CsvSource({"true, true", "true, false", "false, true", "false, false"})
-  void fetchNewTokens(boolean privateClient, boolean returnRefreshTokens) {
+  void fetchNewTokens(boolean privateClient, boolean returnRefreshTokens)
+      throws ExecutionException, InterruptedException {
     try (TestEnvironment env =
             TestEnvironment.builder()
                 .grantType(GrantType.AUTHORIZATION_CODE)
@@ -45,7 +47,7 @@ class RefreshTokenFlowTest {
                 .build();
         FlowFactory flowFactory = env.newFlowFactory()) {
       Flow flow = flowFactory.createTokenRefreshFlow();
-      Tokens tokens = flow.fetchNewTokens(currentTokens).toCompletableFuture().join();
+      Tokens tokens = flow.fetchNewTokens(currentTokens).toCompletableFuture().get();
       assertTokens(
           tokens,
           "access_refreshed",

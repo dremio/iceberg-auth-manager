@@ -27,6 +27,7 @@ import java.net.URI;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import org.apache.spark.sql.SparkSession;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -42,9 +43,9 @@ public abstract class SparkS3ITBase {
   protected SparkSession spark;
 
   @BeforeAll
-  public void setup(@TempDir Path tempDir) {
+  public void setup(@TempDir Path tempDir) throws ExecutionException, InterruptedException {
     var network = Network.newNetwork();
-    startAllContainers(network).join();
+    startAllContainers(network).get();
     Map<String, Object> sparkConfig = sparkConfig(tempDir);
     spark = SparkSession.builder().master("local[1]").config(sparkConfig).getOrCreate();
   }

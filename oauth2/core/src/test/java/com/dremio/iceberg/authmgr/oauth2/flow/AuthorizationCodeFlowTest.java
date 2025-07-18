@@ -21,6 +21,7 @@ import com.dremio.iceberg.authmgr.oauth2.config.PkceTransformation;
 import com.dremio.iceberg.authmgr.oauth2.grant.GrantType;
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
 import com.dremio.iceberg.authmgr.oauth2.token.Tokens;
+import java.util.concurrent.ExecutionException;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
@@ -45,7 +46,8 @@ class AuthorizationCodeFlowTest {
       boolean pkceEnabled,
       PkceTransformation pkceTransformation,
       boolean privateClient,
-      boolean returnRefreshTokens) {
+      boolean returnRefreshTokens)
+      throws InterruptedException, ExecutionException {
     try (TestEnvironment env =
             TestEnvironment.builder()
                 .grantType(GrantType.AUTHORIZATION_CODE)
@@ -56,7 +58,7 @@ class AuthorizationCodeFlowTest {
                 .build();
         FlowFactory flowFactory = env.newFlowFactory()) {
       Flow flow = flowFactory.createInitialFlow();
-      Tokens tokens = flow.fetchNewTokens(null).toCompletableFuture().join();
+      Tokens tokens = flow.fetchNewTokens(null).toCompletableFuture().get();
       assertTokens(tokens, "access_initial", returnRefreshTokens ? "refresh_initial" : null);
     }
   }

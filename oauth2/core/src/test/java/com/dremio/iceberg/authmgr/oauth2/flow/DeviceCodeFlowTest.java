@@ -22,6 +22,7 @@ import com.dremio.iceberg.authmgr.oauth2.grant.GrantType;
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
 import com.dremio.iceberg.authmgr.oauth2.token.Tokens;
 import java.time.Duration;
+import java.util.concurrent.ExecutionException;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
@@ -29,7 +30,8 @@ class DeviceCodeFlowTest {
 
   @ParameterizedTest
   @CsvSource({"true, true", "true, false", "false, true", "false, false"})
-  void fetchNewTokens(boolean privateClient, boolean returnRefreshTokens) {
+  void fetchNewTokens(boolean privateClient, boolean returnRefreshTokens)
+      throws ExecutionException, InterruptedException {
     try (TestEnvironment env =
             TestEnvironment.builder()
                 .grantType(GrantType.DEVICE_CODE)
@@ -44,7 +46,7 @@ class DeviceCodeFlowTest {
                 .build();
         FlowFactory flowFactory = env.newFlowFactory()) {
       Flow flow = flowFactory.createInitialFlow();
-      Tokens tokens = flow.fetchNewTokens(null).toCompletableFuture().join();
+      Tokens tokens = flow.fetchNewTokens(null).toCompletableFuture().get();
       assertTokens(tokens, "access_initial", returnRefreshTokens ? "refresh_initial" : null);
     }
   }

@@ -25,6 +25,7 @@ import com.dremio.iceberg.authmgr.oauth2.test.ImmutableTestEnvironment.Builder;
 import com.dremio.iceberg.authmgr.oauth2.test.TestConstants;
 import com.dremio.iceberg.authmgr.oauth2.test.container.KeycloakTestEnvironment;
 import com.dremio.iceberg.authmgr.oauth2.token.AccessToken;
+import java.util.concurrent.ExecutionException;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -34,7 +35,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 public class OAuth2AgentKeycloakLongIT extends OAuth2AgentLongITBase {
 
   @Test
-  void backgroundRefreshAndSleep(Builder envBuilder1, Builder envBuilder2) {
+  void backgroundRefreshAndSleep(Builder envBuilder1, Builder envBuilder2)
+      throws ExecutionException, InterruptedException {
     run(envBuilder1, envBuilder2.grantType(TOKEN_EXCHANGE).subjectGrantType(AUTHORIZATION_CODE));
   }
 
