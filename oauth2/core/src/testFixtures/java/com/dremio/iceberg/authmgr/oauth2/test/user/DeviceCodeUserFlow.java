@@ -18,7 +18,9 @@ package com.dremio.iceberg.authmgr.oauth2.test.user;
 import static java.net.HttpURLConnection.HTTP_OK;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
 import com.google.common.collect.ImmutableMap;
+import jakarta.annotation.Nullable;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.util.HashSet;
@@ -29,10 +31,11 @@ import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class KeycloakDeviceCodeUserEmulator extends AbstractKeycloakUserEmulator {
+/** A user flow for Device Code flows that understands the Keycloak-specific HTML forms. */
+@AuthManagerImmutable
+public abstract class DeviceCodeUserFlow extends UserFlow {
 
-  private static final Logger LOGGER =
-      LoggerFactory.getLogger(KeycloakDeviceCodeUserEmulator.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(DeviceCodeUserFlow.class);
 
   private static final Pattern FORM_ACTION_PATTERN =
       Pattern.compile("<form.*action=\"([^\"]+)\".*>");
@@ -40,64 +43,28 @@ public class KeycloakDeviceCodeUserEmulator extends AbstractKeycloakUserEmulator
   private static final Pattern HIDDEN_CODE_PATTERN =
       Pattern.compile("<input type=\"hidden\" name=\"code\" value=\"([^\"]+)\">");
 
-  private static final Pattern USER_CODE_PATTERN = Pattern.compile("\\[.*] (\\w{4}-\\w{4})");
-
-  private URI authUrl;
-  private String userCode;
-
-  private volatile boolean denyConsent = false;
-
-  /** Creates a new emulator with implicit login (for unit tests). */
-  public KeycloakDeviceCodeUserEmulator() {
-    this(null, null);
-  }
-
-  /**
-   * Creates a new emulator with required user login using the given username and password (for
-   * integration tests).
-   */
-  public KeycloakDeviceCodeUserEmulator(String username, String password) {
-    super(username, password);
-  }
-
-  public void denyConsent() {
-    this.denyConsent = true;
-  }
+  protected abstract String getUserCode();
 
   @Override
-  protected Runnable processLine(String line) {
-    if (line.startsWith("[") && line.contains("http")) {
-      authUrl = extractAuthUrl(line);
-    }
-    Matcher matcher = USER_CODE_PATTERN.matcher(line);
-    if (matcher.matches()) {
-      assertThat(authUrl).isNotNull();
-      userCode = matcher.group(1);
-      return this::triggerDeviceCodeFlow;
-    }
-    return null;
-  }
-
-  /**
-   * Emulate user browsing to the authorization URL printed on the console, then following the
-   * instructions, entering the user code and optionally logging in with their credentials.
-   */
-  private void triggerDeviceCodeFlow() {
+  public void run() {
     try {
-      LOGGER.debug("Starting device code flow.");
+      LOGGER.debug("Starting device code user flow.");
       Set<String> cookies = new HashSet<>();
-      URI loginPageUrl = enterUserCode(authUrl, userCode, cookies);
+      URI loginPageUrl = enterUserCode(getAuthUrl(), getUserCode(), cookies);
       if (loginPageUrl != null) {
-        URI consentPageUrl = login(loginPageUrl, cookies);
+        var username = getUserBehavior().getRequiredUsername();
+        var password = getUserBehavior().getRequiredPassword();
+        URI consentPageUrl = login(loginPageUrl, username, password, cookies);
         authorizeDevice(consentPageUrl, cookies);
       }
-      LOGGER.debug("Device code flow completed.");
+      LOGGER.debug("Device code user flow completed.");
     } catch (Exception | AssertionError t) {
-      recordFailure(t);
+      getErrorListener().accept(t);
     }
   }
 
-  /** Emulate user entering provided user code on the authorization server. */
+  /** Emulates user entering provided user code on the authorization server. */
+  @Nullable
   private URI enterUserCode(URI codePageUrl, String userCode, Set<String> cookies)
       throws Exception {
     LOGGER.debug("Entering user code...");
@@ -107,20 +74,19 @@ public class KeycloakDeviceCodeUserEmulator extends AbstractKeycloakUserEmulator
     HttpURLConnection codeActionConn = openConnection(codePageUrl);
     Map<String, String> data = ImmutableMap.of("device_user_code", userCode);
     postForm(codeActionConn, data, cookies);
-    URI loginUrl;
-    if (username != null && password != null) {
-      // Expect a redirect to the login page
-      loginUrl = readRedirectUrl(codeActionConn, cookies);
-    } else {
+    URI loginUrl = null;
+    if (getUserBehavior().getUsername().isEmpty()) {
       // Unit tests: expect just a 200 OK
       assertThat(codeActionConn.getResponseCode()).isEqualTo(HTTP_OK);
-      loginUrl = null;
+    } else {
+      // Expect a redirect to the login page
+      loginUrl = readRedirectUrl(codeActionConn, cookies);
     }
     codeActionConn.disconnect();
     return loginUrl;
   }
 
-  /** Emulate user consenting to authorize device on the authorization server. */
+  /** Emulates user consenting to authorize device on the authorization server. */
   private void authorizeDevice(URI consentPageUrl, Set<String> cookies) throws Exception {
     LOGGER.debug("Authorizing device...");
     // receive consent page
@@ -142,6 +108,7 @@ public class KeycloakDeviceCodeUserEmulator extends AbstractKeycloakUserEmulator
             formAction.getQuery(),
             null);
     HttpURLConnection consentActionConn = openConnection(consentActionUrl);
+    boolean denyConsent = getUserBehavior().isEmulateFailure();
     Map<String, String> data =
         denyConsent
             ? ImmutableMap.of("code", deviceCode, "cancel", "No")

@@ -35,9 +35,7 @@ import com.dremio.iceberg.authmgr.oauth2.test.TestConstants;
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
 import com.dremio.iceberg.authmgr.oauth2.test.TestPemUtils;
 import com.dremio.iceberg.authmgr.oauth2.test.container.KeycloakTestEnvironment;
-import com.dremio.iceberg.authmgr.oauth2.test.user.KeycloakAuthCodeUserEmulator;
-import com.dremio.iceberg.authmgr.oauth2.test.user.KeycloakDeviceCodeUserEmulator;
-import com.dremio.iceberg.authmgr.oauth2.test.user.UserEmulator;
+import com.dremio.iceberg.authmgr.oauth2.test.user.UserBehavior;
 import com.dremio.iceberg.authmgr.oauth2.token.AccessToken;
 import com.dremio.iceberg.authmgr.oauth2.token.Tokens;
 import com.dremio.iceberg.authmgr.oauth2.token.TypedToken;
@@ -443,9 +441,15 @@ public class OAuth2AgentKeycloakIT {
 
   @Test
   void unauthorizedBadCode(Builder envBuilder) {
-    try (TestEnvironment env = envBuilder.grantType(AUTHORIZATION_CODE).build()) {
-      UserEmulator user = env.getUser();
-      ((KeycloakAuthCodeUserEmulator) user).overrideAuthorizationCode("BAD_CODE", 401);
+    try (TestEnvironment env =
+        envBuilder
+            .grantType(AUTHORIZATION_CODE)
+            .userBehavior(
+                UserBehavior.builder()
+                    .from(UserBehavior.INTEGRATION_TESTS)
+                    .emulateFailure(true)
+                    .build())
+            .build()) {
       try (OAuth2Agent agent = env.newAgent()) {
         soft.assertThatThrownBy(agent::authenticate)
             .asInstanceOf(type(OAuth2Exception.class))
@@ -458,9 +462,15 @@ public class OAuth2AgentKeycloakIT {
 
   @Test
   void deviceCodeAccessDenied(Builder envBuilder) {
-    try (TestEnvironment env = envBuilder.grantType(DEVICE_CODE).build()) {
-      UserEmulator user = env.getUser();
-      ((KeycloakDeviceCodeUserEmulator) user).denyConsent();
+    try (TestEnvironment env =
+        envBuilder
+            .grantType(DEVICE_CODE)
+            .userBehavior(
+                UserBehavior.builder()
+                    .from(UserBehavior.INTEGRATION_TESTS)
+                    .emulateFailure(true)
+                    .build())
+            .build()) {
       try (OAuth2Agent agent = env.newAgent()) {
         soft.assertThatThrownBy(agent::authenticate)
             .asInstanceOf(type(OAuth2Exception.class))

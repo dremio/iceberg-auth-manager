@@ -23,7 +23,11 @@ import com.dremio.iceberg.authmgr.oauth2.rest.ImmutableTokenResponse;
 import com.dremio.iceberg.authmgr.oauth2.rest.PostFormRequest;
 import com.dremio.iceberg.authmgr.oauth2.test.TestConstants;
 import com.dremio.iceberg.authmgr.oauth2.token.TypedToken;
+import com.dremio.iceberg.authmgr.oauth2.uri.UriUtils;
 import java.net.URI;
+import java.util.List;
+import java.util.Map;
+import org.mockserver.model.HttpMessage;
 import org.mockserver.model.HttpRequest;
 import org.mockserver.model.HttpResponse;
 
@@ -87,5 +91,11 @@ public abstract class AbstractTokenEndpointExpectation extends AbstractExpectati
       responseBody.issuedTokenType(TypedToken.URN_ACCESS_TOKEN);
     }
     return responseBody;
+  }
+
+  protected static Map<String, List<String>> decodeBodyParameters(HttpMessage<?, ?> httpMessage) {
+    // See https://github.com/mock-server/mockserver/issues/1468
+    String body = httpMessage.getBodyAsString();
+    return UriUtils.decodeParameters(body);
   }
 }
