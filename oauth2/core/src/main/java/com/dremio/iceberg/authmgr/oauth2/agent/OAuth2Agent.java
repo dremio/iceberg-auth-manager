@@ -15,6 +15,7 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.agent;
 
+import com.dremio.iceberg.authmgr.oauth2.concurrent.Futures;
 import com.dremio.iceberg.authmgr.oauth2.config.Dialect;
 import com.dremio.iceberg.authmgr.oauth2.flow.Flow;
 import com.dremio.iceberg.authmgr.oauth2.flow.FlowFactory;
@@ -27,7 +28,6 @@ import java.io.Closeable;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
@@ -107,7 +107,7 @@ public final class OAuth2Agent implements Closeable {
     lastAccess = toCopy.lastAccess;
     lastWarn = toCopy.lastWarn;
     tokenRefreshFuture = null;
-    Tokens currentTokens = toCopy.getCurrentTokensIfAvailable();
+    Tokens currentTokens = Futures.getNow(toCopy.currentTokensStage);
     if (currentTokens != null) {
       currentTokensStage = CompletableFuture.completedFuture(currentTokens);
     } else {
@@ -133,7 +133,8 @@ public final class OAuth2Agent implements Closeable {
 
   /**
    * Authenticates the client synchronously, waiting for the authentication to complete, and returns
-   * the current access token. If the authentication fails, an exception is thrown.
+   * the current access token. If the authentication fails, or if the agent is closing, an exception
+   * is thrown.
    */
   public AccessToken authenticate() {
     return authenticateInternal().getAccessToken();
@@ -195,21 +196,15 @@ public final class OAuth2Agent implements Closeable {
     if (closing.compareAndSet(false, true)) {
       LOGGER.debug("[{}] Closing...", name);
       try (flowFactory) {
-        currentTokensStage.toCompletableFuture().cancel(true);
-        cancelTokenRefresh();
-      } finally {
+        Futures.cancel(tokenRefreshFuture);
+        Futures.cancel(currentTokensStage);
         // Cancel this future to invalidate any pending log messages
-        used.cancel(true);
+        Futures.cancel(used);
+      } finally {
+        tokenRefreshFuture = null;
+        // Don't clear currentTokensStage, we'll need it in case this agent is copied.
       }
       LOGGER.debug("[{}] Closed", name);
-    }
-  }
-
-  private void cancelTokenRefresh() {
-    ScheduledFuture<?> tokenRefreshFuture = this.tokenRefreshFuture;
-    this.tokenRefreshFuture = null;
-    if (tokenRefreshFuture != null) {
-      tokenRefreshFuture.cancel(true);
     }
   }
 
@@ -217,7 +212,8 @@ public final class OAuth2Agent implements Closeable {
     LOGGER.debug(
         "[{}] Fetching new access token using {}", name, spec.getBasicConfig().getGrantType());
     Flow flow = flowFactory.createInitialFlow();
-    CompletionStage<Tokens> newTokensStage = flow.fetchNewTokens(getCurrentTokensIfAvailable());
+    CompletionStage<Tokens> newTokensStage =
+        flow.fetchNewTokens(Futures.getNow(currentTokensStage));
     // If the flow requires user interaction, update the last access time once the flow completes,
     // in order to better reflect when the agent was actually accessed for the last time.
     // This prevents the agent from going to sleep too early when the user is interacting with it.
@@ -299,13 +295,13 @@ public final class OAuth2Agent implements Closeable {
     }
     LOGGER.debug("[{}] Scheduling token refresh in {}", name, delay);
     try {
-      tokenRefreshFuture =
+      var tokenRefreshFuture =
           executor.schedule(this::renewTokens, delay.toMillis(), TimeUnit.MILLISECONDS);
+      this.tokenRefreshFuture = tokenRefreshFuture;
       if (closing.get()) {
-        // We raced with close(): since we can't know if the volatile write above to the
-        // tokenRefreshFuture field was done before or after the close() thread read the field,
-        // we must cancel the future here as well.
-        cancelTokenRefresh();
+        // We raced with close(): cancel the future we just created and clear the field.
+        Futures.cancel(tokenRefreshFuture);
+        this.tokenRefreshFuture = null;
       }
     } catch (RejectedExecutionException e) {
       if (closing.get()) {
@@ -342,6 +338,10 @@ public final class OAuth2Agent implements Closeable {
   }
 
   private void renewTokens() {
+    if (closing.get()) {
+      LOGGER.debug("[{}] Not renewing tokens, agent is closing", name);
+      return;
+    }
     CompletionStage<Tokens> oldTokensStage = currentTokensStage;
     CompletionStage<Tokens> newTokensStage =
         oldTokensStage
@@ -354,9 +354,14 @@ public final class OAuth2Agent implements Closeable {
                     error == null ? CompletableFuture.completedFuture(tokens) : fetchNewTokens())
             .thenCompose(Function.identity());
     currentTokensStage = newTokensStage;
-    newTokensStage
-        .whenComplete(this::log)
-        .whenComplete((tokens, error) -> maybeScheduleTokensRenewal(tokens));
+    if (closing.get()) {
+      // We raced with close(): cancel the future we just created.
+      Futures.cancel(newTokensStage);
+    } else {
+      newTokensStage
+          .whenComplete(this::log)
+          .whenComplete((tokens, error) -> maybeScheduleTokensRenewal(tokens));
+    }
   }
 
   private void maybeSleep() {
@@ -391,7 +396,7 @@ public final class OAuth2Agent implements Closeable {
       return;
     }
     LOGGER.debug("[{}] Waking up...", name);
-    Tokens currentTokens = getCurrentTokensIfAvailable();
+    Tokens currentTokens = Futures.getNow(currentTokensStage);
     Duration delay = nextTokenRefresh(currentTokens, now, Duration.ZERO);
     if (delay.compareTo(spec.getTokenRefreshConfig().getMinRefreshDelay()) < 0) {
       LOGGER.debug("[{}] Refreshing tokens immediately", name);
@@ -400,17 +405,6 @@ public final class OAuth2Agent implements Closeable {
       LOGGER.debug("[{}] Tokens are still valid", name);
       scheduleTokensRenewal(delay);
     }
-  }
-
-  private Tokens getCurrentTokensIfAvailable() {
-    try {
-      CompletionStage<Tokens> tokensStage = currentTokensStage;
-      if (tokensStage != null) {
-        return tokensStage.toCompletableFuture().getNow(null);
-      }
-    } catch (CancellationException | CompletionException ignored) {
-    }
-    return null;
   }
 
   @SuppressWarnings("FutureReturnValueIgnored")
