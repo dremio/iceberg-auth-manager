@@ -19,9 +19,13 @@ import jakarta.annotation.Nullable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Future;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Utilities for working with futures. */
 public final class Futures {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(Futures.class);
 
   private Futures() {}
 
@@ -44,21 +48,23 @@ public final class Futures {
   /** Cancels the given future if it is not null. */
   public static void cancel(@Nullable Future<?> future) {
     if (future != null) {
-      future.cancel(true);
-    }
-  }
-
-  /** Cancels the given future if it is not null. */
-  public static void cancel(@Nullable CompletionStage<?> future) {
-    if (future != null) {
-      cancel(future.toCompletableFuture());
+      try {
+        future.cancel(true);
+      } catch (Exception e) {
+        LOGGER.warn("Error cancelling future", e);
+      }
     }
   }
 
   /** Cancels the given future if it is not null. */
   public static void cancel(@Nullable CompletableFuture<?> future) {
+    cancel((Future<?>) future);
+  }
+
+  /** Cancels the given future if it is not null. */
+  public static void cancel(@Nullable CompletionStage<?> future) {
     if (future != null) {
-      future.cancel(true);
+      cancel(future instanceof Future ? (Future<?>) future : future.toCompletableFuture());
     }
   }
 }
