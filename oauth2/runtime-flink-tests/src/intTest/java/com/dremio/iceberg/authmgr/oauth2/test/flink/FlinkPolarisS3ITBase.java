@@ -31,6 +31,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.iceberg.IcebergBuild;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -44,6 +45,14 @@ public abstract class FlinkPolarisS3ITBase {
   protected S3MockContainer s3;
   protected volatile PolarisContainer polaris;
   protected TableEnvironment flink;
+
+  @BeforeAll
+  public void recordExpectedVersions() {
+    String expectedIcebergVersion = System.getProperty("authmgr.test.iceberg.version");
+    String actualIcebergVersion = IcebergBuild.gitTags().get(0);
+    assertThat(actualIcebergVersion).startsWith("apache-iceberg-" + expectedIcebergVersion);
+    // TODO check Flink version
+  }
 
   @BeforeAll
   public void setup() throws ExecutionException, InterruptedException {
