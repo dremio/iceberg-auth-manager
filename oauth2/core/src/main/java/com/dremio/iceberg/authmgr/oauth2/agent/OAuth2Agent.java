@@ -179,9 +179,7 @@ public final class OAuth2Agent implements Closeable {
   Tokens getCurrentTokens() {
     try {
       Duration timeout = spec.getBasicConfig().getTimeout();
-      return currentTokensFuture
-          .toCompletableFuture()
-          .get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+      return currentTokensFuture.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new RuntimeException(e);
