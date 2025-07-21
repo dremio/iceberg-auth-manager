@@ -17,7 +17,6 @@ package com.dremio.iceberg.authmgr.oauth2.concurrent;
 
 import jakarta.annotation.Nullable;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Future;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,9 +34,8 @@ public final class Futures {
    * is completed exceptionally.
    */
   @Nullable
-  public static <T> T getNow(@Nullable CompletionStage<T> stage) {
-    if (stage != null) {
-      CompletableFuture<T> future = stage.toCompletableFuture();
+  public static <T> T getNow(@Nullable CompletableFuture<T> future) {
+    if (future != null) {
       if (future.isDone() && !future.isCompletedExceptionally() && !future.isCancelled()) {
         return future.join();
       }
@@ -48,23 +46,7 @@ public final class Futures {
   /** Cancels the given future if it is not null. */
   public static void cancel(@Nullable Future<?> future) {
     if (future != null) {
-      try {
-        future.cancel(true);
-      } catch (Exception e) {
-        LOGGER.warn("Error cancelling future", e);
-      }
-    }
-  }
-
-  /** Cancels the given future if it is not null. */
-  public static void cancel(@Nullable CompletableFuture<?> future) {
-    cancel((Future<?>) future);
-  }
-
-  /** Cancels the given future if it is not null. */
-  public static void cancel(@Nullable CompletionStage<?> future) {
-    if (future != null) {
-      cancel(future instanceof Future ? (Future<?>) future : future.toCompletableFuture());
+      future.cancel(true);
     }
   }
 }

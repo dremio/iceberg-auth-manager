@@ -17,13 +17,11 @@ package com.dremio.iceberg.authmgr.oauth2.concurrent;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
-import java.util.concurrent.Future;
 import org.junit.jupiter.api.Test;
 
 class FuturesTest {
@@ -44,9 +42,9 @@ class FuturesTest {
 
   @Test
   void cancelFuture() {
-    assertThatCode(() -> Futures.cancel((Future<?>) null)).doesNotThrowAnyException();
+    assertThatCode(() -> Futures.cancel(null)).doesNotThrowAnyException();
     CompletableFuture<?> future = new CompletableFuture<>();
-    Futures.cancel((Future<?>) future);
+    Futures.cancel(future);
     assertThat(future.isDone()).isTrue();
     assertThat(future.isCancelled()).isTrue();
     assertThat(future.isCompletedExceptionally()).isTrue();
@@ -56,43 +54,8 @@ class FuturesTest {
   void cancelFutureWithException() {
     CompletableFuture<?> future = mock(CompletableFuture.class);
     when(future.cancel(true)).thenThrow(new RuntimeException("test"));
-    assertThatCode(() -> Futures.cancel(future)).doesNotThrowAnyException();
-    verify(future).cancel(true);
-  }
-
-  @Test
-  void cancelCompletionStage() {
-    assertThatCode(() -> Futures.cancel((CompletionStage<?>) null)).doesNotThrowAnyException();
-    CompletableFuture<Object> future = new CompletableFuture<>();
-    Futures.cancel((CompletionStage<?>) future);
-    assertThat(future.isDone()).isTrue();
-    assertThat(future.isCancelled()).isTrue();
-    assertThat(future.isCompletedExceptionally()).isTrue();
-  }
-
-  @Test
-  void cancelCompletionStageWithException() {
-    CompletableFuture<?> future = mock(CompletableFuture.class);
-    when(future.cancel(true)).thenThrow(new RuntimeException("test"));
-    assertThatCode(() -> Futures.cancel((CompletionStage<?>) future)).doesNotThrowAnyException();
-    verify(future).cancel(true);
-  }
-
-  @Test
-  void cancelCompletableFuture() {
-    assertThatCode(() -> Futures.cancel((CompletableFuture<?>) null)).doesNotThrowAnyException();
-    CompletableFuture<Object> future = new CompletableFuture<>();
-    Futures.cancel(future);
-    assertThat(future.isDone()).isTrue();
-    assertThat(future.isCancelled()).isTrue();
-    assertThat(future.isCompletedExceptionally()).isTrue();
-  }
-
-  @Test
-  void cancelCompletableFutureWithException() {
-    CompletableFuture<?> future = mock(CompletableFuture.class);
-    when(future.cancel(true)).thenThrow(new RuntimeException("test"));
-    assertThatCode(() -> Futures.cancel(future)).doesNotThrowAnyException();
-    verify(future).cancel(true);
+    assertThatThrownBy(() -> Futures.cancel(future))
+        .isInstanceOf(RuntimeException.class)
+        .hasMessage("test");
   }
 }
