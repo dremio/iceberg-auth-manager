@@ -24,6 +24,9 @@ public interface RefreshFlow extends Flow {
   /**
    * Refreshes the current tokens.
    *
+   * <p>A flow may be stateful or stateless. Stateful flows should clean up internal resources when
+   * the returned {@link CompletionStage} completes.
+   *
    * @param currentTokens The current tokens. Cannot be null.
    * @return A future that completes when the tokens are refreshed.
    */

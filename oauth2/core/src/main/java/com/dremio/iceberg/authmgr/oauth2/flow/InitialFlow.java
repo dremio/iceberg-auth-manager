@@ -27,6 +27,9 @@ public interface InitialFlow extends Flow {
    * <p>This method is called when new tokens are needed, either because no current tokens exist, or
    * because the current tokens are expired or about to expire.
    *
+   * <p>A flow may be stateful or stateless. Stateful flows should clean up internal resources when
+   * the returned {@link CompletionStage} completes.
+   *
    * @return A stage that completes when brand-new tokens are fetched.
    */
   CompletionStage<Tokens> fetchNewTokens();
