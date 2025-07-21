@@ -19,7 +19,6 @@ import com.dremio.iceberg.authmgr.oauth2.config.Secret;
 import com.dremio.iceberg.authmgr.oauth2.rest.PasswordTokenRequest;
 import com.dremio.iceberg.authmgr.oauth2.token.Tokens;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
-import jakarta.annotation.Nullable;
 import java.util.concurrent.CompletionStage;
 
 /**
@@ -28,12 +27,12 @@ import java.util.concurrent.CompletionStage;
  * Credentials Grant</a> flow.
  */
 @AuthManagerImmutable
-abstract class PasswordFlow extends AbstractFlow {
+abstract class PasswordFlow extends AbstractFlow implements InitialFlow {
 
   interface Builder extends AbstractFlow.Builder<PasswordFlow, Builder> {}
 
   @Override
-  public CompletionStage<Tokens> fetchNewTokens(@Nullable Tokens currentTokens) {
+  public CompletionStage<Tokens> fetchNewTokens() {
     String username =
         getSpec()
             .getResourceOwnerConfig()
@@ -47,6 +46,6 @@ abstract class PasswordFlow extends AbstractFlow {
             .orElseThrow(() -> new IllegalStateException("Password is required"));
     PasswordTokenRequest.Builder request =
         PasswordTokenRequest.builder().username(username).password(password);
-    return invokeTokenEndpoint(currentTokens, request);
+    return invokeTokenEndpoint(null, request);
   }
 }

@@ -15,22 +15,19 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.flow;
 
-import static com.dremio.iceberg.authmgr.oauth2.test.TokenAssertions.assertTokens;
-
-import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
 import com.dremio.iceberg.authmgr.oauth2.token.Tokens;
-import java.util.concurrent.ExecutionException;
-import org.junit.jupiter.api.Test;
+import java.util.concurrent.CompletionStage;
 
-class ClientCredentialsFlowTest {
+/** An interface representing an "initial" OAuth2 flow that can be used to fetch new tokens. */
+public interface InitialFlow extends Flow {
 
-  @Test
-  void fetchNewTokens() throws InterruptedException, ExecutionException {
-    try (TestEnvironment env = TestEnvironment.builder().build();
-        FlowFactory flowFactory = env.newFlowFactory()) {
-      InitialFlow flow = flowFactory.createInitialFlow();
-      Tokens tokens = flow.fetchNewTokens().toCompletableFuture().get();
-      assertTokens(tokens, "access_initial", null);
-    }
-  }
+  /**
+   * Fetches brand-new tokens from the OAuth2 provider.
+   *
+   * <p>This method is called when new tokens are needed, either because no current tokens exist, or
+   * because the current tokens are expired or about to expire.
+   *
+   * @return A stage that completes when brand-new tokens are fetched.
+   */
+  CompletionStage<Tokens> fetchNewTokens();
 }

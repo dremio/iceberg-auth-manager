@@ -18,7 +18,6 @@ package com.dremio.iceberg.authmgr.oauth2.flow;
 import com.dremio.iceberg.authmgr.oauth2.rest.RefreshTokenRequest;
 import com.dremio.iceberg.authmgr.oauth2.token.Tokens;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
-import jakarta.annotation.Nullable;
 import java.util.Objects;
 import java.util.concurrent.CompletionStage;
 
@@ -27,12 +26,12 @@ import java.util.concurrent.CompletionStage;
  * Refresh</a> flow.
  */
 @AuthManagerImmutable
-abstract class RefreshTokenFlow extends AbstractFlow {
+abstract class RefreshTokenFlow extends AbstractFlow implements RefreshFlow {
 
   interface Builder extends AbstractFlow.Builder<RefreshTokenFlow, Builder> {}
 
   @Override
-  public CompletionStage<Tokens> fetchNewTokens(@Nullable Tokens currentTokens) {
+  public CompletionStage<Tokens> refreshTokens(Tokens currentTokens) {
     Objects.requireNonNull(currentTokens, "currentTokens is null");
     Objects.requireNonNull(
         currentTokens.getRefreshToken(), "currentTokens.getRefreshTokens() is null");

@@ -21,7 +21,6 @@ import static com.dremio.iceberg.authmgr.oauth2.flow.FlowUtils.OAUTH2_AGENT_TITL
 import com.dremio.iceberg.authmgr.oauth2.rest.DeviceAccessTokenRequest;
 import com.dremio.iceberg.authmgr.oauth2.token.Tokens;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
-import jakarta.annotation.Nullable;
 import java.io.PrintStream;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
@@ -38,7 +37,7 @@ import org.slf4j.LoggerFactory;
  * Authorization Grant</a> flow.
  */
 @AuthManagerImmutable
-abstract class DeviceCodeFlow extends AbstractFlow {
+abstract class DeviceCodeFlow extends AbstractFlow implements InitialFlow {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(DeviceCodeFlow.class);
 
@@ -82,9 +81,9 @@ abstract class DeviceCodeFlow extends AbstractFlow {
   }
 
   @Override
-  public CompletionStage<Tokens> fetchNewTokens(@Nullable Tokens currentTokens) {
+  public CompletionStage<Tokens> fetchNewTokens() {
     LOGGER.debug("[{}] Device Auth Flow: started", getAgentName());
-    return invokeDeviceAuthEndpoint(currentTokens)
+    return invokeDeviceAuthEndpoint()
         .thenCompose(
             response -> {
               pollInterval = getSpec().getDeviceCodeConfig().getPollInterval();

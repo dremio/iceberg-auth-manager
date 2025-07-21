@@ -54,7 +54,7 @@ import org.slf4j.LoggerFactory;
  * flow.
  */
 @AuthManagerImmutable
-abstract class AuthorizationCodeFlow extends AbstractFlow {
+abstract class AuthorizationCodeFlow extends AbstractFlow implements InitialFlow {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(AuthorizationCodeFlow.class);
 
@@ -195,7 +195,7 @@ abstract class AuthorizationCodeFlow extends AbstractFlow {
   }
 
   @Override
-  public CompletionStage<Tokens> fetchNewTokens(@Nullable Tokens ignored) {
+  public CompletionStage<Tokens> fetchNewTokens() {
     LOGGER.debug(
         "[{}] Authorization Code Flow: started, redirect URI: {}",
         getAgentName(),

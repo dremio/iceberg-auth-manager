@@ -34,8 +34,8 @@ class IcebergRefreshTokenFlowTest {
   void fetchNewTokens() throws InterruptedException, ExecutionException {
     try (TestEnvironment env = TestEnvironment.builder().dialect(Dialect.ICEBERG_REST).build();
         FlowFactory flowFactory = env.newFlowFactory()) {
-      Flow flow = flowFactory.createTokenRefreshFlow();
-      Tokens tokens = flow.fetchNewTokens(currentTokens).toCompletableFuture().get();
+      RefreshFlow flow = flowFactory.createTokenRefreshFlow();
+      Tokens tokens = flow.refreshTokens(currentTokens).toCompletableFuture().get();
       assertTokens(tokens, "access_refreshed", null);
     }
   }
@@ -48,8 +48,8 @@ class IcebergRefreshTokenFlowTest {
                 .token("access_initial")
                 .build();
         FlowFactory flowFactory = env.newFlowFactory()) {
-      Flow flow = flowFactory.createTokenRefreshFlow();
-      Tokens tokens = flow.fetchNewTokens(currentTokens).toCompletableFuture().get();
+      RefreshFlow flow = flowFactory.createTokenRefreshFlow();
+      Tokens tokens = flow.refreshTokens(currentTokens).toCompletableFuture().get();
       assertTokens(tokens, "access_refreshed", null);
     }
   }

@@ -29,8 +29,8 @@ class IcebergClientCredentialsFlowTest {
   void fetchNewTokens() throws InterruptedException, ExecutionException {
     try (TestEnvironment env = TestEnvironment.builder().dialect(Dialect.ICEBERG_REST).build();
         FlowFactory flowFactory = env.newFlowFactory()) {
-      Flow flow = flowFactory.createInitialFlow();
-      Tokens tokens = flow.fetchNewTokens(null).toCompletableFuture().get();
+      InitialFlow flow = flowFactory.createInitialFlow();
+      Tokens tokens = flow.fetchNewTokens().toCompletableFuture().get();
       assertTokens(tokens, "access_initial", null);
     }
   }

@@ -27,12 +27,12 @@ import java.util.concurrent.CompletionStage;
  * dialect only.
  */
 @AuthManagerImmutable
-abstract class IcebergRefreshTokenFlow extends AbstractFlow {
+abstract class IcebergRefreshTokenFlow extends AbstractFlow implements RefreshFlow {
 
   interface Builder extends AbstractFlow.Builder<IcebergRefreshTokenFlow, Builder> {}
 
   @Override
-  public CompletionStage<Tokens> fetchNewTokens(Tokens currentTokens) {
+  public CompletionStage<Tokens> refreshTokens(Tokens currentTokens) {
     Objects.requireNonNull(currentTokens, "currentTokens is null");
     Objects.requireNonNull(
         currentTokens.getAccessToken(), "currentTokens.getAccessToken() is null");

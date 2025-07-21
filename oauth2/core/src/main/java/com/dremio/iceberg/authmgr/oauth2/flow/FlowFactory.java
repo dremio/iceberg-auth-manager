@@ -46,7 +46,7 @@ public abstract class FlowFactory implements AutoCloseable {
   }
 
   /** Creates a flow for fetching new tokens. This is used for the initial token fetch. */
-  public Flow createInitialFlow() {
+  public InitialFlow createInitialFlow() {
     return newInitialFlowBuilder()
         .spec(getSpec())
         .executor(getExecutor())
@@ -60,7 +60,7 @@ public abstract class FlowFactory implements AutoCloseable {
    * Creates a flow for refreshing tokens. This is used for refreshing tokens when the access token
    * expires.
    */
-  public Flow createTokenRefreshFlow() {
+  public RefreshFlow createTokenRefreshFlow() {
     return newTokenRefreshFlowBuilder()
         .spec(getSpec())
         .executor(getExecutor())
@@ -125,7 +125,7 @@ public abstract class FlowFactory implements AutoCloseable {
         : ActorTokenSupplier.of(getSpec(), getExecutor(), getRestClientSupplier());
   }
 
-  private AbstractFlow.Builder<?, ?> newInitialFlowBuilder() {
+  private AbstractFlow.Builder<? extends InitialFlow, ?> newInitialFlowBuilder() {
     switch (getSpec().getBasicConfig().getGrantType()) {
       case CLIENT_CREDENTIALS:
         return ImmutableClientCredentialsFlow.builder();
@@ -146,7 +146,7 @@ public abstract class FlowFactory implements AutoCloseable {
     }
   }
 
-  private AbstractFlow.Builder<?, ?> newTokenRefreshFlowBuilder() {
+  private AbstractFlow.Builder<? extends RefreshFlow, ?> newTokenRefreshFlowBuilder() {
     switch (getSpec().getBasicConfig().getDialect()) {
       case STANDARD:
         return ImmutableRefreshTokenFlow.builder();

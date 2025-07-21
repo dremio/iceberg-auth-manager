@@ -18,7 +18,6 @@ package com.dremio.iceberg.authmgr.oauth2.flow;
 import com.dremio.iceberg.authmgr.oauth2.rest.ClientCredentialsTokenRequest;
 import com.dremio.iceberg.authmgr.oauth2.token.Tokens;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
-import jakarta.annotation.Nullable;
 import java.util.concurrent.CompletionStage;
 
 /**
@@ -27,13 +26,13 @@ import java.util.concurrent.CompletionStage;
  * flow.
  */
 @AuthManagerImmutable
-abstract class ClientCredentialsFlow extends AbstractFlow {
+abstract class ClientCredentialsFlow extends AbstractFlow implements InitialFlow {
 
   interface Builder extends AbstractFlow.Builder<ClientCredentialsFlow, Builder> {}
 
   @Override
-  public CompletionStage<Tokens> fetchNewTokens(@Nullable Tokens currentTokens) {
+  public CompletionStage<Tokens> fetchNewTokens() {
     ClientCredentialsTokenRequest.Builder request = ClientCredentialsTokenRequest.builder();
-    return invokeTokenEndpoint(currentTokens, request);
+    return invokeTokenEndpoint(null, request);
   }
 }

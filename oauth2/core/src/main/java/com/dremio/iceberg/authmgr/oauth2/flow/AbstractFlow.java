@@ -102,14 +102,13 @@ abstract class AbstractFlow implements Flow {
         .thenApply(resp -> resp.asTokens(getSpec().getRuntimeConfig().getClock()));
   }
 
-  protected CompletionStage<DeviceAuthorizationResponse> invokeDeviceAuthEndpoint(
-      @Nullable Tokens currentTokens) {
+  protected CompletionStage<DeviceAuthorizationResponse> invokeDeviceAuthEndpoint() {
     URI deviceAuthorizationEndpoint =
         Objects.requireNonNull(getEndpointProvider().getResolvedDeviceAuthorizationEndpoint());
     DeviceAuthorizationRequest.Builder builder = DeviceAuthorizationRequest.builder();
     ConfigUtils.scopesAsString(getSpec().getBasicConfig().getScopes()).ifPresent(builder::scope);
     Map<String, String> headers = getHeaders();
-    getClientAuthenticator().authenticate(builder, headers, currentTokens);
+    getClientAuthenticator().authenticate(builder, headers, null);
     DeviceAuthorizationRequest request = builder.build();
     return CompletableFuture.supplyAsync(
             () -> {

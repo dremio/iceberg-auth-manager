@@ -15,8 +15,6 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.flow;
 
-import com.dremio.iceberg.authmgr.oauth2.token.Tokens;
-import jakarta.annotation.Nullable;
 import java.util.concurrent.CompletionStage;
 
 /**
@@ -28,15 +26,8 @@ import java.util.concurrent.CompletionStage;
  *
  * <p>A flow may be stateful or stateless. Stateful flows should clean up internal resources when
  * the returned {@link CompletionStage} completes.
+ *
+ * @see InitialFlow
+ * @see RefreshFlow
  */
-public interface Flow {
-
-  /**
-   * Fetches new tokens from the OAuth2 provider. This method is called when the current tokens are
-   * expired or about to expire, and new tokens are needed.
-   *
-   * @param currentTokens The current tokens. This can be null if no tokens are available.
-   * @return The new tokens fetched from the OAuth2 provider.
-   */
-  CompletionStage<Tokens> fetchNewTokens(@Nullable Tokens currentTokens);
-}
+public interface Flow {}

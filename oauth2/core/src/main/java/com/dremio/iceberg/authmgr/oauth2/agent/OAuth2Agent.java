@@ -19,8 +19,9 @@ import static com.dremio.iceberg.authmgr.oauth2.concurrent.AutoCloseables.cancel
 
 import com.dremio.iceberg.authmgr.oauth2.concurrent.Futures;
 import com.dremio.iceberg.authmgr.oauth2.config.Dialect;
-import com.dremio.iceberg.authmgr.oauth2.flow.Flow;
 import com.dremio.iceberg.authmgr.oauth2.flow.FlowFactory;
+import com.dremio.iceberg.authmgr.oauth2.flow.InitialFlow;
+import com.dremio.iceberg.authmgr.oauth2.flow.RefreshFlow;
 import com.dremio.iceberg.authmgr.oauth2.token.AccessToken;
 import com.dremio.iceberg.authmgr.oauth2.token.RefreshToken;
 import com.dremio.iceberg.authmgr.oauth2.token.Token;
@@ -219,9 +220,8 @@ public final class OAuth2Agent implements Closeable {
   CompletionStage<Tokens> fetchNewTokens() {
     LOGGER.debug(
         "[{}] Fetching new access token using {}", name, spec.getBasicConfig().getGrantType());
-    Flow flow = flowFactory.createInitialFlow();
-    CompletionStage<Tokens> newTokensStage =
-        flow.fetchNewTokens(Futures.getNow(currentTokensFuture));
+    InitialFlow flow = flowFactory.createInitialFlow();
+    CompletionStage<Tokens> newTokensStage = flow.fetchNewTokens();
     // If the flow requires user interaction, update the last access time once the flow completes,
     // in order to better reflect when the agent was actually accessed for the last time.
     // This prevents the agent from going to sleep too early when the user is interacting with it.
@@ -240,8 +240,8 @@ public final class OAuth2Agent implements Closeable {
       }
     }
     LOGGER.debug("[{}] Refreshing tokens", name);
-    Flow flow = flowFactory.createTokenRefreshFlow();
-    return flow.fetchNewTokens(currentTokens);
+    RefreshFlow flow = flowFactory.createTokenRefreshFlow();
+    return flow.refreshTokens(currentTokens);
   }
 
   private void log(@Nullable Tokens newTokens, @Nullable Throwable error) {

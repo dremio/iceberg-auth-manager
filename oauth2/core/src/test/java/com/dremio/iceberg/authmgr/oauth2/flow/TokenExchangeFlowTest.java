@@ -15,25 +15,16 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.flow;
 
-import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.ACCESS_TOKEN_EXPIRATION_TIME;
-import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.REFRESH_TOKEN_EXPIRATION_TIME;
 import static com.dremio.iceberg.authmgr.oauth2.test.TokenAssertions.assertTokens;
 
 import com.dremio.iceberg.authmgr.oauth2.grant.GrantType;
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
-import com.dremio.iceberg.authmgr.oauth2.token.AccessToken;
-import com.dremio.iceberg.authmgr.oauth2.token.RefreshToken;
 import com.dremio.iceberg.authmgr.oauth2.token.Tokens;
 import java.util.concurrent.ExecutionException;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
 class TokenExchangeFlowTest {
-
-  private final Tokens currentTokens =
-      Tokens.of(
-          AccessToken.of("access_initial", "Bearer", ACCESS_TOKEN_EXPIRATION_TIME),
-          RefreshToken.of("refresh_initial", REFRESH_TOKEN_EXPIRATION_TIME));
 
   @ParameterizedTest
   @CsvSource({"true, true", "true, false", "false, true", "false, false"})
@@ -46,8 +37,8 @@ class TokenExchangeFlowTest {
                 .returnRefreshTokens(returnRefreshTokens)
                 .build();
         FlowFactory flowFactory = env.newFlowFactory()) {
-      Flow flow = flowFactory.createInitialFlow();
-      Tokens tokens = flow.fetchNewTokens(currentTokens).toCompletableFuture().get();
+      InitialFlow flow = flowFactory.createInitialFlow();
+      Tokens tokens = flow.fetchNewTokens().toCompletableFuture().get();
       assertTokens(tokens, "access_initial", returnRefreshTokens ? "refresh_initial" : null);
     }
   }
@@ -82,8 +73,8 @@ class TokenExchangeFlowTest {
                 .actorGrantType(grantType)
                 .build();
         FlowFactory flowFactory = env.newFlowFactory()) {
-      Flow flow = flowFactory.createInitialFlow();
-      Tokens tokens = flow.fetchNewTokens(currentTokens).toCompletableFuture().get();
+      InitialFlow flow = flowFactory.createInitialFlow();
+      Tokens tokens = flow.fetchNewTokens().toCompletableFuture().get();
       assertTokens(tokens, "access_initial", returnRefreshTokens ? "refresh_initial" : null);
     }
   }

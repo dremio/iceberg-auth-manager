@@ -45,8 +45,8 @@ class DeviceCodeFlowTest {
                 .returnRefreshTokens(returnRefreshTokens)
                 .build();
         FlowFactory flowFactory = env.newFlowFactory()) {
-      Flow flow = flowFactory.createInitialFlow();
-      Tokens tokens = flow.fetchNewTokens(null).toCompletableFuture().get();
+      InitialFlow flow = flowFactory.createInitialFlow();
+      Tokens tokens = flow.fetchNewTokens().toCompletableFuture().get();
       assertTokens(tokens, "access_initial", returnRefreshTokens ? "refresh_initial" : null);
     }
   }

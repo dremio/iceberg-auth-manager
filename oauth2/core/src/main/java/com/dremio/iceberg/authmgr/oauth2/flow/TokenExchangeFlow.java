@@ -28,7 +28,7 @@ import java.util.concurrent.CompletionStage;
  * Exchange</a> flow.
  */
 @AuthManagerImmutable
-abstract class TokenExchangeFlow extends AbstractFlow {
+abstract class TokenExchangeFlow extends AbstractFlow implements InitialFlow {
 
   interface Builder extends AbstractFlow.Builder<TokenExchangeFlow, Builder> {
     @CanIgnoreReturnValue
@@ -43,7 +43,7 @@ abstract class TokenExchangeFlow extends AbstractFlow {
   abstract CompletionStage<TypedToken> actorTokenStage();
 
   @Override
-  public CompletionStage<Tokens> fetchNewTokens(Tokens currentTokens) {
+  public CompletionStage<Tokens> fetchNewTokens() {
     return subjectTokenStage()
         .thenCombine(
             actorTokenStage(),
@@ -59,6 +59,6 @@ abstract class TokenExchangeFlow extends AbstractFlow {
                   .audience(getSpec().getTokenExchangeConfig().getAudience().orElse(null))
                   .requestedTokenType(getSpec().getTokenExchangeConfig().getRequestedTokenType());
             })
-        .thenCompose(request -> invokeTokenEndpoint(currentTokens, request));
+        .thenCompose(request -> invokeTokenEndpoint(null, request));
   }
 }

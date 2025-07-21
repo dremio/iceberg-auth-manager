@@ -15,22 +15,17 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.flow;
 
-import static com.dremio.iceberg.authmgr.oauth2.test.TokenAssertions.assertTokens;
-
-import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
 import com.dremio.iceberg.authmgr.oauth2.token.Tokens;
-import java.util.concurrent.ExecutionException;
-import org.junit.jupiter.api.Test;
+import java.util.concurrent.CompletionStage;
 
-class ClientCredentialsFlowTest {
+/** An interface representing an OAuth2 flow that can be used to refresh existing tokens. */
+public interface RefreshFlow extends Flow {
 
-  @Test
-  void fetchNewTokens() throws InterruptedException, ExecutionException {
-    try (TestEnvironment env = TestEnvironment.builder().build();
-        FlowFactory flowFactory = env.newFlowFactory()) {
-      InitialFlow flow = flowFactory.createInitialFlow();
-      Tokens tokens = flow.fetchNewTokens().toCompletableFuture().get();
-      assertTokens(tokens, "access_initial", null);
-    }
-  }
+  /**
+   * Refreshes the current tokens.
+   *
+   * @param currentTokens The current tokens. Cannot be null.
+   * @return A future that completes when the tokens are refreshed.
+   */
+  CompletionStage<Tokens> refreshTokens(Tokens currentTokens);
 }
