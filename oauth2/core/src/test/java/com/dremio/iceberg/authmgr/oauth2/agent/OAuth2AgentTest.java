@@ -64,8 +64,8 @@ class OAuth2AgentTest {
   void testClientCredentials() {
     try (TestEnvironment env = TestEnvironment.builder().build();
         OAuth2Agent agent = env.newAgent()) {
-      agent.authenticate();
-      assertTokens(agent.getCurrentTokens(), "access_initial", null);
+      Tokens currentTokens = agent.authenticateInternal();
+      assertTokens(currentTokens, "access_initial", null);
     }
   }
 
@@ -73,8 +73,8 @@ class OAuth2AgentTest {
   void testClientCredentialsIcebergDialect() {
     try (TestEnvironment env = TestEnvironment.builder().dialect(Dialect.ICEBERG_REST).build();
         OAuth2Agent agent = env.newAgent()) {
-      agent.authenticate();
-      assertTokens(agent.getCurrentTokens(), "access_initial", null);
+      Tokens currentTokens = agent.authenticateInternal();
+      assertTokens(currentTokens, "access_initial", null);
     }
   }
 
@@ -103,11 +103,8 @@ class OAuth2AgentTest {
                 .returnRefreshTokens(returnRefreshTokens)
                 .build();
         OAuth2Agent agent = env.newAgent()) {
-      agent.authenticate();
-      assertTokens(
-          agent.getCurrentTokens(),
-          "access_initial",
-          returnRefreshTokens ? "refresh_initial" : null);
+      Tokens currentTokens = agent.authenticateInternal();
+      assertTokens(currentTokens, "access_initial", returnRefreshTokens ? "refresh_initial" : null);
     }
   }
 
@@ -121,11 +118,8 @@ class OAuth2AgentTest {
                 .returnRefreshTokens(returnRefreshTokens)
                 .build();
         OAuth2Agent agent = env.newAgent()) {
-      agent.authenticate();
-      assertTokens(
-          agent.getCurrentTokens(),
-          "access_initial",
-          returnRefreshTokens ? "refresh_initial" : null);
+      Tokens currentTokens = agent.authenticateInternal();
+      assertTokens(currentTokens, "access_initial", returnRefreshTokens ? "refresh_initial" : null);
     }
   }
 
@@ -139,11 +133,8 @@ class OAuth2AgentTest {
                 .returnRefreshTokens(returnRefreshTokens)
                 .build();
         OAuth2Agent agent = env.newAgent()) {
-      agent.authenticate();
-      assertTokens(
-          agent.getCurrentTokens(),
-          "access_initial",
-          returnRefreshTokens ? "refresh_initial" : null);
+      Tokens currentTokens = agent.authenticateInternal();
+      assertTokens(currentTokens, "access_initial", returnRefreshTokens ? "refresh_initial" : null);
     }
   }
 
@@ -185,11 +176,8 @@ class OAuth2AgentTest {
                 .returnRefreshTokens(returnRefreshTokens)
                 .build();
         OAuth2Agent agent = env.newAgent()) {
-      agent.authenticate();
-      assertTokens(
-          agent.getCurrentTokens(),
-          "access_initial",
-          returnRefreshTokens ? "refresh_initial" : null);
+      Tokens currentTokens = agent.authenticateInternal();
+      assertTokens(currentTokens, "access_initial", returnRefreshTokens ? "refresh_initial" : null);
     }
   }
 
@@ -294,7 +282,7 @@ class OAuth2AgentTest {
                 .returnRefreshTokens(returnRefreshTokens)
                 .build();
         OAuth2Agent agent = env.newAgent()) {
-      Tokens tokens = agent.fetchNewTokens().toCompletableFuture().get();
+      Tokens tokens = agent.authenticateInternal();
       assertTokens(tokens, "access_initial", returnRefreshTokens ? "refresh_initial" : null);
       if (returnRefreshTokens) {
         tokens = agent.refreshCurrentTokens(tokens).toCompletableFuture().get();
