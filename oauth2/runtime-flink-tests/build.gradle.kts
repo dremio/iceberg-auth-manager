@@ -64,6 +64,7 @@ dependencies {
 
   intTestBase(libs.assertj.core)
   intTestBase(libs.mockito.core)
+  intTestBase(libs.logback.classic)
 
   // Make intTestImplementation extend from intTestBase
   configurations.intTestImplementation.get().extendsFrom(intTestBase)

@@ -60,6 +60,7 @@ dependencies {
 
   intTestBase(libs.assertj.core)
   intTestBase(libs.mockito.core)
+  intTestBase(libs.logback.classic)
 
   // Make intTestImplementation extend from intTestBase
   configurations.intTestImplementation.get().extendsFrom(intTestBase)
@@ -93,7 +94,9 @@ icebergVersions.forEach { icebergVersion ->
       runtimeConfig("org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:$icebergVersion")
       runtimeConfig("org.apache.iceberg:iceberg-spark-extensions-3.5_2.12:$icebergVersion")
       runtimeConfig("org.apache.iceberg:iceberg-aws-bundle:$icebergVersion")
-      runtimeConfig("org.apache.spark:spark-sql_2.12:$sparkVersion")
+      runtimeConfig("org.apache.spark:spark-sql_2.12:$sparkVersion") {
+        exclude(group = "org.apache.logging.log4j")
+      }
     }
 
     // Create test task for this version combination
