@@ -96,21 +96,18 @@ dependencies {
 }
 
 tasks.named<Test>("test").configure {
-  if (System.getenv("CI") == null) {
-    maxParallelForks = 4
-  }
+  configForks(4)
+  commonTestConfig()
 }
 
 tasks.named<Test>("intTest").configure {
-  if (System.getenv("CI") == null) {
-    maxParallelForks = 3
-  }
+  configForks(3)
+  commonTestConfig()
 }
 
 tasks.named<Test>("longTest").configure {
-  if (System.getenv("CI") == null) {
-    maxParallelForks = 3
-  }
+  configForks(3)
+  commonTestConfig()
   if (System.getProperty("authmgr.it.long.total") != null) {
     val total = Duration.parse(System.getProperty("authmgr.it.long.total"))
     systemProperty("authmgr.it.long.total", total.toIsoString())
@@ -131,3 +128,20 @@ dependencies {
 }
 
 tasks { test { jvmArgs("-javaagent:${mockitoAgent.asPath}") } }
+
+fun Test.configForks(forks: Int) {
+  if (System.getenv("CI") == null) {
+    maxParallelForks = forks
+  }
+}
+
+fun Test.commonTestConfig() {
+  val outputMemoryUsage = System.getProperty("authmgr.test.mockserver.outputMemoryUsage")
+  if (outputMemoryUsage.toBoolean()) {
+    val outputDir =
+      project.layout.buildDirectory.dir("reports/mockserver/${this.name}").get().asFile.absolutePath
+    outputs.dir(outputDir)
+    File(outputDir).mkdirs()
+    systemProperty("authmgr.test.mockserver.memoryUsageCsvDirectory", outputDir)
+  }
+}

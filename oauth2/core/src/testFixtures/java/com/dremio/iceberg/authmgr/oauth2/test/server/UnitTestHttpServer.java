@@ -15,12 +15,36 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.test.server;
 
+import java.io.IOException;
 import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.mockserver.configuration.Configuration;
 import org.mockserver.integration.ClientAndServer;
 
 public class UnitTestHttpServer implements HttpServer {
 
-  private final ClientAndServer clientAndServer = ClientAndServer.startClientAndServer();
+  private static final AtomicInteger COUNTER = new AtomicInteger(1);
+
+  private final ClientAndServer clientAndServer;
+
+  public UnitTestHttpServer() {
+    Configuration configuration = Configuration.configuration();
+    String outputDir = System.getProperty("authmgr.test.mockserver.memoryUsageCsvDirectory");
+    if (outputDir != null) {
+      Path outputPath = Paths.get(outputDir).resolve("server-" + COUNTER.getAndIncrement());
+      try {
+        Files.createDirectories(outputPath);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+      configuration.outputMemoryUsageCsv(true);
+      configuration.memoryUsageCsvDirectory(outputPath.toString());
+    }
+    clientAndServer = ClientAndServer.startClientAndServer(configuration);
+  }
 
   public ClientAndServer getClientAndServer() {
     return clientAndServer;
