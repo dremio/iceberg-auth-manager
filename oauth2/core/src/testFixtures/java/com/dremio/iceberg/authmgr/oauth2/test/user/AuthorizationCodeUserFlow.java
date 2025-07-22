@@ -63,8 +63,8 @@ public abstract class AuthorizationCodeUserFlow extends UserFlow {
   private void invokeCallbackUrl(URI callbackUrl) throws Exception {
     LOGGER.debug("Opening callback URL...");
     assertThat(callbackUrl).hasParameter("code").hasParameter("state");
-    boolean useWrongConde = getUserBehavior().isEmulateFailure();
-    if (useWrongConde) {
+    boolean useWrongCode = getUserBehavior().isEmulateFailure();
+    if (useWrongCode) {
       Map<String, List<String>> params = decodeParameters(callbackUrl.getQuery());
       assertThat(params.get("state")).hasSize(1);
       callbackUrl =
@@ -78,6 +78,6 @@ public abstract class AuthorizationCodeUserFlow extends UserFlow {
     conn.setRequestMethod("GET");
     int status = conn.getResponseCode();
     conn.disconnect();
-    assertThat(status).isEqualTo(useWrongConde ? HTTP_UNAUTHORIZED : HTTP_OK);
+    assertThat(status).isEqualTo(useWrongCode ? HTTP_UNAUTHORIZED : HTTP_OK);
   }
 }
