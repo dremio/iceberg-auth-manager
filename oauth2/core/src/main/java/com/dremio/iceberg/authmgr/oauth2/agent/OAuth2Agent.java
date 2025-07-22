@@ -55,13 +55,19 @@ public final class OAuth2Agent implements Closeable {
 
   private static final Duration MIN_WARN_INTERVAL = Duration.ofSeconds(10);
 
+  private static final CompletableFuture<Tokens> MUST_FETCH_NEW_TOKENS_FUTURE =
+      CompletableFuture.failedFuture(MustFetchNewTokensException.INSTANCE);
+
+  private static final CompletableFuture<Void> DUMMY_COMPLETED_FUTURE =
+      CompletableFuture.completedFuture(null);
+
   private final OAuth2AgentSpec spec;
   private final ScheduledExecutorService executor;
   private final FlowFactory flowFactory;
   private final String name;
   private final Clock clock;
 
-  private final CompletableFuture<Void> used = new CompletableFuture<>();
+  private final CompletableFuture<Void> agentAccessed = new CompletableFuture<>();
   private final AtomicBoolean closing = new AtomicBoolean();
   private final AtomicBoolean sleeping = new AtomicBoolean();
 
@@ -81,25 +87,23 @@ public final class OAuth2Agent implements Closeable {
     name = spec.getRuntimeConfig().getAgentName();
     clock = spec.getRuntimeConfig().getClock();
     lastAccess = clock.instant();
-    CompletableFuture<Tokens> currentTokensFuture;
     if (spec.getBasicConfig().getToken().isPresent()) {
-      currentTokensFuture =
-          CompletableFuture.completedFuture(
-              Tokens.of(spec.getBasicConfig().getToken().get(), null));
+      var currentTokens = Tokens.of(spec.getBasicConfig().getToken().get(), null);
+      currentTokensFuture = CompletableFuture.completedFuture(currentTokens);
+      maybeScheduleTokensRenewal(currentTokens);
     } else {
       // when user interaction is not required, token fetch can happen immediately;
       // otherwise, it will be deferred until authenticate() is called the first time,
       // in order to avoid bothering the user with a login prompt before the agent is actually used.
-      CompletableFuture<?> ready =
-          spec.getBasicConfig().getGrantType().requiresUserInteraction()
-              ? used
-              : CompletableFuture.completedFuture(null);
-      currentTokensFuture = ready.thenComposeAsync((v) -> fetchNewTokens(), executor);
+      var requiresUserInteraction = spec.getBasicConfig().getGrantType().requiresUserInteraction();
+      CompletableFuture<?> agentReady =
+          requiresUserInteraction ? agentAccessed : DUMMY_COMPLETED_FUTURE;
+      var currentTokensFuture = agentReady.thenComposeAsync((v) -> fetchNewTokens(), executor);
+      this.currentTokensFuture = currentTokensFuture;
+      currentTokensFuture
+          .whenComplete(this::log)
+          .whenComplete((tokens, error) -> maybeScheduleTokensRenewal(tokens));
     }
-    this.currentTokensFuture = currentTokensFuture;
-    currentTokensFuture
-        .whenComplete(this::log)
-        .whenComplete((tokens, error) -> maybeScheduleTokensRenewal(tokens));
   }
 
   /** Copy constructor. */
@@ -116,13 +120,11 @@ public final class OAuth2Agent implements Closeable {
     tokenRefreshFuture = null;
     Tokens currentTokens = Futures.getNow(toCopy.currentTokensFuture);
     CompletableFuture<Tokens> currentTokensFuture;
-    if (currentTokens != null) {
-      currentTokensFuture = CompletableFuture.completedFuture(currentTokens);
-    } else {
-      currentTokensFuture =
-          CompletableFuture.supplyAsync(this::fetchNewTokens, executor)
-              .thenCompose(Function.identity());
-    }
+    currentTokensFuture =
+        currentTokens != null
+            ? CompletableFuture.completedFuture(currentTokens)
+            : CompletableFuture.supplyAsync(this::fetchNewTokens, executor)
+                .thenCompose(Function.identity());
     this.currentTokensFuture = currentTokensFuture;
     currentTokensFuture.whenComplete((tokens, error) -> maybeScheduleTokensRenewal(tokens));
   }
@@ -134,7 +136,7 @@ public final class OAuth2Agent implements Closeable {
   /**
    * Creates a copy of this agent. The copy will share the same spec, executor and REST client
    * supplier as the original agent, as well as its current tokens, if any. If token refresh is
-   * enabled, the copy will have its own token refresh schedule.
+   * enabled, the copy will create its own token refresh schedule.
    */
   public OAuth2Agent copy() {
     return new OAuth2Agent(this);
@@ -202,14 +204,14 @@ public final class OAuth2Agent implements Closeable {
   public void close() {
     if (closing.compareAndSet(false, true)) {
       try (flowFactory;
-          // Cancelling the used future also cancels any pending log messages
-          var ignored1 = cancelOnClose(used);
+          // Cancelling the agentAccessed future also cancels any pending log messages
+          var ignored1 = cancelOnClose(agentAccessed);
           var ignored2 = cancelOnClose(currentTokensFuture);
           var ignored3 = cancelOnClose(tokenRefreshFuture)) {
         LOGGER.debug("[{}] Closing...", name);
       } finally {
         tokenRefreshFuture = null;
-        // Don't clear currentTokensStage, we'll need it in case this agent is copied.
+        // Don't clear currentTokensFuture, we'll need it in case this agent is copied.
       }
       LOGGER.debug("[{}] Closed", name);
     }
@@ -231,10 +233,9 @@ public final class OAuth2Agent implements Closeable {
   CompletionStage<Tokens> refreshCurrentTokens(Tokens currentTokens) {
     if (spec.getBasicConfig().getDialect() == Dialect.STANDARD) {
       RefreshToken refreshToken = currentTokens.getRefreshToken();
-      Instant nowWithSafety = clock.instant().plus(spec.getTokenRefreshConfig().getSafetyWindow());
-      if (refreshToken == null || refreshToken.isExpired(nowWithSafety)) {
-        LOGGER.debug("[{}] Must fetch new tokens", name);
-        return CompletableFuture.failedFuture(MustFetchNewTokensException.INSTANCE);
+      if (isRisky(refreshToken, clock.instant())) {
+        LOGGER.debug("[{}] Must fetch new tokens, refresh token is null or almost expired", name);
+        return MUST_FETCH_NEW_TOKENS_FUTURE;
       }
     }
     LOGGER.debug("[{}] Refreshing tokens", name);
@@ -288,8 +289,7 @@ public final class OAuth2Agent implements Closeable {
     if (idle) {
       maybeSleep();
     } else {
-      Duration delay =
-          nextTokenRefresh(currentTokens, now, spec.getTokenRefreshConfig().getMinRefreshDelay());
+      Duration delay = nextTokenRefresh(currentTokens, now);
       scheduleTokensRenewal(delay);
     }
   }
@@ -319,8 +319,8 @@ public final class OAuth2Agent implements Closeable {
     }
   }
 
-  private Duration nextTokenRefresh(
-      @Nullable Tokens currentTokens, Instant now, Duration minRefreshDelay) {
+  private Duration nextTokenRefresh(@Nullable Tokens currentTokens, Instant now) {
+    Duration minRefreshDelay = spec.getTokenRefreshConfig().getMinRefreshDelay();
     if (currentTokens == null || currentTokens.getAccessToken().isExpired(now)) {
       return minRefreshDelay;
     }
@@ -389,7 +389,7 @@ public final class OAuth2Agent implements Closeable {
     if (closing.get()) {
       throw new IllegalStateException("Agent is closing");
     }
-    used.complete(null);
+    agentAccessed.complete(null);
     Instant now = clock.instant();
     lastAccess = now;
     if (sleeping.compareAndSet(true, false)) {
@@ -404,12 +404,12 @@ public final class OAuth2Agent implements Closeable {
     }
     LOGGER.debug("[{}] Waking up...", name);
     Tokens currentTokens = Futures.getNow(currentTokensFuture);
-    Duration delay = nextTokenRefresh(currentTokens, now, Duration.ZERO);
-    if (delay.compareTo(spec.getTokenRefreshConfig().getMinRefreshDelay()) < 0) {
+    if (currentTokens == null || isRisky(currentTokens.getAccessToken(), now)) {
       LOGGER.debug("[{}] Refreshing tokens immediately", name);
       renewTokens();
     } else {
-      LOGGER.debug("[{}] Tokens are still valid", name);
+      LOGGER.debug("[{}] Tokens are still valid, scheduling refresh", name);
+      Duration delay = nextTokenRefresh(currentTokens, now);
       scheduleTokensRenewal(delay);
     }
   }
@@ -424,12 +424,17 @@ public final class OAuth2Agent implements Closeable {
       if (shouldWarn) {
         // defer logging until the agent is used to avoid confusing log messages appearing
         // before the agent is actually used
-        used.thenRun(() -> LOGGER.warn(message, args));
+        agentAccessed.thenRun(() -> LOGGER.warn(message, args));
         lastWarn = now;
         return;
       }
     }
     LOGGER.debug(message, args);
+  }
+
+  private boolean isRisky(@Nullable Token token, Instant now) {
+    return token == null
+        || token.isExpired(now.plus(spec.getTokenRefreshConfig().getSafetyWindow()));
   }
 
   static class MustFetchNewTokensException extends RuntimeException {
