@@ -65,6 +65,10 @@ testing {
         tasks.named("check").configure { dependsOn(testTask) }
       }
     }
+
+    register<JvmTestSuite>("longTest") {
+      targets.all { testTask.configure { shouldRunAfter("intTest") } }
+    }
   }
 }
 

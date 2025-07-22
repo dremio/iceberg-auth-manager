@@ -23,13 +23,11 @@ import com.dremio.iceberg.authmgr.oauth2.test.ImmutableTestEnvironment.Builder;
 import com.dremio.iceberg.authmgr.oauth2.test.container.PolarisTestEnvironment;
 import com.dremio.iceberg.authmgr.oauth2.token.AccessToken;
 import java.util.concurrent.ExecutionException;
-import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 @ExtendWith(PolarisTestEnvironment.class)
-@Tag("long")
-public class OAuth2AgentPolarisLongIT extends OAuth2AgentLongITBase {
+public class OAuth2AgentPolarisLT extends OAuth2AgentLTBase {
 
   @Test
   void backgroundRefreshAndSleep(Builder envBuilder1, Builder envBuilder2)

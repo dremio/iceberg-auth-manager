@@ -88,6 +88,11 @@ dependencies {
 
   intTestCompileOnly(project(":authmgr-immutables"))
   intTestAnnotationProcessor(project(":authmgr-immutables", configuration = "processor"))
+
+  longTestImplementation(libs.auth0.jwt)
+
+  longTestCompileOnly(project(":authmgr-immutables"))
+  longTestAnnotationProcessor(project(":authmgr-immutables", configuration = "processor"))
 }
 
 tasks.named<Test>("test").configure {
@@ -98,7 +103,13 @@ tasks.named<Test>("test").configure {
 
 tasks.named<Test>("intTest").configure {
   if (System.getenv("CI") == null) {
-    maxParallelForks = 2
+    maxParallelForks = 3
+  }
+}
+
+tasks.named<Test>("longTest").configure {
+  if (System.getenv("CI") == null) {
+    maxParallelForks = 3
   }
   if (System.getProperty("authmgr.it.long.total") != null) {
     val total = Duration.parse(System.getProperty("authmgr.it.long.total"))
@@ -108,10 +119,6 @@ tasks.named<Test>("intTest").configure {
       "junit.jupiter.execution.timeout.testable.method.default",
       (total + 10.seconds).inWholeSeconds.toString() + " s",
     )
-  }
-  useJUnitPlatform {
-    project.findProperty("includeTags")?.let { includeTags = (it as String).split(',').toSet() }
-    project.findProperty("excludeTags")?.let { excludeTags = (it as String).split(',').toSet() }
   }
 }
 

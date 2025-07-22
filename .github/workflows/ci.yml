@@ -60,11 +60,11 @@ jobs:
 
       - name: Gradle Build & Publish
         run: |
-          ./gradlew --continue --scan build publish -x intTest
+          ./gradlew --continue --scan build publish -x intTest -x longTest
 
       - name: Gradle OAuth2 Core Integration Tests
         run: |
-          ./gradlew --continue --scan :authmgr-oauth2-core:intTest -PexcludeTags=long
+          ./gradlew --continue --scan :authmgr-oauth2-core:intTest
 
       - name: Gradle Check Generated Docs
         run: |
@@ -106,9 +106,9 @@ jobs:
         with:
           validate-wrappers: false
 
-      - name: Gradle Run Long Tests
+      - name: Gradle OAuth2 Core Long Tests
         run: |
-          ./gradlew --continue --scan :authmgr-oauth2-core:intTest -PincludeTags=long -Dauthmgr.it.long.total=PT1M
+          ./gradlew --continue --scan :authmgr-oauth2-core:longTest -Dauthmgr.it.long.total=PT1M
 
       - name: Archive Test Results
         uses: actions/upload-artifact@v4

@@ -26,7 +26,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.function.LongSupplier;
 
-public abstract class OAuth2AgentLongITBase {
+public abstract class OAuth2AgentLTBase {
 
   private final Duration total =
       Duration.parse(System.getProperty("authmgr.it.long.total", "PT30S"));
