@@ -151,7 +151,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: long-tests-results
+          name: spark-tests-results
           path: |
             **/build/test-results/**
 
@@ -188,6 +188,6 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: runtime-tests-results
+          name: flink-tests-results
           path: |
             **/build/test-results/**
