@@ -48,9 +48,15 @@ public abstract class FlinkPolarisS3ITBase {
 
   @BeforeAll
   public void recordExpectedVersions() {
-    String expectedIcebergVersion = System.getProperty("authmgr.test.iceberg.version");
-    String actualIcebergVersion = IcebergBuild.version();
-    assertThat(actualIcebergVersion).startsWith(expectedIcebergVersion);
+    var expectedIcebergVersion = System.getProperty("authmgr.test.iceberg.version");
+    var actualIcebergVersion = IcebergBuild.version();
+    if (actualIcebergVersion.equals("unspecified")) {
+      // Iceberg 1.9.0 returns "unspecified" :shrug:
+      var icebergTag = IcebergBuild.gitTags().get(0);
+      assertThat(icebergTag).startsWith("apache-iceberg-" + expectedIcebergVersion);
+    } else {
+      assertThat(actualIcebergVersion).startsWith(expectedIcebergVersion);
+    }
     // TODO how to check Flink version? GlobalConfiguration.loadConfiguration() doesn't work
   }
 

@@ -100,9 +100,15 @@ public abstract class SparkS3ITBase {
 
   @Test
   public void smokeTest() {
-    String actualIcebergVersion = IcebergBuild.version();
-    String actualSparkVersion = spark.sql("select version()").first().getString(0);
-    assertThat(actualIcebergVersion).startsWith(expectedIcebergVersion);
+    var actualIcebergVersion = IcebergBuild.version();
+    if (actualIcebergVersion.equals("unspecified")) {
+      // Iceberg 1.9.0 returns "unspecified" :shrug:
+      var icebergTag = IcebergBuild.gitTags().get(0);
+      assertThat(icebergTag).startsWith("apache-iceberg-" + expectedIcebergVersion);
+    } else {
+      assertThat(actualIcebergVersion).startsWith(expectedIcebergVersion);
+    }
+    var actualSparkVersion = spark.sql("select version()").first().getString(0);
     assertThat(actualSparkVersion).startsWith(expectedSparkVersion);
     spark.sql("USE test");
     long namespaceCount = spark.sql("SHOW NAMESPACES").count();
