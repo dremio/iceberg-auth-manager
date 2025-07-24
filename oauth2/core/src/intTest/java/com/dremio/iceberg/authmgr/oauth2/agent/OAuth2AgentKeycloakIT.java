@@ -376,7 +376,7 @@ public class OAuth2AgentKeycloakIT {
     try (TestEnvironment env = envBuilder.grantType(PASSWORD).tokenRefreshEnabled(false).build();
         OAuth2Agent agent = env.newAgent()) {
       // initial grant
-      Tokens firstTokens = agent.getCurrentTokens();
+      Tokens firstTokens = agent.authenticateInternal();
       introspectToken(firstTokens.getAccessToken(), TestConstants.CLIENT_ID1);
       soft.assertThat(agent).extracting("tokenRefreshFuture").isNull();
     }

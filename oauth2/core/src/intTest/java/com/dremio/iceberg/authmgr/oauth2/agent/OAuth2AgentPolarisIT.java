@@ -43,7 +43,7 @@ public class OAuth2AgentPolarisIT {
     try (TestEnvironment env = envBuilder.build();
         OAuth2Agent agent = env.newAgent()) {
       // initial grant
-      Tokens firstTokens = agent.getCurrentTokens();
+      Tokens firstTokens = agent.authenticateInternal();
       introspectToken(firstTokens.getAccessToken());
       soft.assertThat(firstTokens.getRefreshToken()).isNull();
       // token refresh
@@ -68,7 +68,7 @@ public class OAuth2AgentPolarisIT {
     try (TestEnvironment env = envBuilder.token(accessToken.getPayload()).build();
         OAuth2Agent agent = env.newAgent()) {
       // initial grant
-      Tokens firstTokens = agent.getCurrentTokens();
+      Tokens firstTokens = agent.authenticateInternal();
       soft.assertThat(firstTokens.getAccessToken().getPayload())
           .isEqualTo(accessToken.getPayload());
       soft.assertThat(firstTokens.getRefreshToken()).isNull();
