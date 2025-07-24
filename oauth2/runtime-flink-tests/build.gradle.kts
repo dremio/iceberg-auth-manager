@@ -38,6 +38,9 @@ val intTestBase =
     isCanBeConsumed = false
   }
 
+// Make intTestImplementation extend from intTestBase
+configurations.intTestImplementation.get().extendsFrom(intTestBase)
+
 dependencies {
 
   // Note: iceberg-core will be provided by the iceberg-flink-runtime jar,
@@ -66,9 +69,6 @@ dependencies {
   intTestBase(libs.mockito.core)
   intTestBase(libs.logback.classic)
 
-  // Make intTestImplementation extend from intTestBase
-  configurations.intTestImplementation.get().extendsFrom(intTestBase)
-
   // Add to intTestImplementation all Iceberg/Flink dependencies (with default versions)
   // that are required for compilation of test classes
   intTestImplementation(platform(libs.iceberg.bom))
@@ -82,7 +82,7 @@ val matrixTestTasks = mutableListOf<TaskProvider<Test>>()
 icebergVersions.forEach { icebergVersion ->
   flinkVersions.forEach { flinkVersion ->
     val taskName =
-      "intTest_iceberg${icebergVersion.replace(".", "")}_flink${flinkVersion.replace(".", "")}"
+      "intTest_iceberg${icebergVersion.replace(".", "_")}_flink${flinkVersion.replace(".", "_")}"
 
     val runtimeConfig =
       configurations.create(taskName) {
@@ -176,7 +176,7 @@ icebergVersions.forEach { icebergVersion ->
 tasks.named<Test>("intTest").configure {
   dependsOn(
     tasks.named(
-      "intTest_iceberg${defaultIcebergVersion.replace(".", "")}_flink${defaultFlinkVersion.replace(".", "")}"
+      "intTest_iceberg${defaultIcebergVersion.replace(".", "_")}_flink${defaultFlinkVersion.replace(".", "_")}"
     )
   )
   // the task itself should not run any tests
