@@ -31,6 +31,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.iceberg.IcebergBuild;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -44,6 +45,20 @@ public abstract class FlinkPolarisS3ITBase {
   protected S3MockContainer s3;
   protected volatile PolarisContainer polaris;
   protected TableEnvironment flink;
+
+  @BeforeAll
+  public void recordExpectedVersions() {
+    var expectedIcebergVersion = System.getProperty("authmgr.test.iceberg.version");
+    var actualIcebergVersion = IcebergBuild.version();
+    if (actualIcebergVersion.equals("unspecified")) {
+      // Iceberg 1.9.0 returns "unspecified" :shrug:
+      var icebergTag = IcebergBuild.gitTags().get(0);
+      assertThat(icebergTag).startsWith("apache-iceberg-" + expectedIcebergVersion);
+    } else {
+      assertThat(actualIcebergVersion).startsWith(expectedIcebergVersion);
+    }
+    // TODO how to check Flink version? GlobalConfiguration.loadConfiguration() doesn't work
+  }
 
   @BeforeAll
   public void setup() throws ExecutionException, InterruptedException {

@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+import org.gradle.api.plugins.jvm.JvmTestSuite
+import org.gradle.kotlin.dsl.register
+
 plugins {
   id("authmgr-java")
   id("authmgr-java-testing")
@@ -23,72 +26,179 @@ description = "Flink tests for Dremio AuthManager for Apache Iceberg"
 
 ext { set("mavenName", "Auth Manager for Apache Iceberg - OAuth2 - Flink Tests") }
 
+// Matrix testing configuration
+val icebergVersions = project.findProperty("authmgr.test.iceberg.versions").toString().split(",")
+val flinkVersions = project.findProperty("authmgr.test.flink.versions").toString().split(",")
+
+// Use the last combination as default for regular intTest
+val defaultIcebergVersion = icebergVersions.last()
+val defaultFlinkVersion = flinkVersions.last()
+
+val intTestBase =
+  configurations.create("intTestBase") {
+    description = "Base configuration holding common dependencies for Flink integration tests"
+    isCanBeResolved = false
+    isCanBeConsumed = false
+  }
+
+// Make intTestImplementation extend from intTestBase
+configurations.intTestImplementation.get().extendsFrom(intTestBase)
+
 dependencies {
 
   // Note: iceberg-core will be provided by the iceberg-flink-runtime jar,
   // with shaded dependencies; it should not leak into this project unshaded.
 
-  intTestImplementation(project(":authmgr-oauth2-runtime"))
+  intTestBase(project(":authmgr-oauth2-runtime"))
 
-  intTestImplementation(testFixtures(project(":authmgr-oauth2-core")) as ModuleDependency) {
+  intTestBase(testFixtures(project(":authmgr-oauth2-core")) as ModuleDependency) {
     exclude(group = "org.apache.iceberg")
   }
 
+  intTestBase(libs.hadoop.common)
+  intTestBase(libs.hadoop.hdfs.client)
+  intTestBase(libs.hadoop.mapreduce.client.core)
+
+  intTestBase(platform(libs.testcontainers.bom))
+  intTestBase("org.testcontainers:testcontainers")
+  intTestBase(libs.s3mock.testcontainers)
+
+  intTestBase(platform(libs.junit.bom))
+  intTestBase("org.junit.jupiter:junit-jupiter")
+  intTestBase("org.junit.jupiter:junit-jupiter-api")
+  intTestBase("org.junit.platform:junit-platform-launcher")
+
+  intTestBase(libs.assertj.core)
+  intTestBase(libs.mockito.core)
+  intTestBase(libs.logback.classic)
+
+  // Add to intTestImplementation all Iceberg/Flink dependencies (with default versions)
+  // that are required for compilation of test classes
   intTestImplementation(platform(libs.iceberg.bom))
   intTestImplementation("org.apache.iceberg:iceberg-flink-runtime-1.20")
+  intTestImplementation("org.apache.flink:flink-table-api-java:$defaultFlinkVersion")
+}
 
-  intTestImplementation(libs.flink.table.api.java)
-  intTestImplementation(libs.flink.table.runtime)
-  intTestImplementation(libs.flink.table.planner.loader)
-  intTestImplementation(libs.flink.clients)
-  intTestImplementation(libs.flink.connector.base)
-  intTestImplementation(libs.flink.connector.files)
+// Create matrix test tasks for each version combination
+val matrixTestTasks = mutableListOf<TaskProvider<Test>>()
 
-  intTestImplementation(libs.hadoop.common)
-  intTestImplementation(libs.hadoop.hdfs.client)
-  intTestImplementation(libs.hadoop.mapreduce.client.core)
+icebergVersions.forEach { icebergVersion ->
+  flinkVersions.forEach { flinkVersion ->
+    val suiteName =
+      "intTest_iceberg${icebergVersion.replace(".", "_")}_flink${flinkVersion.replace(".", "_")}"
 
-  intTestRuntimeOnly("org.apache.iceberg:iceberg-aws")
-  intTestRuntimeOnly("org.apache.iceberg:iceberg-aws-bundle")
+    val runtimeConfig =
+      configurations.create(suiteName) {
+        extendsFrom(intTestBase)
+        isCanBeResolved = true
+        isCanBeConsumed = false
+      }
 
-  intTestImplementation(platform(libs.testcontainers.bom))
-  intTestImplementation("org.testcontainers:testcontainers")
-  intTestImplementation(libs.s3mock.testcontainers)
+    // Add version-specific dependencies
+    dependencies {
+      runtimeConfig(platform("org.apache.iceberg:iceberg-bom:$icebergVersion"))
+      runtimeConfig("org.apache.iceberg:iceberg-flink-runtime-1.20:$icebergVersion")
+      runtimeConfig("org.apache.flink:flink-table-api-java:$flinkVersion")
+      runtimeConfig("org.apache.flink:flink-table-runtime:$flinkVersion")
+      runtimeConfig("org.apache.flink:flink-table-planner-loader:$flinkVersion")
+      runtimeConfig("org.apache.flink:flink-clients:$flinkVersion")
+      runtimeConfig("org.apache.flink:flink-connector-base:$flinkVersion")
+      runtimeConfig("org.apache.flink:flink-connector-files:$flinkVersion")
+      runtimeConfig("org.apache.iceberg:iceberg-aws-bundle:$icebergVersion")
+    }
 
-  intTestImplementation(platform(libs.junit.bom))
-  intTestImplementation("org.junit.jupiter:junit-jupiter")
-  intTestImplementation("org.junit.jupiter:junit-jupiter-api")
+    testing {
+      suites {
+        register<JvmTestSuite>(suiteName) {
+          targets.all {
+            testTask.configure {
+              shouldRunAfter("test")
 
-  intTestImplementation(libs.assertj.core)
-  intTestImplementation(libs.mockito.core)
+              if (System.getenv("CI") == null) {
+                maxParallelForks = 2
+              }
+
+              description =
+                "Runs Flink integration tests with Iceberg $icebergVersion and Flink $flinkVersion"
+
+              // Use shared test classes from src/intTest
+              testClassesDirs = sourceSets.intTest.get().output.classesDirs
+              classpath = runtimeConfig + sourceSets.intTest.get().output
+
+              dependsOn(":authmgr-oauth2-runtime:shadowJar")
+
+              environment("AWS_REGION", "us-west-2")
+              environment("AWS_ACCESS_KEY_ID", "fake")
+              environment("AWS_SECRET_ACCESS_KEY", "fake")
+
+              jvmArgs(
+                "--add-exports",
+                "java.base/sun.nio.ch=ALL-UNNAMED",
+                "--add-opens",
+                "java.base/java.util=ALL-UNNAMED",
+                "--add-opens",
+                "java.base/java.lang=ALL-UNNAMED",
+                "--add-opens",
+                "java.base/java.lang.reflect=ALL-UNNAMED",
+                "--add-opens",
+                "java.base/java.io=ALL-UNNAMED",
+                "--add-opens",
+                "java.base/java.net=ALL-UNNAMED",
+                "--add-opens",
+                "java.base/java.nio=ALL-UNNAMED",
+                "--add-opens",
+                "java.base/java.util.concurrent=ALL-UNNAMED",
+                "--add-opens",
+                "java.base/java.security=ALL-UNNAMED",
+              )
+
+              // Set system properties to identify the versions being tested
+              systemProperty("authmgr.test.iceberg.version", icebergVersion)
+              systemProperty("authmgr.test.flink.version", flinkVersion)
+
+              inputs.property("icebergVersion", icebergVersion)
+              inputs.property("flinkVersion", flinkVersion)
+            }
+            matrixTestTasks.add(testTask)
+          }
+        }
+      }
+    }
+  }
 }
 
 tasks.named<Test>("intTest").configure {
-  if (System.getenv("CI") == null) {
-    maxParallelForks = 2
-  }
-  dependsOn(":authmgr-oauth2-runtime:shadowJar")
-  environment("AWS_REGION", "us-west-2")
-  environment("AWS_ACCESS_KEY_ID", "fake")
-  environment("AWS_SECRET_ACCESS_KEY", "fake")
-  jvmArgs(
-    "--add-exports",
-    "java.base/sun.nio.ch=ALL-UNNAMED",
-    "--add-opens",
-    "java.base/java.util=ALL-UNNAMED",
-    "--add-opens",
-    "java.base/java.lang=ALL-UNNAMED",
-    "--add-opens",
-    "java.base/java.lang.reflect=ALL-UNNAMED",
-    "--add-opens",
-    "java.base/java.io=ALL-UNNAMED",
-    "--add-opens",
-    "java.base/java.net=ALL-UNNAMED",
-    "--add-opens",
-    "java.base/java.nio=ALL-UNNAMED",
-    "--add-opens",
-    "java.base/java.util.concurrent=ALL-UNNAMED",
-    "--add-opens",
-    "java.base/java.security=ALL-UNNAMED",
+  dependsOn(
+    tasks.named(
+      "intTest_iceberg${defaultIcebergVersion.replace(".", "_")}_flink${defaultFlinkVersion.replace(".", "_")}"
+    )
   )
+  // the task itself should not run any tests
+  enabled = false
+  description =
+    "Runs Flink integration tests with the default Iceberg version ($defaultIcebergVersion) and default Flink version ($defaultFlinkVersion)."
+}
+
+// Create a task to run all matrix tests
+tasks.register("intTestMatrix") {
+  group = "verification"
+  description = "Runs all integration test matrix combinations."
+  dependsOn(matrixTestTasks)
+}
+
+// Helper task to print matrix configuration
+tasks.register("printTestMatrix") {
+  group = "help"
+  description = "Prints the test matrix configuration."
+  doLast {
+    println("Flink Integration Test Matrix:")
+    println("Iceberg versions: ${icebergVersions.joinToString(", ")}")
+    println("Flink versions: ${flinkVersions.joinToString(", ")}")
+    println("Available tasks:")
+    matrixTestTasks.forEach { task ->
+      val icebergVersion = task.get().inputs.properties["icebergVersion"]
+      val flinkVersion = task.get().inputs.properties["flinkVersion"]
+      println("  - ${task.name} uses: Iceberg $icebergVersion, Flink $flinkVersion")
+    }
+  }
 }

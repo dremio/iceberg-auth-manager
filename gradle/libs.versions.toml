@@ -19,13 +19,11 @@
 
 [versions]
 errorprone = "2.36.0"
-flink = "1.20.1"
 hadoop = "3.4.1"
-iceberg = "1.9.1"
-immutables = "2.10.1"
+iceberg = "1.9.1" # When updating iceberg version, also update the iceberg test versions in gradle.properties
+immutables = "2.11.1"
 mockserver = "5.15.0"
-slf4j = "2.0.16"
-spark = "3.5.5"
+slf4j = "2.0.17"
 
 [bundles]
 
@@ -41,12 +39,6 @@ bouncycastle-bcpkix = { module = "org.bouncycastle:bcpkix-jdk15on", version = "1
 caffeine = { module = "com.github.ben-manes.caffeine:caffeine", version = "3.2.0" }
 errorprone = { module = "com.google.errorprone:error_prone_core", version.ref = "errorprone"  }
 errorprone-annotations = { module = "com.google.errorprone:error_prone_annotations", version.ref = "errorprone" }
-flink-table-api-java = { module = "org.apache.flink:flink-table-api-java", version.ref = "flink" }
-flink-table-runtime = { module = "org.apache.flink:flink-table-runtime", version.ref = "flink" }
-flink-table-planner-loader = { module = "org.apache.flink:flink-table-planner-loader", version.ref = "flink" }
-flink-clients = { module = "org.apache.flink:flink-clients", version.ref = "flink" }
-flink-connector-base = { module = "org.apache.flink:flink-connector-base", version.ref = "flink" }
-flink-connector-files = { module = "org.apache.flink:flink-connector-files", version.ref = "flink" }
 hadoop-common = { module = "org.apache.hadoop:hadoop-common", version.ref = "hadoop" }
 hadoop-hdfs-client = { module = "org.apache.hadoop:hadoop-hdfs-client", version.ref = "hadoop" }
 hadoop-mapreduce-client-core = { module = "org.apache.hadoop:hadoop-mapreduce-client-core", version.ref = "hadoop" }
@@ -65,7 +57,6 @@ mockserver-client-java = { module = "org.mock-server:mockserver-client-java", ve
 mockserver-netty = { module = "org.mock-server:mockserver-netty", version.ref = "mockserver" }
 s3mock-testcontainers = { module = "com.adobe.testing:s3mock-testcontainers", version = "4.3.0" }
 slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
-spark-sql = { module = "org.apache.spark:spark-sql_2.12", version.ref = "spark" }
 spotbugs-annotations = { module = "com.github.spotbugs:spotbugs-annotations", version = "4.9.0" }
 testcontainers-bom = { module = "org.testcontainers:testcontainers-bom", version = "1.20.4" }
 testcontainers-keycloak = { module = "com.github.dasniko:testcontainers-keycloak", version = "3.6.0" }

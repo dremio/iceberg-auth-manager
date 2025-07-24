@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+import org.gradle.api.plugins.jvm.JvmTestSuite
+import org.gradle.kotlin.dsl.register
+
 plugins {
   id("authmgr-java")
   id("authmgr-java-testing")
@@ -23,45 +26,155 @@ description = "Spark tests for Dremio AuthManager for Apache Iceberg"
 
 ext { set("mavenName", "Auth Manager for Apache Iceberg - OAuth2 - Spark Tests") }
 
+// Matrix testing configuration
+val icebergVersions = project.findProperty("authmgr.test.iceberg.versions").toString().split(",")
+val sparkVersions = project.findProperty("authmgr.test.spark.versions").toString().split(",")
+
+// Use the first combination as default for regular intTest
+val defaultIcebergVersion = icebergVersions.last()
+val defaultSparkVersion = sparkVersions.last()
+
+val intTestBase =
+  configurations.create("intTestBase") {
+    description = "Base configuration holding common dependencies for Spark integration tests"
+    isCanBeResolved = false
+    isCanBeConsumed = false
+  }
+
+// Make intTestImplementation extend from intTestBase
+configurations.intTestImplementation.get().extendsFrom(intTestBase)
+
 dependencies {
 
   // Note: iceberg-core will be provided by the iceberg-spark-runtime jar,
   // with shaded dependencies; it should not leak into this project unshaded.
 
-  intTestImplementation(project(":authmgr-oauth2-runtime"))
+  intTestBase(project(":authmgr-oauth2-runtime"))
 
-  intTestImplementation(testFixtures(project(":authmgr-oauth2-core")) as ModuleDependency) {
+  intTestBase(testFixtures(project(":authmgr-oauth2-core")) as ModuleDependency) {
     exclude(group = "org.apache.iceberg")
   }
 
+  intTestBase(platform(libs.testcontainers.bom))
+  intTestBase("org.testcontainers:testcontainers")
+  intTestBase(libs.s3mock.testcontainers)
+
+  intTestBase(platform(libs.junit.bom))
+  intTestBase("org.junit.jupiter:junit-jupiter")
+  intTestBase("org.junit.jupiter:junit-jupiter-api")
+  intTestBase("org.junit.platform:junit-platform-launcher")
+
+  intTestBase(libs.assertj.core)
+  intTestBase(libs.mockito.core)
+  intTestBase(libs.logback.classic)
+
+  // Add to intTestImplementation all Iceberg/Spark dependencies (with default versions)
+  // that are required for compilation of test classes
   intTestImplementation(platform(libs.iceberg.bom))
   intTestImplementation("org.apache.iceberg:iceberg-spark-runtime-3.5_2.12")
   intTestImplementation("org.apache.iceberg:iceberg-spark-extensions-3.5_2.12")
+  intTestImplementation("org.apache.spark:spark-sql_2.12:$defaultSparkVersion")
+}
 
-  intTestImplementation(libs.spark.sql)
+// Create matrix test tasks for each version combination
+val matrixTestTasks = mutableListOf<TaskProvider<Test>>()
 
-  intTestRuntimeOnly("org.apache.iceberg:iceberg-aws")
-  intTestRuntimeOnly("org.apache.iceberg:iceberg-aws-bundle")
+icebergVersions.forEach { icebergVersion ->
+  sparkVersions.forEach { sparkVersion ->
+    val suiteName =
+      "intTest_iceberg${icebergVersion.replace(".", "_")}_spark${sparkVersion.replace(".", "_")}"
 
-  intTestImplementation(platform(libs.testcontainers.bom))
-  intTestImplementation("org.testcontainers:testcontainers")
-  intTestImplementation(libs.s3mock.testcontainers)
+    val runtimeConfig =
+      configurations.create(suiteName) {
+        extendsFrom(intTestBase)
+        isCanBeResolved = true
+        isCanBeConsumed = false
+      }
 
-  intTestImplementation(platform(libs.junit.bom))
-  intTestImplementation("org.junit.jupiter:junit-jupiter")
-  intTestImplementation("org.junit.jupiter:junit-jupiter-api")
+    // Add version-specific dependencies
+    dependencies {
+      runtimeConfig(platform("org.apache.iceberg:iceberg-bom:$icebergVersion"))
+      runtimeConfig("org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:$icebergVersion")
+      runtimeConfig("org.apache.iceberg:iceberg-spark-extensions-3.5_2.12:$icebergVersion")
+      runtimeConfig("org.apache.iceberg:iceberg-aws-bundle:$icebergVersion")
+      runtimeConfig("org.apache.spark:spark-sql_2.12:$sparkVersion") {
+        exclude(group = "org.apache.logging.log4j")
+      }
+    }
 
-  intTestImplementation(libs.assertj.core)
-  intTestImplementation(libs.mockito.core)
+    testing {
+      suites {
+        register<JvmTestSuite>(suiteName) {
+          targets.all {
+            testTask.configure {
+              shouldRunAfter("test")
+
+              if (System.getenv("CI") == null) {
+                maxParallelForks = 2
+              }
+
+              description =
+                "Runs Spark integration tests with Iceberg $icebergVersion and Spark $sparkVersion."
+
+              // Use shared test classes from src/intTest
+              testClassesDirs = sourceSets.intTest.get().output.classesDirs
+              classpath = runtimeConfig + sourceSets.intTest.get().output
+
+              dependsOn(":authmgr-oauth2-runtime:shadowJar")
+
+              environment("AWS_REGION", "us-west-2")
+              environment("AWS_ACCESS_KEY_ID", "fake")
+              environment("AWS_SECRET_ACCESS_KEY", "fake")
+
+              jvmArgs("--add-exports", "java.base/sun.nio.ch=ALL-UNNAMED")
+
+              // Set system properties to identify the versions being tested
+              systemProperty("authmgr.test.iceberg.version", icebergVersion)
+              systemProperty("authmgr.test.spark.version", sparkVersion)
+
+              inputs.property("icebergVersion", icebergVersion)
+              inputs.property("sparkVersion", sparkVersion)
+            }
+            matrixTestTasks.add(testTask)
+          }
+        }
+      }
+    }
+  }
 }
 
 tasks.named<Test>("intTest").configure {
-  if (System.getenv("CI") == null) {
-    maxParallelForks = 2
+  dependsOn(
+    tasks.named(
+      "intTest_iceberg${defaultIcebergVersion.replace(".", "_")}_spark${defaultSparkVersion.replace(".", "_")}"
+    )
+  )
+  // the task itself should not run any tests
+  enabled = false
+  description =
+    "Runs Spark integration tests with the default Iceberg version ($defaultIcebergVersion) and default Spark version ($defaultSparkVersion)."
+}
+
+// Create a task to run all matrix tests
+tasks.register("intTestMatrix") {
+  group = "verification"
+  description = "Runs all integration test matrix combinations."
+  dependsOn(matrixTestTasks)
+}
+
+// Helper task to print matrix configuration
+tasks.register("printTestMatrix") {
+  group = "help"
+  description = "Prints the test matrix configuration."
+  doLast {
+    println("Spark Integration Test Matrix:")
+    println("Iceberg versions: ${icebergVersions.joinToString(", ")}")
+    println("Spark versions: ${sparkVersions.joinToString(", ")}")
+    println("Available tasks:")
+    matrixTestTasks.forEach { task ->
+      val icebergVersion = task.get().inputs.properties["icebergVersion"]
+      val sparkVersion = task.get().inputs.properties["sparkVersion"]
+      println("  - ${task.name} uses: Iceberg $icebergVersion, Spark $sparkVersion")
+    }
   }
-  dependsOn(":authmgr-oauth2-runtime:shadowJar")
-  environment("AWS_REGION", "us-west-2")
-  environment("AWS_ACCESS_KEY_ID", "fake")
-  environment("AWS_SECRET_ACCESS_KEY", "fake")
-  jvmArgs("--add-exports", "java.base/sun.nio.ch=ALL-UNNAMED")
 }

@@ -28,6 +28,7 @@ import java.nio.file.Path;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import org.apache.iceberg.IcebergBuild;
 import org.apache.spark.sql.SparkSession;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -41,6 +42,17 @@ public abstract class SparkS3ITBase {
 
   protected S3MockContainer s3;
   protected SparkSession spark;
+
+  private String expectedIcebergVersion;
+  private String expectedSparkVersion;
+
+  @BeforeAll
+  public void recordExpectedVersions() {
+    expectedIcebergVersion = System.getProperty("authmgr.test.iceberg.version");
+    assertThat(expectedIcebergVersion).isNotNull();
+    expectedSparkVersion = System.getProperty("authmgr.test.spark.version");
+    assertThat(expectedSparkVersion).isNotNull();
+  }
 
   @BeforeAll
   public void setup(@TempDir Path tempDir) throws ExecutionException, InterruptedException {
@@ -88,6 +100,16 @@ public abstract class SparkS3ITBase {
 
   @Test
   public void smokeTest() {
+    var actualIcebergVersion = IcebergBuild.version();
+    if (actualIcebergVersion.equals("unspecified")) {
+      // Iceberg 1.9.0 returns "unspecified" :shrug:
+      var icebergTag = IcebergBuild.gitTags().get(0);
+      assertThat(icebergTag).startsWith("apache-iceberg-" + expectedIcebergVersion);
+    } else {
+      assertThat(actualIcebergVersion).startsWith(expectedIcebergVersion);
+    }
+    var actualSparkVersion = spark.sql("select version()").first().getString(0);
+    assertThat(actualSparkVersion).startsWith(expectedSparkVersion);
     spark.sql("USE test");
     long namespaceCount = spark.sql("SHOW NAMESPACES").count();
     assertThat(namespaceCount).isEqualTo(0L);

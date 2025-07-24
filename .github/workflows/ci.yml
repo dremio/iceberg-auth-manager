@@ -118,10 +118,10 @@ jobs:
           path: |
             **/build/test-results/**
 
-  runtime-tests:
+  spark-tests:
 
     runs-on: ubuntu-latest
-    name: Spark & Flink Tests
+    name: Spark Tests
     permissions:
       contents: read
 
@@ -143,16 +143,51 @@ jobs:
 
       - name: Gradle Run Spark Tests
         run: |
-          ./gradlew --continue --scan :authmgr-oauth2-runtime-spark-tests:intTest
-
-      - name: Gradle Run Flink Tests
-        run: |
-          ./gradlew --continue --scan :authmgr-oauth2-runtime-flink-tests:intTest
+          ./gradlew --continue --scan \
+            :authmgr-oauth2-runtime-spark-tests:printTestMatrix \
+            :authmgr-oauth2-runtime-spark-tests:intTestMatrix
 
       - name: Archive Test Results
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: runtime-tests-results
+          name: spark-tests-results
+          path: |
+            **/build/test-results/**
+
+  flink-tests:
+
+    runs-on: ubuntu-latest
+    name: Flink Tests
+    permissions:
+      contents: read
+
+    steps:
+
+      - name: Checkout Project
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          validate-wrappers: false
+
+      - name: Gradle Run Flink Tests
+        run: |
+          ./gradlew --continue --scan \
+            :authmgr-oauth2-runtime-flink-tests:printTestMatrix \
+            :authmgr-oauth2-runtime-flink-tests:intTestMatrix
+
+      - name: Archive Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: flink-tests-results
           path: |
             **/build/test-results/**
