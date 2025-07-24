@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+import org.gradle.api.plugins.jvm.JvmTestSuite
+import org.gradle.kotlin.dsl.register
+
 plugins {
   id("authmgr-java")
   id("authmgr-java-testing")
@@ -81,11 +84,11 @@ val matrixTestTasks = mutableListOf<TaskProvider<Test>>()
 
 icebergVersions.forEach { icebergVersion ->
   flinkVersions.forEach { flinkVersion ->
-    val taskName =
+    val suiteName =
       "intTest_iceberg${icebergVersion.replace(".", "_")}_flink${flinkVersion.replace(".", "_")}"
 
     val runtimeConfig =
-      configurations.create(taskName) {
+      configurations.create(suiteName) {
         extendsFrom(intTestBase)
         isCanBeResolved = true
         isCanBeConsumed = false
@@ -104,72 +107,63 @@ icebergVersions.forEach { icebergVersion ->
       runtimeConfig("org.apache.iceberg:iceberg-aws-bundle:$icebergVersion")
     }
 
-    // Create test task for this version combination
-    val testTask =
-      tasks.register<Test>(taskName) {
-        if (System.getenv("CI") == null) {
-          maxParallelForks = 2
+    testing {
+      suites {
+        register<JvmTestSuite>(suiteName) {
+          targets.all {
+            testTask.configure {
+              shouldRunAfter("test")
+
+              if (System.getenv("CI") == null) {
+                maxParallelForks = 2
+              }
+
+              description =
+                "Runs Flink integration tests with Iceberg $icebergVersion and Flink $flinkVersion"
+
+              // Use shared test classes from src/intTest
+              testClassesDirs = sourceSets.intTest.get().output.classesDirs
+              classpath = runtimeConfig + sourceSets.intTest.get().output
+
+              dependsOn(":authmgr-oauth2-runtime:shadowJar")
+
+              environment("AWS_REGION", "us-west-2")
+              environment("AWS_ACCESS_KEY_ID", "fake")
+              environment("AWS_SECRET_ACCESS_KEY", "fake")
+
+              jvmArgs(
+                "--add-exports",
+                "java.base/sun.nio.ch=ALL-UNNAMED",
+                "--add-opens",
+                "java.base/java.util=ALL-UNNAMED",
+                "--add-opens",
+                "java.base/java.lang=ALL-UNNAMED",
+                "--add-opens",
+                "java.base/java.lang.reflect=ALL-UNNAMED",
+                "--add-opens",
+                "java.base/java.io=ALL-UNNAMED",
+                "--add-opens",
+                "java.base/java.net=ALL-UNNAMED",
+                "--add-opens",
+                "java.base/java.nio=ALL-UNNAMED",
+                "--add-opens",
+                "java.base/java.util.concurrent=ALL-UNNAMED",
+                "--add-opens",
+                "java.base/java.security=ALL-UNNAMED",
+              )
+
+              // Set system properties to identify the versions being tested
+              systemProperty("authmgr.test.iceberg.version", icebergVersion)
+              systemProperty("authmgr.test.flink.version", flinkVersion)
+
+              inputs.property("icebergVersion", icebergVersion)
+              inputs.property("flinkVersion", flinkVersion)
+            }
+            matrixTestTasks.add(testTask)
+          }
         }
-
-        group = "verification"
-        description =
-          "Runs Flink integration tests with Iceberg $icebergVersion and Flink $flinkVersion"
-
-        // Configure the test sources and classpath
-        testClassesDirs = sourceSets.intTest.get().output.classesDirs
-        classpath = runtimeConfig + sourceSets.intTest.get().output
-
-        // Enable JUnit Platform for test discovery
-        useJUnitPlatform()
-
-        dependsOn(":authmgr-oauth2-runtime:shadowJar")
-
-        environment("AWS_REGION", "us-west-2")
-        environment("AWS_ACCESS_KEY_ID", "fake")
-        environment("AWS_SECRET_ACCESS_KEY", "fake")
-
-        jvmArgs(
-          "--add-exports",
-          "java.base/sun.nio.ch=ALL-UNNAMED",
-          "--add-opens",
-          "java.base/java.util=ALL-UNNAMED",
-          "--add-opens",
-          "java.base/java.lang=ALL-UNNAMED",
-          "--add-opens",
-          "java.base/java.lang.reflect=ALL-UNNAMED",
-          "--add-opens",
-          "java.base/java.io=ALL-UNNAMED",
-          "--add-opens",
-          "java.base/java.net=ALL-UNNAMED",
-          "--add-opens",
-          "java.base/java.nio=ALL-UNNAMED",
-          "--add-opens",
-          "java.base/java.util.concurrent=ALL-UNNAMED",
-          "--add-opens",
-          "java.base/java.security=ALL-UNNAMED",
-        )
-
-        // Set system properties to identify the versions being tested
-        systemProperty("authmgr.test.iceberg.version", icebergVersion)
-        systemProperty("authmgr.test.flink.version", flinkVersion)
-
-        // Use unique working directory and reports
-        workingDir = layout.buildDirectory.dir("tmp/$taskName").get().asFile
-
-        // Use test name suffix to distinguish between matrix runs
-        reports {
-          junitXml.required.set(true)
-          junitXml.outputLocation.set(layout.buildDirectory.dir("test-results/$taskName"))
-          html.required.set(true)
-          html.outputLocation.set(layout.buildDirectory.dir("reports/tests/$taskName"))
-        }
-
-        // Ensure unique inputs to avoid caching conflicts
-        inputs.property("icebergVersion", icebergVersion)
-        inputs.property("flinkVersion", flinkVersion)
       }
-
-    matrixTestTasks.add(testTask)
+    }
   }
 }
 
