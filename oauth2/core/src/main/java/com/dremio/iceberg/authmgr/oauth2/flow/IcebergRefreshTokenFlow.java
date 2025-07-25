@@ -15,6 +15,7 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.flow;
 
+import com.dremio.iceberg.authmgr.oauth2.grant.GrantType;
 import com.dremio.iceberg.authmgr.oauth2.rest.TokenExchangeRequest;
 import com.dremio.iceberg.authmgr.oauth2.token.Tokens;
 import com.dremio.iceberg.authmgr.oauth2.token.TypedToken;
@@ -30,6 +31,11 @@ import java.util.concurrent.CompletionStage;
 abstract class IcebergRefreshTokenFlow extends AbstractFlow implements RefreshFlow {
 
   interface Builder extends AbstractFlow.Builder<IcebergRefreshTokenFlow, Builder> {}
+
+  @Override
+  public GrantType getGrantType() {
+    return GrantType.TOKEN_EXCHANGE;
+  }
 
   @Override
   public CompletionStage<Tokens> refreshTokens(Tokens currentTokens) {
@@ -48,5 +54,10 @@ abstract class IcebergRefreshTokenFlow extends AbstractFlow implements RefreshFl
             .requestedTokenType(getSpec().getTokenExchangeConfig().getRequestedTokenType());
 
     return invokeTokenEndpoint(currentTokens, request);
+  }
+
+  @Override
+  public boolean requiresRefreshToken() {
+    return false;
   }
 }

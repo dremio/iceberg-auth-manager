@@ -15,6 +15,8 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.flow;
 
+import com.dremio.iceberg.authmgr.oauth2.grant.GrantType;
+
 /**
  * An interface representing an OAuth2 flow.
  *
@@ -25,4 +27,8 @@ package com.dremio.iceberg.authmgr.oauth2.flow;
  * @see InitialFlow
  * @see RefreshFlow
  */
-public interface Flow {}
+public interface Flow {
+
+  /** Returns the grant type used by this flow. */
+  GrantType getGrantType();
+}

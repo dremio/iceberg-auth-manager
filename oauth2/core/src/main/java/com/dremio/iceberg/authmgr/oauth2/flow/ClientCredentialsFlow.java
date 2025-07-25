@@ -15,6 +15,7 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.flow;
 
+import com.dremio.iceberg.authmgr.oauth2.grant.GrantType;
 import com.dremio.iceberg.authmgr.oauth2.rest.ClientCredentialsTokenRequest;
 import com.dremio.iceberg.authmgr.oauth2.token.Tokens;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
@@ -29,6 +30,11 @@ import java.util.concurrent.CompletionStage;
 abstract class ClientCredentialsFlow extends AbstractFlow implements InitialFlow {
 
   interface Builder extends AbstractFlow.Builder<ClientCredentialsFlow, Builder> {}
+
+  @Override
+  public GrantType getGrantType() {
+    return GrantType.CLIENT_CREDENTIALS;
+  }
 
   @Override
   public CompletionStage<Tokens> fetchNewTokens() {

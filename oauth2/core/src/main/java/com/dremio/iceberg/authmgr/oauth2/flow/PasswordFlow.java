@@ -16,6 +16,7 @@
 package com.dremio.iceberg.authmgr.oauth2.flow;
 
 import com.dremio.iceberg.authmgr.oauth2.config.Secret;
+import com.dremio.iceberg.authmgr.oauth2.grant.GrantType;
 import com.dremio.iceberg.authmgr.oauth2.rest.PasswordTokenRequest;
 import com.dremio.iceberg.authmgr.oauth2.token.Tokens;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
@@ -30,6 +31,11 @@ import java.util.concurrent.CompletionStage;
 abstract class PasswordFlow extends AbstractFlow implements InitialFlow {
 
   interface Builder extends AbstractFlow.Builder<PasswordFlow, Builder> {}
+
+  @Override
+  public GrantType getGrantType() {
+    return GrantType.PASSWORD;
+  }
 
   @Override
   public CompletionStage<Tokens> fetchNewTokens() {

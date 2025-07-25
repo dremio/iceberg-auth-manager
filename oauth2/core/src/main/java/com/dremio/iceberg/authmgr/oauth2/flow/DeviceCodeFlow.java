@@ -18,6 +18,7 @@ package com.dremio.iceberg.authmgr.oauth2.flow;
 import static com.dremio.iceberg.authmgr.oauth2.flow.FlowUtils.OAUTH2_AGENT_OPEN_URL;
 import static com.dremio.iceberg.authmgr.oauth2.flow.FlowUtils.OAUTH2_AGENT_TITLE;
 
+import com.dremio.iceberg.authmgr.oauth2.grant.GrantType;
 import com.dremio.iceberg.authmgr.oauth2.rest.DeviceAccessTokenRequest;
 import com.dremio.iceberg.authmgr.oauth2.token.Tokens;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
@@ -42,6 +43,11 @@ abstract class DeviceCodeFlow extends AbstractFlow implements InitialFlow {
   private static final Logger LOGGER = LoggerFactory.getLogger(DeviceCodeFlow.class);
 
   interface Builder extends AbstractFlow.Builder<DeviceCodeFlow, Builder> {}
+
+  @Override
+  public GrantType getGrantType() {
+    return GrantType.DEVICE_CODE;
+  }
 
   @Value.Derived
   String getAgentName() {

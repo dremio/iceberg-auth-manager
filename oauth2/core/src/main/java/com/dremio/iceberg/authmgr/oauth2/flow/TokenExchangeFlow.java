@@ -15,6 +15,7 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.flow;
 
+import com.dremio.iceberg.authmgr.oauth2.grant.GrantType;
 import com.dremio.iceberg.authmgr.oauth2.rest.TokenExchangeRequest;
 import com.dremio.iceberg.authmgr.oauth2.token.Tokens;
 import com.dremio.iceberg.authmgr.oauth2.token.TypedToken;
@@ -36,6 +37,11 @@ abstract class TokenExchangeFlow extends AbstractFlow implements InitialFlow {
 
     @CanIgnoreReturnValue
     Builder actorTokenStage(CompletionStage<TypedToken> actorTokenStage);
+  }
+
+  @Override
+  public GrantType getGrantType() {
+    return GrantType.TOKEN_EXCHANGE;
   }
 
   abstract CompletionStage<TypedToken> subjectTokenStage();
