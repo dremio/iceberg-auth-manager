@@ -60,3 +60,8 @@ to configure impersonation and delegation.
 
 Two "dialects" of OAuth2 are supported: `standard` and `iceberg_rest`. For more details on the
 differences between the two dialects, see the [Dialects](./dialects.md) section.
+
+## Developer Documentation
+
+See the [Developer Documentation](./developer/README.md) for more details on the internal
+architecture and implementation of the Dremio AuthManager for Apache Iceberg.
