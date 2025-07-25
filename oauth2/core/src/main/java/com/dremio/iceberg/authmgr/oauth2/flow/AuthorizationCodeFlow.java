@@ -23,6 +23,7 @@ import static java.net.HttpURLConnection.HTTP_UNAUTHORIZED;
 import com.dremio.iceberg.authmgr.oauth2.config.AuthorizationCodeConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.ConfigUtils;
 import com.dremio.iceberg.authmgr.oauth2.config.PkceTransformation;
+import com.dremio.iceberg.authmgr.oauth2.grant.GrantType;
 import com.dremio.iceberg.authmgr.oauth2.rest.AuthorizationCodeTokenRequest;
 import com.dremio.iceberg.authmgr.oauth2.token.Tokens;
 import com.dremio.iceberg.authmgr.oauth2.uri.UriBuilder;
@@ -66,6 +67,11 @@ abstract class AuthorizationCodeFlow extends AbstractFlow implements InitialFlow
   private static final int STATE_LENGTH = 16;
 
   interface Builder extends AbstractFlow.Builder<AuthorizationCodeFlow, Builder> {}
+
+  @Override
+  public GrantType getGrantType() {
+    return GrantType.AUTHORIZATION_CODE;
+  }
 
   @Value.Derived
   String getAgentName() {

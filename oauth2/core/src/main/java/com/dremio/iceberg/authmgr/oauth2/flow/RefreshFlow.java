@@ -15,6 +15,7 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.flow;
 
+import com.dremio.iceberg.authmgr.oauth2.grant.GrantType;
 import com.dremio.iceberg.authmgr.oauth2.token.Tokens;
 import java.util.concurrent.CompletionStage;
 
@@ -31,4 +32,14 @@ public interface RefreshFlow extends Flow {
    * @return A future that completes when the tokens are refreshed.
    */
   CompletionStage<Tokens> refreshTokens(Tokens currentTokens);
+
+  @Override
+  default GrantType getGrantType() {
+    return GrantType.REFRESH_TOKEN;
+  }
+
+  /** Returns true if this flow requires a refresh token to be present in the current tokens. */
+  default boolean requiresRefreshToken() {
+    return true;
+  }
 }

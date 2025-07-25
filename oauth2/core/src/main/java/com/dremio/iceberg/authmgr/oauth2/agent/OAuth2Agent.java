@@ -18,7 +18,6 @@ package com.dremio.iceberg.authmgr.oauth2.agent;
 import static com.dremio.iceberg.authmgr.oauth2.concurrent.AutoCloseables.cancelOnClose;
 
 import com.dremio.iceberg.authmgr.oauth2.concurrent.Futures;
-import com.dremio.iceberg.authmgr.oauth2.config.Dialect;
 import com.dremio.iceberg.authmgr.oauth2.flow.FlowFactory;
 import com.dremio.iceberg.authmgr.oauth2.flow.InitialFlow;
 import com.dremio.iceberg.authmgr.oauth2.flow.RefreshFlow;
@@ -218,9 +217,8 @@ public final class OAuth2Agent implements Closeable {
   }
 
   CompletionStage<Tokens> fetchNewTokens() {
-    LOGGER.debug(
-        "[{}] Fetching new access token using {}", name, spec.getBasicConfig().getGrantType());
     InitialFlow flow = flowFactory.createInitialFlow();
+    LOGGER.debug("[{}] Fetching new access token using {}", name, flow.getGrantType());
     CompletionStage<Tokens> newTokensStage = flow.fetchNewTokens();
     // If the flow requires user interaction, update the last access time once the flow completes,
     // in order to better reflect when the agent was actually accessed for the last time.
@@ -231,15 +229,15 @@ public final class OAuth2Agent implements Closeable {
   }
 
   CompletionStage<Tokens> refreshCurrentTokens(Tokens currentTokens) {
-    if (spec.getBasicConfig().getDialect() == Dialect.STANDARD) {
+    RefreshFlow flow = flowFactory.createTokenRefreshFlow();
+    if (flow.requiresRefreshToken()) {
       RefreshToken refreshToken = currentTokens.getRefreshToken();
       if (isRisky(refreshToken, clock.instant())) {
         LOGGER.debug("[{}] Must fetch new tokens, refresh token is null or almost expired", name);
         return MUST_FETCH_NEW_TOKENS_FUTURE;
       }
     }
-    LOGGER.debug("[{}] Refreshing tokens", name);
-    RefreshFlow flow = flowFactory.createTokenRefreshFlow();
+    LOGGER.debug("[{}] Refreshing tokens using {}", name, flow.getGrantType());
     return flow.refreshTokens(currentTokens);
   }
 
