@@ -20,26 +20,66 @@ import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
- * This class provides a way to define a configuration option, with its setter method, a fallback
- * mechanism, and methods to parse and apply the option value from a given properties map.
+ * This class provides an abstraction to work with configuration options. It exposes, for each
+ * configuration option, a setter method, a fallback mechanism to retrieve a default value, and
+ * methods to set the option value from a properties map.
+ *
+ * <p>There are two subclasses of this class:
+ *
+ * <ul>
+ *   <li>{@link SimpleConfigOption} for simple configuration options defined by a single
+ *       configuration property.
+ *   <li>{@link PrefixMapConfigOption} for map-type configuration options that are defined by
+ *       several configuration properties sharing a common prefix (a.k.a. "prefix maps").
+ * </ul>
  *
  * @param <T> the type of the configuration option
  */
 @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 public abstract class ConfigOption<T> {
 
-  public abstract void apply(Map<String, String> properties);
+  /**
+   * Sets the configuration option value using the provided properties map.
+   *
+   * <p>If the option is present in the map and is not blank, it will set the value using the
+   * provided {@link #setter()}.
+   *
+   * <p>If the option is not present in the map, it will use the {@link #fallback()} value if
+   * available.
+   */
+  public abstract void set(Map<String, String> properties);
 
-  public final void merge(Map<String, String> properties, T fallback) {
-    withFallback(fallback).apply(properties);
+  /**
+   * Sets the configuration option value using the provided properties map and the provided fallback
+   * value.
+   *
+   * <p>This is a convenience method ; it is equivalent to calling {@link #withFallback(Object)} and
+   * then {@link #set(Map)}.
+   */
+  public final void set(Map<String, String> properties, T fallback) {
+    withFallback(fallback).set(properties);
   }
 
-  public final void merge(Map<String, String> properties, Optional<T> fallback) {
-    withFallback(fallback).apply(properties);
+  /**
+   * Sets the configuration option value using the provided properties map and the provided fallback
+   * value.
+   *
+   * <p>This is a convenience method; it is equivalent to calling {@link #withFallback(Object)} and
+   * then {@link #set(Map)}.
+   */
+  public final void set(Map<String, String> properties, Optional<T> fallback) {
+    withFallback(fallback).set(properties);
   }
 
+  /** Returns the setter for this configuration option. */
   protected abstract Consumer<T> setter();
 
+  /**
+   * Returns the fallback value for this configuration option.
+   *
+   * <p>This value is used when the option is not present in the properties map or when the value is
+   * blank.
+   */
   protected abstract Optional<T> fallback();
 
   protected abstract ConfigOption<T> withFallback(T value);

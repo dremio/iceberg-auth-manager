@@ -145,15 +145,15 @@ public interface AuthorizationCodeConfig {
   default AuthorizationCodeConfig merge(Map<String, String> properties) {
     Objects.requireNonNull(properties, "properties must not be null");
     AuthorizationCodeConfig.Builder builder = builder();
-    builder.endpointOption().merge(properties, getAuthorizationEndpoint());
-    builder.redirectUriOption().merge(properties, getRedirectUri());
-    builder.callbackBindHostOption().merge(properties, getCallbackBindHost());
+    builder.endpointOption().set(properties, getAuthorizationEndpoint());
+    builder.redirectUriOption().set(properties, getRedirectUri());
+    builder.callbackBindHostOption().set(properties, getCallbackBindHost());
     builder
         .callbackBindPortOption()
-        .merge(properties, getCallbackBindPort().stream().boxed().findAny());
-    builder.callbackContextPathOption().merge(properties, getCallbackContextPath());
-    builder.pkceEnabledOption().merge(properties, isPkceEnabled());
-    builder.pkceTransformationOption().merge(properties, getPkceTransformation());
+        .set(properties, getCallbackBindPort().stream().boxed().findAny());
+    builder.callbackContextPathOption().set(properties, getCallbackContextPath());
+    builder.pkceEnabledOption().set(properties, isPkceEnabled());
+    builder.pkceTransformationOption().set(properties, getPkceTransformation());
     return builder.build();
   }
 
@@ -169,13 +169,13 @@ public interface AuthorizationCodeConfig {
     @CanIgnoreReturnValue
     default Builder from(Map<String, String> properties) {
       Objects.requireNonNull(properties, "properties must not be null");
-      endpointOption().apply(properties);
-      redirectUriOption().apply(properties);
-      callbackBindHostOption().apply(properties);
-      callbackBindPortOption().apply(properties);
-      callbackContextPathOption().apply(properties);
-      pkceEnabledOption().apply(properties);
-      pkceTransformationOption().apply(properties);
+      endpointOption().set(properties);
+      redirectUriOption().set(properties);
+      callbackBindHostOption().set(properties);
+      callbackBindPortOption().set(properties);
+      callbackContextPathOption().set(properties);
+      pkceEnabledOption().set(properties);
+      pkceTransformationOption().set(properties);
       return this;
     }
 
@@ -203,31 +203,31 @@ public interface AuthorizationCodeConfig {
     AuthorizationCodeConfig build();
 
     private ConfigOption<URI> endpointOption() {
-      return ConfigOptions.of(ENDPOINT, this::authorizationEndpoint, URI::create);
+      return ConfigOptions.simple(ENDPOINT, this::authorizationEndpoint, URI::create);
     }
 
     private ConfigOption<URI> redirectUriOption() {
-      return ConfigOptions.of(REDIRECT_URI, this::redirectUri, URI::create);
+      return ConfigOptions.simple(REDIRECT_URI, this::redirectUri, URI::create);
     }
 
     private ConfigOption<String> callbackBindHostOption() {
-      return ConfigOptions.of(CALLBACK_BIND_HOST, this::callbackBindHost);
+      return ConfigOptions.simple(CALLBACK_BIND_HOST, this::callbackBindHost);
     }
 
     private ConfigOption<Integer> callbackBindPortOption() {
-      return ConfigOptions.of(CALLBACK_BIND_PORT, this::callbackBindPort, Integer::parseInt);
+      return ConfigOptions.simple(CALLBACK_BIND_PORT, this::callbackBindPort, Integer::parseInt);
     }
 
     private ConfigOption<String> callbackContextPathOption() {
-      return ConfigOptions.of(CALLBACK_CONTEXT_PATH, this::callbackContextPath);
+      return ConfigOptions.simple(CALLBACK_CONTEXT_PATH, this::callbackContextPath);
     }
 
     private ConfigOption<Boolean> pkceEnabledOption() {
-      return ConfigOptions.of(PKCE_ENABLED, this::pkceEnabled, Boolean::parseBoolean);
+      return ConfigOptions.simple(PKCE_ENABLED, this::pkceEnabled, Boolean::parseBoolean);
     }
 
     private ConfigOption<PkceTransformation> pkceTransformationOption() {
-      return ConfigOptions.of(
+      return ConfigOptions.simple(
           PKCE_TRANSFORMATION, this::pkceTransformation, PkceTransformation::fromConfigName);
     }
   }

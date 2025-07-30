@@ -106,8 +106,8 @@ public interface DeviceCodeConfig {
   default DeviceCodeConfig merge(Map<String, String> properties) {
     Objects.requireNonNull(properties, "properties must not be null");
     DeviceCodeConfig.Builder builder = builder();
-    builder.deviceAuthorizationEndpointOption().merge(properties, getDeviceAuthorizationEndpoint());
-    builder.pollIntervalOption().merge(properties, getPollInterval());
+    builder.deviceAuthorizationEndpointOption().set(properties, getDeviceAuthorizationEndpoint());
+    builder.pollIntervalOption().set(properties, getPollInterval());
     builder.minPollInterval(getMinPollInterval());
     builder.ignoreServerPollInterval(ignoreServerPollInterval());
     return builder.build();
@@ -125,8 +125,8 @@ public interface DeviceCodeConfig {
     @CanIgnoreReturnValue
     default Builder from(Map<String, String> properties) {
       Objects.requireNonNull(properties, "properties must not be null");
-      deviceAuthorizationEndpointOption().apply(properties);
-      pollIntervalOption().apply(properties);
+      deviceAuthorizationEndpointOption().set(properties);
+      pollIntervalOption().set(properties);
       return this;
     }
 
@@ -145,11 +145,11 @@ public interface DeviceCodeConfig {
     DeviceCodeConfig build();
 
     private ConfigOption<URI> deviceAuthorizationEndpointOption() {
-      return ConfigOptions.of(ENDPOINT, this::deviceAuthorizationEndpoint, URI::create);
+      return ConfigOptions.simple(ENDPOINT, this::deviceAuthorizationEndpoint, URI::create);
     }
 
     private ConfigOption<Duration> pollIntervalOption() {
-      return ConfigOptions.of(POLL_INTERVAL, this::pollInterval, Duration::parse);
+      return ConfigOptions.simple(POLL_INTERVAL, this::pollInterval, Duration::parse);
     }
   }
 }

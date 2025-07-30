@@ -50,8 +50,8 @@ public interface ResourceOwnerConfig {
   default ResourceOwnerConfig merge(Map<String, String> properties) {
     Objects.requireNonNull(properties, "properties must not be null");
     ResourceOwnerConfig.Builder builder = builder();
-    builder.usernameOption().merge(properties, getUsername());
-    builder.passwordOption().merge(properties, getPassword());
+    builder.usernameOption().set(properties, getUsername());
+    builder.passwordOption().set(properties, getPassword());
     return builder.build();
   }
 
@@ -67,8 +67,8 @@ public interface ResourceOwnerConfig {
     @CanIgnoreReturnValue
     default Builder from(Map<String, String> properties) {
       Objects.requireNonNull(properties, "properties must not be null");
-      usernameOption().apply(properties);
-      passwordOption().apply(properties);
+      usernameOption().set(properties);
+      passwordOption().set(properties);
       return this;
     }
 
@@ -86,11 +86,11 @@ public interface ResourceOwnerConfig {
     ResourceOwnerConfig build();
 
     private ConfigOption<String> usernameOption() {
-      return ConfigOptions.of(USERNAME, this::username);
+      return ConfigOptions.simple(USERNAME, this::username);
     }
 
     private ConfigOption<Secret> passwordOption() {
-      return ConfigOptions.of(PASSWORD, this::password, Secret::of);
+      return ConfigOptions.simple(PASSWORD, this::password, Secret::of);
     }
   }
 }

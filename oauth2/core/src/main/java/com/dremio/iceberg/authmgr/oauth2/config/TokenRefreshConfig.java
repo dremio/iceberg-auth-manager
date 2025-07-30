@@ -150,10 +150,10 @@ public interface TokenRefreshConfig {
   default TokenRefreshConfig merge(Map<String, String> properties) {
     Objects.requireNonNull(properties, "properties must not be null");
     TokenRefreshConfig.Builder builder = builder();
-    builder.enabledOption().merge(properties, isEnabled());
-    builder.accessTokenLifespanOption().merge(properties, getAccessTokenLifespan());
-    builder.safetyWindowOption().merge(properties, getSafetyWindow());
-    builder.idleTimeoutOption().merge(properties, getIdleTimeout());
+    builder.enabledOption().set(properties, isEnabled());
+    builder.accessTokenLifespanOption().set(properties, getAccessTokenLifespan());
+    builder.safetyWindowOption().set(properties, getSafetyWindow());
+    builder.idleTimeoutOption().set(properties, getIdleTimeout());
     builder.minAccessTokenLifespan(getMinAccessTokenLifespan());
     builder.minRefreshDelay(getMinRefreshDelay());
     builder.minIdleTimeout(getMinIdleTimeout());
@@ -172,10 +172,10 @@ public interface TokenRefreshConfig {
     @CanIgnoreReturnValue
     default Builder from(Map<String, String> properties) {
       Objects.requireNonNull(properties, "properties must not be null");
-      enabledOption().apply(properties);
-      accessTokenLifespanOption().apply(properties);
-      safetyWindowOption().apply(properties);
-      idleTimeoutOption().apply(properties);
+      enabledOption().set(properties);
+      accessTokenLifespanOption().set(properties);
+      safetyWindowOption().set(properties);
+      idleTimeoutOption().set(properties);
       return this;
     }
 
@@ -202,19 +202,20 @@ public interface TokenRefreshConfig {
     TokenRefreshConfig build();
 
     private ConfigOption<Boolean> enabledOption() {
-      return ConfigOptions.of(ENABLED, this::enabled, Boolean::parseBoolean);
+      return ConfigOptions.simple(ENABLED, this::enabled, Boolean::parseBoolean);
     }
 
     private ConfigOption<Duration> accessTokenLifespanOption() {
-      return ConfigOptions.of(ACCESS_TOKEN_LIFESPAN, this::accessTokenLifespan, Duration::parse);
+      return ConfigOptions.simple(
+          ACCESS_TOKEN_LIFESPAN, this::accessTokenLifespan, Duration::parse);
     }
 
     private ConfigOption<Duration> safetyWindowOption() {
-      return ConfigOptions.of(SAFETY_WINDOW, this::safetyWindow, Duration::parse);
+      return ConfigOptions.simple(SAFETY_WINDOW, this::safetyWindow, Duration::parse);
     }
 
     private ConfigOption<Duration> idleTimeoutOption() {
-      return ConfigOptions.of(IDLE_TIMEOUT, this::idleTimeout, Duration::parse);
+      return ConfigOptions.simple(IDLE_TIMEOUT, this::idleTimeout, Duration::parse);
     }
   }
 }

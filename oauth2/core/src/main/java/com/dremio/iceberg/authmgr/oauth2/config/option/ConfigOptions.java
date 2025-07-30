@@ -21,7 +21,7 @@ import java.util.function.Function;
 
 public final class ConfigOptions {
 
-  public static ConfigOption<String> of(String option, Consumer<String> setter) {
+  public static ConfigOption<String> simple(String option, Consumer<String> setter) {
     return ImmutableSimpleConfigOption.<String>builder()
         .option(option)
         .setter(setter)
@@ -29,7 +29,7 @@ public final class ConfigOptions {
         .build();
   }
 
-  public static <T> ConfigOption<T> of(
+  public static <T> ConfigOption<T> simple(
       String option, Consumer<T> setter, Function<String, T> converter) {
     return ImmutableSimpleConfigOption.<T>builder()
         .option(option)
@@ -38,12 +38,12 @@ public final class ConfigOptions {
         .build();
   }
 
-  public static ConfigOption<Map<String, String>> ofPrefix(
+  public static ConfigOption<Map<String, String>> prefixMap(
       String prefix, Consumer<Map<String, String>> setter) {
     return ImmutablePrefixMapConfigOption.builder().prefix(prefix).setter(setter).build();
   }
 
-  public static ConfigOption<Map<String, String>> ofPrefix(
+  public static ConfigOption<Map<String, String>> prefixMap(
       String prefix, String replacementPrefix, Consumer<Map<String, String>> setter) {
     return ImmutablePrefixMapConfigOption.builder()
         .prefix(prefix)

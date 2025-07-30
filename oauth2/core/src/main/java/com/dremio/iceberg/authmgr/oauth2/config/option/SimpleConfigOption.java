@@ -17,17 +17,26 @@ package com.dremio.iceberg.authmgr.oauth2.config.option;
 
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Function;
 
+/**
+ * A simple configuration option that can be set from a single configuration property.
+ *
+ * @param <T> the type of the configuration option value
+ */
 @AuthManagerImmutable
 abstract class SimpleConfigOption<T> extends ConfigOption<T> {
 
+  /** The name of the configuration option. */
   protected abstract String option();
 
+  /** An optional converter function to convert the string value to the desired type. */
   protected abstract Function<String, T> converter();
 
   @Override
-  public void apply(Map<String, String> properties) {
+  public void set(Map<String, String> properties) {
+    Objects.requireNonNull(properties, "Invalid properties map: null");
     if (properties.containsKey(option())) {
       String value = properties.get(option());
       if (shouldSetOption(value)) {

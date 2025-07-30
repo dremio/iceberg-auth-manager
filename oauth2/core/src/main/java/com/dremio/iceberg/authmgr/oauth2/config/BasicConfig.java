@@ -307,17 +307,17 @@ public interface BasicConfig {
   default BasicConfig merge(Map<String, String> properties) {
     Objects.requireNonNull(properties, "properties must not be null");
     BasicConfig.Builder builder = builder();
-    builder.tokenOption().merge(properties, getToken());
-    builder.clientIdOption().merge(properties, getClientId());
-    builder.clientAuthenticationOption().merge(properties, getClientAuthentication());
-    builder.clientSecretOption().merge(properties, getClientSecret());
-    builder.issuerUrlOption().merge(properties, getIssuerUrl());
-    builder.tokenEndpointOption().merge(properties, getTokenEndpoint());
-    builder.grantTypeOption().merge(properties, getGrantType());
-    builder.scopesOption().merge(properties, getScopes());
-    builder.dialectOption().merge(properties, getDialect());
-    builder.extraRequestParametersOption().merge(properties, getExtraRequestParameters());
-    builder.timeoutOption().merge(properties, getTimeout());
+    builder.tokenOption().set(properties, getToken());
+    builder.clientIdOption().set(properties, getClientId());
+    builder.clientAuthenticationOption().set(properties, getClientAuthentication());
+    builder.clientSecretOption().set(properties, getClientSecret());
+    builder.issuerUrlOption().set(properties, getIssuerUrl());
+    builder.tokenEndpointOption().set(properties, getTokenEndpoint());
+    builder.grantTypeOption().set(properties, getGrantType());
+    builder.scopesOption().set(properties, getScopes());
+    builder.dialectOption().set(properties, getDialect());
+    builder.extraRequestParametersOption().set(properties, getExtraRequestParameters());
+    builder.timeoutOption().set(properties, getTimeout());
     builder.minTimeout(getMinTimeout());
     return builder.build();
   }
@@ -334,17 +334,17 @@ public interface BasicConfig {
     @CanIgnoreReturnValue
     default Builder from(Map<String, String> properties) {
       Objects.requireNonNull(properties, "properties must not be null");
-      tokenOption().apply(properties);
-      clientIdOption().apply(properties);
-      clientAuthenticationOption().apply(properties);
-      clientSecretOption().apply(properties);
-      issuerUrlOption().apply(properties);
-      tokenEndpointOption().apply(properties);
-      grantTypeOption().apply(properties);
-      scopesOption().apply(properties);
-      dialectOption().apply(properties);
-      extraRequestParametersOption().apply(properties);
-      timeoutOption().apply(properties);
+      tokenOption().set(properties);
+      clientIdOption().set(properties);
+      clientAuthenticationOption().set(properties);
+      clientSecretOption().set(properties);
+      issuerUrlOption().set(properties);
+      tokenEndpointOption().set(properties);
+      grantTypeOption().set(properties);
+      scopesOption().set(properties);
+      dialectOption().set(properties);
+      extraRequestParametersOption().set(properties);
+      timeoutOption().set(properties);
       return this;
     }
 
@@ -397,48 +397,48 @@ public interface BasicConfig {
     BasicConfig build();
 
     private ConfigOption<AccessToken> tokenOption() {
-      return ConfigOptions.of(TOKEN, this::token, AccessToken::of);
+      return ConfigOptions.simple(TOKEN, this::token, AccessToken::of);
     }
 
     private ConfigOption<String> clientIdOption() {
-      return ConfigOptions.of(CLIENT_ID, this::clientId);
+      return ConfigOptions.simple(CLIENT_ID, this::clientId);
     }
 
     private ConfigOption<ClientAuthentication> clientAuthenticationOption() {
-      return ConfigOptions.of(
+      return ConfigOptions.simple(
           CLIENT_AUTH, this::clientAuthentication, ClientAuthentication::fromConfigName);
     }
 
     private ConfigOption<Secret> clientSecretOption() {
-      return ConfigOptions.of(CLIENT_SECRET, this::clientSecret, Secret::of);
+      return ConfigOptions.simple(CLIENT_SECRET, this::clientSecret, Secret::of);
     }
 
     private ConfigOption<URI> issuerUrlOption() {
-      return ConfigOptions.of(ISSUER_URL, this::issuerUrl, URI::create);
+      return ConfigOptions.simple(ISSUER_URL, this::issuerUrl, URI::create);
     }
 
     private ConfigOption<URI> tokenEndpointOption() {
-      return ConfigOptions.of(TOKEN_ENDPOINT, this::tokenEndpoint, URI::create);
+      return ConfigOptions.simple(TOKEN_ENDPOINT, this::tokenEndpoint, URI::create);
     }
 
     private ConfigOption<GrantType> grantTypeOption() {
-      return ConfigOptions.of(GRANT_TYPE, this::grantType, GrantType::fromConfigName);
+      return ConfigOptions.simple(GRANT_TYPE, this::grantType, GrantType::fromConfigName);
     }
 
     private ConfigOption<List<String>> scopesOption() {
-      return ConfigOptions.of(SCOPE, this::scopes, ConfigUtils::scopesAsList);
+      return ConfigOptions.simple(SCOPE, this::scopes, ConfigUtils::scopesAsList);
     }
 
     private ConfigOption<Dialect> dialectOption() {
-      return ConfigOptions.of(DIALECT, this::dialect, Dialect::fromConfigName);
+      return ConfigOptions.simple(DIALECT, this::dialect, Dialect::fromConfigName);
     }
 
     private ConfigOption<Map<String, String>> extraRequestParametersOption() {
-      return ConfigOptions.ofPrefix(EXTRA_PARAMS_PREFIX, this::extraRequestParameters);
+      return ConfigOptions.prefixMap(EXTRA_PARAMS_PREFIX, this::extraRequestParameters);
     }
 
     private ConfigOption<Duration> timeoutOption() {
-      return ConfigOptions.of(TIMEOUT, this::timeout, Duration::parse);
+      return ConfigOptions.simple(TIMEOUT, this::timeout, Duration::parse);
     }
   }
 }

@@ -167,15 +167,15 @@ public interface TokenExchangeConfig {
   default TokenExchangeConfig merge(Map<String, String> properties) {
     Objects.requireNonNull(properties, "properties must not be null");
     TokenExchangeConfig.Builder builder = builder();
-    builder.resourceOption().merge(properties, getResource());
-    builder.audienceOption().merge(properties, getAudience());
-    builder.subjectTokenOption().merge(properties, getSubjectToken());
-    builder.actorTokenOption().merge(properties, getActorToken());
-    builder.subjectTokenTypeOption().merge(properties, getSubjectTokenType());
-    builder.actorTokenTypeOption().merge(properties, getActorTokenType());
-    builder.subjectTokenConfigOption().merge(properties, getSubjectTokenConfig());
-    builder.actorTokenConfigOption().merge(properties, getActorTokenConfig());
-    builder.requestedTokenTypeOption().merge(properties, getRequestedTokenType());
+    builder.resourceOption().set(properties, getResource());
+    builder.audienceOption().set(properties, getAudience());
+    builder.subjectTokenOption().set(properties, getSubjectToken());
+    builder.actorTokenOption().set(properties, getActorToken());
+    builder.subjectTokenTypeOption().set(properties, getSubjectTokenType());
+    builder.actorTokenTypeOption().set(properties, getActorTokenType());
+    builder.subjectTokenConfigOption().set(properties, getSubjectTokenConfig());
+    builder.actorTokenConfigOption().set(properties, getActorTokenConfig());
+    builder.requestedTokenTypeOption().set(properties, getRequestedTokenType());
     return builder.build();
   }
 
@@ -191,15 +191,15 @@ public interface TokenExchangeConfig {
     @CanIgnoreReturnValue
     default Builder from(Map<String, String> properties) {
       Objects.requireNonNull(properties, "properties must not be null");
-      resourceOption().apply(properties);
-      audienceOption().apply(properties);
-      subjectTokenOption().apply(properties);
-      actorTokenOption().apply(properties);
-      subjectTokenTypeOption().apply(properties);
-      actorTokenTypeOption().apply(properties);
-      subjectTokenConfigOption().apply(properties);
-      actorTokenConfigOption().apply(properties);
-      requestedTokenTypeOption().apply(properties);
+      resourceOption().set(properties);
+      audienceOption().set(properties);
+      subjectTokenOption().set(properties);
+      actorTokenOption().set(properties);
+      subjectTokenTypeOption().set(properties);
+      actorTokenTypeOption().set(properties);
+      subjectTokenConfigOption().set(properties);
+      actorTokenConfigOption().set(properties);
+      requestedTokenTypeOption().set(properties);
       return this;
     }
 
@@ -233,41 +233,41 @@ public interface TokenExchangeConfig {
     TokenExchangeConfig build();
 
     private ConfigOption<URI> resourceOption() {
-      return ConfigOptions.of(RESOURCE, this::resource, URI::create);
+      return ConfigOptions.simple(RESOURCE, this::resource, URI::create);
     }
 
     private ConfigOption<String> audienceOption() {
-      return ConfigOptions.of(AUDIENCE, this::audience);
+      return ConfigOptions.simple(AUDIENCE, this::audience);
     }
 
     private ConfigOption<String> subjectTokenOption() {
-      return ConfigOptions.of(SUBJECT_TOKEN, this::subjectToken);
+      return ConfigOptions.simple(SUBJECT_TOKEN, this::subjectToken);
     }
 
     private ConfigOption<String> actorTokenOption() {
-      return ConfigOptions.of(ACTOR_TOKEN, this::actorToken);
+      return ConfigOptions.simple(ACTOR_TOKEN, this::actorToken);
     }
 
     private ConfigOption<URI> subjectTokenTypeOption() {
-      return ConfigOptions.of(SUBJECT_TOKEN_TYPE, this::subjectTokenType, URI::create);
+      return ConfigOptions.simple(SUBJECT_TOKEN_TYPE, this::subjectTokenType, URI::create);
     }
 
     private ConfigOption<URI> actorTokenTypeOption() {
-      return ConfigOptions.of(ACTOR_TOKEN_TYPE, this::actorTokenType, URI::create);
+      return ConfigOptions.simple(ACTOR_TOKEN_TYPE, this::actorTokenType, URI::create);
     }
 
     private ConfigOption<Map<String, String>> subjectTokenConfigOption() {
-      return ConfigOptions.ofPrefix(
+      return ConfigOptions.prefixMap(
           SUBJECT_CONFIG_PREFIX, OAuth2Properties.PREFIX, this::subjectTokenConfig);
     }
 
     private ConfigOption<Map<String, String>> actorTokenConfigOption() {
-      return ConfigOptions.ofPrefix(
+      return ConfigOptions.prefixMap(
           ACTOR_CONFIG_PREFIX, OAuth2Properties.PREFIX, this::actorTokenConfig);
     }
 
     private ConfigOption<URI> requestedTokenTypeOption() {
-      return ConfigOptions.of(REQUESTED_TOKEN_TYPE, this::requestedTokenType, URI::create);
+      return ConfigOptions.simple(REQUESTED_TOKEN_TYPE, this::requestedTokenType, URI::create);
     }
   }
 }
