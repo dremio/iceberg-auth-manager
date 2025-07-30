@@ -17,6 +17,7 @@ package com.dremio.iceberg.authmgr.oauth2.grant;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 import java.util.Locale;
+import java.util.Objects;
 
 public enum GrantType {
   CLIENT_CREDENTIALS(GrantCanonicalNames.CLIENT_CREDENTIALS, GrantCommonNames.CLIENT_CREDENTIALS),
@@ -44,6 +45,7 @@ public enum GrantType {
   }
 
   public static GrantType fromConfigName(String name) {
+    Objects.requireNonNull(name, "Grant type name must not be null");
     for (GrantType grantType : values()) {
       if (grantType.commonName.equals(name.toLowerCase(Locale.ROOT))
           || grantType.canonicalName.equals(name)) {
