@@ -15,7 +15,6 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.auth;
 
-import static com.dremio.iceberg.authmgr.oauth2.auth.JwtClientAuthenticator.DEFAULT_TOKEN_LIFESPAN;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.auth0.jwt.JWT;
@@ -24,6 +23,7 @@ import com.dremio.iceberg.authmgr.oauth2.config.ClientAssertionConfig;
 import com.dremio.iceberg.authmgr.oauth2.rest.ClientCredentialsTokenRequest;
 import com.dremio.iceberg.authmgr.oauth2.test.TestConstants;
 import com.dremio.iceberg.authmgr.oauth2.test.TestPemUtils;
+import com.dremio.iceberg.authmgr.oauth2.token.TypedToken;
 import java.net.URI;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -50,7 +50,8 @@ class PrivateKeyJwtClientAuthenticatorTest {
 
   @ParameterizedTest
   @MethodSource
-  void authenticate(ClientAssertionConfig clientAssertionConfig, Consumer<String> requirements) {
+  void authenticate(
+      ClientAssertionConfig clientAssertionConfig, Consumer<TypedToken> requirements) {
     PrivateKeyJwtClientAuthenticator authenticator =
         ImmutablePrivateKeyJwtClientAuthenticator.builder()
             .clientId(TestConstants.CLIENT_ID1)
@@ -66,8 +67,6 @@ class PrivateKeyJwtClientAuthenticatorTest {
     ClientCredentialsTokenRequest request = builder.build();
     assertThat(request.getClientId()).isNull();
     assertThat(request.getClientSecret()).isNull();
-    assertThat(request.getClientAssertionType())
-        .isEqualTo(JwtClientAuthenticator.CLIENT_ASSERTION_TYPE);
     assertThat(request.getClientAssertion()).satisfies(requirements);
   }
 
@@ -78,9 +77,11 @@ class PrivateKeyJwtClientAuthenticatorTest {
                 .algorithm(JwtSigningAlgorithm.RSA_SHA256)
                 .privateKey(privateKeyFile)
                 .build(),
-            (Consumer<String>)
+            (Consumer<TypedToken>)
                 assertion -> {
-                  DecodedJWT jwt = JWT.decode(assertion);
+                  assertThat(assertion).isNotNull();
+                  assertThat(assertion.getTokenType()).isEqualTo(TypedToken.URN_JWT_BEARER);
+                  DecodedJWT jwt = JWT.decode(assertion.getPayload());
                   assertThat(jwt.getIssuer()).isEqualTo(TestConstants.CLIENT_ID1);
                   assertThat(jwt.getSubject()).isEqualTo(TestConstants.CLIENT_ID1);
                   assertThat(jwt.getAudience()).containsOnly("https://example.com/token");
@@ -90,7 +91,8 @@ class PrivateKeyJwtClientAuthenticatorTest {
                       .isEqualTo(
                           TestConstants.CLOCK
                               .instant()
-                              .plusSeconds(DEFAULT_TOKEN_LIFESPAN.getSeconds())
+                              .plusSeconds(
+                                  ClientAssertionConfig.DEFAULT_TOKEN_LIFESPAN.getSeconds())
                               .getEpochSecond());
                 }),
         Arguments.of(
@@ -103,9 +105,11 @@ class PrivateKeyJwtClientAuthenticatorTest {
                 .algorithm(JwtSigningAlgorithm.RSA_SHA512)
                 .privateKey(privateKeyFile)
                 .build(),
-            (Consumer<String>)
+            (Consumer<TypedToken>)
                 assertion -> {
-                  DecodedJWT jwt = JWT.decode(assertion);
+                  assertThat(assertion).isNotNull();
+                  assertThat(assertion.getTokenType()).isEqualTo(TypedToken.URN_JWT_BEARER);
+                  DecodedJWT jwt = JWT.decode(assertion.getPayload());
                   assertThat(jwt.getIssuer()).isEqualTo(TestConstants.CLIENT_ID2);
                   assertThat(jwt.getSubject()).isEqualTo(TestConstants.CLIENT_ID2);
                   assertThat(jwt.getAudience()).containsOnly("https://example.com/token2");

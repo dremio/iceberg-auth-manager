@@ -15,9 +15,9 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.rest;
 
+import com.dremio.iceberg.authmgr.oauth2.token.TypedToken;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import jakarta.annotation.Nullable;
-import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 import org.immutables.value.Value.Redacted;
@@ -36,26 +36,30 @@ import org.immutables.value.Value.Redacted;
 public interface ClientRequest extends PostFormRequest {
 
   /**
-   * The client identifier as described in href="<a
-   * href="https://datatracker.ietf.org/doc/html/rfc6749#section-2.2">Section 2.2</a>.
+   * The client identifier as described in <a
+   * href="https://datatracker.ietf.org/doc/html/rfc6749#section-2.2">RFC 6749 Section 2.2</a>.
    */
   @Nullable
   String getClientId();
 
   /**
    * The client password as described in <a
-   * href="https://datatracker.ietf.org/doc/html/rfc6749#section-2.3.1">Section 2.3.1</a>.
+   * href="https://datatracker.ietf.org/doc/html/rfc6749#section-2.3.1">RFC 6749 Section 2.3.1</a>.
    */
   @Nullable
   @Redacted
   String getClientSecret();
 
+  /**
+   * The client assertion as described in <a
+   * href="https://datatracker.ietf.org/doc/html/rfc7523#section-2.2">RFC 7523 Section 2.2.</a>.
+   *
+   * <p>This is typically a JWT (JSON Web Token) used to assert the identity of the client to the
+   * authorization server. Only used when the client is using a client assertion for authentication
+   * instead of a client secret.
+   */
   @Nullable
-  @Redacted
-  String getClientAssertion();
-
-  @Nullable
-  URI getClientAssertionType();
+  TypedToken getClientAssertion();
 
   @Override
   default Map<String, String> asFormParameters() {
@@ -67,15 +71,14 @@ public interface ClientRequest extends PostFormRequest {
       data.put("client_secret", getClientSecret());
     }
     if (getClientAssertion() != null) {
-      data.put("client_assertion", getClientAssertion());
-    }
-    if (getClientAssertionType() != null) {
-      data.put("client_assertion_type", getClientAssertionType().toString());
+      data.put("client_assertion", getClientAssertion().getPayload());
+      data.put("client_assertion_type", getClientAssertion().getTokenType().toString());
     }
     return Map.copyOf(data);
   }
 
-  interface Builder<T, B extends Builder<T, B>> {
+  interface Builder<T extends ClientRequest, B extends Builder<T, B>> {
+
     @CanIgnoreReturnValue
     B clientId(String clientId);
 
@@ -83,9 +86,8 @@ public interface ClientRequest extends PostFormRequest {
     B clientSecret(String clientSecret);
 
     @CanIgnoreReturnValue
-    B clientAssertion(String clientAssertion);
+    B clientAssertion(TypedToken clientAssertion);
 
-    @CanIgnoreReturnValue
-    B clientAssertionType(URI clientAssertionType);
+    T build();
   }
 }

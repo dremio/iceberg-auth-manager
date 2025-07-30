@@ -80,6 +80,7 @@ public interface TokenRequest extends RESTRequest, PostFormRequest, ClientReques
     @CanIgnoreReturnValue
     B extraParameters(Map<String, ? extends String> extraParameters);
 
+    @Override
     T build();
   }
 }

@@ -59,6 +59,7 @@ public abstract class DeviceAuthorizationRequest
     @CanIgnoreReturnValue
     Builder scope(String scope);
 
+    @Override
     DeviceAuthorizationRequest build();
   }
 }

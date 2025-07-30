@@ -18,9 +18,17 @@ package com.dremio.iceberg.authmgr.oauth2.token;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
 import java.net.URI;
 
-/** Represents a token with a specific type URI. Such tokens are used in the Token Exchange flow. */
+/**
+ * Represents a token with a specific type URI. Such tokens are used in the Token Exchange flow and
+ * for client assertions.
+ *
+ * @see <a href="https://datatracker.ietf.org/doc/html/rfc8693">RFC 8693</a>
+ * @see <a href="https://datatracker.ietf.org/doc/html/rfc7523">RFC 7523</a>
+ */
 @AuthManagerImmutable
 public interface TypedToken extends Token {
+
+  // URIs defined in https://datatracker.ietf.org/doc/html/rfc8693#section-3
 
   /** Indicates that the token is an OAuth 2.0 access token. */
   URI URN_ACCESS_TOKEN = URI.create("urn:ietf:params:oauth:token-type:access_token");
@@ -39,6 +47,10 @@ public interface TypedToken extends Token {
 
   /** Indicates that the token is a JWT. */
   URI URN_JWT = URI.create("urn:ietf:params:oauth:token-type:jwt");
+
+  // URIs defined in https://datatracker.ietf.org/doc/html/rfc7523#section-2.2
+
+  URI URN_JWT_BEARER = URI.create("urn:ietf:params:oauth:client-assertion-type:jwt-bearer");
 
   /** The type of the token. */
   URI getTokenType();

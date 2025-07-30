@@ -18,25 +18,21 @@ package com.dremio.iceberg.authmgr.oauth2.auth;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.JWTCreator;
 import com.auth0.jwt.algorithms.Algorithm;
+import com.dremio.iceberg.authmgr.oauth2.config.ClientAssertionConfig;
 import com.dremio.iceberg.authmgr.oauth2.rest.ClientRequest;
 import com.dremio.iceberg.authmgr.oauth2.rest.ClientRequest.Builder;
 import com.dremio.iceberg.authmgr.oauth2.token.Tokens;
+import com.dremio.iceberg.authmgr.oauth2.token.TypedToken;
 import jakarta.annotation.Nullable;
 import java.net.URI;
 import java.time.Clock;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 
 public abstract class JwtClientAuthenticator implements StandardClientAuthenticator {
 
-  public static final URI CLIENT_ASSERTION_TYPE =
-      URI.create("urn:ietf:params:oauth:client-assertion-type:jwt-bearer");
-
-  public static final Duration DEFAULT_TOKEN_LIFESPAN = Duration.ofMinutes(5);
-
-  public abstract JwtAssertion getClientAssertionConfig();
+  public abstract ClientAssertionConfig getClientAssertionConfig();
 
   public abstract URI getTokenEndpoint();
 
@@ -47,14 +43,14 @@ public abstract class JwtClientAuthenticator implements StandardClientAuthentica
       Builder<R, B> request, Map<String, String> headers, @Nullable Tokens currentTokens) {
     Algorithm algorithm = getAlgorithm();
     String jwt = createJwt(algorithm);
-    request.clientAssertion(jwt).clientAssertionType(CLIENT_ASSERTION_TYPE);
+    request.clientAssertion(TypedToken.of(jwt, TypedToken.URN_JWT_BEARER));
   }
 
   protected abstract Algorithm getAlgorithm();
 
   String createJwt(Algorithm algorithm) {
     Instant now = getClock().instant();
-    JwtAssertion config = getClientAssertionConfig();
+    ClientAssertionConfig config = getClientAssertionConfig();
     JWTCreator.Builder builder =
         JWT.create()
             .withJWTId(UUID.randomUUID().toString())
@@ -62,7 +58,7 @@ public abstract class JwtClientAuthenticator implements StandardClientAuthentica
             .withSubject(config.getIssuer().orElse(getClientId()))
             .withAudience(config.getAudience().orElse(getTokenEndpoint().toString()))
             .withIssuedAt(now)
-            .withExpiresAt(now.plus(config.getTokenLifespan().orElse(DEFAULT_TOKEN_LIFESPAN)));
+            .withExpiresAt(now.plus(config.getTokenLifespan()));
     config.getExtraClaims().forEach(builder::withClaim);
     return builder.sign(algorithm);
   }
