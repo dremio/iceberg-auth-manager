@@ -18,13 +18,9 @@ package com.dremio.iceberg.authmgr.oauth2.concurrent;
 import jakarta.annotation.Nullable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Utilities for working with futures. */
 public final class Futures {
-
-  private static final Logger LOGGER = LoggerFactory.getLogger(Futures.class);
 
   private Futures() {}
 
