@@ -18,45 +18,41 @@ package com.dremio.iceberg.authmgr.oauth2.compat;
 import static java.util.Map.entry;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import ch.qos.logback.classic.Level;
-import ch.qos.logback.classic.Logger;
-import ch.qos.logback.classic.spi.ILoggingEvent;
-import ch.qos.logback.core.read.ListAppender;
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import java.util.function.BiConsumer;
 import java.util.stream.Stream;
+import org.apache.iceberg.util.Pair;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.slf4j.LoggerFactory;
 
 class PropertiesSanitizerTest {
 
-  private ListAppender<ILoggingEvent> logAppender;
-  private Logger logger;
+  private List<Pair<String, String>> messages;
+  private BiConsumer<String, String> consumer;
 
   @BeforeEach
   void setUp() {
-    logger = (Logger) LoggerFactory.getLogger(PropertiesSanitizer.class);
-    logAppender = new ListAppender<>();
-    logAppender.start();
-    logger.addAppender(logAppender);
-    logger.setLevel(Level.WARN);
+    messages = new ArrayList<>();
+    consumer = (msg, arg) -> messages.add(Pair.of(msg, arg));
   }
 
   @AfterEach
   void tearDown() {
-    logger.detachAppender(logAppender);
-    logAppender.stop();
+    messages.clear();
   }
 
   @Test
   void contextEmptyProperties() {
-    Map<String, String> actual = PropertiesSanitizer.sanitizeContextProperties(Map.of());
+    Map<String, String> actual =
+        new PropertiesSanitizer(consumer).sanitizeContextProperties(Map.of());
     assertThat(actual).isEmpty();
-    assertThat(logAppender.list).isEmpty();
+    assertThat(messages).isEmpty();
   }
 
   @Test
@@ -71,9 +67,9 @@ class PropertiesSanitizerTest {
             "https://example.com/token",
             "custom.property",
             "value");
-    Map<String, String> actual = PropertiesSanitizer.sanitizeContextProperties(input);
+    Map<String, String> actual = new PropertiesSanitizer(consumer).sanitizeContextProperties(input);
     assertThat(actual).isEqualTo(input);
-    assertThat(logAppender.list).isEmpty();
+    assertThat(messages).isEmpty();
   }
 
   @ParameterizedTest
@@ -81,16 +77,14 @@ class PropertiesSanitizerTest {
   void contextForbiddenProperties(String forbiddenProperty) {
     Map<String, String> input =
         Map.of(forbiddenProperty, "forbidden", "allowed.property", "allowed");
-    Map<String, String> actual = PropertiesSanitizer.sanitizeContextProperties(input);
+    Map<String, String> actual = new PropertiesSanitizer(consumer).sanitizeContextProperties(input);
     assertThat(actual).containsOnly(entry("allowed.property", "allowed"));
-    assertThat(logAppender.list).hasSize(1);
-    ILoggingEvent logEvent = logAppender.list.get(0);
-    assertThat(logEvent.getLevel()).isEqualTo(Level.WARN);
-    assertThat(logEvent.getFormattedMessage())
-        .isEqualTo(
-            "Ignoring property '"
-                + forbiddenProperty
-                + "': this property is not allowed in a session context.");
+    assertThat(messages).hasSize(1);
+    Pair<String, String> message = messages.get(0);
+    assertThat(message)
+        .extracting(Pair::first)
+        .isEqualTo("Ignoring property '{}': this property is not allowed in a session context.");
+    assertThat(message).extracting(Pair::second).isEqualTo(forbiddenProperty);
   }
 
   static Stream<String> contextDenyListProperties() {
@@ -99,9 +93,10 @@ class PropertiesSanitizerTest {
 
   @Test
   void tableEmptyProperties() {
-    Map<String, String> actual = PropertiesSanitizer.sanitizeTableProperties(Map.of());
+    Map<String, String> actual =
+        new PropertiesSanitizer(consumer).sanitizeTableProperties(Map.of());
     assertThat(actual).isEmpty();
-    assertThat(logAppender.list).isEmpty();
+    assertThat(messages).isEmpty();
   }
 
   @Test
@@ -114,9 +109,9 @@ class PropertiesSanitizerTest {
             "https://example.com/token",
             "custom.property",
             "value");
-    Map<String, String> actual = PropertiesSanitizer.sanitizeTableProperties(input);
+    Map<String, String> actual = new PropertiesSanitizer(consumer).sanitizeTableProperties(input);
     assertThat(actual).isEqualTo(input);
-    assertThat(logAppender.list).isEmpty();
+    assertThat(messages).isEmpty();
   }
 
   @ParameterizedTest
@@ -124,16 +119,15 @@ class PropertiesSanitizerTest {
   void tableForbiddenProperties(String forbiddenProperty) {
     Map<String, String> input =
         Map.of(forbiddenProperty, "forbidden", "allowed.property", "allowed");
-    Map<String, String> actual = PropertiesSanitizer.sanitizeTableProperties(input);
+    Map<String, String> actual = new PropertiesSanitizer(consumer).sanitizeTableProperties(input);
     assertThat(actual).containsOnly(entry("allowed.property", "allowed"));
-    assertThat(logAppender.list).hasSize(1);
-    ILoggingEvent logEvent = logAppender.list.get(0);
-    assertThat(logEvent.getLevel()).isEqualTo(Level.WARN);
-    assertThat(logEvent.getFormattedMessage())
+    assertThat(messages).hasSize(1);
+    Pair<String, String> message = messages.get(0);
+    assertThat(message)
+        .extracting(Pair::first)
         .isEqualTo(
-            "Ignoring property '"
-                + forbiddenProperty
-                + "': this property is not allowed to be vended by catalog servers.");
+            "Ignoring property '{}': this property is not allowed to be vended by catalog servers.");
+    assertThat(message).extracting(Pair::second).isEqualTo(forbiddenProperty);
   }
 
   static Stream<String> tableDenyListProperties() {

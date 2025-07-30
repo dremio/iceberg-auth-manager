@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BiConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,7 +32,6 @@ public final class PropertiesSanitizer {
       Set.of(
           OAuth2Properties.Basic.CLIENT_ID,
           OAuth2Properties.Basic.CLIENT_SECRET,
-          OAuth2Properties.Basic.DIALECT,
           OAuth2Properties.ResourceOwner.USERNAME,
           OAuth2Properties.ResourceOwner.PASSWORD,
           OAuth2Properties.ClientAssertion.ALGORITHM,
@@ -39,8 +39,22 @@ public final class PropertiesSanitizer {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(PropertiesSanitizer.class);
 
+  private final BiConsumer<String, String> logConsumer;
+
+  public PropertiesSanitizer() {
+    this(LOGGER);
+  }
+
+  private PropertiesSanitizer(Logger logger) {
+    this(logger::warn);
+  }
+
+  PropertiesSanitizer(BiConsumer<String, String> logConsumer) {
+    this.logConsumer = logConsumer;
+  }
+
   /** Sanitizes context properties received from the catalog's session context. */
-  public static Map<String, String> sanitizeContextProperties(Map<String, String> properties) {
+  public Map<String, String> sanitizeContextProperties(Map<String, String> properties) {
     return sanitizeProperties(
         properties,
         CONTEXT_DENY_LIST,
@@ -48,20 +62,21 @@ public final class PropertiesSanitizer {
   }
 
   /** Sanitizes table properties received from the server. */
-  public static Map<String, String> sanitizeTableProperties(Map<String, String> properties) {
+  public Map<String, String> sanitizeTableProperties(Map<String, String> properties) {
     return sanitizeProperties(
         properties,
         TABLE_DENY_LIST,
         "Ignoring property '{}': this property is not allowed to be vended by catalog servers.");
   }
 
-  private static Map<String, String> sanitizeProperties(
-      Map<String, String> properties, Set<String> contextDenyList, String s) {
+  @SuppressWarnings("Slf4jConstantLogMessage")
+  private Map<String, String> sanitizeProperties(
+      Map<String, String> properties, Set<String> denyList, String message) {
     properties = new HashMap<>(properties);
     for (Iterator<String> iterator = properties.keySet().iterator(); iterator.hasNext(); ) {
       String key = iterator.next();
-      if (contextDenyList.contains(key)) {
-        LOGGER.warn(s, key);
+      if (denyList.contains(key)) {
+        logConsumer.accept(message, key);
         iterator.remove();
       }
     }

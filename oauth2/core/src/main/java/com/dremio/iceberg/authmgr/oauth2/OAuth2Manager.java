@@ -36,6 +36,9 @@ public class OAuth2Manager extends RefreshingAuthManager {
   private final String name;
   private final AuthSessionCacheFactory<OAuth2AgentSpec, OAuth2Session> sessionCacheFactory;
 
+  private final LegacyPropertiesMigrator legacyPropertiesMigrator = new LegacyPropertiesMigrator();
+  private final PropertiesSanitizer propertiesSanitizer = new PropertiesSanitizer();
+
   private OAuth2Session initSession;
   private RESTClient client;
   private AuthSessionCache<OAuth2AgentSpec, OAuth2Session> sessionCache;
@@ -60,7 +63,7 @@ public class OAuth2Manager extends RefreshingAuthManager {
         PropertyUtil.propertyAsBoolean(
             initProperties, OAuth2Properties.Manager.MIGRATE_LEGACY_PROPERTIES, false);
     if (migrateLegacyProperties) {
-      initProperties = LegacyPropertiesMigrator.migrate(initProperties);
+      initProperties = legacyPropertiesMigrator.migrate(initProperties);
     }
     OAuth2AgentSpec initSpec = OAuth2AgentSpec.builder().from(initProperties).build();
     initSession = new OAuth2Session(initSpec, refreshExecutor(), this::getRestClient);
@@ -75,7 +78,7 @@ public class OAuth2Manager extends RefreshingAuthManager {
         PropertyUtil.propertyAsBoolean(
             catalogProperties, OAuth2Properties.Manager.MIGRATE_LEGACY_PROPERTIES, false);
     if (migrateLegacyProperties) {
-      catalogProperties = LegacyPropertiesMigrator.migrate(catalogProperties);
+      catalogProperties = legacyPropertiesMigrator.migrate(catalogProperties);
     }
     OAuth2AgentSpec catalogSpec = OAuth2AgentSpec.builder().from(catalogProperties).build();
     sessionCache = sessionCacheFactory.apply(name, catalogProperties);
@@ -98,9 +101,9 @@ public class OAuth2Manager extends RefreshingAuthManager {
             Optional.ofNullable(context.properties()).orElseGet(Map::of),
             Optional.ofNullable(context.credentials()).orElseGet(Map::of));
     if (migrateLegacyProperties) {
-      contextProperties = LegacyPropertiesMigrator.migrate(contextProperties);
+      contextProperties = legacyPropertiesMigrator.migrate(contextProperties);
     }
-    contextProperties = PropertiesSanitizer.sanitizeContextProperties(contextProperties);
+    contextProperties = propertiesSanitizer.sanitizeContextProperties(contextProperties);
     return maybeCacheSession(parent, contextProperties);
   }
 
@@ -108,9 +111,9 @@ public class OAuth2Manager extends RefreshingAuthManager {
   public AuthSession tableSession(
       TableIdentifier table, Map<String, String> properties, AuthSession parent) {
     if (migrateLegacyProperties) {
-      properties = LegacyPropertiesMigrator.migrate(properties);
+      properties = legacyPropertiesMigrator.migrate(properties);
     }
-    Map<String, String> tableProperties = PropertiesSanitizer.sanitizeTableProperties(properties);
+    Map<String, String> tableProperties = propertiesSanitizer.sanitizeTableProperties(properties);
     return maybeCacheSession(parent, tableProperties);
   }
 
@@ -126,7 +129,7 @@ public class OAuth2Manager extends RefreshingAuthManager {
   @Override
   public AuthSession tableSession(RESTClient sharedClient, Map<String, String> properties) {
     if (migrateLegacyProperties) {
-      properties = LegacyPropertiesMigrator.migrate(properties);
+      properties = legacyPropertiesMigrator.migrate(properties);
     }
     // Do NOT sanitize table properties, as they may contain credentials coming from the
     // catalog properties.
