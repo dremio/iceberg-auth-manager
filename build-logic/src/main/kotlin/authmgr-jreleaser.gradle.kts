@@ -40,8 +40,13 @@ jreleaser {
 
   files {
     subprojects.forEach { project ->
-      glob {
-        pattern.set(project.layout.buildDirectory.dir("libs").get().asFile.absolutePath + "/**.jar")
+      // Exclude test modules from JReleaser files
+      if (!project.name.endsWith("-tests")) {
+        glob {
+          pattern.set(
+            project.layout.buildDirectory.dir("libs").get().asFile.absolutePath + "/**.jar"
+          )
+        }
       }
     }
   }
@@ -174,9 +179,12 @@ jreleaser {
           url.set("https://central.sonatype.com/api/v1/publisher")
           applyMavenCentralRules.set(true)
           subprojects.forEach { project ->
-            stagingRepository(
-              project.layout.buildDirectory.dir("staging-deploy").get().asFile.absolutePath
-            )
+            // Exclude test modules from JReleaser deployment
+            if (!project.name.endsWith("-tests")) {
+              stagingRepository(
+                project.layout.buildDirectory.dir("staging-deploy").get().asFile.absolutePath
+              )
+            }
           }
         }
       }

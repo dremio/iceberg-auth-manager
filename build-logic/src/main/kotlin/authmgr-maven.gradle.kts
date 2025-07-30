@@ -90,7 +90,12 @@ afterEvaluate {
           if (project == project.rootProject) {
             withXml {
               val modules = asNode().appendNode("modules")
-              subprojects.forEach { subproject -> modules.appendNode("module", subproject.name) }
+              subprojects.forEach { subproject ->
+                // Exclude test modules from Maven publication
+                if (!subproject.name.endsWith("-tests")) {
+                  modules.appendNode("module", subproject.name)
+                }
+              }
             }
           } else {
             withXml {
@@ -106,8 +111,8 @@ afterEvaluate {
 
                 // Add all project modules to the BOM
                 rootProject.subprojects.forEach { subproject ->
-                  // Skip the BOM itself
-                  if (subproject.name != project.name) {
+                  // Skip the BOM itself and test modules
+                  if (subproject.name != project.name && !subproject.name.endsWith("-tests")) {
                     dependencies.appendNode("dependency").apply {
                       appendNode("groupId", subproject.group)
                       appendNode("artifactId", subproject.name)
