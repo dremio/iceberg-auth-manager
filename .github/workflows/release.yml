@@ -118,6 +118,10 @@ jobs:
       - name: Build with Gradle
         run: ./gradlew --no-scan build publish -x intTest
 
+      - name: Print POMs names and contents
+        run: |
+          find . -name "authmgr-*-${RELEASE_VERSION}-*.pom" -exec sh -c 'echo "----\nPOM file: {}"; cat {}' \; || true
+
       - name: JReleaser full release
         env:
           JRELEASER_DRY_RUN: ${{ github.event.inputs.dryRun }}

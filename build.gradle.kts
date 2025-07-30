@@ -71,6 +71,8 @@ tasks.named<RatTask>("rat").configure {
   excludes.add("**/spark-warehouse/**")
 }
 
-publishing {
-  publications { named<MavenPublication>("staging-maven") { pom { packaging = "pom" } } }
+afterEvaluate {
+  publishing {
+    publications { named<MavenPublication>("staging-maven") { pom { packaging = "pom" } } }
+  }
 }

@@ -20,20 +20,6 @@ plugins {
 }
 
 publishing {
-  publications {
-    // This publication is used by JReleaser
-    create<MavenPublication>("staging-maven") {
-      if (project.plugins.hasPlugin("com.gradleup.shadow")) {
-        from(components["shadow"])
-      } else {
-        from(components.firstOrNull { it.name == "java" })
-      }
-
-      // Suppress test fixtures capability warnings
-      suppressPomMetadataWarningsFor("testFixturesApiElements")
-      suppressPomMetadataWarningsFor("testFixturesRuntimeElements")
-    }
-  }
   repositories {
     maven {
       name = "localStaging"
@@ -44,79 +30,103 @@ publishing {
 
 // Use afterEvaluate to ensure properties are accessed after they've been set
 afterEvaluate {
+
+  // Projects to exclude from publication and BOM
+  val excludedProjects =
+    setOf(
+      "authmgr-docs-generator",
+      "authmgr-oauth2-runtime-flink-tests",
+      "authmgr-oauth2-runtime-spark-tests",
+    )
+
   publishing {
     publications {
-      named<MavenPublication>("staging-maven") {
-        pom {
-          // Use the mavenName property if it exists, otherwise use a default
-          name =
-            if (project.hasProperty("mavenName")) {
-              project.property("mavenName").toString()
-            } else {
-              "Auth Manager for Apache Iceberg - ${project.name}"
-            }
 
-          description = project.description
+      // Only create staging-maven publication for projects that should be published
+      if (project.name !in excludedProjects) {
 
-          url.set("https://github.com/dremio/iceberg-auth-manager")
-          inceptionYear = "2025"
-
-          licenses {
-            license {
-              name = "Apache-2.0"
-              url = "https://www.apache.org/licenses/LICENSE-2.0.txt"
-            }
+        // This publication is used for staging and deployment to Maven Central by JReleaser
+        create<MavenPublication>("staging-maven") {
+          if (project.plugins.hasPlugin("com.gradleup.shadow")) {
+            from(components["shadow"])
+          } else {
+            from(components.firstOrNull { it.name == "java" })
           }
 
-          developers {
-            developer {
-              id = "dremio"
-              name = "Dremio"
-              email = "oss@dremio.com"
-              organization = "Dremio Corporation"
-              organizationUrl = "https://www.dremio.com"
-            }
-          }
+          // Suppress test fixtures capability warnings
+          suppressPomMetadataWarningsFor("testFixturesApiElements")
+          suppressPomMetadataWarningsFor("testFixturesRuntimeElements")
 
-          scm {
-            connection = "scm:git:git://github.com/dremio/iceberg-auth-manager.git"
-            developerConnection = "scm:git:git://github.com/dremio/iceberg-auth-manager.git"
-            url = "https://github.com/dremio/iceberg-auth-manager"
-            if (!version.endsWith("-SNAPSHOT")) {
-              tag = "authmgr-$version"
-            }
-          }
+          pom {
+            // Use the mavenName property if it exists, otherwise use a default
+            name =
+              if (project.hasProperty("mavenName")) {
+                project.property("mavenName").toString()
+              } else {
+                "Auth Manager for Apache Iceberg - ${project.name}"
+              }
 
-          if (project == project.rootProject) {
-            withXml {
-              val modules = asNode().appendNode("modules")
-              subprojects.forEach { subproject ->
-                // Exclude test modules from Maven publication
-                if (!subproject.name.endsWith("-tests")) {
-                  modules.appendNode("module", subproject.name)
-                }
+            description = project.description
+
+            url.set("https://github.com/dremio/iceberg-auth-manager")
+            inceptionYear = "2025"
+
+            licenses {
+              license {
+                name = "Apache-2.0"
+                url = "https://www.apache.org/licenses/LICENSE-2.0.txt"
               }
             }
-          } else {
-            withXml {
-              val parentNode = asNode().appendNode("parent")
-              parentNode.appendNode("groupId", project.rootProject.group)
-              parentNode.appendNode("artifactId", project.rootProject.name)
-              parentNode.appendNode("version", project.rootProject.version)
-            }
-            if (project.name == "authmgr-bom") {
-              pom.withXml {
-                val dependencies =
-                  asNode().appendNode("dependencyManagement").appendNode("dependencies")
 
-                // Add all project modules to the BOM
-                rootProject.subprojects.forEach { subproject ->
-                  // Skip the BOM itself and test modules
-                  if (subproject.name != project.name && !subproject.name.endsWith("-tests")) {
-                    dependencies.appendNode("dependency").apply {
-                      appendNode("groupId", subproject.group)
-                      appendNode("artifactId", subproject.name)
-                      appendNode("version", subproject.version)
+            developers {
+              developer {
+                id = "dremio"
+                name = "Dremio"
+                email = "oss@dremio.com"
+                organization = "Dremio Corporation"
+                organizationUrl = "https://www.dremio.com"
+              }
+            }
+
+            scm {
+              connection = "scm:git:git://github.com/dremio/iceberg-auth-manager.git"
+              developerConnection = "scm:git:git://github.com/dremio/iceberg-auth-manager.git"
+              url = "https://github.com/dremio/iceberg-auth-manager"
+              if (!version.endsWith("-SNAPSHOT")) {
+                tag = "authmgr-$version"
+              }
+            }
+
+            if (project == project.rootProject) {
+              withXml {
+                val modules = asNode().appendNode("modules")
+                subprojects.forEach { subproject ->
+                  if (subproject.name !in excludedProjects) {
+                    modules.appendNode("module", subproject.name)
+                  }
+                }
+              }
+            } else {
+              withXml {
+                val parentNode = asNode().appendNode("parent")
+                parentNode.appendNode("groupId", project.rootProject.group)
+                parentNode.appendNode("artifactId", project.rootProject.name)
+                parentNode.appendNode("version", project.rootProject.version)
+              }
+              if (project.name == "authmgr-bom") {
+                pom.withXml {
+                  val dependencies =
+                    asNode().appendNode("dependencyManagement").appendNode("dependencies")
+
+                  // Add all project modules to the BOM
+                  rootProject.subprojects.forEach { subproject ->
+                    // Skip the BOM itself and excluded projects
+                    if (subproject.name != project.name && subproject.name !in excludedProjects) {
+                      dependencies.appendNode("dependency").apply {
+                        appendNode("groupId", subproject.group)
+                        appendNode("artifactId", subproject.name)
+                        appendNode("version", subproject.version)
+                      }
                     }
                   }
                 }

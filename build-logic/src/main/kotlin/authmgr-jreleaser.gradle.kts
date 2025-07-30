@@ -24,6 +24,14 @@ plugins { id("org.jreleaser") }
 jreleaser {
   gitRootSearch.set(true)
 
+  // Projects to exclude from publication and release
+  val excludedProjects =
+    setOf(
+      "authmgr-docs-generator",
+      "authmgr-oauth2-runtime-flink-tests",
+      "authmgr-oauth2-runtime-spark-tests",
+    )
+
   project {
     name.set("Dremio Iceberg AuthManager")
     description.set("Dremio AuthManager for Apache Iceberg")
@@ -40,8 +48,7 @@ jreleaser {
 
   files {
     subprojects.forEach { project ->
-      // Exclude test modules from JReleaser files
-      if (!project.name.endsWith("-tests")) {
+      if (project.name !in excludedProjects) {
         glob {
           pattern.set(
             project.layout.buildDirectory.dir("libs").get().asFile.absolutePath + "/**.jar"
@@ -178,9 +185,13 @@ jreleaser {
           active.set(Active.RELEASE_PRERELEASE)
           url.set("https://central.sonatype.com/api/v1/publisher")
           applyMavenCentralRules.set(true)
+          // Parent POM
+          stagingRepository(
+            rootProject.layout.buildDirectory.dir("staging-deploy").get().asFile.absolutePath
+          )
+          // Child POMs
           subprojects.forEach { project ->
-            // Exclude test modules from JReleaser deployment
-            if (!project.name.endsWith("-tests")) {
+            if (project.name !in excludedProjects) {
               stagingRepository(
                 project.layout.buildDirectory.dir("staging-deploy").get().asFile.absolutePath
               )
