@@ -125,13 +125,15 @@ jreleaser {
         name.set("{{projectVersionNumber}}")
       }
       issues {
-        enabled.set(true)
+        // TODO enable when the CI user has permissions to close issues
+        enabled.set(false)
         comment.set(
           "🎉 This issue has been resolved in version {{projectVersionNumber}} ([Release Notes]({{releaseNotesUrl}}))"
         )
         applyMilestone.set(Apply.ALWAYS)
       }
-      discussionCategoryName.set("Announcements")
+      // TODO enable when the CI user has permissions to write to discussions
+      discussionCategoryName.set("")
       changelog {
         links.set(true)
         skipMergeCommits.set(true)
