@@ -49,7 +49,8 @@ afterEvaluate {
         create<MavenPublication>("staging-maven") {
           if (project.plugins.hasPlugin("com.gradleup.shadow")) {
             from(components["shadow"])
-            // Shadow component doesn't include javadoc and sources jars by default, so add them explicitly
+            // Shadow component doesn't include javadoc and sources jars by default, so add them
+            // explicitly
             artifact(tasks.named("javadocJar"))
             artifact(tasks.named("sourcesJar"))
           } else {
