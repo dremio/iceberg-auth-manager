@@ -34,9 +34,9 @@ on:
 permissions:
   contents: write
   packages: write
+  discussions: write
   # TODO enable
   # issues: write
-  # discussions: write
 
 jobs:
   release:
@@ -68,10 +68,17 @@ jobs:
             exit 1
           fi
 
+      - name: Generate access token
+        id: generate-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.DREMIO_RELEASE_BOT_APP_ID }}
+          private-key: ${{ secrets.DREMIO_RELEASE_BOT_PRIVATE_KEY }}
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ steps.generate-token.outputs.token }}
           fetch-depth: 0 # Fetch all history for all branches and tags
           ref: main # Checkout the main branch
 
@@ -92,6 +99,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote set-url --push origin https://x-access-token:${{ steps.generate-token.outputs.token }}@github.com/${{ github.repository }}
 
       - name: Update version for release
         run: |
@@ -127,7 +135,7 @@ jobs:
           JRELEASER_DRY_RUN: ${{ github.event.inputs.dryRun }}
           JRELEASER_TAG_NAME: ${TAG_NAME}
           JRELEASER_MAVENCENTRAL_STAGE: FULL
-          JRELEASER_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          JRELEASER_GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
           JRELEASER_MAVENCENTRAL_USERNAME: ${{ secrets.DEVBOT_CENTRAL_USERNAME }}
           JRELEASER_MAVENCENTRAL_PASSWORD: ${{ secrets.DEVBOT_CENTRAL_PASSWORD }}
           JRELEASER_GPG_PASSPHRASE: ${{ secrets.DEVBOT_GPG_PASSPHRASE }}
