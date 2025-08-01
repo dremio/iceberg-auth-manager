@@ -34,9 +34,9 @@ on:
 permissions:
   contents: write
   packages: write
-  discussions: write
   # TODO enable
   # issues: write
+  # discussions: write
 
 jobs:
   release:
