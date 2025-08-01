@@ -144,7 +144,8 @@ jreleaser {
         )
         applyMilestone.set(Apply.ALWAYS)
       }
-      discussionCategoryName.set("Announcements")
+      // TODO enable when the CI user has permissions to write to discussions
+      discussionCategoryName.set("")
       changelog {
         links.set(true)
         skipMergeCommits.set(true)
