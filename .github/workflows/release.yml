@@ -68,6 +68,7 @@ jobs:
             exit 1
           fi
 
+      # The access token is valid for (only) one hour. See https://github.com/actions/create-github-app-token for details.
       - name: Generate access token
         id: generate-token
         uses: actions/create-github-app-token@v2
