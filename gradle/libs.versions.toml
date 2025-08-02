@@ -18,10 +18,11 @@
 #
 
 [versions]
-errorprone = "2.36.0"
+errorprone = "2.41.0"
 hadoop = "3.4.1"
-iceberg = "1.9.1" # When updating iceberg version, also update the iceberg test versions in gradle.properties
+iceberg = "1.9.2" # When updating iceberg version, also update the iceberg test versions in gradle.properties
 immutables = "2.11.1"
+mockito = "5.18.0"
 mockserver = "5.15.0"
 slf4j = "2.0.17"
 
@@ -36,7 +37,7 @@ slf4j = "2.0.17"
 assertj-core = { module = "org.assertj:assertj-core", version = "3.27.3" }
 auth0-jwt = { module = "com.auth0:java-jwt", version = "4.5.0" }
 bouncycastle-bcpkix = { module = "org.bouncycastle:bcpkix-jdk15on", version = "1.70" }
-caffeine = { module = "com.github.ben-manes.caffeine:caffeine", version = "3.2.0" }
+caffeine = { module = "com.github.ben-manes.caffeine:caffeine", version = "3.2.2" }
 errorprone = { module = "com.google.errorprone:error_prone_core", version.ref = "errorprone"  }
 errorprone-annotations = { module = "com.google.errorprone:error_prone_annotations", version.ref = "errorprone" }
 hadoop-common = { module = "org.apache.hadoop:hadoop-common", version.ref = "hadoop" }
@@ -46,20 +47,19 @@ immutables-builder = { module = "org.immutables:builder", version.ref = "immutab
 immutables-value-annotations = { module = "org.immutables:value-annotations", version.ref = "immutables" }
 immutables-value-processor = { module = "org.immutables:value-processor", version.ref = "immutables" }
 iceberg-bom = { module = "org.apache.iceberg:iceberg-bom", version.ref = "iceberg" }
-jackson-bom = { module = "com.fasterxml.jackson:jackson-bom", version = "2.18.2" }
+jackson-bom = { module = "com.fasterxml.jackson:jackson-bom", version = "2.19.2" }
 jakarta-annotation-api = { module = "jakarta.annotation:jakarta.annotation-api", version = "3.0.0" }
-junit-bom = { module = "org.junit:junit-bom", version = "5.13.3" }
-keycloak-admin-client = { module = "org.keycloak:keycloak-admin-client", version = "26.0.4" }
-logback-classic = { module = "ch.qos.logback:logback-classic", version = "1.5.16" }
-mockito-core = { module = "org.mockito:mockito-core", version = "5.15.2" }
-mockito-junit-jupiter = { module = "org.mockito:mockito-junit-jupiter", version = "5.15.2" }
+junit-bom = { module = "org.junit:junit-bom", version = "5.13.4" }
+keycloak-admin-client = { module = "org.keycloak:keycloak-admin-client", version = "26.0.6" }
+logback-classic = { module = "ch.qos.logback:logback-classic", version = "1.5.18" }
+mockito-core = { module = "org.mockito:mockito-core", version.ref = "mockito" }
+mockito-junit-jupiter = { module = "org.mockito:mockito-junit-jupiter", version.ref = "mockito" }
 mockserver-client-java = { module = "org.mock-server:mockserver-client-java", version.ref = "mockserver" }
 mockserver-netty = { module = "org.mock-server:mockserver-netty", version.ref = "mockserver" }
-s3mock-testcontainers = { module = "com.adobe.testing:s3mock-testcontainers", version = "4.3.0" }
+s3mock-testcontainers = { module = "com.adobe.testing:s3mock-testcontainers", version = "4.7.0" }
 slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
-spotbugs-annotations = { module = "com.github.spotbugs:spotbugs-annotations", version = "4.9.0" }
-testcontainers-bom = { module = "org.testcontainers:testcontainers-bom", version = "1.20.4" }
-testcontainers-keycloak = { module = "com.github.dasniko:testcontainers-keycloak", version = "3.6.0" }
+testcontainers-bom = { module = "org.testcontainers:testcontainers-bom", version = "1.21.3" }
+testcontainers-keycloak = { module = "com.github.dasniko:testcontainers-keycloak", version = "3.8.0" }
 
 [plugins]
 rat = { id = "org.nosphere.apache.rat", version = "0.8.1" }
