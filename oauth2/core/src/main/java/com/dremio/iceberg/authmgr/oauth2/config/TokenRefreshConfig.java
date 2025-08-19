@@ -191,6 +191,7 @@ public interface TokenRefreshConfig {
     @CanIgnoreReturnValue
     Builder idleTimeout(Duration idleTimeout);
 
+    @CanIgnoreReturnValue
     Builder minAccessTokenLifespan(Duration minAccessTokenLifespan);
 
     @CanIgnoreReturnValue

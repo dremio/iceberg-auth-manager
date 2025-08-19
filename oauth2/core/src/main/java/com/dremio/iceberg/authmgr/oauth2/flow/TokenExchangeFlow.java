@@ -15,12 +15,16 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.flow;
 
-import com.dremio.iceberg.authmgr.oauth2.grant.GrantType;
-import com.dremio.iceberg.authmgr.oauth2.rest.TokenExchangeRequest;
-import com.dremio.iceberg.authmgr.oauth2.token.Tokens;
-import com.dremio.iceberg.authmgr.oauth2.token.TypedToken;
+import com.dremio.iceberg.authmgr.oauth2.config.TokenExchangeConfig;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
+import com.nimbusds.oauth2.sdk.AuthorizationGrant;
+import com.nimbusds.oauth2.sdk.GrantType;
+import com.nimbusds.oauth2.sdk.TokenRequest;
+import com.nimbusds.oauth2.sdk.token.AccessToken;
+import com.nimbusds.oauth2.sdk.token.TokenTypeURI;
+import com.nimbusds.oauth2.sdk.tokenexchange.TokenExchangeGrant;
+import java.net.URI;
 import java.util.Objects;
 import java.util.concurrent.CompletionStage;
 
@@ -29,42 +33,63 @@ import java.util.concurrent.CompletionStage;
  * Exchange</a> flow.
  */
 @AuthManagerImmutable
-abstract class TokenExchangeFlow extends AbstractFlow implements InitialFlow {
+abstract class TokenExchangeFlow extends AbstractFlow {
 
   interface Builder extends AbstractFlow.Builder<TokenExchangeFlow, Builder> {
     @CanIgnoreReturnValue
-    Builder subjectTokenStage(CompletionStage<TypedToken> subjectTokenStage);
+    Builder subjectTokenStage(CompletionStage<AccessToken> subjectTokenStage);
 
     @CanIgnoreReturnValue
-    Builder actorTokenStage(CompletionStage<TypedToken> actorTokenStage);
+    Builder actorTokenStage(CompletionStage<AccessToken> actorTokenStage);
   }
 
   @Override
-  public GrantType getGrantType() {
+  public final GrantType getGrantType() {
     return GrantType.TOKEN_EXCHANGE;
   }
 
-  abstract CompletionStage<TypedToken> subjectTokenStage();
+  abstract CompletionStage<AccessToken> subjectTokenStage();
 
-  abstract CompletionStage<TypedToken> actorTokenStage();
+  abstract CompletionStage<AccessToken> actorTokenStage();
 
   @Override
-  public CompletionStage<Tokens> fetchNewTokens() {
+  public CompletionStage<TokensResult> fetchNewTokens() {
     return subjectTokenStage()
         .thenCombine(
             actorTokenStage(),
             (subjectToken, actorToken) -> {
               Objects.requireNonNull(
                   subjectToken, "Cannot execute token exchange: missing required subject token");
-              return TokenExchangeRequest.builder()
-                  .subjectToken(subjectToken.getPayload())
-                  .subjectTokenType(subjectToken.getTokenType())
-                  .actorToken(actorToken == null ? null : actorToken.getPayload())
-                  .actorTokenType(actorToken == null ? null : actorToken.getTokenType())
-                  .resource(getSpec().getTokenExchangeConfig().getResource().orElse(null))
-                  .audience(getSpec().getTokenExchangeConfig().getAudience().orElse(null))
-                  .requestedTokenType(getSpec().getTokenExchangeConfig().getRequestedTokenType());
+              TokenExchangeConfig tokenExchangeConfig = getConfig().getTokenExchangeConfig();
+              return newTokenExchangeGrant(subjectToken, actorToken, tokenExchangeConfig);
             })
-        .thenCompose(request -> invokeTokenEndpoint(null, request));
+        .thenCompose(this::invokeTokenEndpoint);
+  }
+
+  @Override
+  TokenRequest.Builder newTokenRequestBuilder(AuthorizationGrant grant) {
+    TokenRequest.Builder builder = super.newTokenRequestBuilder(grant);
+    TokenExchangeConfig tokenExchangeConfig = getConfig().getTokenExchangeConfig();
+    if (!tokenExchangeConfig.getResources().isEmpty()) {
+      builder.resources(tokenExchangeConfig.getResources().toArray(new URI[0]));
+    }
+    return builder;
+  }
+
+  private static TokenExchangeGrant newTokenExchangeGrant(
+      AccessToken subjectToken, AccessToken actorToken, TokenExchangeConfig tokenExchangeConfig) {
+    return new TokenExchangeGrant(
+        subjectToken,
+        subjectToken.getIssuedTokenType() == null
+            ? TokenTypeURI.ACCESS_TOKEN
+            : subjectToken.getIssuedTokenType(),
+        actorToken,
+        actorToken == null
+            ? null
+            : actorToken.getIssuedTokenType() == null
+                ? TokenTypeURI.ACCESS_TOKEN
+                : actorToken.getIssuedTokenType(),
+        tokenExchangeConfig.getRequestedTokenType(),
+        tokenExchangeConfig.getAudiences());
   }
 }

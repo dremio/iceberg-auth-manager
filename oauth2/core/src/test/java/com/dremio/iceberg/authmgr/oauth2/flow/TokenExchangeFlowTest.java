@@ -15,11 +15,11 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.flow;
 
-import static com.dremio.iceberg.authmgr.oauth2.test.TokenAssertions.assertTokens;
+import static com.dremio.iceberg.authmgr.oauth2.test.TokenAssertions.assertTokensResult;
+import static org.assertj.core.api.Assertions.assertThat;
 
-import com.dremio.iceberg.authmgr.oauth2.grant.GrantType;
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
-import com.dremio.iceberg.authmgr.oauth2.token.Tokens;
+import com.nimbusds.oauth2.sdk.GrantType;
 import java.util.concurrent.ExecutionException;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -37,27 +37,28 @@ class TokenExchangeFlowTest {
                 .returnRefreshTokens(returnRefreshTokens)
                 .build();
         FlowFactory flowFactory = env.newFlowFactory()) {
-      InitialFlow flow = flowFactory.createInitialFlow();
-      Tokens tokens = flow.fetchNewTokens().toCompletableFuture().get();
-      assertTokens(tokens, "access_initial", returnRefreshTokens ? "refresh_initial" : null);
+      Flow flow = flowFactory.createInitialFlow();
+      assertThat(flow).isInstanceOf(TokenExchangeFlow.class);
+      TokensResult tokens = flow.fetchNewTokens().toCompletableFuture().get();
+      assertTokensResult(tokens, "access_initial", returnRefreshTokens ? "refresh_initial" : null);
     }
   }
 
   @ParameterizedTest
   @CsvSource({
-    "true,  false, CLIENT_CREDENTIALS , CLIENT_CREDENTIALS",
-    "true,  true,  PASSWORD           , PASSWORD",
-    "true,  false, PASSWORD           , PASSWORD",
-    "false, true,  PASSWORD           , PASSWORD",
-    "false, false, PASSWORD           , PASSWORD",
-    "true,  true,  AUTHORIZATION_CODE , DEVICE_CODE",
-    "true,  false, AUTHORIZATION_CODE , DEVICE_CODE",
-    "false, true,  AUTHORIZATION_CODE , DEVICE_CODE",
-    "false, false, AUTHORIZATION_CODE , DEVICE_CODE",
-    "true,  true,  DEVICE_CODE        , AUTHORIZATION_CODE",
-    "true,  false, DEVICE_CODE        , AUTHORIZATION_CODE",
-    "false, true,  DEVICE_CODE        , AUTHORIZATION_CODE",
-    "false, false, DEVICE_CODE        , AUTHORIZATION_CODE",
+    "true,  false, client_credentials                           , client_credentials",
+    "true,  true,  password                                     , password",
+    "true,  false, password                                     , password",
+    "false, true,  password                                     , password",
+    "false, false, password                                     , password",
+    "true,  true,  authorization_code                           , urn:ietf:params:oauth:grant-type:device_code",
+    "true,  false, authorization_code                           , urn:ietf:params:oauth:grant-type:device_code",
+    "false, true,  authorization_code                           , urn:ietf:params:oauth:grant-type:device_code",
+    "false, false, authorization_code                           , urn:ietf:params:oauth:grant-type:device_code",
+    "true,  true,  urn:ietf:params:oauth:grant-type:device_code , authorization_code",
+    "true,  false, urn:ietf:params:oauth:grant-type:device_code , authorization_code",
+    "false, true,  urn:ietf:params:oauth:grant-type:device_code , authorization_code",
+    "false, false, urn:ietf:params:oauth:grant-type:device_code , authorization_code",
   })
   void fetchNewTokensDynamic(
       boolean privateClient,
@@ -78,9 +79,10 @@ class TokenExchangeFlowTest {
                 .actorGrantType(actorGrantType)
                 .build();
         FlowFactory flowFactory = env.newFlowFactory()) {
-      InitialFlow flow = flowFactory.createInitialFlow();
-      Tokens tokens = flow.fetchNewTokens().toCompletableFuture().get();
-      assertTokens(tokens, "access_initial", returnRefreshTokens ? "refresh_initial" : null);
+      Flow flow = flowFactory.createInitialFlow();
+      assertThat(flow).isInstanceOf(TokenExchangeFlow.class);
+      TokensResult tokens = flow.fetchNewTokens().toCompletableFuture().get();
+      assertTokensResult(tokens, "access_initial", returnRefreshTokens ? "refresh_initial" : null);
     }
   }
 }

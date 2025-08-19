@@ -17,17 +17,17 @@ package com.dremio.iceberg.authmgr.oauth2.test.container;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.dremio.iceberg.authmgr.oauth2.auth.ClientAuthentication;
 import com.dremio.iceberg.authmgr.oauth2.test.TestConstants;
 import com.dremio.iceberg.authmgr.oauth2.test.TestPemUtils;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod;
+import com.nimbusds.oauth2.sdk.id.ClientID;
 import dasniko.testcontainers.keycloak.ExtendableKeycloakContainer;
 import jakarta.ws.rs.core.Response;
 import java.net.URI;
 import java.time.Duration;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.keycloak.admin.client.Keycloak;
@@ -87,19 +87,19 @@ public class KeycloakContainer extends ExtendableKeycloakContainer<KeycloakConta
       createClient(
           master,
           TestConstants.CLIENT_ID1,
-          TestConstants.CLIENT_SECRET1,
-          ClientAuthentication.CLIENT_SECRET_BASIC);
-      createClient(master, TestConstants.CLIENT_ID2, null, ClientAuthentication.NONE);
+          TestConstants.CLIENT_SECRET1.getValue(),
+          ClientAuthenticationMethod.CLIENT_SECRET_BASIC);
+      createClient(master, TestConstants.CLIENT_ID2, null, ClientAuthenticationMethod.NONE);
       createClient(
           master,
           TestConstants.CLIENT_ID3,
-          TestConstants.CLIENT_SECRET3,
-          ClientAuthentication.CLIENT_SECRET_JWT);
+          TestConstants.CLIENT_SECRET3.getValue(),
+          ClientAuthenticationMethod.CLIENT_SECRET_JWT);
       createClient(
           master,
           TestConstants.CLIENT_ID4,
-          TestPemUtils.encodedSelfSignedCertificate(TestConstants.CLIENT_ID4),
-          ClientAuthentication.PRIVATE_KEY_JWT);
+          TestPemUtils.encodedSelfSignedCertificate(TestConstants.CLIENT_ID4.getValue()),
+          ClientAuthenticationMethod.PRIVATE_KEY_JWT);
     }
   }
 
@@ -138,8 +138,8 @@ public class KeycloakContainer extends ExtendableKeycloakContainer<KeycloakConta
             MASTER_REALM,
             getAdminUsername(),
             getAdminPassword(),
-            TestConstants.CLIENT_ID1,
-            TestConstants.CLIENT_SECRET1,
+            TestConstants.CLIENT_ID1.getValue(),
+            TestConstants.CLIENT_SECRET1.getValue(),
             null,
             null,
             false,
@@ -166,7 +166,7 @@ public class KeycloakContainer extends ExtendableKeycloakContainer<KeycloakConta
   protected void createScope(RealmResource master) {
     ClientScopeRepresentation scope = new ClientScopeRepresentation();
     scope.setId(UUID.randomUUID().toString());
-    scope.setName(TestConstants.SCOPE1);
+    scope.setName(TestConstants.SCOPE1.toString());
     scope.setProtocol("openid-connect");
     scope.setAttributes(
         Map.of(
@@ -183,16 +183,17 @@ public class KeycloakContainer extends ExtendableKeycloakContainer<KeycloakConta
 
   protected void createClient(
       RealmResource master,
-      String clientId,
+      ClientID clientId,
       String clientSecret,
-      ClientAuthentication authenticationMethod) {
+      ClientAuthenticationMethod authenticationMethod) {
     ClientRepresentation client = new ClientRepresentation();
     String clientUuid = UUID.randomUUID().toString();
     client.setId(clientUuid);
-    client.setClientId(clientId);
-    client.setPublicClient(authenticationMethod == ClientAuthentication.NONE);
+    client.setClientId(clientId.getValue());
+    client.setPublicClient(authenticationMethod == ClientAuthenticationMethod.NONE);
     client.setServiceAccountsEnabled(
-        authenticationMethod != ClientAuthentication.NONE); // required for client credentials grant
+        authenticationMethod
+            != ClientAuthenticationMethod.NONE); // required for client credentials grant
     client.setDirectAccessGrantsEnabled(true); // required for password grant
     client.setStandardFlowEnabled(true); // required for authorization code grant
     client.setRedirectUris(ImmutableList.of("http://localhost:*"));
@@ -203,29 +204,23 @@ public class KeycloakContainer extends ExtendableKeycloakContainer<KeycloakConta
             .put("oauth2.device.authorization.grant.enabled", "true")
             .put("standard.token.exchange.enabled", "true")
             .put("standard.token.exchange.enableRefreshRequestedTokenType", "SAME_SESSION");
-    if (authenticationMethod != ClientAuthentication.NONE) {
-      switch (authenticationMethod) {
-        case CLIENT_SECRET_BASIC:
-        case CLIENT_SECRET_POST:
-          client.setPublicClient(false);
-          client.setSecret(clientSecret);
-          break;
-        case CLIENT_SECRET_JWT:
-          client.setSecret(clientSecret);
-          client.setClientAuthenticatorType("client-secret-jwt");
-          break;
-        case PRIVATE_KEY_JWT:
-          attributes.put("jwt.credential.certificate", clientSecret);
-          client.setClientAuthenticatorType("client-jwt");
-          break;
-        default:
+    if (!authenticationMethod.equals(ClientAuthenticationMethod.NONE)) {
+      if (authenticationMethod.equals(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
+          || authenticationMethod.equals(ClientAuthenticationMethod.CLIENT_SECRET_POST)) {
+        client.setSecret(clientSecret);
+      } else if (authenticationMethod.equals(ClientAuthenticationMethod.CLIENT_SECRET_JWT)) {
+        client.setSecret(clientSecret);
+        client.setClientAuthenticatorType("client-secret-jwt");
+      } else if (authenticationMethod.equals(ClientAuthenticationMethod.PRIVATE_KEY_JWT)) {
+        attributes.put("jwt.credential.certificate", clientSecret);
+        client.setClientAuthenticatorType("client-jwt");
       }
       ResourceServerRepresentation settings = new ResourceServerRepresentation();
       settings.setPolicyEnforcementMode(PolicyEnforcementMode.DISABLED);
       client.setAuthorizationSettings(settings);
     }
     client.setAttributes(attributes.build());
-    client.setOptionalClientScopes(List.of(TestConstants.SCOPE1));
+    client.setOptionalClientScopes(TestConstants.SCOPE1.toStringList());
     try (Response response = master.clients().create(client)) {
       assertThat(response.getStatus()).isEqualTo(201);
     }
@@ -241,7 +236,7 @@ public class KeycloakContainer extends ExtendableKeycloakContainer<KeycloakConta
     user.setLastName("Alice");
     CredentialRepresentation credential = new CredentialRepresentation();
     credential.setType(CredentialRepresentation.PASSWORD);
-    credential.setValue(TestConstants.PASSWORD);
+    credential.setValue(TestConstants.PASSWORD.getValue());
     credential.setTemporary(false);
     user.setCredentials(ImmutableList.of(credential));
     user.setEnabled(true);

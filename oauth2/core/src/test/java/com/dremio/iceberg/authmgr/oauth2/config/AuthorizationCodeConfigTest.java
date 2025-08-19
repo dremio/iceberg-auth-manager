@@ -20,7 +20,7 @@ import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.AuthorizationCo
 import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.AuthorizationCode.CALLBACK_CONTEXT_PATH;
 import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.AuthorizationCode.ENDPOINT;
 import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.AuthorizationCode.PKCE_ENABLED;
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.AuthorizationCode.PKCE_TRANSFORMATION;
+import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.AuthorizationCode.PKCE_METHOD;
 import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.AuthorizationCode.REDIRECT_URI;
 import static java.util.Collections.singletonList;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -28,6 +28,7 @@ import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException
 import static org.assertj.core.api.AssertionsForClassTypes.catchThrowable;
 
 import com.dremio.iceberg.authmgr.oauth2.config.validator.ConfigValidator;
+import com.nimbusds.oauth2.sdk.pkce.CodeChallengeMethod;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
@@ -67,7 +68,11 @@ class AuthorizationCodeConfigTest {
                 .authorizationEndpoint(URI.create("https://example.com"))
                 .callbackBindPort(-1),
             singletonList(
-                "authorization code flow: callback bind port must be between 0 and 65535 (inclusive) (rest.auth.oauth2.auth-code.callback-bind-port)")));
+                "authorization code flow: callback bind port must be between 0 and 65535 (inclusive) (rest.auth.oauth2.auth-code.callback-bind-port)")),
+        Arguments.of(
+            AuthorizationCodeConfig.builder().codeChallengeMethod(new CodeChallengeMethod("PLAIN")),
+            singletonList(
+                "authorization code flow: code challenge method must be one of: 'plain', 'S256' (rest.auth.oauth2.auth-code.pkce.method)")));
   }
 
   @ParameterizedTest
@@ -100,14 +105,14 @@ class AuthorizationCodeConfigTest {
                 "1.2.3.4",
                 PKCE_ENABLED,
                 "false",
-                PKCE_TRANSFORMATION,
+                PKCE_METHOD,
                 "plain"),
             AuthorizationCodeConfig.builder()
                 .authorizationEndpoint(URI.create("https://example.com/auth"))
                 .callbackBindPort(8080)
                 .callbackBindHost("1.2.3.4")
                 .pkceEnabled(false)
-                .pkceTransformation(PkceTransformation.PLAIN)
+                .codeChallengeMethod(CodeChallengeMethod.PLAIN)
                 .build(),
             null));
   }
@@ -139,7 +144,7 @@ class AuthorizationCodeConfigTest {
                 "https://example.com/callback",
                 PKCE_ENABLED,
                 "false",
-                PKCE_TRANSFORMATION,
+                PKCE_METHOD,
                 "plain"),
             AuthorizationCodeConfig.builder()
                 .authorizationEndpoint(URI.create("https://example.com/auth"))
@@ -148,7 +153,7 @@ class AuthorizationCodeConfigTest {
                 .callbackContextPath("/callback")
                 .redirectUri(URI.create("https://example.com/callback"))
                 .pkceEnabled(false)
-                .pkceTransformation(PkceTransformation.PLAIN)
+                .codeChallengeMethod(CodeChallengeMethod.PLAIN)
                 .build()),
         Arguments.of(
             AuthorizationCodeConfig.builder()
@@ -158,7 +163,7 @@ class AuthorizationCodeConfigTest {
                 .callbackContextPath("/callback")
                 .redirectUri(URI.create("https://example.com/callback"))
                 .pkceEnabled(false)
-                .pkceTransformation(PkceTransformation.PLAIN)
+                .codeChallengeMethod(CodeChallengeMethod.PLAIN)
                 .build(),
             Map.of(),
             AuthorizationCodeConfig.builder()
@@ -168,7 +173,7 @@ class AuthorizationCodeConfigTest {
                 .callbackContextPath("/callback")
                 .redirectUri(URI.create("https://example.com/callback"))
                 .pkceEnabled(false)
-                .pkceTransformation(PkceTransformation.PLAIN)
+                .codeChallengeMethod(CodeChallengeMethod.PLAIN)
                 .build()),
         Arguments.of(
             AuthorizationCodeConfig.builder()
@@ -178,7 +183,7 @@ class AuthorizationCodeConfigTest {
                 .callbackContextPath("/callback")
                 .redirectUri(URI.create("https://example.com/callback"))
                 .pkceEnabled(false)
-                .pkceTransformation(PkceTransformation.PLAIN)
+                .codeChallengeMethod(CodeChallengeMethod.PLAIN)
                 .build(),
             Map.of(
                 ENDPOINT,
@@ -193,7 +198,7 @@ class AuthorizationCodeConfigTest {
                 "https://example2.com/callback",
                 PKCE_ENABLED,
                 "true",
-                PKCE_TRANSFORMATION,
+                PKCE_METHOD,
                 "S256"),
             AuthorizationCodeConfig.builder()
                 .authorizationEndpoint(URI.create("https://example2.com/auth"))
@@ -202,7 +207,7 @@ class AuthorizationCodeConfigTest {
                 .callbackContextPath("/callback2")
                 .redirectUri(URI.create("https://example2.com/callback"))
                 .pkceEnabled(true)
-                .pkceTransformation(PkceTransformation.S256)
+                .codeChallengeMethod(CodeChallengeMethod.S256)
                 .build()),
         Arguments.of(
             AuthorizationCodeConfig.builder()
@@ -225,7 +230,7 @@ class AuthorizationCodeConfigTest {
                 "",
                 PKCE_ENABLED,
                 "",
-                PKCE_TRANSFORMATION,
+                PKCE_METHOD,
                 ""),
             AuthorizationCodeConfig.builder().build()));
   }

@@ -32,7 +32,10 @@ dependencies {
   implementation("org.apache.iceberg:iceberg-api")
   implementation("org.apache.iceberg:iceberg-core")
 
-  implementation(libs.auth0.jwt)
+  implementation(libs.nimbus.oauth2.oidc.sdk) {
+    exclude(group = "com.github.stephenc.jcip", module = "jcip-annotations")
+  }
+  implementation(libs.nimbus.jose.jwt)
 
   implementation(libs.slf4j.api)
   implementation(libs.caffeine)
@@ -62,7 +65,8 @@ dependencies {
   testFixturesApi(libs.assertj.core)
   testFixturesApi(libs.mockito.core)
 
-  testFixturesApi(libs.auth0.jwt)
+  testFixturesApi(libs.nimbus.oauth2.oidc.sdk)
+  testFixturesApi(libs.nimbus.jose.jwt)
 
   testFixturesApi(libs.bouncycastle.bcpkix)
 
@@ -78,18 +82,13 @@ dependencies {
   testFixturesCompileOnly(project(":authmgr-immutables"))
   testFixturesAnnotationProcessor(project(":authmgr-immutables", configuration = "processor"))
 
-  testImplementation(libs.auth0.jwt)
   testCompileOnly(libs.jakarta.annotation.api)
 
   testCompileOnly(project(":authmgr-immutables"))
   testAnnotationProcessor(project(":authmgr-immutables", configuration = "processor"))
 
-  intTestImplementation(libs.auth0.jwt)
-
   intTestCompileOnly(project(":authmgr-immutables"))
   intTestAnnotationProcessor(project(":authmgr-immutables", configuration = "processor"))
-
-  longTestImplementation(libs.auth0.jwt)
 
   longTestCompileOnly(project(":authmgr-immutables"))
   longTestAnnotationProcessor(project(":authmgr-immutables", configuration = "processor"))

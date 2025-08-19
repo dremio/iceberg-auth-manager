@@ -15,20 +15,28 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.flow;
 
-import org.apache.iceberg.exceptions.RESTException;
-import org.apache.iceberg.rest.responses.ErrorResponse;
+import com.nimbusds.oauth2.sdk.ErrorObject;
+import com.nimbusds.oauth2.sdk.ErrorResponse;
 
 /** An exception thrown when the server replies with an OAuth2 error. */
-public class OAuth2Exception extends RESTException {
+public final class OAuth2Exception extends RuntimeException {
 
-  private final ErrorResponse errorResponse;
+  private final ErrorObject errorObject;
 
   OAuth2Exception(ErrorResponse errorResponse) {
-    super("OAuth2 request failed: %s", errorResponse.message());
-    this.errorResponse = errorResponse;
+    this(errorResponse.getErrorObject());
   }
 
-  public ErrorResponse getErrorResponse() {
-    return errorResponse;
+  OAuth2Exception(ErrorObject errorObject) {
+    this("OAuth2 request failed: " + errorObject.getDescription(), errorObject);
+  }
+
+  OAuth2Exception(String message, ErrorObject errorObject) {
+    super(message);
+    this.errorObject = errorObject;
+  }
+
+  public ErrorObject getErrorObject() {
+    return errorObject;
   }
 }

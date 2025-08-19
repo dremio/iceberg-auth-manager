@@ -19,12 +19,15 @@ import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.ClientAssertion
 import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.ClientAssertion.PRIVATE_KEY;
 
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.ClientAssertion;
-import com.dremio.iceberg.authmgr.oauth2.auth.JwtSigningAlgorithm;
 import com.dremio.iceberg.authmgr.oauth2.config.option.ConfigOption;
 import com.dremio.iceberg.authmgr.oauth2.config.option.ConfigOptions;
 import com.dremio.iceberg.authmgr.oauth2.config.validator.ConfigValidator;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
+import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.oauth2.sdk.id.Audience;
+import com.nimbusds.oauth2.sdk.id.Issuer;
+import com.nimbusds.oauth2.sdk.id.Subject;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -48,21 +51,21 @@ public interface ClientAssertionConfig {
    *
    * @see ClientAssertion#ISSUER
    */
-  Optional<String> getIssuer();
+  Optional<Issuer> getIssuer();
 
   /**
    * The subject of the client assertion JWT. Optional. The default is the client ID.
    *
    * @see ClientAssertion#SUBJECT
    */
-  Optional<String> getSubject();
+  Optional<Subject> getSubject();
 
   /**
    * The audience of the client assertion JWT. Optional. The default is the token endpoint.
    *
    * @see ClientAssertion#AUDIENCE
    */
-  Optional<String> getAudience();
+  Optional<Audience> getAudience();
 
   /**
    * The lifespan of the client assertion JWT. Optional. The default is 5 minutes.
@@ -92,7 +95,7 @@ public interface ClientAssertionConfig {
    *     3.1</a>
    * @see ClientAssertion#ALGORITHM
    */
-  Optional<JwtSigningAlgorithm> getAlgorithm();
+  Optional<JWSAlgorithm> getAlgorithm();
 
   /**
    * The path on the local filesystem to the private key to use for signing the client assertion
@@ -108,12 +111,12 @@ public interface ClientAssertionConfig {
   default void validate() {
     ConfigValidator validator = new ConfigValidator();
     if (getAlgorithm().isPresent()) {
-      if (getAlgorithm().get().isRsaAlgorithm()) {
+      if (JWSAlgorithm.Family.SIGNATURE.contains(getAlgorithm().get())) {
         validator.check(
             getPrivateKey().isPresent(),
             List.of(ALGORITHM, PRIVATE_KEY),
             "client assertion: JWT signing algorithm %s requires a private key",
-            getAlgorithm().get().getJwsName());
+            getAlgorithm().get().getName());
       }
     }
     if (getPrivateKey().isPresent()) {
@@ -163,13 +166,13 @@ public interface ClientAssertionConfig {
     }
 
     @CanIgnoreReturnValue
-    Builder issuer(String issuer);
+    Builder issuer(Issuer issuer);
 
     @CanIgnoreReturnValue
-    Builder subject(String subject);
+    Builder subject(Subject subject);
 
     @CanIgnoreReturnValue
-    Builder audience(String audience);
+    Builder audience(Audience audience);
 
     @CanIgnoreReturnValue
     Builder tokenLifespan(Duration tokenLifespan);
@@ -178,23 +181,23 @@ public interface ClientAssertionConfig {
     Builder extraClaims(Map<String, ? extends String> extraClaims);
 
     @CanIgnoreReturnValue
-    Builder algorithm(JwtSigningAlgorithm algorithm);
+    Builder algorithm(JWSAlgorithm algorithm);
 
     @CanIgnoreReturnValue
     Builder privateKey(Path privateKey);
 
     ClientAssertionConfig build();
 
-    default ConfigOption<String> issuerOption() {
-      return ConfigOptions.simple(ClientAssertion.ISSUER, this::issuer);
+    default ConfigOption<Issuer> issuerOption() {
+      return ConfigOptions.simple(ClientAssertion.ISSUER, this::issuer, Issuer::parse);
     }
 
-    default ConfigOption<String> subjectOption() {
-      return ConfigOptions.simple(ClientAssertion.SUBJECT, this::subject);
+    default ConfigOption<Subject> subjectOption() {
+      return ConfigOptions.simple(ClientAssertion.SUBJECT, this::subject, Subject::new);
     }
 
-    default ConfigOption<String> audienceOption() {
-      return ConfigOptions.simple(ClientAssertion.AUDIENCE, this::audience);
+    default ConfigOption<Audience> audienceOption() {
+      return ConfigOptions.simple(ClientAssertion.AUDIENCE, this::audience, Audience::new);
     }
 
     default ConfigOption<Duration> tokenLifespanOption() {
@@ -206,9 +209,8 @@ public interface ClientAssertionConfig {
       return ConfigOptions.prefixMap(ClientAssertion.EXTRA_CLAIMS_PREFIX, this::extraClaims);
     }
 
-    default ConfigOption<JwtSigningAlgorithm> algorithmOption() {
-      return ConfigOptions.simple(
-          ClientAssertion.ALGORITHM, this::algorithm, JwtSigningAlgorithm::fromConfigName);
+    default ConfigOption<JWSAlgorithm> algorithmOption() {
+      return ConfigOptions.simple(ClientAssertion.ALGORITHM, this::algorithm, JWSAlgorithm::parse);
     }
 
     default ConfigOption<Path> privateKeyOption() {

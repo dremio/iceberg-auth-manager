@@ -15,31 +15,23 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.test.expectation;
 
-import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.CLIENT_ID1;
-import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.CLIENT_ID2;
 import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.PASSWORD;
 import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.SCOPE1;
 import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.SCOPE2;
 import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.USERNAME;
 
-import com.dremio.iceberg.authmgr.oauth2.rest.ImmutablePasswordTokenRequest;
-import com.dremio.iceberg.authmgr.oauth2.rest.PostFormRequest;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
+import com.google.common.collect.ImmutableMap;
 
 @AuthManagerImmutable
 public abstract class PasswordExpectation extends InitialTokenFetchExpectation {
 
   @Override
-  protected PostFormRequest tokenRequestBody() {
-    return ImmutablePasswordTokenRequest.builder()
-        .clientId(
-            getTestEnvironment().isPrivateClient()
-                ? null
-                : String.format("(%s|%s)", CLIENT_ID1, CLIENT_ID2))
-        .username(USERNAME)
-        .password(PASSWORD)
-        .scope(String.format("(%s|%s)", SCOPE1, SCOPE2))
-        .putExtraParameter("(extra1|extra2)", "(value1|value2)")
-        .build();
+  protected ImmutableMap.Builder<String, String> requestBody() {
+    return super.requestBody()
+        .put("grant_type", "password")
+        .put("username", USERNAME)
+        .put("password", PASSWORD.getValue())
+        .put("scope", String.format("(%s|%s)", SCOPE1, SCOPE2));
   }
 }

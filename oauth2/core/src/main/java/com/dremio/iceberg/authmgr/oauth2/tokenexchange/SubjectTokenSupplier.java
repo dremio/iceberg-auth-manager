@@ -15,14 +15,13 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.tokenexchange;
 
-import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2AgentSpec;
+import com.dremio.iceberg.authmgr.oauth2.OAuth2Config;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
-import java.net.URI;
+import com.nimbusds.oauth2.sdk.http.HTTPRequestSender;
+import com.nimbusds.oauth2.sdk.token.TokenTypeURI;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.function.Supplier;
-import org.apache.iceberg.rest.RESTClient;
 import org.immutables.value.Value;
 
 /** A component that centralizes the logic for supplying the subject token for token exchanges. */
@@ -30,13 +29,11 @@ import org.immutables.value.Value;
 public abstract class SubjectTokenSupplier extends AbstractTokenSupplier {
 
   public static SubjectTokenSupplier of(
-      OAuth2AgentSpec spec,
-      ScheduledExecutorService executor,
-      Supplier<RESTClient> restClientSupplier) {
+      OAuth2Config spec, ScheduledExecutorService executor, HTTPRequestSender httpClient) {
     return ImmutableSubjectTokenSupplier.builder()
         .mainSpec(spec)
         .executor(executor)
-        .restClientSupplier(restClientSupplier)
+        .httpClient(httpClient)
         .build();
   }
 
@@ -62,7 +59,7 @@ public abstract class SubjectTokenSupplier extends AbstractTokenSupplier {
   }
 
   @Override
-  protected URI getTokenType() {
+  protected TokenTypeURI getTokenType() {
     return getMainSpec().getTokenExchangeConfig().getSubjectTokenType();
   }
 
@@ -73,6 +70,6 @@ public abstract class SubjectTokenSupplier extends AbstractTokenSupplier {
 
   @Override
   protected String getDefaultAgentName() {
-    return getMainSpec().getRuntimeConfig().getAgentName() + "-subject";
+    return getMainSpec().getSystemConfig().getAgentName() + "-subject";
   }
 }

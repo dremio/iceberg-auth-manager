@@ -35,7 +35,10 @@ public interface UserBehavior {
    * credentials to log in.
    */
   UserBehavior INTEGRATION_TESTS =
-      builder().username(TestConstants.USERNAME).password(TestConstants.PASSWORD).build();
+      builder()
+          .username(TestConstants.USERNAME)
+          .password(TestConstants.PASSWORD.getValue())
+          .build();
 
   static ImmutableUserBehavior.Builder builder() {
     return ImmutableUserBehavior.builder();

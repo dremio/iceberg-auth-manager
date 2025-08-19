@@ -22,9 +22,9 @@ import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties;
 import com.dremio.iceberg.authmgr.oauth2.config.option.ConfigOption;
 import com.dremio.iceberg.authmgr.oauth2.config.option.ConfigOptions;
 import com.dremio.iceberg.authmgr.oauth2.config.validator.ConfigValidator;
-import com.dremio.iceberg.authmgr.oauth2.grant.GrantType;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
+import com.nimbusds.oauth2.sdk.GrantType;
 import java.net.URI;
 import java.time.Duration;
 import java.util.Map;
@@ -90,7 +90,6 @@ public interface DeviceCodeConfig {
     if (getDeviceAuthorizationEndpoint().isPresent()) {
       validator.checkEndpoint(
           getDeviceAuthorizationEndpoint().get(),
-          true,
           ENDPOINT,
           "device code flow: device authorization endpoint %s");
     }

@@ -15,14 +15,12 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.test.expectation;
 
-import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.CLIENT_ID1;
-import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.CLIENT_ID2;
 import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.SCOPE1;
 import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.SCOPE2;
 
-import com.dremio.iceberg.authmgr.oauth2.rest.ImmutableRefreshTokenRequest;
-import com.dremio.iceberg.authmgr.oauth2.rest.PostFormRequest;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
+import com.google.common.collect.ImmutableMap;
+import com.nimbusds.oauth2.sdk.GrantType;
 
 @AuthManagerImmutable
 public abstract class RefreshTokenExpectation extends AbstractTokenEndpointExpectation {
@@ -30,21 +28,15 @@ public abstract class RefreshTokenExpectation extends AbstractTokenEndpointExpec
   @Override
   public void create() {
     getClientAndServer()
-        .when(tokenRequest())
-        .respond(
-            httpRequest -> tokenResponse(httpRequest, "access_refreshed", "refresh_refreshed"));
+        .when(request())
+        .respond(httpRequest -> response(httpRequest, "access_refreshed", "refresh_refreshed"));
   }
 
   @Override
-  protected PostFormRequest tokenRequestBody() {
-    return ImmutableRefreshTokenRequest.builder()
-        .clientId(
-            getTestEnvironment().isPrivateClient()
-                ? null
-                : String.format("(%s|%s)", CLIENT_ID1, CLIENT_ID2))
-        .refreshToken("refresh_.*")
-        .scope(String.format("(%s|%s)", SCOPE1, SCOPE2))
-        .putExtraParameter("(extra1|extra2)", "(value1|value2)")
-        .build();
+  protected ImmutableMap.Builder<String, String> requestBody() {
+    return super.requestBody()
+        .put("grant_type", GrantType.REFRESH_TOKEN.toString())
+        .put("refresh_token", "refresh_.*")
+        .put("scope", String.format("(%s|%s)", SCOPE1, SCOPE2));
   }
 }

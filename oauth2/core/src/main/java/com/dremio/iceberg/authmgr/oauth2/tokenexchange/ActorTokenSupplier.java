@@ -15,27 +15,24 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.tokenexchange;
 
-import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2AgentSpec;
+import com.dremio.iceberg.authmgr.oauth2.OAuth2Config;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
-import java.net.URI;
+import com.nimbusds.oauth2.sdk.http.HTTPRequestSender;
+import com.nimbusds.oauth2.sdk.token.TokenTypeURI;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.function.Supplier;
-import org.apache.iceberg.rest.RESTClient;
 
 /** A component that centralizes the logic for supplying the actor token for token exchanges. */
 @AuthManagerImmutable
 public abstract class ActorTokenSupplier extends AbstractTokenSupplier {
 
   public static ActorTokenSupplier of(
-      OAuth2AgentSpec spec,
-      ScheduledExecutorService executor,
-      Supplier<RESTClient> restClientSupplier) {
+      OAuth2Config spec, ScheduledExecutorService executor, HTTPRequestSender httpClient) {
     return ImmutableActorTokenSupplier.builder()
         .mainSpec(spec)
         .executor(executor)
-        .restClientSupplier(restClientSupplier)
+        .httpClient(httpClient)
         .build();
   }
 
@@ -53,7 +50,7 @@ public abstract class ActorTokenSupplier extends AbstractTokenSupplier {
   }
 
   @Override
-  protected URI getTokenType() {
+  protected TokenTypeURI getTokenType() {
     return getMainSpec().getTokenExchangeConfig().getActorTokenType();
   }
 
@@ -64,6 +61,6 @@ public abstract class ActorTokenSupplier extends AbstractTokenSupplier {
 
   @Override
   protected String getDefaultAgentName() {
-    return getMainSpec().getRuntimeConfig().getAgentName() + "-actor";
+    return getMainSpec().getSystemConfig().getAgentName() + "-actor";
   }
 }
