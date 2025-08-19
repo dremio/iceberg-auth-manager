@@ -15,10 +15,9 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.agent;
 
-import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.ACCESS_TOKEN_EXPIRATION_TIME;
-import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.REFRESH_TOKEN_EXPIRATION_TIME;
+import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.ACCESS_TOKEN_EXPIRES_IN_SECONDS;
 import static com.dremio.iceberg.authmgr.oauth2.test.TokenAssertions.assertAccessToken;
-import static com.dremio.iceberg.authmgr.oauth2.test.TokenAssertions.assertTokens;
+import static com.dremio.iceberg.authmgr.oauth2.test.TokenAssertions.assertTokensResult;
 import static org.assertj.core.api.InstanceOfAssertFactories.ATOMIC_BOOLEAN;
 import static org.assertj.core.api.InstanceOfAssertFactories.throwable;
 import static org.mockito.ArgumentMatchers.any;
@@ -28,17 +27,21 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2Agent.MustFetchNewTokensException;
-import com.dremio.iceberg.authmgr.oauth2.config.Dialect;
 import com.dremio.iceberg.authmgr.oauth2.flow.OAuth2Exception;
-import com.dremio.iceberg.authmgr.oauth2.grant.GrantType;
+import com.dremio.iceberg.authmgr.oauth2.flow.TokensResult;
 import com.dremio.iceberg.authmgr.oauth2.test.TestClock;
 import com.dremio.iceberg.authmgr.oauth2.test.TestConstants;
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
 import com.dremio.iceberg.authmgr.oauth2.test.user.UserBehavior;
-import com.dremio.iceberg.authmgr.oauth2.token.AccessToken;
-import com.dremio.iceberg.authmgr.oauth2.token.RefreshToken;
-import com.dremio.iceberg.authmgr.oauth2.token.Tokens;
+import com.nimbusds.oauth2.sdk.GrantType;
+import com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod;
+import com.nimbusds.oauth2.sdk.auth.Secret;
+import com.nimbusds.oauth2.sdk.id.ClientID;
+import com.nimbusds.oauth2.sdk.token.AccessToken;
+import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
+import com.nimbusds.oauth2.sdk.token.RefreshToken;
+import com.nimbusds.oauth2.sdk.token.Tokens;
+import com.nimbusds.oauth2.sdk.token.TypelessAccessToken;
 import java.time.Duration;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RejectedExecutionException;
@@ -46,7 +49,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
-import org.apache.iceberg.exceptions.RESTException;
 import org.assertj.core.api.SoftAssertions;
 import org.assertj.core.api.junit.jupiter.InjectSoftAssertions;
 import org.assertj.core.api.junit.jupiter.SoftAssertionsExtension;
@@ -60,81 +62,106 @@ class OAuth2AgentTest {
 
   @InjectSoftAssertions protected SoftAssertions soft;
 
-  @Test
-  void testClientCredentials() {
-    try (TestEnvironment env = TestEnvironment.builder().build();
+  @ParameterizedTest
+  @CsvSource({
+    "client_secret_basic , true",
+    "client_secret_basic , false",
+    "client_secret_post  , true",
+    "client_secret_post  , false",
+  })
+  void testClientCredentials(
+      ClientAuthenticationMethod authenticationMethod, boolean returnRefreshTokens) {
+    try (TestEnvironment env =
+            TestEnvironment.builder()
+                .clientAuthenticationMethod(authenticationMethod)
+                .returnRefreshTokens(returnRefreshTokens)
+                .build();
         OAuth2Agent agent = env.newAgent()) {
-      Tokens currentTokens = agent.authenticateInternal();
-      assertTokens(currentTokens, "access_initial", null);
-    }
-  }
-
-  @Test
-  void testClientCredentialsIcebergDialect() {
-    try (TestEnvironment env = TestEnvironment.builder().dialect(Dialect.ICEBERG_REST).build();
-        OAuth2Agent agent = env.newAgent()) {
-      Tokens currentTokens = agent.authenticateInternal();
-      assertTokens(currentTokens, "access_initial", null);
+      TokensResult currentTokens = agent.authenticateInternal();
+      assertTokensResult(
+          currentTokens, "access_initial", returnRefreshTokens ? "refresh_initial" : null);
     }
   }
 
   @Test
   void testClientCredentialsUnauthorized() {
-    try (TestEnvironment env = TestEnvironment.builder().clientId("WrongClient").build();
+    try (TestEnvironment env =
+            TestEnvironment.builder().clientId(new ClientID("WrongClient")).build();
         OAuth2Agent agent = env.newAgent()) {
       soft.assertThatThrownBy(agent::authenticate)
           .asInstanceOf(throwable(OAuth2Exception.class))
-          .extracting(OAuth2Exception::getErrorResponse)
+          .extracting(OAuth2Exception::getErrorObject)
           .satisfies(
               r -> {
-                soft.assertThat(r.type()).isEqualTo("invalid_request");
-                soft.assertThat(r.message()).contains("Invalid request");
+                soft.assertThat(r.getCode()).isEqualTo("invalid_request");
+                soft.assertThat(r.getDescription()).contains("Invalid request");
               });
     }
   }
 
   @ParameterizedTest
-  @CsvSource({"true, true", "true, false", "false, true", "false, false"})
-  void testPassword(boolean privateClient, boolean returnRefreshTokens) {
+  @CsvSource({
+    "client_secret_basic , true",
+    "client_secret_basic , false",
+    "client_secret_post  , true",
+    "client_secret_post  , false",
+    "none                , true",
+    "none                , false",
+  })
+  void testPassword(ClientAuthenticationMethod authenticationMethod, boolean returnRefreshTokens) {
     try (TestEnvironment env =
             TestEnvironment.builder()
                 .grantType(GrantType.PASSWORD)
-                .privateClient(privateClient)
+                .clientAuthenticationMethod(authenticationMethod)
                 .returnRefreshTokens(returnRefreshTokens)
                 .build();
         OAuth2Agent agent = env.newAgent()) {
-      Tokens currentTokens = agent.authenticateInternal();
-      assertTokens(currentTokens, "access_initial", returnRefreshTokens ? "refresh_initial" : null);
+      TokensResult currentTokens = agent.authenticateInternal();
+      assertTokensResult(
+          currentTokens, "access_initial", returnRefreshTokens ? "refresh_initial" : null);
     }
   }
 
-  @ParameterizedTest
-  @CsvSource({"true, true", "true, false", "false, true", "false, false"})
-  void testTokenExchange(boolean privateClient, boolean returnRefreshTokens) {
+  @Test
+  void testPasswordUnauthorized() {
     try (TestEnvironment env =
             TestEnvironment.builder()
-                .grantType(GrantType.TOKEN_EXCHANGE)
-                .privateClient(privateClient)
-                .returnRefreshTokens(returnRefreshTokens)
+                .grantType(GrantType.PASSWORD)
+                .password(new Secret("WrongPassword"))
                 .build();
         OAuth2Agent agent = env.newAgent()) {
-      Tokens currentTokens = agent.authenticateInternal();
-      assertTokens(currentTokens, "access_initial", returnRefreshTokens ? "refresh_initial" : null);
+      soft.assertThatThrownBy(agent::authenticate)
+          .asInstanceOf(throwable(OAuth2Exception.class))
+          .extracting(OAuth2Exception::getErrorObject)
+          .satisfies(
+              r -> {
+                soft.assertThat(r.getCode()).isEqualTo("invalid_request");
+                soft.assertThat(r.getDescription()).contains("Invalid request");
+              });
     }
   }
 
   @ParameterizedTest
-  @CsvSource({"true, true", "true, false", "false, true", "false, false"})
-  void testAuthorizationCode(boolean privateClient, boolean returnRefreshTokens) {
+  @CsvSource({
+    "client_secret_basic , true",
+    "client_secret_basic , false",
+    "client_secret_post  , true",
+    "client_secret_post  , false",
+    "none                , true",
+    "none                , false",
+  })
+  void testAuthorizationCode(
+      ClientAuthenticationMethod authenticationMethod, boolean returnRefreshTokens) {
     try (TestEnvironment env =
             TestEnvironment.builder()
                 .grantType(GrantType.AUTHORIZATION_CODE)
-                .privateClient(privateClient)
+                .clientAuthenticationMethod(authenticationMethod)
                 .returnRefreshTokens(returnRefreshTokens)
                 .build();
         OAuth2Agent agent = env.newAgent()) {
-      Tokens currentTokens = agent.authenticateInternal();
-      assertTokens(currentTokens, "access_initial", returnRefreshTokens ? "refresh_initial" : null);
+      TokensResult currentTokens = agent.authenticateInternal();
+      assertTokensResult(
+          currentTokens, "access_initial", returnRefreshTokens ? "refresh_initial" : null);
     }
   }
 
@@ -155,7 +182,7 @@ class OAuth2AgentTest {
   }
 
   @Test
-  void testAuthorizationCodeWrongCode() {
+  void testAuthorizationCodeUnauthorized() {
     try (TestEnvironment env =
             TestEnvironment.builder()
                 .grantType(GrantType.AUTHORIZATION_CODE)
@@ -169,17 +196,26 @@ class OAuth2AgentTest {
   }
 
   @ParameterizedTest
-  @CsvSource({"true, true", "true, false", "false, true", "false, false"})
-  void testDeviceCode(boolean privateClient, boolean returnRefreshTokens) {
+  @CsvSource({
+    "client_secret_basic , true",
+    "client_secret_basic , false",
+    "client_secret_post  , true",
+    "client_secret_post  , false",
+    "none                , true",
+    "none                , false",
+  })
+  void testDeviceCode(
+      ClientAuthenticationMethod authenticationMethod, boolean returnRefreshTokens) {
     try (TestEnvironment env =
             TestEnvironment.builder()
                 .grantType(GrantType.DEVICE_CODE)
-                .privateClient(privateClient)
+                .clientAuthenticationMethod(authenticationMethod)
                 .returnRefreshTokens(returnRefreshTokens)
                 .build();
         OAuth2Agent agent = env.newAgent()) {
-      Tokens currentTokens = agent.authenticateInternal();
-      assertTokens(currentTokens, "access_initial", returnRefreshTokens ? "refresh_initial" : null);
+      TokensResult currentTokens = agent.authenticateInternal();
+      assertTokensResult(
+          currentTokens, "access_initial", returnRefreshTokens ? "refresh_initial" : null);
     }
   }
 
@@ -199,129 +235,210 @@ class OAuth2AgentTest {
     }
   }
 
+  @Test
+  void testDeviceCodeUnauthorized() {
+    try (TestEnvironment env =
+            TestEnvironment.builder()
+                .grantType(GrantType.DEVICE_CODE)
+                .timeout(Duration.ofSeconds(1))
+                .userBehavior(UserBehavior.builder().emulateFailure(true).build())
+                .build();
+        OAuth2Agent agent = env.newAgent()) {
+      // A user failure means the flow will never complete, so a timeout is expected
+      soft.assertThatThrownBy(agent::authenticate)
+          .hasMessage("Timed out waiting for an access token")
+          .cause()
+          .isInstanceOf(TimeoutException.class);
+    }
+  }
+
   @ParameterizedTest
-  @CsvSource({"true, true", "true, false", "false, true", "false, false"})
-  void testRefreshToken(boolean privateClient, boolean returnRefreshTokens)
+  @CsvSource({
+    "client_secret_basic , true",
+    "client_secret_basic , false",
+    "client_secret_post  , true",
+    "client_secret_post  , false",
+    "none                , true",
+    "none                , false",
+  })
+  void testRefreshToken(
+      ClientAuthenticationMethod authenticationMethod, boolean returnRefreshTokens)
       throws InterruptedException, ExecutionException {
     try (TestEnvironment env =
             TestEnvironment.builder()
-                .grantType(GrantType.AUTHORIZATION_CODE)
-                .forceInactiveUser(true)
-                .privateClient(privateClient)
+                .grantType(GrantType.PASSWORD)
+                .clientAuthenticationMethod(authenticationMethod)
                 .returnRefreshTokens(returnRefreshTokens)
                 .build();
         OAuth2Agent agent = env.newAgent()) {
-      Tokens currentTokens =
-          Tokens.of(
-              AccessToken.of("access_initial", "Bearer", ACCESS_TOKEN_EXPIRATION_TIME),
-              RefreshToken.of("refresh_initial", REFRESH_TOKEN_EXPIRATION_TIME));
-      Tokens tokens = agent.refreshCurrentTokens(currentTokens).toCompletableFuture().get();
-      assertTokens(
+      TokensResult currentTokens =
+          TokensResult.of(
+              new Tokens(
+                  new BearerAccessToken(
+                      "access_initial", ACCESS_TOKEN_EXPIRES_IN_SECONDS, TestConstants.SCOPE1),
+                  new RefreshToken("refresh_initial")),
+              TestConstants.NOW);
+      TokensResult tokens = agent.refreshCurrentTokens(currentTokens).toCompletableFuture().get();
+      assertTokensResult(
           tokens,
           "access_refreshed",
           returnRefreshTokens ? "refresh_refreshed" : "refresh_initial");
     }
   }
 
-  @Test
-  void testRefreshTokenIcebergDialect() throws InterruptedException, ExecutionException {
-    try (TestEnvironment env = TestEnvironment.builder().dialect(Dialect.ICEBERG_REST).build();
-        OAuth2Agent agent = env.newAgent()) {
-      Tokens currentTokens =
-          Tokens.of(AccessToken.of("access_initial", "Bearer", ACCESS_TOKEN_EXPIRATION_TIME), null);
-      Tokens tokens = agent.refreshCurrentTokens(currentTokens).toCompletableFuture().get();
-      assertTokens(tokens, "access_refreshed", null);
-    }
-  }
-
-  @Test
-  void testRefreshTokenExpired() {
+  @ParameterizedTest
+  @CsvSource({
+    "client_secret_basic , true",
+    "client_secret_basic , false",
+    "client_secret_post  , true",
+    "client_secret_post  , false",
+    "none                , true",
+    "none                , false",
+  })
+  void testTokenExchangeStaticSubjectActor(
+      ClientAuthenticationMethod authenticationMethod, boolean returnRefreshTokens)
+      throws ExecutionException, InterruptedException {
     try (TestEnvironment env =
             TestEnvironment.builder()
-                .grantType(GrantType.AUTHORIZATION_CODE)
-                .forceInactiveUser(true)
+                .grantType(GrantType.TOKEN_EXCHANGE)
+                .clientAuthenticationMethod(authenticationMethod)
+                .returnRefreshTokens(returnRefreshTokens)
                 .build();
         OAuth2Agent agent = env.newAgent()) {
-      Tokens currentTokens =
-          Tokens.of(
-              AccessToken.of("access_initial", "Bearer", ACCESS_TOKEN_EXPIRATION_TIME),
-              RefreshToken.of("refresh_initial", REFRESH_TOKEN_EXPIRATION_TIME));
-      Tokens tokens =
-          Tokens.of(
-              currentTokens.getAccessToken(),
-              RefreshToken.of("refresh_expired", TestConstants.NOW.minusSeconds(1)));
-      soft.assertThat(agent.refreshCurrentTokens(tokens))
-          .completesExceptionallyWithin(Duration.ofSeconds(10))
-          .withThrowableOfType(ExecutionException.class)
-          .withCauseInstanceOf(MustFetchNewTokensException.class);
+      TokensResult currentTokens = agent.authenticateInternal();
+      assertTokensResult(
+          currentTokens, "access_initial", returnRefreshTokens ? "refresh_initial" : null);
+      if (returnRefreshTokens) {
+        currentTokens = agent.refreshCurrentTokens(currentTokens).toCompletableFuture().get();
+        assertTokensResult(currentTokens, "access_refreshed", "refresh_refreshed");
+      }
     }
   }
 
   @ParameterizedTest
   @CsvSource({
-    "true,  false, CLIENT_CREDENTIALS",
-    "true,  true,  PASSWORD",
-    "true,  false, PASSWORD",
-    "false, true,  PASSWORD",
-    "false, false, PASSWORD",
-    "true,  true,  AUTHORIZATION_CODE",
-    "true,  false, AUTHORIZATION_CODE",
-    "false, true,  AUTHORIZATION_CODE",
-    "false, false, AUTHORIZATION_CODE",
-    "true,  true,  DEVICE_CODE",
-    "true,  false, DEVICE_CODE",
-    "false, true,  DEVICE_CODE",
-    "false, false, DEVICE_CODE",
+    "client_secret_basic , true  , client_credentials",
+    "client_secret_post  , false , client_credentials",
+    "client_secret_basic , true  , password",
+    "client_secret_post  , false , password",
+    "none                , true  , password",
+    "client_secret_basic , true  , authorization_code",
+    "client_secret_post  , false , authorization_code",
+    "none                , true  , authorization_code",
+    "client_secret_basic , true  , urn:ietf:params:oauth:grant-type:device_code",
+    "client_secret_post  , false , urn:ietf:params:oauth:grant-type:device_code",
+    "none                , true  , urn:ietf:params:oauth:grant-type:device_code",
   })
-  void testImpersonate(boolean privateClient, boolean returnRefreshTokens, GrantType grantType)
+  void testTokenExchangeDynamicSubject(
+      ClientAuthenticationMethod authenticationMethod,
+      boolean returnRefreshTokens,
+      GrantType subjectGrantType)
       throws InterruptedException, ExecutionException {
     try (TestEnvironment env =
             TestEnvironment.builder()
                 .grantType(GrantType.TOKEN_EXCHANGE)
                 .subjectToken(null)
-                .subjectGrantType(grantType)
-                .privateClient(privateClient)
+                .subjectGrantType(subjectGrantType)
+                .clientAuthenticationMethod(authenticationMethod)
                 .returnRefreshTokens(returnRefreshTokens)
                 .build();
         OAuth2Agent agent = env.newAgent()) {
-      Tokens tokens = agent.authenticateInternal();
-      assertTokens(tokens, "access_initial", returnRefreshTokens ? "refresh_initial" : null);
+      TokensResult tokens = agent.authenticateInternal();
+      assertTokensResult(tokens, "access_initial", returnRefreshTokens ? "refresh_initial" : null);
       if (returnRefreshTokens) {
         tokens = agent.refreshCurrentTokens(tokens).toCompletableFuture().get();
-        assertTokens(tokens, "access_refreshed", "refresh_refreshed");
+        assertTokensResult(tokens, "access_refreshed", "refresh_refreshed");
+      }
+    }
+  }
+
+  @ParameterizedTest
+  @CsvSource({
+    "client_secret_basic , true  , client_credentials",
+    "client_secret_post  , false , client_credentials",
+    "client_secret_basic , true  , password",
+    "client_secret_post  , false , password",
+    "none                , true  , password",
+    "client_secret_basic , true  , authorization_code",
+    "client_secret_post  , false , authorization_code",
+    "none                , true  , authorization_code",
+    "client_secret_basic , true  , urn:ietf:params:oauth:grant-type:device_code",
+    "client_secret_post  , false , urn:ietf:params:oauth:grant-type:device_code",
+    "none                , true  , urn:ietf:params:oauth:grant-type:device_code",
+  })
+  void testTokenExchangeDynamicActor(
+      ClientAuthenticationMethod authenticationMethod,
+      boolean returnRefreshTokens,
+      GrantType actorGrantType)
+      throws InterruptedException, ExecutionException {
+    try (TestEnvironment env =
+            TestEnvironment.builder()
+                .grantType(GrantType.TOKEN_EXCHANGE)
+                .actorToken(null)
+                .actorGrantType(actorGrantType)
+                .clientAuthenticationMethod(authenticationMethod)
+                .returnRefreshTokens(returnRefreshTokens)
+                .build();
+        OAuth2Agent agent = env.newAgent()) {
+      TokensResult tokens = agent.authenticateInternal();
+      assertTokensResult(tokens, "access_initial", returnRefreshTokens ? "refresh_initial" : null);
+      if (returnRefreshTokens) {
+        tokens = agent.refreshCurrentTokens(tokens).toCompletableFuture().get();
+        assertTokensResult(tokens, "access_refreshed", "refresh_refreshed");
       }
     }
   }
 
   @Test
-  void testStaticToken() {
-    try (TestEnvironment env = TestEnvironment.builder().token("access_initial").build();
+  void testTokenExchangeSubjectUnauthorized() {
+    try (TestEnvironment env =
+            TestEnvironment.builder()
+                .grantType(GrantType.TOKEN_EXCHANGE)
+                .subjectToken(new TypelessAccessToken("WrongSubjectToken"))
+                .build();
         OAuth2Agent agent = env.newAgent()) {
-      Tokens actual = agent.authenticateInternal();
-      assertAccessToken(actual.getAccessToken(), "access_initial", null);
-      // Cannot refresh a static token with standard dialect
-      // as it does not have a refresh token
-      soft.assertThat(agent.refreshCurrentTokens(actual))
-          .completesExceptionallyWithin(Duration.ofSeconds(10))
-          .withThrowableOfType(ExecutionException.class)
-          .withCauseInstanceOf(MustFetchNewTokensException.class);
+      soft.assertThatThrownBy(agent::authenticate)
+          .asInstanceOf(throwable(OAuth2Exception.class))
+          .extracting(OAuth2Exception::getErrorObject)
+          .satisfies(
+              r -> {
+                soft.assertThat(r.getCode()).isEqualTo("invalid_request");
+                soft.assertThat(r.getDescription()).contains("Invalid request");
+              });
     }
   }
 
   @Test
-  void testStaticTokenIcebergDialect() throws InterruptedException, ExecutionException {
+  void testTokenExchangeActorUnauthorized() {
     try (TestEnvironment env =
             TestEnvironment.builder()
-                .dialect(Dialect.ICEBERG_REST)
-                .token("access_initial")
+                .grantType(GrantType.TOKEN_EXCHANGE)
+                .actorToken(new TypelessAccessToken("WrongActorToken"))
                 .build();
         OAuth2Agent agent = env.newAgent()) {
-      Tokens actual = agent.authenticateInternal();
-      assertAccessToken(actual.getAccessToken(), "access_initial", null);
-      // Iceberg dialect is able to refresh a static token without a refresh token
-      // (using token exchange with the static token as subject token)
-      Tokens refreshed = agent.refreshCurrentTokens(actual).toCompletableFuture().get();
-      assertTokens(refreshed, "access_refreshed", null);
+      soft.assertThatThrownBy(agent::authenticate)
+          .asInstanceOf(throwable(OAuth2Exception.class))
+          .extracting(OAuth2Exception::getErrorObject)
+          .satisfies(
+              r -> {
+                soft.assertThat(r.getCode()).isEqualTo("invalid_request");
+                soft.assertThat(r.getDescription()).contains("Invalid request");
+              });
+    }
+  }
+
+  @Test
+  void testStaticToken() {
+    try (TestEnvironment env =
+            TestEnvironment.builder().token(new BearerAccessToken("access_initial")).build();
+        OAuth2Agent agent = env.newAgent()) {
+      TokensResult tokens = agent.authenticateInternal();
+      assertAccessToken(tokens.getTokens().getAccessToken(), "access_initial", 0);
+      // Cannot refresh a static token as there is no refresh token
+      soft.assertThat(agent.refreshCurrentTokens(tokens))
+          .completesExceptionallyWithin(Duration.ofSeconds(10))
+          .withThrowableOfType(ExecutionException.class)
+          .withCauseInstanceOf(OAuth2Agent.MustFetchNewTokensException.class);
     }
   }
 
@@ -341,7 +458,8 @@ class OAuth2AgentTest {
                 .subjectGrantType(GrantType.AUTHORIZATION_CODE)
                 .build();
         OAuth2Agent agent1 = env.newAgent()) {
-      Tokens tokens = agent1.authenticateInternal();
+      TokensResult tokens = agent1.authenticateInternal();
+      assertTokensResult(tokens, "access_initial", "refresh_initial");
       // 1) Test copy before close
       try (OAuth2Agent agent2 = agent1.copy()) {
         // Should have the same tokens instance
@@ -353,12 +471,12 @@ class OAuth2AgentTest {
         // Should have a token refresh future
         soft.assertThat(agent2).extracting("tokenRefreshFuture").isNotNull();
         // Should be able to refresh tokens
-        assertTokens(
-            agent2.refreshCurrentTokens(tokens).toCompletableFuture().get(),
-            "access_refreshed",
-            "refresh_refreshed");
+        TokensResult refreshedTokens =
+            agent2.refreshCurrentTokens(tokens).toCompletableFuture().get();
+        assertTokensResult(refreshedTokens, "access_refreshed", "refresh_refreshed");
         // Should be able to fetch new tokens
-        soft.assertThat(agent2.fetchNewTokens().toCompletableFuture().get()).isEqualTo(tokens);
+        TokensResult newTokens = agent2.fetchNewTokens().toCompletableFuture().get();
+        assertTokensResult(newTokens, "access_initial", "refresh_initial");
       }
       // 2) Test copy after close
       try (OAuth2Agent agent3 = agent1.copy()) {
@@ -367,12 +485,12 @@ class OAuth2AgentTest {
         // Should have a token refresh future
         soft.assertThat(agent3).extracting("tokenRefreshFuture").isNotNull();
         // Should be able to refresh tokens
-        assertTokens(
-            agent3.refreshCurrentTokens(tokens).toCompletableFuture().get(),
-            "access_refreshed",
-            "refresh_refreshed");
+        TokensResult refreshedTokens =
+            agent3.refreshCurrentTokens(tokens).toCompletableFuture().get();
+        assertTokensResult(refreshedTokens, "access_refreshed", "refresh_refreshed");
         // Should be able to fetch new tokens
-        soft.assertThat(agent3.fetchNewTokens().toCompletableFuture().get()).isEqualTo(tokens);
+        TokensResult newTokens = agent3.fetchNewTokens().toCompletableFuture().get();
+        assertTokensResult(newTokens, "access_initial", "refresh_initial");
       }
     }
   }
@@ -396,7 +514,7 @@ class OAuth2AgentTest {
       env.createMetadataDiscoveryExpectations();
       env.createErrorExpectations();
       try (OAuth2Agent agent1 = env.newAgent()) {
-        soft.assertThatThrownBy(agent1::authenticateInternal).isInstanceOf(RESTException.class);
+        soft.assertThatThrownBy(agent1::authenticateInternal).isInstanceOf(OAuth2Exception.class);
         // Restore expectations so that copied agents can fetch tokens
         env.reset();
         env.createExpectations();
@@ -407,30 +525,32 @@ class OAuth2AgentTest {
           // Now close agent1
           agent1.close();
           // Should still have tokens
-          Tokens tokens = agent2.authenticateInternal();
+          TokensResult tokens = agent2.authenticateInternal();
+          assertTokensResult(tokens, "access_initial", "refresh_initial");
           soft.assertThat(tokens).isNotNull();
           // Should have a token refresh future
           soft.assertThat(agent2).extracting("tokenRefreshFuture").isNotNull();
           // Should be able to refresh tokens
-          assertTokens(
-              agent2.refreshCurrentTokens(tokens).toCompletableFuture().get(),
-              "access_refreshed",
-              "refresh_refreshed");
+          TokensResult refreshedTokens =
+              agent2.refreshCurrentTokens(tokens).toCompletableFuture().get();
+          assertTokensResult(refreshedTokens, "access_refreshed", "refresh_refreshed");
           // Should be able to fetch new tokens
-          soft.assertThat(agent2.fetchNewTokens().toCompletableFuture().get()).isEqualTo(tokens);
+          TokensResult newTokens = agent2.fetchNewTokens().toCompletableFuture().get();
+          assertTokensResult(newTokens, "access_initial", "refresh_initial");
         }
         // 2) Test copy after close
         try (OAuth2Agent agent3 = agent1.copy()) {
           // Should be able to fetch tokens even if the original agent failed
-          Tokens tokens = agent3.authenticateInternal();
+          TokensResult tokens = agent3.authenticateInternal();
+          assertTokensResult(tokens, "access_initial", "refresh_initial");
           soft.assertThat(tokens).isNotNull();
           // Should be able to refresh tokens
-          assertTokens(
-              agent3.refreshCurrentTokens(tokens).toCompletableFuture().get(),
-              "access_refreshed",
-              "refresh_refreshed");
+          TokensResult refreshedTokens =
+              agent3.refreshCurrentTokens(tokens).toCompletableFuture().get();
+          assertTokensResult(refreshedTokens, "access_refreshed", "refresh_refreshed");
           // Should be able to fetch new tokens
-          soft.assertThat(agent3.fetchNewTokens().toCompletableFuture().get()).isEqualTo(tokens);
+          TokensResult newTokens = agent3.fetchNewTokens().toCompletableFuture().get();
+          assertTokensResult(newTokens, "access_initial", "refresh_initial");
         }
       }
     }
@@ -449,17 +569,17 @@ class OAuth2AgentTest {
 
       // should fetch the initial token
       AccessToken token = agent.authenticate();
-      soft.assertThat(token.getPayload()).isEqualTo("access_initial");
+      soft.assertThat(token.getValue()).isEqualTo("access_initial");
 
       // emulate executor running the scheduled renewal task
       currentRenewalTask.get().run();
 
       // should have refreshed the token
       token = agent.authenticate();
-      soft.assertThat(token.getPayload()).isEqualTo("access_refreshed");
+      soft.assertThat(token.getValue()).isEqualTo("access_refreshed");
 
       Duration idleTimeout =
-          env.getAgentSpec().getTokenRefreshConfig().getIdleTimeout().plusSeconds(1);
+          env.getOAuth2Config().getTokenRefreshConfig().getIdleTimeout().plusSeconds(1);
 
       // emulate executor running the scheduled renewal task and detecting that the agent is idle
       ((TestClock) env.getClock()).plus(idleTimeout);
@@ -468,7 +588,7 @@ class OAuth2AgentTest {
 
       // should exit sleeping mode on next authenticate() call and schedule a token refresh
       token = agent.authenticate();
-      soft.assertThat(token.getPayload()).isEqualTo("access_refreshed");
+      soft.assertThat(token.getValue()).isEqualTo("access_refreshed");
       soft.assertThat(agent).extracting("sleeping", ATOMIC_BOOLEAN).isFalse();
 
       // emulate executor running the scheduled renewal task and detecting that the agent is idle
@@ -479,9 +599,9 @@ class OAuth2AgentTest {
 
       // should exit sleeping mode on next authenticate() call
       // and refresh tokens immediately because the current ones are expired
-      ((TestClock) env.getClock()).plus(TestConstants.REFRESH_TOKEN_LIFESPAN);
+      ((TestClock) env.getClock()).plus(TestConstants.ACCESS_TOKEN_LIFESPAN);
       token = agent.authenticate();
-      soft.assertThat(token.getPayload()).isEqualTo("access_initial");
+      soft.assertThat(token.getValue()).isEqualTo("access_refreshed");
       soft.assertThat(agent).extracting("sleeping", ATOMIC_BOOLEAN).isFalse();
     }
   }
@@ -498,7 +618,10 @@ class OAuth2AgentTest {
     // throws RejectedExecutionException immediately.
 
     try (TestEnvironment env =
-            TestEnvironment.builder().grantType(GrantType.PASSWORD).executor(executor).build();
+            TestEnvironment.builder()
+                .grantType(GrantType.CLIENT_CREDENTIALS)
+                .executor(executor)
+                .build();
         OAuth2Agent agent = env.newAgent()) {
 
       soft.assertThatThrownBy(agent::authenticate)
@@ -528,7 +651,10 @@ class OAuth2AgentTest {
     // then schedule a new refresh. If that refresh is rejected again, sleep mode is reactivated.
 
     try (TestEnvironment env =
-            TestEnvironment.builder().grantType(GrantType.PASSWORD).executor(executor).build();
+            TestEnvironment.builder()
+                .grantType(GrantType.CLIENT_CREDENTIALS)
+                .executor(executor)
+                .build();
         OAuth2Agent agent = env.newAgent()) {
 
       // will trigger token fetch (successful), then schedule a refresh, then reject it,
@@ -540,7 +666,7 @@ class OAuth2AgentTest {
       // then return the previously fetched token since it's still valid.
       AccessToken token = agent.authenticate();
       soft.assertThat(agent).extracting("sleeping", ATOMIC_BOOLEAN).isTrue();
-      soft.assertThat(token.getPayload()).isEqualTo("access_initial");
+      soft.assertThat(token.getValue()).isEqualTo("access_initial");
       soft.assertThat(currentRenewalTask.get()).isNull();
 
       // will wake up, then refresh the token immediately (since it's expired),
@@ -549,7 +675,7 @@ class OAuth2AgentTest {
       ((TestClock) env.getClock()).plus(TestConstants.ACCESS_TOKEN_LIFESPAN);
       token = agent.authenticate();
       soft.assertThat(agent).extracting("sleeping", ATOMIC_BOOLEAN).isTrue();
-      soft.assertThat(token.getPayload()).isEqualTo("access_refreshed");
+      soft.assertThat(token.getValue()).isEqualTo("access_initial");
       soft.assertThat(currentRenewalTask.get()).isNull();
     }
   }
@@ -594,12 +720,12 @@ class OAuth2AgentTest {
       soft.assertThat(currentRenewalTask.get()).isNotNull().isNotSameAs(renewalTask);
       renewalTask = currentRenewalTask.get();
       AccessToken token = agent.authenticate();
-      soft.assertThat(token.getPayload()).isEqualTo("access_initial");
+      soft.assertThat(token.getValue()).isEqualTo("access_initial");
 
       // failure recovery when in sleep mode
 
       Duration idleTimeout =
-          env.getAgentSpec().getTokenRefreshConfig().getIdleTimeout().plusSeconds(1);
+          env.getOAuth2Config().getTokenRefreshConfig().getIdleTimeout().plusSeconds(1);
 
       // Emulate executor running the scheduled refresh task again, getting tokens,
       // then setting sleeping to true because idle interval is past
@@ -633,7 +759,7 @@ class OAuth2AgentTest {
       env.createExpectations();
       token = agent.authenticate();
       soft.assertThat(agent).extracting("sleeping", ATOMIC_BOOLEAN).isFalse();
-      soft.assertThat(token.getPayload()).isEqualTo("access_initial");
+      soft.assertThat(token.getValue()).isEqualTo("access_initial");
       soft.assertThat(currentRenewalTask.get()).isNotSameAs(renewalTask);
       renewalTask = currentRenewalTask.get();
 
@@ -647,7 +773,7 @@ class OAuth2AgentTest {
       // Emulate waking up, then rescheduling a refresh since current token is still valid
       token = agent.authenticate();
       soft.assertThat(agent).extracting("sleeping", ATOMIC_BOOLEAN).isFalse();
-      soft.assertThat(token.getPayload()).isEqualTo("access_refreshed");
+      soft.assertThat(token.getValue()).isEqualTo("access_refreshed");
       soft.assertThat(currentRenewalTask.get()).isNotSameAs(renewalTask);
     }
   }

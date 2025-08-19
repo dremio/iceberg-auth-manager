@@ -15,13 +15,17 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.flow;
 
-import static com.dremio.iceberg.authmgr.oauth2.flow.FlowUtils.OAUTH2_AGENT_OPEN_URL;
-import static com.dremio.iceberg.authmgr.oauth2.flow.FlowUtils.OAUTH2_AGENT_TITLE;
-
-import com.dremio.iceberg.authmgr.oauth2.grant.GrantType;
-import com.dremio.iceberg.authmgr.oauth2.rest.DeviceAccessTokenRequest;
-import com.dremio.iceberg.authmgr.oauth2.token.Tokens;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
+import com.nimbusds.oauth2.sdk.GrantType;
+import com.nimbusds.oauth2.sdk.ParseException;
+import com.nimbusds.oauth2.sdk.device.DeviceAuthorizationErrorResponse;
+import com.nimbusds.oauth2.sdk.device.DeviceAuthorizationRequest;
+import com.nimbusds.oauth2.sdk.device.DeviceAuthorizationResponse;
+import com.nimbusds.oauth2.sdk.device.DeviceAuthorizationSuccessResponse;
+import com.nimbusds.oauth2.sdk.device.DeviceCode;
+import com.nimbusds.oauth2.sdk.device.DeviceCodeGrant;
+import com.nimbusds.oauth2.sdk.http.HTTPRequest;
+import com.nimbusds.oauth2.sdk.http.HTTPResponse;
 import java.io.PrintStream;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
@@ -38,25 +42,25 @@ import org.slf4j.LoggerFactory;
  * Authorization Grant</a> flow.
  */
 @AuthManagerImmutable
-abstract class DeviceCodeFlow extends AbstractFlow implements InitialFlow {
+abstract class DeviceCodeFlow extends AbstractFlow {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(DeviceCodeFlow.class);
 
   interface Builder extends AbstractFlow.Builder<DeviceCodeFlow, Builder> {}
 
   @Override
-  public GrantType getGrantType() {
+  public final GrantType getGrantType() {
     return GrantType.DEVICE_CODE;
   }
 
   @Value.Derived
   String getAgentName() {
-    return getSpec().getRuntimeConfig().getAgentName();
+    return getConfig().getSystemConfig().getAgentName();
   }
 
   @Value.Derived
   String getMsgPrefix() {
-    return FlowUtils.getMsgPrefix(getSpec().getRuntimeConfig().getAgentName());
+    return AbstractFlow.getMsgPrefix(getConfig().getSystemConfig().getAgentName());
   }
 
   /**
@@ -65,8 +69,8 @@ abstract class DeviceCodeFlow extends AbstractFlow implements InitialFlow {
    */
   @Value.Default
   @SuppressWarnings("FutureReturnValueIgnored")
-  CompletableFuture<Tokens> getTokensFuture() {
-    CompletableFuture<Tokens> future = new CompletableFuture<>();
+  CompletableFuture<TokensResult> getTokensFuture() {
+    CompletableFuture<TokensResult> future = new CompletableFuture<>();
     future.whenComplete((tokens, error) -> stopPolling());
     return future;
   }
@@ -87,22 +91,22 @@ abstract class DeviceCodeFlow extends AbstractFlow implements InitialFlow {
   }
 
   @Override
-  public CompletionStage<Tokens> fetchNewTokens() {
+  public CompletionStage<TokensResult> fetchNewTokens() {
     LOGGER.debug("[{}] Device Auth Flow: started", getAgentName());
-    return invokeDeviceAuthEndpoint()
+    return invokeDeviceAuthorizationEndpoint()
         .thenCompose(
             response -> {
-              pollInterval = getSpec().getDeviceCodeConfig().getPollInterval();
-              checkPollInterval(response.getIntervalSeconds());
-              PrintStream console = getSpec().getRuntimeConfig().getConsole();
+              pollInterval = getConfig().getDeviceCodeConfig().getPollInterval();
+              checkPollInterval(response.getInterval());
+              PrintStream console = getConfig().getSystemConfig().getConsole();
               synchronized (console) {
                 console.println();
                 console.println(getMsgPrefix() + OAUTH2_AGENT_TITLE);
                 console.println(getMsgPrefix() + OAUTH2_AGENT_OPEN_URL);
-                console.println(getMsgPrefix() + response.getVerificationUri());
+                console.println(getMsgPrefix() + response.getVerificationURI());
                 console.println(getMsgPrefix() + "And enter the code:");
-                console.println(getMsgPrefix() + response.getUserCode());
-                printExpirationNotice(response.getExpiresInSeconds());
+                console.println(getMsgPrefix() + response.getUserCode().getValue());
+                printExpirationNotice(response.getLifetime());
                 console.println();
                 console.flush();
               }
@@ -111,11 +115,38 @@ abstract class DeviceCodeFlow extends AbstractFlow implements InitialFlow {
             });
   }
 
-  private void checkPollInterval(Integer serverPollInterval) {
-    boolean ignoreServerPollInterval = getSpec().getDeviceCodeConfig().ignoreServerPollInterval();
-    if (!ignoreServerPollInterval
-        && serverPollInterval != null
-        && serverPollInterval > pollInterval.getSeconds()) {
+  private CompletionStage<DeviceAuthorizationSuccessResponse> invokeDeviceAuthorizationEndpoint() {
+    DeviceAuthorizationRequest.Builder builder =
+        getConfig().getBasicConfig().isPublicClient()
+            ? new DeviceAuthorizationRequest.Builder(
+                getConfig().getBasicConfig().getClientId().orElseThrow())
+            : new DeviceAuthorizationRequest.Builder(createClientAuthentication());
+    builder.endpointURI(getEndpointProvider().getResolvedDeviceAuthorizationEndpoint());
+    getConfig().getBasicConfig().getScope().ifPresent(builder::scope);
+    getConfig().getBasicConfig().getExtraRequestParameters().forEach(builder::customParameter);
+    HTTPRequest request = builder.build().toHTTPRequest();
+    return CompletableFuture.supplyAsync(() -> sendAndReceive(request), getExecutor())
+        .whenComplete((response, error) -> log(request, response, error))
+        .thenApply(this::parseDeviceAuthorizationResponse);
+  }
+
+  private DeviceAuthorizationSuccessResponse parseDeviceAuthorizationResponse(
+      HTTPResponse httpResponse) {
+    try {
+      DeviceAuthorizationResponse response = DeviceAuthorizationResponse.parse(httpResponse);
+      if (!response.indicatesSuccess()) {
+        DeviceAuthorizationErrorResponse errorResponse = response.toErrorResponse();
+        throw new OAuth2Exception(errorResponse);
+      }
+      return response.toSuccessResponse();
+    } catch (ParseException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  private void checkPollInterval(long serverPollInterval) {
+    boolean ignoreServerPollInterval = getConfig().getDeviceCodeConfig().ignoreServerPollInterval();
+    if (!ignoreServerPollInterval && serverPollInterval > pollInterval.getSeconds()) {
       LOGGER.debug(
           "[{}] Device Auth Flow: server requested minimum poll interval of {} seconds",
           getAgentName(),
@@ -124,7 +155,7 @@ abstract class DeviceCodeFlow extends AbstractFlow implements InitialFlow {
     }
   }
 
-  private void printExpirationNotice(int seconds) {
+  private void printExpirationNotice(long seconds) {
     String exp;
     if (seconds < 60) {
       exp = seconds + " seconds";
@@ -133,15 +164,13 @@ abstract class DeviceCodeFlow extends AbstractFlow implements InitialFlow {
     } else {
       exp = seconds / 60 + " minutes and " + seconds % 60 + " seconds";
     }
-    PrintStream console = getSpec().getRuntimeConfig().getConsole();
+    PrintStream console = getConfig().getSystemConfig().getConsole();
     console.println(getMsgPrefix() + "(The code will expire in " + exp + ")");
   }
 
-  private void pollForNewTokens(String deviceCode) {
+  private void pollForNewTokens(DeviceCode deviceCode) {
     LOGGER.debug("[{}] Device Auth Flow: polling for new tokens", getAgentName());
-    DeviceAccessTokenRequest.Builder request =
-        DeviceAccessTokenRequest.builder().deviceCode(deviceCode);
-    invokeTokenEndpoint(null, request)
+    invokeTokenEndpoint(new DeviceCodeGrant(deviceCode))
         .whenComplete(
             (tokens, error) -> {
               if (error == null) {
@@ -152,7 +181,7 @@ abstract class DeviceCodeFlow extends AbstractFlow implements InitialFlow {
                   error = error.getCause();
                 }
                 if (error instanceof OAuth2Exception) {
-                  switch (((OAuth2Exception) error).getErrorResponse().type()) {
+                  switch (((OAuth2Exception) error).getErrorObject().getCode()) {
                     case "authorization_pending":
                       LOGGER.debug(
                           "[{}] Device Auth Flow: waiting for authorization to complete",
@@ -169,7 +198,7 @@ abstract class DeviceCodeFlow extends AbstractFlow implements InitialFlow {
                           "[{}] Device Auth Flow: server requested to slow down", getAgentName());
                       Duration pollInterval = this.pollInterval;
                       boolean ignoreServerPollInterval =
-                          getSpec().getDeviceCodeConfig().ignoreServerPollInterval();
+                          getConfig().getDeviceCodeConfig().ignoreServerPollInterval();
                       if (!ignoreServerPollInterval) {
                         pollInterval = pollInterval.plus(pollInterval);
                         this.pollInterval = pollInterval;

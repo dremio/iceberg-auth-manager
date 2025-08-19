@@ -20,25 +20,31 @@ import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.AuthorizationCo
 import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.AuthorizationCode.CALLBACK_CONTEXT_PATH;
 import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.AuthorizationCode.ENDPOINT;
 import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.AuthorizationCode.PKCE_ENABLED;
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.AuthorizationCode.PKCE_TRANSFORMATION;
+import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.AuthorizationCode.PKCE_METHOD;
 import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.AuthorizationCode.REDIRECT_URI;
 
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties;
 import com.dremio.iceberg.authmgr.oauth2.config.option.ConfigOption;
 import com.dremio.iceberg.authmgr.oauth2.config.option.ConfigOptions;
 import com.dremio.iceberg.authmgr.oauth2.config.validator.ConfigValidator;
-import com.dremio.iceberg.authmgr.oauth2.grant.GrantType;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
+import com.nimbusds.oauth2.sdk.GrantType;
+import com.nimbusds.oauth2.sdk.pkce.CodeChallengeMethod;
 import java.net.URI;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalInt;
+import java.util.stream.Collectors;
 import org.immutables.value.Value;
 
 @AuthManagerImmutable
 public interface AuthorizationCodeConfig {
+
+  List<CodeChallengeMethod> SUPPORTED_CODE_CHALLENGE_METHODS =
+      List.of(CodeChallengeMethod.PLAIN, CodeChallengeMethod.S256);
 
   AuthorizationCodeConfig DEFAULT = builder().build();
 
@@ -110,13 +116,13 @@ public interface AuthorizationCodeConfig {
 
   /**
    * The transformation to use for the PKCE code verifier. Defaults to {@link
-   * PkceTransformation#S256}.
+   * CodeChallengeMethod#S256}.
    *
-   * @see OAuth2Properties.AuthorizationCode#PKCE_TRANSFORMATION
+   * @see OAuth2Properties.AuthorizationCode#PKCE_METHOD
    */
   @Value.Default
-  default PkceTransformation getPkceTransformation() {
-    return PkceTransformation.S256;
+  default CodeChallengeMethod getCodeChallengeMethod() {
+    return CodeChallengeMethod.S256;
   }
 
   @Value.Check
@@ -125,7 +131,6 @@ public interface AuthorizationCodeConfig {
     if (getAuthorizationEndpoint().isPresent()) {
       validator.checkEndpoint(
           getAuthorizationEndpoint().get(),
-          true,
           ENDPOINT,
           "authorization code flow: authorization endpoint %s");
     }
@@ -135,7 +140,15 @@ public interface AuthorizationCodeConfig {
           CALLBACK_BIND_PORT,
           "authorization code flow: callback bind port must be between 0 and 65535 (inclusive)");
     }
-
+    if (isPkceEnabled()) {
+      validator.check(
+          SUPPORTED_CODE_CHALLENGE_METHODS.contains(getCodeChallengeMethod()),
+          PKCE_METHOD,
+          "authorization code flow: code challenge method must be one of: %s",
+          SUPPORTED_CODE_CHALLENGE_METHODS.stream()
+              .map(CodeChallengeMethod::getValue)
+              .collect(Collectors.joining("', '", "'", "'")));
+    }
     validator.validate();
   }
 
@@ -153,7 +166,7 @@ public interface AuthorizationCodeConfig {
         .set(properties, getCallbackBindPort().stream().boxed().findAny());
     builder.callbackContextPathOption().set(properties, getCallbackContextPath());
     builder.pkceEnabledOption().set(properties, isPkceEnabled());
-    builder.pkceTransformationOption().set(properties, getPkceTransformation());
+    builder.codeChallengeMethodOption().set(properties, getCodeChallengeMethod());
     return builder.build();
   }
 
@@ -175,7 +188,7 @@ public interface AuthorizationCodeConfig {
       callbackBindPortOption().set(properties);
       callbackContextPathOption().set(properties);
       pkceEnabledOption().set(properties);
-      pkceTransformationOption().set(properties);
+      codeChallengeMethodOption().set(properties);
       return this;
     }
 
@@ -198,7 +211,7 @@ public interface AuthorizationCodeConfig {
     Builder pkceEnabled(boolean pkceEnabled);
 
     @CanIgnoreReturnValue
-    Builder pkceTransformation(PkceTransformation pkceTransformation);
+    Builder codeChallengeMethod(CodeChallengeMethod codeChallengeMethod);
 
     AuthorizationCodeConfig build();
 
@@ -226,9 +239,9 @@ public interface AuthorizationCodeConfig {
       return ConfigOptions.simple(PKCE_ENABLED, this::pkceEnabled, Boolean::parseBoolean);
     }
 
-    private ConfigOption<PkceTransformation> pkceTransformationOption() {
+    private ConfigOption<CodeChallengeMethod> codeChallengeMethodOption() {
       return ConfigOptions.simple(
-          PKCE_TRANSFORMATION, this::pkceTransformation, PkceTransformation::fromConfigName);
+          PKCE_METHOD, this::codeChallengeMethod, CodeChallengeMethod::parse);
     }
   }
 }

@@ -51,7 +51,7 @@ public class FlinkPolarisKeycloakS3IT extends FlinkPolarisS3ITBase {
                 .withEnv("quarkus.oidc.tenant-enabled", "true")
                 .withEnv("quarkus.oidc.auth-server-url", "http://keycloak:8080/realms/master")
                 .withEnv("quarkus.oidc.token.issuer", keycloak.getIssuerClaim())
-                .withEnv("quarkus.oidc.client-id", TestConstants.CLIENT_ID1)
+                .withEnv("quarkus.oidc.client-id", TestConstants.CLIENT_ID1.getValue())
                 .withEnv("polaris.authentication.type", "external")
                 .withEnv("polaris.oidc.principal-mapper.id-claim-path", "principal_id")
                 .withNetwork(network));
@@ -59,7 +59,7 @@ public class FlinkPolarisKeycloakS3IT extends FlinkPolarisS3ITBase {
 
   @Override
   protected CompletableFuture<String> fetchNewToken() {
-    return keycloakStart.thenApply(v -> keycloak.fetchNewToken(TestConstants.SCOPE1));
+    return keycloakStart.thenApply(v -> keycloak.fetchNewToken(TestConstants.SCOPE1.toString()));
   }
 
   @Override
@@ -67,7 +67,7 @@ public class FlinkPolarisKeycloakS3IT extends FlinkPolarisS3ITBase {
     return ImmutableMap.<String, String>builder()
         .putAll(super.flinkCatalogOptions())
         .put("rest.auth.oauth2.issuer-url", keycloak.getIssuerUrl().toString())
-        .put("rest.auth.oauth2.scope", TestConstants.SCOPE1)
+        .put("rest.auth.oauth2.scope", TestConstants.SCOPE1.toString())
         .build();
   }
 

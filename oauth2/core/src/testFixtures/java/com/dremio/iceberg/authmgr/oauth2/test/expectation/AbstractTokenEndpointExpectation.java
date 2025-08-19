@@ -15,25 +15,30 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.test.expectation;
 
+import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.CLIENT_ID1;
+import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.CLIENT_ID2;
+import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.CLIENT_SECRET1;
+import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.CLIENT_SECRET2;
 import static com.dremio.iceberg.authmgr.oauth2.test.expectation.ExpectationUtils.getJsonBody;
-import static com.dremio.iceberg.authmgr.oauth2.test.expectation.ExpectationUtils.getParameterBody;
 
-import com.dremio.iceberg.authmgr.oauth2.grant.GrantType;
-import com.dremio.iceberg.authmgr.oauth2.rest.ImmutableTokenResponse;
-import com.dremio.iceberg.authmgr.oauth2.rest.PostFormRequest;
 import com.dremio.iceberg.authmgr.oauth2.test.TestConstants;
-import com.dremio.iceberg.authmgr.oauth2.token.TypedToken;
-import com.dremio.iceberg.authmgr.oauth2.uri.UriUtils;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.nimbusds.oauth2.sdk.GrantType;
+import com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod;
+import com.nimbusds.oauth2.sdk.token.TokenTypeURI;
+import com.nimbusds.oauth2.sdk.util.URLUtils;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
+import org.mockserver.model.Header;
 import org.mockserver.model.HttpMessage;
 import org.mockserver.model.HttpRequest;
 import org.mockserver.model.HttpResponse;
 
 public abstract class AbstractTokenEndpointExpectation extends AbstractExpectation {
 
-  protected HttpRequest tokenRequestTemplate() {
+  protected HttpRequest request() {
     URI tokenEndpoint = getTestEnvironment().getTokenEndpoint();
     String path =
         tokenEndpoint.isAbsolute()
@@ -42,60 +47,74 @@ public abstract class AbstractTokenEndpointExpectation extends AbstractExpectati
     return HttpRequest.request()
         .withMethod("POST")
         .withPath(path)
-        .withHeader("Content-Type", "application/x-www-form-urlencoded")
-        .withHeader("Accept", "application/json");
+        .withHeader("Content-Type", "application/x-www-form-urlencoded(; charset=UTF-8)?")
+        .withHeader("Accept", "application/json")
+        .withHeaders(requestHeaders().build())
+        .withBody(ExpectationUtils.getParameterBody(requestBody().build()));
   }
 
-  protected HttpRequest tokenRequest() {
-    HttpRequest request = tokenRequestTemplate().withBody(getParameterBody(tokenRequestBody()));
-    addRequestHeaders(request);
-    return request;
-  }
-
-  protected void addRequestHeaders(HttpRequest request) {
-    if (getTestEnvironment().isPrivateClient()) {
-      request.withHeader(
-          "Authorization",
-          String.format(
-              "Basic (%s|%s)",
-              TestConstants.CLIENT_CREDENTIALS1_BASE_64,
-              TestConstants.CLIENT_CREDENTIALS2_BASE_64));
-    }
-  }
-
-  protected abstract PostFormRequest tokenRequestBody();
-
-  protected HttpResponse tokenResponse(
+  protected HttpResponse response(
       HttpRequest httpRequest, String accessToken, String refreshToken) {
     return HttpResponse.response()
-        .withBody(getJsonBody(tokenResponseBody(accessToken, refreshToken).build()));
+        .withBody(getJsonBody(responseBody(accessToken, refreshToken).build()));
   }
 
-  protected ImmutableTokenResponse.Builder tokenResponseBody(
+  protected ImmutableList.Builder<Header> requestHeaders() {
+    ImmutableList.Builder<Header> builder = ImmutableList.<Header>builder();
+    if (getTestEnvironment()
+        .getClientAuthenticationMethod()
+        .equals(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)) {
+      builder.add(
+          new Header(
+              "Authorization",
+              String.format(
+                  "Basic (%s|%s)",
+                  TestConstants.CLIENT_CREDENTIALS1_BASE_64,
+                  TestConstants.CLIENT_CREDENTIALS2_BASE_64)));
+    }
+    return builder;
+  }
+
+  protected ImmutableMap.Builder<String, String> requestBody() {
+    ImmutableMap.Builder<String, String> builder =
+        ImmutableMap.<String, String>builder().put("(extra1|extra2)", "(value1|value2)");
+    if (getTestEnvironment()
+        .getClientAuthenticationMethod()
+        .equals(ClientAuthenticationMethod.NONE)) {
+      builder.put("client_id", String.format("(%s|%s)", CLIENT_ID1, CLIENT_ID2));
+    } else if (getTestEnvironment()
+        .getClientAuthenticationMethod()
+        .equals(ClientAuthenticationMethod.CLIENT_SECRET_POST)) {
+      builder.put("client_id", String.format("(%s|%s)", CLIENT_ID1, CLIENT_ID2));
+      builder.put(
+          "client_secret",
+          String.format("(%s|%s)", CLIENT_SECRET1.getValue(), CLIENT_SECRET2.getValue()));
+    }
+    return builder;
+  }
+
+  protected ImmutableMap.Builder<String, String> responseBody(
       String accessToken, String refreshToken) {
-    ImmutableTokenResponse.Builder responseBody =
-        ImmutableTokenResponse.builder()
-            .accessTokenPayload(accessToken)
-            .accessTokenExpiresInSeconds(
-                (int) getTestEnvironment().getAccessTokenLifespan().toSeconds())
-            .tokenType("bearer");
-    if (getTestEnvironment().isReturnRefreshTokens()
-        && getTestEnvironment().getGrantType() != GrantType.CLIENT_CREDENTIALS) {
-      responseBody
-          .refreshTokenPayload(refreshToken)
-          .refreshTokenExpiresInSeconds(
-              (int) getTestEnvironment().getRefreshTokenLifespan().toSeconds());
+    ImmutableMap.Builder<String, String> builder =
+        ImmutableMap.<String, String>builder()
+            .put("access_token", accessToken)
+            .put("token_type", "bearer")
+            .put(
+                "expires_in",
+                String.valueOf((int) getTestEnvironment().getAccessTokenLifespan().toSeconds()));
+    if (getTestEnvironment().isReturnRefreshTokens()) {
+      builder.put("refresh_token", refreshToken);
     }
-    if (getTestEnvironment().getGrantType() == GrantType.TOKEN_EXCHANGE) {
+    if (getTestEnvironment().getGrantType().equals(GrantType.TOKEN_EXCHANGE)) {
       // included for completeness, but not used
-      responseBody.issuedTokenType(TypedToken.URN_ACCESS_TOKEN);
+      builder.put("issued_token_type", TokenTypeURI.ACCESS_TOKEN.toString());
     }
-    return responseBody;
+    return builder;
   }
 
   protected static Map<String, List<String>> decodeBodyParameters(HttpMessage<?, ?> httpMessage) {
     // See https://github.com/mock-server/mockserver/issues/1468
     String body = httpMessage.getBodyAsString();
-    return UriUtils.decodeParameters(body);
+    return URLUtils.parseParameters(body);
   }
 }

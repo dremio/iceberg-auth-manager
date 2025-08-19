@@ -15,34 +15,41 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.endpoint;
 
-import com.dremio.iceberg.authmgr.oauth2.flow.FlowErrorHandler;
-import com.dremio.iceberg.authmgr.oauth2.rest.MetadataDiscoveryResponse;
-import com.dremio.iceberg.authmgr.oauth2.uri.UriBuilder;
+import com.dremio.iceberg.authmgr.oauth2.OAuth2Config;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
+import com.nimbusds.oauth2.sdk.AbstractConfigurationRequest;
+import com.nimbusds.oauth2.sdk.ParseException;
+import com.nimbusds.oauth2.sdk.as.AuthorizationServerConfigurationRequest;
+import com.nimbusds.oauth2.sdk.as.AuthorizationServerEndpointMetadata;
+import com.nimbusds.oauth2.sdk.as.ReadOnlyAuthorizationServerEndpointMetadata;
+import com.nimbusds.oauth2.sdk.http.HTTPRequestSender;
+import com.nimbusds.oauth2.sdk.http.HTTPResponse;
+import com.nimbusds.oauth2.sdk.id.Issuer;
+import com.nimbusds.openid.connect.sdk.op.OIDCProviderConfigurationRequest;
+import com.nimbusds.openid.connect.sdk.op.OIDCProviderEndpointMetadata;
+import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.function.Supplier;
-import org.apache.iceberg.exceptions.RESTException;
-import org.apache.iceberg.rest.RESTClient;
 import org.immutables.value.Value;
 
 @AuthManagerImmutable
 public abstract class EndpointProvider {
 
-  /**
-   * Common locations for OpenID provider metadata.
-   *
-   * @see <a
-   *     href="https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderMetadata">OpenID
-   *     Connect Discovery 1.0</a>
-   * @see <a href="https://tools.ietf.org/html/rfc8414#section-5">RFC 8414 Section 5</a>
-   */
-  public static final List<String> WELL_KNOWN_PATHS =
-      List.of(".well-known/openid-configuration", ".well-known/oauth-authorization-server");
+  public static EndpointProvider create(OAuth2Config spec, HTTPRequestSender httpClient) {
+    Builder builder = builder().httpClient(httpClient);
+    spec.getBasicConfig().getIssuerUrl().ifPresent(builder::issuerUrl);
+    spec.getBasicConfig().getTokenEndpoint().ifPresent(builder::tokenEndpoint);
+    spec.getAuthorizationCodeConfig()
+        .getAuthorizationEndpoint()
+        .ifPresent(builder::authorizationEndpoint);
+    spec.getDeviceCodeConfig()
+        .getDeviceAuthorizationEndpoint()
+        .ifPresent(builder::deviceAuthorizationEndpoint);
+    return builder.build();
+  }
 
   public interface Builder {
 
@@ -62,7 +69,7 @@ public abstract class EndpointProvider {
     Builder deviceAuthorizationEndpoint(URI deviceAuthorizationEndpoint);
 
     @CanIgnoreReturnValue
-    Builder restClientSupplier(Supplier<RESTClient> restClient);
+    Builder httpClient(HTTPRequestSender httpClient);
 
     EndpointProvider build();
   }
@@ -79,23 +86,26 @@ public abstract class EndpointProvider {
 
   protected abstract Optional<URI> getDeviceAuthorizationEndpoint();
 
-  protected abstract Supplier<RESTClient> getRestClientSupplier();
+  protected abstract HTTPRequestSender getHttpClient();
 
   @Value.Lazy
   public URI getResolvedTokenEndpoint() {
-    return getTokenEndpoint().orElseGet(() -> getOpenIdProviderMetadata().getTokenEndpoint());
+    return getTokenEndpoint().orElseGet(() -> getOpenIdProviderMetadata().getTokenEndpointURI());
   }
 
   @Value.Lazy
   public URI getResolvedAuthorizationEndpoint() {
     return getAuthorizationEndpoint()
-        .orElseGet(() -> getOpenIdProviderMetadata().getAuthorizationEndpoint());
+        .orElseGet(() -> getOpenIdProviderMetadata().getAuthorizationEndpointURI());
   }
 
   @Value.Lazy
   public URI getResolvedDeviceAuthorizationEndpoint() {
     return getDeviceAuthorizationEndpoint()
-        .or(() -> Optional.ofNullable(getOpenIdProviderMetadata().getDeviceAuthorizationEndpoint()))
+        .or(
+            () ->
+                Optional.ofNullable(
+                    getOpenIdProviderMetadata().getDeviceAuthorizationEndpointURI()))
         .orElseThrow(
             () ->
                 new IllegalStateException(
@@ -103,37 +113,63 @@ public abstract class EndpointProvider {
   }
 
   @Value.Lazy
-  protected MetadataDiscoveryResponse getOpenIdProviderMetadata() {
+  protected ReadOnlyAuthorizationServerEndpointMetadata getOpenIdProviderMetadata() {
     URI issuerUrl =
         getIssuerUrl().orElseThrow(() -> new IllegalStateException("No issuer URL configured"));
     return fetchOpenIdProviderMetadata(issuerUrl);
   }
 
-  private MetadataDiscoveryResponse fetchOpenIdProviderMetadata(URI issuerUrl) {
+  private ReadOnlyAuthorizationServerEndpointMetadata fetchOpenIdProviderMetadata(URI issuerUrl) {
+    Issuer issuer = new Issuer(issuerUrl);
     List<Exception> failures = null;
-    for (String path : WELL_KNOWN_PATHS) {
+    for (MetadataProvider provider :
+        List.<MetadataProvider>of(this::oidcProvider, this::oauthProvider)) {
       try {
-        URI uri = new UriBuilder(issuerUrl).path(path).build();
-        return getRestClientSupplier()
-            .get()
-            .get(
-                uri.toString(),
-                MetadataDiscoveryResponse.class,
-                Map.of("Accept", "application/json"),
-                FlowErrorHandler.INSTANCE);
+        return provider.fetchMetadata(issuer);
       } catch (Exception e) {
         if (failures == null) {
-          failures = new ArrayList<>(WELL_KNOWN_PATHS.size());
+          failures = new ArrayList<>(2);
         }
         failures.add(e);
       }
     }
-    assert failures != null;
-    RESTException e =
-        new RESTException(failures.get(0), "Failed to fetch OpenID provider metadata");
+    RuntimeException e = new RuntimeException("Failed to fetch provider metadata", failures.get(0));
     for (int i = 1; i < failures.size(); i++) {
       e.addSuppressed(failures.get(i));
     }
     throw e;
+  }
+
+  private ReadOnlyAuthorizationServerEndpointMetadata oidcProvider(Issuer issuer)
+      throws IOException, ParseException {
+    AbstractConfigurationRequest request = new OIDCProviderConfigurationRequest(issuer);
+    HTTPResponse httpResponse = request.toHTTPRequest().send(getHttpClient());
+    if (httpResponse.indicatesSuccess()) {
+      return OIDCProviderEndpointMetadata.parse(httpResponse.getBodyAsJSONObject());
+    }
+    throw providerFailure("OIDC", httpResponse);
+  }
+
+  private ReadOnlyAuthorizationServerEndpointMetadata oauthProvider(Issuer issuer)
+      throws IOException, ParseException {
+    AbstractConfigurationRequest request = new AuthorizationServerConfigurationRequest(issuer);
+    HTTPResponse httpResponse = request.toHTTPRequest().send(getHttpClient());
+    if (httpResponse.indicatesSuccess()) {
+      return AuthorizationServerEndpointMetadata.parse(httpResponse.getBodyAsJSONObject());
+    }
+    throw providerFailure("OAuth", httpResponse);
+  }
+
+  private static RuntimeException providerFailure(String type, HTTPResponse httpResponse) {
+    return new RuntimeException(
+        String.format(
+            "Failed to fetch %s provider metadata: server returned code %d with message: %s",
+            type, httpResponse.getStatusCode(), httpResponse.getBody()));
+  }
+
+  @FunctionalInterface
+  private interface MetadataProvider {
+    ReadOnlyAuthorizationServerEndpointMetadata fetchMetadata(Issuer issuer)
+        throws IOException, ParseException;
   }
 }

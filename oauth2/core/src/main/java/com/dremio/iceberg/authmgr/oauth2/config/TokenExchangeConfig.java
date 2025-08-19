@@ -24,27 +24,25 @@ import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.TokenExchange.R
 import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.TokenExchange.SUBJECT_CONFIG_PREFIX;
 import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.TokenExchange.SUBJECT_TOKEN;
 import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.TokenExchange.SUBJECT_TOKEN_TYPE;
-import static com.dremio.iceberg.authmgr.oauth2.token.TypedToken.URN_ACCESS_TOKEN;
 
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties;
 import com.dremio.iceberg.authmgr.oauth2.config.option.ConfigOption;
 import com.dremio.iceberg.authmgr.oauth2.config.option.ConfigOptions;
 import com.dremio.iceberg.authmgr.oauth2.config.validator.ConfigValidator;
-import com.dremio.iceberg.authmgr.oauth2.token.TypedToken;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
+import com.nimbusds.oauth2.sdk.id.Audience;
+import com.nimbusds.oauth2.sdk.token.Token;
+import com.nimbusds.oauth2.sdk.token.TokenTypeURI;
+import com.nimbusds.oauth2.sdk.token.TypelessAccessToken;
 import java.net.URI;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import org.immutables.value.Value;
 
-/**
- * Configuration for OAuth2 token exchange.
- *
- * <p>Note: this configuration is not used for token refreshes when the OAuth2 dialect is {@link
- * com.dremio.iceberg.authmgr.oauth2.config.Dialect#ICEBERG_REST}.
- */
+/** Configuration for OAuth2 token exchange. */
 @AuthManagerImmutable
 public interface TokenExchangeConfig {
 
@@ -59,11 +57,11 @@ public interface TokenExchangeConfig {
    *
    * @see OAuth2Properties.TokenExchange#SUBJECT_TOKEN
    */
-  Optional<String> getSubjectToken();
+  Optional<Token> getSubjectToken();
 
   /**
    * The type of the subject token. Must be a valid URN. The default is {@link
-   * TypedToken#URN_ACCESS_TOKEN}.
+   * TokenTypeURI#ACCESS_TOKEN}.
    *
    * <p>If the agent is configured to dynamically fetch the subject token, this property is ignored
    * since only access tokens can be dynamically fetched.
@@ -71,8 +69,8 @@ public interface TokenExchangeConfig {
    * @see OAuth2Properties.TokenExchange#SUBJECT_TOKEN_TYPE
    */
   @Value.Default
-  default URI getSubjectTokenType() {
-    return TypedToken.URN_ACCESS_TOKEN;
+  default TokenTypeURI getSubjectTokenType() {
+    return TokenTypeURI.ACCESS_TOKEN;
   }
 
   /**
@@ -84,11 +82,11 @@ public interface TokenExchangeConfig {
    *
    * @see OAuth2Properties.TokenExchange#ACTOR_TOKEN
    */
-  Optional<String> getActorToken();
+  Optional<Token> getActorToken();
 
   /**
    * The type of the actor token. Must be a valid URN. The default is {@link
-   * TypedToken#URN_ACCESS_TOKEN}.
+   * TokenTypeURI#ACCESS_TOKEN}.
    *
    * <p>If the agent is configured to dynamically fetch the actor token, this property is ignored
    * since only access tokens can be dynamically fetched.
@@ -96,18 +94,19 @@ public interface TokenExchangeConfig {
    * @see OAuth2Properties.TokenExchange#ACTOR_TOKEN_TYPE
    */
   @Value.Default
-  default URI getActorTokenType() {
-    return TypedToken.URN_ACCESS_TOKEN;
+  default TokenTypeURI getActorTokenType() {
+    return TokenTypeURI.ACCESS_TOKEN;
   }
 
   /**
-   * The type of the requested security token. By default, {@link TypedToken#URN_ACCESS_TOKEN}.
+   * The type of the requested security token. The default is {@code
+   * urn:ietf:params:oauth:token-type:access_token}.
    *
    * @see OAuth2Properties.TokenExchange#REQUESTED_TOKEN_TYPE
    */
   @Value.Default
-  default URI getRequestedTokenType() {
-    return URN_ACCESS_TOKEN;
+  default TokenTypeURI getRequestedTokenType() {
+    return TokenTypeURI.ACCESS_TOKEN;
   }
 
   /**
@@ -116,16 +115,16 @@ public interface TokenExchangeConfig {
    *
    * @see OAuth2Properties.TokenExchange#RESOURCE
    */
-  Optional<URI> getResource();
+  List<URI> getResources();
 
   /**
-   * The logical name of the target service where the client intends to use the requested security
+   * The logical names of the target service where the client intends to use the requested security
    * token. This serves a purpose similar to the resource parameter but with the client providing a
    * logical name for the target service.
    *
    * @see OAuth2Properties.TokenExchange#AUDIENCE
    */
-  Optional<String> getAudience();
+  List<Audience> getAudiences();
 
   /**
    * The configuration to use for fetching the subject token. Required if {@link #getSubjectToken()}
@@ -148,17 +147,17 @@ public interface TokenExchangeConfig {
     ConfigValidator validator = new ConfigValidator();
     if (getSubjectToken().isEmpty()) {
       validator.check(
-          getSubjectTokenType().equals(TypedToken.URN_ACCESS_TOKEN),
+          getSubjectTokenType().equals(TokenTypeURI.ACCESS_TOKEN),
           SUBJECT_TOKEN_TYPE,
           "subject token type must be %s when using dynamic subject token",
-          TypedToken.URN_ACCESS_TOKEN);
+          TokenTypeURI.ACCESS_TOKEN);
     }
     if (getActorToken().isEmpty()) {
       validator.check(
-          getActorTokenType().equals(TypedToken.URN_ACCESS_TOKEN),
+          getActorTokenType().equals(TokenTypeURI.ACCESS_TOKEN),
           ACTOR_TOKEN_TYPE,
           "actor token type must be %s when using dynamic actor token",
-          TypedToken.URN_ACCESS_TOKEN);
+          TokenTypeURI.ACCESS_TOKEN);
     }
     validator.validate();
   }
@@ -167,8 +166,8 @@ public interface TokenExchangeConfig {
   default TokenExchangeConfig merge(Map<String, String> properties) {
     Objects.requireNonNull(properties, "properties must not be null");
     TokenExchangeConfig.Builder builder = builder();
-    builder.resourceOption().set(properties, getResource());
-    builder.audienceOption().set(properties, getAudience());
+    builder.resourcesOption().set(properties, getResources());
+    builder.audiencesOption().set(properties, getAudiences());
     builder.subjectTokenOption().set(properties, getSubjectToken());
     builder.actorTokenOption().set(properties, getActorToken());
     builder.subjectTokenTypeOption().set(properties, getSubjectTokenType());
@@ -191,8 +190,8 @@ public interface TokenExchangeConfig {
     @CanIgnoreReturnValue
     default Builder from(Map<String, String> properties) {
       Objects.requireNonNull(properties, "properties must not be null");
-      resourceOption().set(properties);
-      audienceOption().set(properties);
+      resourcesOption().set(properties);
+      audiencesOption().set(properties);
       subjectTokenOption().set(properties);
       actorTokenOption().set(properties);
       subjectTokenTypeOption().set(properties);
@@ -204,25 +203,25 @@ public interface TokenExchangeConfig {
     }
 
     @CanIgnoreReturnValue
-    Builder requestedTokenType(URI tokenType);
+    Builder requestedTokenType(TokenTypeURI tokenType);
 
     @CanIgnoreReturnValue
-    Builder resource(URI resource);
+    Builder resources(Iterable<? extends URI> resources);
 
     @CanIgnoreReturnValue
-    Builder audience(String audience);
+    Builder audiences(Iterable<? extends Audience> audiences);
 
     @CanIgnoreReturnValue
-    Builder subjectToken(String token);
+    Builder subjectToken(Token token);
 
     @CanIgnoreReturnValue
-    Builder actorToken(String token);
+    Builder actorToken(Token token);
 
     @CanIgnoreReturnValue
-    Builder subjectTokenType(URI tokenType);
+    Builder subjectTokenType(TokenTypeURI tokenType);
 
     @CanIgnoreReturnValue
-    Builder actorTokenType(URI tokenType);
+    Builder actorTokenType(TokenTypeURI tokenType);
 
     @CanIgnoreReturnValue
     Builder subjectTokenConfig(Map<String, ? extends String> config);
@@ -232,28 +231,30 @@ public interface TokenExchangeConfig {
 
     TokenExchangeConfig build();
 
-    private ConfigOption<URI> resourceOption() {
-      return ConfigOptions.simple(RESOURCE, this::resource, URI::create);
+    private ConfigOption<List<URI>> resourcesOption() {
+      return ConfigOptions.simple(RESOURCE, this::resources, ConfigUtils::parseUriList);
     }
 
-    private ConfigOption<String> audienceOption() {
-      return ConfigOptions.simple(AUDIENCE, this::audience);
+    private ConfigOption<List<Audience>> audiencesOption() {
+      return ConfigOptions.simple(AUDIENCE, this::audiences, ConfigUtils::parseAudienceList);
     }
 
-    private ConfigOption<String> subjectTokenOption() {
-      return ConfigOptions.simple(SUBJECT_TOKEN, this::subjectToken);
+    private ConfigOption<Token> subjectTokenOption() {
+      return ConfigOptions.simple(SUBJECT_TOKEN, this::subjectToken, TypelessAccessToken::new);
     }
 
-    private ConfigOption<String> actorTokenOption() {
-      return ConfigOptions.simple(ACTOR_TOKEN, this::actorToken);
+    private ConfigOption<Token> actorTokenOption() {
+      return ConfigOptions.simple(ACTOR_TOKEN, this::actorToken, TypelessAccessToken::new);
     }
 
-    private ConfigOption<URI> subjectTokenTypeOption() {
-      return ConfigOptions.simple(SUBJECT_TOKEN_TYPE, this::subjectTokenType, URI::create);
+    private ConfigOption<TokenTypeURI> subjectTokenTypeOption() {
+      return ConfigOptions.simple(
+          SUBJECT_TOKEN_TYPE, this::subjectTokenType, ConfigUtils::parseTokenTypeURI);
     }
 
-    private ConfigOption<URI> actorTokenTypeOption() {
-      return ConfigOptions.simple(ACTOR_TOKEN_TYPE, this::actorTokenType, URI::create);
+    private ConfigOption<TokenTypeURI> actorTokenTypeOption() {
+      return ConfigOptions.simple(
+          ACTOR_TOKEN_TYPE, this::actorTokenType, ConfigUtils::parseTokenTypeURI);
     }
 
     private ConfigOption<Map<String, String>> subjectTokenConfigOption() {
@@ -266,8 +267,9 @@ public interface TokenExchangeConfig {
           ACTOR_CONFIG_PREFIX, OAuth2Properties.PREFIX, this::actorTokenConfig);
     }
 
-    private ConfigOption<URI> requestedTokenTypeOption() {
-      return ConfigOptions.simple(REQUESTED_TOKEN_TYPE, this::requestedTokenType, URI::create);
+    private ConfigOption<TokenTypeURI> requestedTokenTypeOption() {
+      return ConfigOptions.simple(
+          REQUESTED_TOKEN_TYPE, this::requestedTokenType, ConfigUtils::parseTokenTypeURI);
     }
   }
 }

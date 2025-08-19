@@ -23,7 +23,6 @@ import jakarta.ws.rs.core.GenericType;
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.Response;
 import java.net.URI;
-import java.time.Duration;
 import java.util.Map;
 import org.apache.iceberg.rest.ResourcePaths;
 import org.slf4j.Logger;
@@ -36,13 +35,11 @@ public class PolarisContainer extends GenericContainer<PolarisContainer> {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(PolarisContainer.class);
 
-  private static final Duration ACCESS_TOKEN_LIFESPAN = Duration.ofSeconds(15);
-
   private URI baseUri;
 
   @SuppressWarnings("resource")
   public PolarisContainer() {
-    super("apache/polaris:1.0.0-incubating");
+    super("apache/polaris:1.0.1-incubating");
     withLogConsumer(new Slf4jLogConsumer(LOGGER));
     withExposedPorts(8181, 8182);
     waitingFor(
@@ -52,7 +49,10 @@ public class PolarisContainer extends GenericContainer<PolarisContainer> {
             .forResponsePredicate(body -> body.contains("\"status\": \"UP\"")));
     withEnv(
         "POLARIS_BOOTSTRAP_CREDENTIALS",
-        "POLARIS," + TestConstants.CLIENT_ID1 + "," + TestConstants.CLIENT_SECRET1);
+        "POLARIS,"
+            + TestConstants.CLIENT_ID1.getValue()
+            + ","
+            + TestConstants.CLIENT_SECRET1.getValue());
     withEnv("quarkus.log.level", getRootLoggerLevel());
     withEnv("quarkus.log.category.\"io.quarkus.oidc\".level", getPolarisLoggerLevel());
     withEnv("quarkus.log.category.\"org.apache.polaris\".level", getPolarisLoggerLevel());
@@ -64,16 +64,12 @@ public class PolarisContainer extends GenericContainer<PolarisContainer> {
     baseUri = URI.create("http://localhost:" + getMappedPort(8181));
   }
 
-  public URI baseUri() {
-    return baseUri;
-  }
-
   public URI getCatalogApiEndpoint() {
     return baseUri.resolve("/api/catalog/");
   }
 
-  public Duration getAccessTokenLifespan() {
-    return ACCESS_TOKEN_LIFESPAN;
+  public URI getTokenEndpoint() {
+    return getCatalogApiEndpoint().resolve(ResourcePaths.tokens());
   }
 
   private static String getRootLoggerLevel() {
@@ -100,9 +96,9 @@ public class PolarisContainer extends GenericContainer<PolarisContainer> {
                                 "scope",
                                 "PRINCIPAL_ROLE:ALL",
                                 "client_id",
-                                TestConstants.CLIENT_ID1,
+                                TestConstants.CLIENT_ID1.getValue(),
                                 "client_secret",
-                                TestConstants.CLIENT_SECRET1))))) {
+                                TestConstants.CLIENT_SECRET1.getValue()))))) {
       if (response.getStatus() != 200) {
         throw new RuntimeException("Failed to get token: " + response.readEntity(String.class));
       }

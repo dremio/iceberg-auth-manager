@@ -22,10 +22,10 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.Locale;
+import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -49,8 +49,27 @@ public class DocumentationGenerator {
   private static final Pattern PRE_PATTERN =
       Pattern.compile("<pre>\\s*(?:\\{@code)?(.*?)(}\\s*)?</pre>", Pattern.DOTALL);
 
-  private static final Set<String> KNOWN_ENUMS =
-      Set.of("GrantCommonNames", "Dialect", "JwtSigningAlgorithm", "ClientAuthentication");
+  private static final Map<String, String> KNOWN_REFS;
+
+  static {
+    Map<String, String> refs = new LinkedHashMap<>();
+    refs.put("GrantType#CLIENT_CREDENTIALS", "client_credentials");
+    refs.put("GrantType#PASSWORD", "password");
+    refs.put("GrantType#AUTHORIZATION_CODE", "authorization_code");
+    refs.put("GrantType#REFRESH_TOKEN", "refresh_token");
+    refs.put("GrantType#DEVICE_CODE", "urn:ietf:params:oauth:grant-type:device_code");
+    refs.put("GrantType#TOKEN_EXCHANGE", "urn:ietf:params:oauth:grant-type:token-exchange");
+    refs.put("JWSAlgorithm#HS512", "HS512");
+    refs.put("JWSAlgorithm#RS512", "RS512");
+    refs.put("ClientAuthenticationMethod#NONE", "none");
+    refs.put("ClientAuthenticationMethod#CLIENT_SECRET_BASIC", "client_secret_basic");
+    refs.put("ClientAuthenticationMethod#CLIENT_SECRET_POST", "client_secret_post");
+    refs.put("ClientAuthenticationMethod#CLIENT_SECRET_JWT", "client_secret_jwt");
+    refs.put("ClientAuthenticationMethod#PRIVATE_KEY_JWT", "private_key_jwt");
+    refs.put("HttpClientType#DEFAULT", "default");
+    refs.put("HttpClientType#APACHE", "apache");
+    KNOWN_REFS = Map.copyOf(refs);
+  }
 
   private final File inputFile;
   private final String className;
@@ -78,18 +97,19 @@ public class DocumentationGenerator {
 
   public void generate() throws IOException {
 
-    Map<String, Map<String, String>> allProperties = parseProperties();
+    List<Section> sections = parseProperties();
 
     try (FileWriter writer = new FileWriter(outputFile, StandardCharsets.UTF_8)) {
       writer.write(header);
 
-      for (Map.Entry<String, Map<String, String>> entry : allProperties.entrySet()) {
-        String sectionName = entry.getKey();
-        Map<String, String> properties = entry.getValue();
+      for (Section section : sections) {
 
-        writer.write("## " + sectionName + "\n\n");
+        writer.write("## " + section.name + "\n\n");
+        if (section.description != null && !section.description.isEmpty()) {
+          writer.write(section.description);
+        }
 
-        for (Map.Entry<String, String> propertyEntry : properties.entrySet()) {
+        for (Map.Entry<String, String> propertyEntry : section.properties.entrySet()) {
           String propertyName = propertyEntry.getKey();
           String propertyDescription = propertyEntry.getValue();
           writer.write("### `" + propertyName + "`\n\n");
@@ -99,21 +119,22 @@ public class DocumentationGenerator {
     }
   }
 
-  private Map<String, Map<String, String>> parseProperties() throws IOException {
+  private List<Section> parseProperties() throws IOException {
 
     JavaProjectBuilder builder = new JavaProjectBuilder();
     builder.addSource(inputFile);
     topClass = builder.getClassByName(className);
     rootPrefix = topClass.getFieldByName("PREFIX").getInitializationExpression().replace("\"", "");
 
-    Map<String, Map<String, String>> allProperties = new LinkedHashMap<>();
+    List<Section> sections = new ArrayList<>();
 
     for (JavaClass nestedClass : topClass.getNestedClasses()) {
 
       String prefix = resolvePrefix(nestedClass);
-
-      Map<String, String> properties = new LinkedHashMap<>();
-      allProperties.put(sanitizeSectionName(nestedClass.getSimpleName()), properties);
+      Section section = new Section();
+      section.name = sanitizeSectionName(nestedClass.getSimpleName());
+      section.description = sanitizePropertyDescription(nestedClass, nestedClass.getComment());
+      sections.add(section);
 
       for (JavaField field : nestedClass.getFields()) {
         if (field.getName().equals("PREFIX") || field.getName().startsWith("DEFAULT_")) {
@@ -121,10 +142,10 @@ public class DocumentationGenerator {
         }
         String propertyName = resolvePropertyName(field, prefix);
         String propertyDescription = sanitizePropertyDescription(nestedClass, field.getComment());
-        properties.put(propertyName, propertyDescription);
+        section.properties.put(propertyName, propertyDescription);
       }
     }
-    return allProperties;
+    return sections;
   }
 
   private String sanitizeSectionName(String className) {
@@ -211,10 +232,8 @@ public class DocumentationGenerator {
       className = parts[0];
       fieldName = parts[1];
     }
-    String refTarget;
-    if (KNOWN_ENUMS.contains(className)) {
-      refTarget = fieldName.toLowerCase(Locale.ROOT);
-    } else {
+    String refTarget = KNOWN_REFS.get(linkRef);
+    if (refTarget == null) {
       JavaClass classRef =
           className.equals("OAuth2Properties")
               ? topClass
@@ -239,7 +258,7 @@ public class DocumentationGenerator {
     text = text.replaceAll("<p>\\s*", "\n");
 
     // Temporarily replace newlines in code blocks with a different character
-    // to preserve them during the next steps
+    // to preserve them during the next steps. Here we use 'SYMBOL FOR NEWLINE' (U+2424).
     Matcher matcher = PRE_PATTERN.matcher(text);
     StringBuilder sb = new StringBuilder();
     while (matcher.find()) {
@@ -251,5 +270,12 @@ public class DocumentationGenerator {
     text = sb.toString();
 
     return text;
+  }
+
+  @SuppressWarnings("VisibilityModifier")
+  private static class Section {
+    String name;
+    String description;
+    Map<String, String> properties = new LinkedHashMap<>();
   }
 }

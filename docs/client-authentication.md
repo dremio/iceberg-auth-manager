@@ -23,7 +23,7 @@ These methods are based on the client authentication methods defined in [OpenID 
 
 ## Choosing an Authentication Method
 
-For enhanced security, we recommend using JWT-based authentication methods (`client_secret_jwt` or `private_key_jwt`) when possible, especially for production environments.
+For enhanced security, we recommend using JWS-based authentication methods (`client_secret_jwt` or `private_key_jwt`) when possible, especially for production environments.
 
 - Use `private_key_jwt` for the highest level of security;
 - Use `client_secret_jwt` when you have a client secret but cannot use asymmetric keys;
@@ -74,10 +74,6 @@ rest.auth.oauth2.client-auth=client_secret_post
 rest.auth.oauth2.client-id=my-client
 rest.auth.oauth2.client-secret=my-secret
 ```
-
-### Iceberg Dialect Authentication Methods
-
-The [Iceberg dialect](./dialects.md) uses a mix of `client_secret_basic` and `client_secret_post` depending on the grant type. It can also use a non-standard `Bearer` authentication for token refreshes whenever appropriate. Authentication methods are not configurable when using the Iceberg dialect.
 
 ### JWT-Based Authentication Methods (Client Assertions)
 

@@ -24,11 +24,11 @@ The agent's internals are fully asynchronous, non-blocking and employ a concurre
 thread-safe operation.
 
 At its core, the OAuth2 Agent is a *flow execution engine*. It fetches initial OAuth2 access tokens using various grant
-types, then automatically refreshes tokens before they expire. It is agnostic of the specific grant type and dialect
-used, and leverages the `FlowFactory` to create the appropriate flows.
+types, then automatically refreshes tokens before they expire. It is agnostic of the specific grant type in use, and 
+leverages the `FlowFactory` to create the appropriate flows.
 
-It integrates tightly with Apache Iceberg's REST catalog by its ability to share the `RESTClient` and
-`ScheduledExecutorService` provided by the REST catalog.
+It integrates tightly with Apache Iceberg's REST catalog by its ability to share the `ScheduledExecutorService` 
+provided by the REST catalog.
 
 ## Public API
 

@@ -15,12 +15,10 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.test.expectation;
 
-import static org.mockserver.model.Parameter.param;
-
-import com.dremio.iceberg.authmgr.oauth2.rest.PostFormRequest;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.iceberg.rest.RESTResponse;
 import org.apache.iceberg.rest.RESTSerializers;
@@ -44,10 +42,14 @@ public final class ExpectationUtils {
     }
   }
 
-  public static ParameterBody getParameterBody(PostFormRequest body) {
+  public static JsonBody getJsonBody(Map<String, String> response) {
+    return JsonBody.json(response);
+  }
+
+  public static ParameterBody getParameterBody(Map<String, String> request) {
     List<Parameter> parameters =
-        body.asFormParameters().entrySet().stream()
-            .map(entry -> param(entry.getKey(), entry.getValue()))
+        request.entrySet().stream()
+            .map(entry -> Parameter.param(entry.getKey(), entry.getValue()))
             .collect(Collectors.toList());
     return ParameterBody.params(parameters);
   }

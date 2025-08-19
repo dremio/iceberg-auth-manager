@@ -15,16 +15,20 @@
  */
 package com.dremio.iceberg.authmgr.oauth2;
 
-import com.dremio.iceberg.authmgr.oauth2.auth.ClientAuthentication;
-import com.dremio.iceberg.authmgr.oauth2.auth.JwtSigningAlgorithm;
-import com.dremio.iceberg.authmgr.oauth2.config.Dialect;
-import com.dremio.iceberg.authmgr.oauth2.grant.GrantCommonNames;
+import com.dremio.iceberg.authmgr.oauth2.http.HttpClientType;
+import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.oauth2.sdk.GrantType;
+import com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod;
 
 /** Configuration constants for OAuth2. */
 public final class OAuth2Properties {
 
   public static final String PREFIX = "rest.auth.oauth2.";
 
+  /**
+   * Basic OAuth2 properties. These properties are used to configure the basic OAuth2 options such
+   * as the issuer URL, token endpoint, client ID, and client secret.
+   */
   public static final class Basic {
 
     /**
@@ -75,20 +79,20 @@ public final class OAuth2Properties {
      * The grant type to use when authenticating against the OAuth2 server. Valid values are:
      *
      * <ul>
-     *   <li>{@value GrantCommonNames#CLIENT_CREDENTIALS}
-     *   <li>{@value GrantCommonNames#PASSWORD}
-     *   <li>{@value GrantCommonNames#AUTHORIZATION_CODE}
-     *   <li>{@value GrantCommonNames#DEVICE_CODE}
-     *   <li>{@value GrantCommonNames#TOKEN_EXCHANGE}
+     *   <li>{@link GrantType#CLIENT_CREDENTIALS client_credentials}
+     *   <li>{@link GrantType#PASSWORD password}
+     *   <li>{@link GrantType#AUTHORIZATION_CODE authorization_code}
+     *   <li>{@link GrantType#DEVICE_CODE urn:ietf:params:oauth:grant-type:device_code}
+     *   <li>{@link GrantType#TOKEN_EXCHANGE urn:ietf:params:oauth:grant-type:token-exchange}
      * </ul>
      *
-     * Optional, defaults to {@value GrantCommonNames#CLIENT_CREDENTIALS}.
+     * Optional, defaults to {@code client_credentials}.
      */
     public static final String GRANT_TYPE = PREFIX + "grant-type";
 
     /**
-     * Client ID to use when authenticating against the OAuth2 server. Required, unless using the
-     * {@linkplain #DIALECT Iceberg OAuth2 dialect}.
+     * Client ID to use when authenticating against the OAuth2 server. Required, unless a
+     * {@linkplain #TOKEN static token} is provided.
      */
     public static final String CLIENT_ID = PREFIX + "client-id";
 
@@ -96,29 +100,27 @@ public final class OAuth2Properties {
      * The OAuth2 client authentication method to use. Valid values are:
      *
      * <ul>
-     *   <li>{@code none}: the client does not authenticate itself at the token endpoint, because it
-     *       is a public client with no client secret or other authentication mechanism.
-     *   <li>{@code client_secret_basic}: client secret is sent in the HTTP Basic Authorization
-     *       header.
-     *   <li>{@code client_secret_post}: client secret is sent in the request body as a form
-     *       parameter.
-     *   <li>{@code client_secret_jwt}: client secret is used to sign a JWT token.
-     *   <li>{@code private_key_jwt}: client authenticates with a JWT assertion signed with a
-     *       private key.
+     *   <li>{@link ClientAuthenticationMethod#NONE none}: the client does not authenticate itself
+     *       at the token endpoint, because it is a public client with no client secret or other
+     *       authentication mechanism.
+     *   <li>{@link ClientAuthenticationMethod#CLIENT_SECRET_BASIC client_secret_basic}: client
+     *       secret is sent in the HTTP Basic Authorization header.
+     *   <li>{@link ClientAuthenticationMethod#CLIENT_SECRET_POST client_secret_post}: client secret
+     *       is sent in the request body as a form parameter.
+     *   <li>{@link ClientAuthenticationMethod#CLIENT_SECRET_JWT client_secret_jwt}: client secret
+     *       is used to sign a JWT token.
+     *   <li>{@link ClientAuthenticationMethod#PRIVATE_KEY_JWT private_key_jwt}: client
+     *       authenticates with a JWT assertion signed with a private key.
      * </ul>
      *
-     * The default is {@code client_secret_basic} if the client is private, or {@code none} if the
-     * client is public.
-     *
-     * <p>This property is ignored when dialect is {@link Dialect#ICEBERG_REST} or when a
-     * {@linkplain #TOKEN token} is provided.
+     * The default is {@code client_secret_basic}.
      */
     public static final String CLIENT_AUTH = PREFIX + "client-auth";
 
     /**
      * Client secret to use when authenticating against the OAuth2 server. Required if the client is
      * private and is authenticated using the standard "client-secret" methods. If other
-     * authentication methods are used, this property is ignored.
+     * authentication methods are used (e.g. {@code private_key_jwt}), this property is ignored.
      */
     public static final String CLIENT_SECRET = PREFIX + "client-secret";
 
@@ -155,31 +157,6 @@ public final class OAuth2Properties {
     public static final String EXTRA_PARAMS_PREFIX = PREFIX + "extra-params.";
 
     /**
-     * The OAuth2 dialect. Possible values are: {@link Dialect#STANDARD} and {@link
-     * Dialect#ICEBERG_REST}.
-     *
-     * <p>If the Iceberg dialect is selected, the agent will behave exactly like the built-in OAuth2
-     * manager from Iceberg Core. This dialect should only be selected if the token endpoint is
-     * internal to the REST catalog server, and the server is configured to understand this dialect.
-     *
-     * <p>The Iceberg dialect's main differences from standard OAuth2 are:
-     *
-     * <ul>
-     *   <li>Only {@value GrantCommonNames#CLIENT_CREDENTIALS} grant type is supported;
-     *   <li>Token refreshes are done with the {@value GrantCommonNames#TOKEN_EXCHANGE} grant type;
-     *   <li>Token refreshes are done with Bearer authentication, not Basic authentication;
-     *   <li>Public clients are not supported, however client secrets without client IDs are
-     *       supported;
-     *   <li>Client ID and client secret are sent as request body parameters, and not as Basic
-     *       authentication.
-     * </ul>
-     *
-     * Optional. The default value is {@code iceberg_rest} if either {@value #TOKEN} is provided or
-     * {@value #TOKEN_ENDPOINT} contains a relative URI, and {@code standard} otherwise.
-     */
-    public static final String DIALECT = PREFIX + "dialect";
-
-    /**
      * Defines how long the agent should wait for tokens to be acquired. Optional, defaults to
      * {@value #DEFAULT_TIMEOUT}.
      */
@@ -188,6 +165,14 @@ public final class OAuth2Properties {
     public static final String DEFAULT_TIMEOUT = "PT5M";
   }
 
+  /**
+   * Configuration properties for JWT client assertion as specified in <a
+   * href="https://datatracker.ietf.org/doc/html/rfc7523">JSON Web Token (JWT) Profile for OAuth 2.0
+   * Client Authentication and Authorization Grants</a>.
+   *
+   * <p>These properties allow the client to authenticate using the {@code client_secret_jwt} or
+   * {@code private_key_jwt} authentication methods.
+   */
   public static final class ClientAssertion {
 
     public static final String PREFIX = OAuth2Properties.PREFIX + "client-assertion.jwt.";
@@ -206,22 +191,20 @@ public final class OAuth2Properties {
 
     /**
      * The signing algorithm to use for the client assertion JWT. Optional. The default is {@link
-     * JwtSigningAlgorithm#HMAC_SHA512} if the authentication method is {@link
-     * ClientAuthentication#CLIENT_SECRET_JWT}, or {@link JwtSigningAlgorithm#RSA_SHA512} if the
-     * authentication method is {@link ClientAuthentication#PRIVATE_KEY_JWT}.
+     * JWSAlgorithm#HS512} if the authentication method is {@link
+     * ClientAuthenticationMethod#CLIENT_SECRET_JWT}, or {@link JWSAlgorithm#RS512} if the
+     * authentication method is {@link ClientAuthenticationMethod#PRIVATE_KEY_JWT}.
      *
-     * <p>Algorithm names must match either the JWS name or the JCA name of the algorithm.
-     *
-     * @see <a href="https://datatracker.ietf.org/doc/html/rfc7518#section-3.1">RFC 7518 Section
-     *     3.1</a>
+     * <p>Algorithm names must match the "alg" Param Value as described in <a
+     * href="https://datatracker.ietf.org/doc/html/rfc7518#section-3.1">RFC 7518 Section 3.1</a>.
      */
     public static final String ALGORITHM = PREFIX + "algorithm";
 
     /**
      * The path on the local filesystem to the private key to use for signing the client assertion
-     * JWT. Required if the authentication method is {@link ClientAuthentication#PRIVATE_KEY_JWT}.
-     * The file must be in PEM format; it may contain a private key, or a private key and a
-     * certificate chain. Only the private key is used.
+     * JWT. Required if the authentication method is {@link
+     * ClientAuthenticationMethod#PRIVATE_KEY_JWT}. The file must be in PEM format; it may contain a
+     * private key, or a private key and a certificate chain. Only the private key is used.
      */
     public static final String PRIVATE_KEY = PREFIX + "private-key";
 
@@ -232,6 +215,7 @@ public final class OAuth2Properties {
     public static final String EXTRA_CLAIMS_PREFIX = PREFIX + "extra-claims.";
   }
 
+  /** Configuration properties for the token refresh feature. */
   public static final class TokenRefresh {
 
     public static final String PREFIX = OAuth2Properties.PREFIX + "token-refresh.";
@@ -278,23 +262,42 @@ public final class OAuth2Properties {
     public static final String DEFAULT_IDLE_TIMEOUT = "PT30S";
   }
 
+  /**
+   * Configuration properties for the <a
+   * href="https://datatracker.ietf.org/doc/html/rfc6749#section-4.3">Resource Owner Password
+   * Credentials Grant</a> flow.
+   *
+   * <p>Note: according to the <a
+   * href="https://datatracker.ietf.org/doc/html/draft-ietf-oauth-security-topics#section-2.4">OAuth
+   * 2.0 Security Best Current Practice, section 2.4</a> this flow should NOT be used anymore
+   * because it "insecurely exposes the credentials of the resource owner to the client".
+   */
   public static final class ResourceOwner {
 
     public static final String PREFIX = OAuth2Properties.PREFIX + "resource-owner.";
 
     /**
      * Username to use when authenticating against the OAuth2 server. Required if using OAuth2
-     * authentication and {@value GrantCommonNames#PASSWORD} grant type, ignored otherwise.
+     * authentication and {@link GrantType#PASSWORD} grant type, ignored otherwise.
      */
     public static final String USERNAME = ResourceOwner.PREFIX + "username";
 
     /**
      * Password to use when authenticating against the OAuth2 server. Required if using OAuth2
-     * authentication and the {@value GrantCommonNames#PASSWORD} grant type, ignored otherwise.
+     * authentication and the {@link GrantType#PASSWORD} grant type, ignored otherwise.
      */
     public static final String PASSWORD = ResourceOwner.PREFIX + "password";
   }
 
+  /**
+   * Configuration properties for the <a
+   * href="https://datatracker.ietf.org/doc/html/rfc6749#section-4.1">Authorization Code Grant</a>
+   * flow.
+   *
+   * <p>This flow is used to obtain an access token by redirecting the user to the OAuth2
+   * authorization server, where they can log in and authorize the client application to access
+   * their resources.
+   */
   public static final class AuthorizationCode {
 
     public static final String PREFIX = OAuth2Properties.PREFIX + "auth-code.";
@@ -327,7 +330,7 @@ public final class OAuth2Properties {
      * Address of the OAuth2 authorization code flow local web server.
      *
      * <p>The internal web server will listen for the authorization code callback on this address.
-     * This is only used if the grant type to use is {@value GrantCommonNames#AUTHORIZATION_CODE}.
+     * This is only used if the grant type to use is {@link GrantType#AUTHORIZATION_CODE}.
      *
      * <p>Optional; if not present, the server will listen on the loopback interface.
      */
@@ -337,7 +340,7 @@ public final class OAuth2Properties {
      * Port of the OAuth2 authorization code flow local web server.
      *
      * <p>The internal web server will listen for the authorization code callback on this port. This
-     * is only used if the grant type to use is {@value GrantCommonNames#AUTHORIZATION_CODE}.
+     * is only used if the grant type to use is {@link GrantType#AUTHORIZATION_CODE}.
      *
      * <p>Optional; if not present, a random port will be used.
      */
@@ -360,15 +363,22 @@ public final class OAuth2Properties {
     public static final String PKCE_ENABLED = AuthorizationCode.PREFIX + "pkce.enabled";
 
     /**
-     * The PKCE transformation to use. The default is {@code S256}. This is only used if PKCE is
-     * enabled.
+     * The PKCE code challenge method to use. The default is {@code S256}. This is only used if PKCE
+     * is enabled.
      *
      * @see <a href="https://www.rfc-editor.org/rfc/rfc7636#section-4.2">RFC 7636 Section 4.2</a>
      */
-    public static final String PKCE_TRANSFORMATION =
-        AuthorizationCode.PREFIX + "pkce.transformation";
+    public static final String PKCE_METHOD = AuthorizationCode.PREFIX + "pkce.method";
   }
 
+  /**
+   * Configuration properties for the <a href="https://datatracker.ietf.org/doc/html/rfc8628">Device
+   * Authorization Grant</a> flow.
+   *
+   * <p>This flow is used to obtain an access token for devices that do not have a browser or
+   * limited input capabilities. The user is prompted to visit a URL on another device and enter a
+   * code to authorize the device.
+   */
   public static final class DeviceCode {
 
     public static final String PREFIX = OAuth2Properties.PREFIX + "device-code.";
@@ -384,14 +394,21 @@ public final class OAuth2Properties {
 
     /**
      * Defines how often the agent should poll the OAuth2 server for the device code flow to
-     * complete. This is only used if the grant type to use is {@value
-     * GrantCommonNames#DEVICE_CODE}. Optional, defaults to {@value #DEFAULT_POLL_INTERVAL}.
+     * complete. This is only used if the grant type to use is {@link GrantType#DEVICE_CODE}.
+     * Optional, defaults to {@value #DEFAULT_POLL_INTERVAL}.
      */
     public static final String POLL_INTERVAL = DeviceCode.PREFIX + "poll-interval";
 
     public static final String DEFAULT_POLL_INTERVAL = "PT5S";
   }
 
+  /**
+   * Configuration properties for the <a href="https://datatracker.ietf.org/doc/html/rfc8693">Token
+   * Exchange</a> flow.
+   *
+   * <p>This flow allows a client to exchange one token for another, typically to obtain a token
+   * that is more suitable for the target resource or service.
+   */
   public static final class TokenExchange {
 
     public static final String PREFIX = OAuth2Properties.PREFIX + "token-exchange.";
@@ -493,36 +510,38 @@ public final class OAuth2Properties {
     public static final String ACTOR_CONFIG_PREFIX = TokenExchange.PREFIX + "actor-token.";
 
     /**
-     * For token exchanges only. A URI that indicates the target service or resource where the
-     * client intends to use the requested security token. Optional.
+     * For token exchanges only. A space-separatee list of URIs that indicate the target service(s)
+     * or resource(s) where the client intends to use the requested security token. Optional.
      */
     public static final String RESOURCE = TokenExchange.PREFIX + "resource";
 
     /**
-     * For token exchanges only. The logical name of the target service where the client intends to
-     * use the requested security token. This serves a purpose similar to the resource parameter but
-     * with the client providing a logical name for the target service.
+     * For token exchanges only. A space-separated list of logical names of the target service(s)
+     * where the client intends to use the requested security token. This serves a purpose similar
+     * to the resource parameter but with the client providing a logical name for the target
+     * service.
      */
     public static final String AUDIENCE = TokenExchange.PREFIX + "audience";
   }
 
+  /**
+   * Configuration properties for the whole system.
+   *
+   * <p>These properties are used to configure properties such as the session cache timeout and the
+   * HTTP client type.
+   */
   @SuppressWarnings("JavaLangClash")
-  public static final class Runtime {
+  public static final class System {
 
-    public static final String PREFIX = OAuth2Properties.PREFIX + "runtime.";
+    public static final String PREFIX = OAuth2Properties.PREFIX + "system.";
 
     /**
      * The distinctive name of the OAuth2 agent. Defaults to {@value #DEFAULT_AGENT_NAME}. This name
      * is printed in all log messages and user prompts.
      */
-    public static final String AGENT_NAME = Runtime.PREFIX + "agent-name";
+    public static final String AGENT_NAME = System.PREFIX + "agent-name";
 
     public static final String DEFAULT_AGENT_NAME = "iceberg-auth-manager";
-  }
-
-  public static final class Manager {
-
-    public static final String PREFIX = OAuth2Properties.PREFIX + "manager.";
 
     /**
      * The session cache timeout. Cached sessions will become eligible for eviction after this
@@ -533,21 +552,22 @@ public final class OAuth2Properties {
      * working after this time, but that the session cache will evict the session after this time of
      * inactivity. If the context is used again, a new session will be created and cached.
      */
-    public static final String SESSION_CACHE_TIMEOUT = Manager.PREFIX + "session-cache-timeout";
+    public static final String SESSION_CACHE_TIMEOUT = System.PREFIX + "session-cache-timeout";
 
     public static final String DEFAULT_SESSION_CACHE_TIMEOUT = "PT1H";
 
     /**
-     * Whether to migrate Iceberg OAuth2 legacy properties. Defaults to {@code false}.
+     * The type of HTTP client to use for making HTTP requests to the OAuth2 server. Valid values
+     * are:
      *
-     * <p>When enabled, the manager will automatically migrate legacy Iceberg OAuth2 properties to
-     * their new equivalents; e.g. it would map {@code oauth2-server-uri} to {@value
-     * Basic#TOKEN_ENDPOINT}.
+     * <ul>
+     *   <li>{@link HttpClientType#DEFAULT default}: uses the built-in URLConnection-based client
+     *       provided by the underlying OAuth2 library.
+     * </ul>
      *
-     * <p>When disabled, legacy properties are ignored.
+     * <p>Optional, defaults to {@code default}.
      */
-    public static final String MIGRATE_LEGACY_PROPERTIES =
-        Manager.PREFIX + "migrate-legacy-properties";
+    public static final String HTTP_CLIENT_TYPE = System.PREFIX + "http-client.type";
   }
 
   private OAuth2Properties() {

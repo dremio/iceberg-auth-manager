@@ -17,32 +17,38 @@ package com.dremio.iceberg.authmgr.oauth2.test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.dremio.iceberg.authmgr.oauth2.token.AccessToken;
-import com.dremio.iceberg.authmgr.oauth2.token.RefreshToken;
-import com.dremio.iceberg.authmgr.oauth2.token.Tokens;
-import java.time.Instant;
+import com.dremio.iceberg.authmgr.oauth2.flow.TokensResult;
+import com.nimbusds.oauth2.sdk.token.AccessToken;
+import com.nimbusds.oauth2.sdk.token.AccessTokenType;
+import com.nimbusds.oauth2.sdk.token.RefreshToken;
+import com.nimbusds.oauth2.sdk.token.Tokens;
 
 public class TokenAssertions {
 
-  public static void assertTokens(Tokens tokens, String accessToken, String refreshToken) {
-    assertAccessToken(
-        tokens.getAccessToken(), accessToken, TestConstants.ACCESS_TOKEN_EXPIRATION_TIME);
-    assertRefreshToken(tokens.getRefreshToken(), refreshToken);
+  public static void assertTokensResult(
+      TokensResult result, String accessToken, String refreshToken) {
+    assertTokens(result.getTokens(), accessToken, refreshToken);
+    assertThat(result.getExpirationTime()).isEqualTo(TestConstants.ACCESS_TOKEN_EXPIRATION_TIME);
   }
 
-  public static void assertAccessToken(
-      AccessToken actual, String expected, Instant expirationTime) {
-    assertThat(actual.getPayload()).isEqualTo(expected);
-    assertThat(actual.getExpirationTime()).isEqualTo(expirationTime);
-    assertThat(actual.getTokenType()).isEqualToIgnoringCase("bearer");
+  public static void assertTokens(Tokens result, String accessToken, String refreshToken) {
+    assertAccessToken(
+        result.getAccessToken(), accessToken, TestConstants.ACCESS_TOKEN_EXPIRES_IN_SECONDS);
+    assertRefreshToken(result.getRefreshToken(), refreshToken);
+  }
+
+  public static void assertAccessToken(AccessToken actual, String expected, int expiresInSeconds) {
+    assertThat(actual.getValue()).isEqualTo(expected);
+    assertThat(actual.getType()).isEqualTo(AccessTokenType.BEARER);
+    assertThat(actual.getLifetime()).isEqualTo(expiresInSeconds);
   }
 
   public static void assertRefreshToken(RefreshToken actual, String expected) {
     if (expected == null) {
       assertThat(actual).isNull();
     } else {
-      assertThat(actual.getPayload()).isEqualTo(expected);
-      assertThat(actual.getExpirationTime()).isEqualTo(TestConstants.REFRESH_TOKEN_EXPIRATION_TIME);
+      assertThat(actual).isNotNull();
+      assertThat(actual.getValue()).isEqualTo(expected);
     }
   }
 }

@@ -56,10 +56,11 @@ The Dremio AuthManager for Apache Iceberg supports impersonation and delegation 
 exchange grant type. See the [Token Exchange](./token-exchange.md) section for more details on how
 to configure impersonation and delegation.
 
-## Dialects
+## Migration From Iceberg's Built-In OAuth2 `AuthManager`
 
-Two "dialects" of OAuth2 are supported: `standard` and `iceberg_rest`. For more details on the
-differences between the two dialects, see the [Dialects](./dialects.md) section.
+Migrating from Iceberg's built-in OAuth2 `AuthManager` to the Dremio AuthManager for Apache Iceberg
+is easy, but may require some configuration changes. See the [Migration](./migration.md) section for
+more details.
 
 ## Developer Documentation
 

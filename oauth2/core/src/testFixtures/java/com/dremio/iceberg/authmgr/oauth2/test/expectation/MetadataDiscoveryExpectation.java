@@ -17,8 +17,8 @@ package com.dremio.iceberg.authmgr.oauth2.test.expectation;
 
 import static com.dremio.iceberg.authmgr.oauth2.test.expectation.ExpectationUtils.getJsonBody;
 
-import com.dremio.iceberg.authmgr.oauth2.rest.ImmutableMetadataDiscoveryResponse;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
+import com.google.common.collect.ImmutableMap;
 import java.net.URI;
 import org.mockserver.model.HttpRequest;
 import org.mockserver.model.HttpResponse;
@@ -31,20 +31,20 @@ public abstract class MetadataDiscoveryExpectation extends AbstractExpectation {
     if (getTestEnvironment().isDiscoveryEnabled()) {
       URI issuerUrl = getTestEnvironment().getAuthorizationServerUrl();
       URI discoveryEndpoint = getTestEnvironment().getDiscoveryEndpoint();
-      ImmutableMetadataDiscoveryResponse.Builder builder =
-          ImmutableMetadataDiscoveryResponse.builder()
-              .issuerUrl(issuerUrl)
-              .tokenEndpoint(getTestEnvironment().getTokenEndpoint())
-              .authorizationEndpoint(getTestEnvironment().getAuthorizationEndpoint());
+      ImmutableMap.Builder<String, String> builder =
+          ImmutableMap.<String, String>builder()
+              .put("issuer", issuerUrl.toString())
+              .put(
+                  "authorization_endpoint",
+                  getTestEnvironment().getAuthorizationEndpoint().toString())
+              .put("token_endpoint", getTestEnvironment().getTokenEndpoint().toString());
       if (getTestEnvironment().isIncludeDeviceAuthEndpointInDiscoveryMetadata()) {
-        builder.deviceAuthorizationEndpoint(getTestEnvironment().getDeviceAuthorizationEndpoint());
+        builder.put(
+            "device_authorization_endpoint",
+            getTestEnvironment().getDeviceAuthorizationEndpoint().toString());
       }
       getClientAndServer()
-          .when(
-              HttpRequest.request()
-                  .withMethod("GET")
-                  .withPath(discoveryEndpoint.getPath())
-                  .withHeader("Accept", "application/json"))
+          .when(HttpRequest.request().withMethod("GET").withPath(discoveryEndpoint.getPath()))
           .respond(HttpResponse.response().withBody(getJsonBody(builder.build())));
     }
   }

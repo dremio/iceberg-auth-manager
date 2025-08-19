@@ -15,30 +15,20 @@
  */
 package com.dremio.iceberg.authmgr.oauth2;
 
-import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.CLIENT_ID1;
-import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.CLIENT_ID2;
-import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.CLIENT_SECRET1;
-import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.CLIENT_SECRET2;
-import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.SCOPE1;
-import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.SCOPE2;
-import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.SCOPE3;
-import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.SESSION_CONTEXT;
-import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.TABLE_IDENTIFIER;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.type;
 import static org.mockito.Mockito.never;
 
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.Basic;
-import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.Manager;
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.TokenExchange;
-import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2AgentSpec;
 import com.dremio.iceberg.authmgr.oauth2.cache.AuthSessionCache;
-import com.dremio.iceberg.authmgr.oauth2.config.Dialect;
-import com.dremio.iceberg.authmgr.oauth2.config.Secret;
-import com.dremio.iceberg.authmgr.oauth2.grant.GrantType;
 import com.dremio.iceberg.authmgr.oauth2.test.TestConstants;
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
 import com.github.benmanes.caffeine.cache.Cache;
+import com.nimbusds.oauth2.sdk.GrantType;
+import com.nimbusds.oauth2.sdk.Scope;
+import com.nimbusds.oauth2.sdk.auth.Secret;
+import com.nimbusds.oauth2.sdk.id.ClientID;
 import java.io.IOException;
 import java.net.URI;
 import java.time.Duration;
@@ -54,15 +44,12 @@ import org.apache.iceberg.rest.HTTPRequest;
 import org.apache.iceberg.rest.HTTPRequest.HTTPMethod;
 import org.apache.iceberg.rest.ImmutableHTTPRequest;
 import org.apache.iceberg.rest.RESTCatalog;
-import org.apache.iceberg.rest.ResourcePaths;
 import org.apache.iceberg.rest.auth.AuthSession;
 import org.assertj.core.api.Assertions;
 import org.assertj.core.api.InstanceOfAssertFactory;
 import org.assertj.core.api.MapAssert;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.Mockito;
 
 class OAuth2ManagerTest {
@@ -80,7 +67,7 @@ class OAuth2ManagerTest {
             .build();
 
     @Test
-    void catalogSessionWithoutInit() {
+    void catalogSessionWithoutInit() throws IOException {
       try (TestEnvironment env = TestEnvironment.builder().build();
           OAuth2Manager manager = new OAuth2Manager("test")) {
         Map<String, String> properties =
@@ -88,14 +75,15 @@ class OAuth2ManagerTest {
                 Basic.TOKEN_ENDPOINT,
                 env.getTokenEndpoint().toString(),
                 Basic.CLIENT_ID,
-                TestConstants.CLIENT_ID1,
+                TestConstants.CLIENT_ID1.getValue(),
                 Basic.CLIENT_SECRET,
-                TestConstants.CLIENT_SECRET1,
+                TestConstants.CLIENT_SECRET1.getValue(),
                 Basic.SCOPE,
-                TestConstants.SCOPE1,
+                TestConstants.SCOPE1.toString(),
                 Basic.EXTRA_PARAMS_PREFIX + "extra1",
                 "value1");
-        try (AuthSession session = manager.catalogSession(env.getHttpClient(), properties)) {
+        try (HTTPClient client = env.newIcebergRestClientBuilder(Map.of()).build();
+            AuthSession session = manager.catalogSession(client, properties)) {
           HTTPRequest actual = session.authenticate(request);
           assertThat(actual.headers().entries("Authorization"))
               .containsOnly(HTTPHeader.of("Authorization", "Bearer access_initial"));
@@ -112,20 +100,20 @@ class OAuth2ManagerTest {
                 Basic.TOKEN_ENDPOINT,
                 env.getTokenEndpoint().toString(),
                 Basic.CLIENT_ID,
-                TestConstants.CLIENT_ID1,
+                TestConstants.CLIENT_ID1.getValue(),
                 Basic.CLIENT_SECRET,
-                TestConstants.CLIENT_SECRET1,
+                TestConstants.CLIENT_SECRET1.getValue(),
                 Basic.SCOPE,
-                TestConstants.SCOPE1,
+                TestConstants.SCOPE1.toString(),
                 Basic.EXTRA_PARAMS_PREFIX + "extra1",
                 "value1");
-        try (HTTPClient httpClient = env.newHttpClientBuilder(Map.of()).build();
+        try (HTTPClient httpClient = env.newIcebergRestClientBuilder(Map.of()).build();
             AuthSession session = manager.initSession(httpClient, properties)) {
           HTTPRequest actual = session.authenticate(request);
           assertThat(actual.headers().entries("Authorization"))
               .containsOnly(HTTPHeader.of("Authorization", "Bearer access_initial"));
         }
-        try (HTTPClient httpClient = env.newHttpClientBuilder(Map.of()).build();
+        try (HTTPClient httpClient = env.newIcebergRestClientBuilder(Map.of()).build();
             AuthSession session = manager.catalogSession(httpClient, properties)) {
           HTTPRequest actual = session.authenticate(request);
           assertThat(actual.headers().entries("Authorization"))
@@ -135,42 +123,7 @@ class OAuth2ManagerTest {
     }
 
     @Test
-    void catalogSessionWithInitAndIcebergRestDialect() throws IOException {
-      try (TestEnvironment env =
-              TestEnvironment.builder()
-                  .dialect(Dialect.ICEBERG_REST)
-                  .tokenEndpoint(URI.create(ResourcePaths.tokens()))
-                  .build();
-          OAuth2Manager manager = new OAuth2Manager("test")) {
-        Map<String, String> properties =
-            Map.of(
-                Basic.DIALECT,
-                Dialect.ICEBERG_REST.name(),
-                Basic.CLIENT_ID,
-                TestConstants.CLIENT_ID1,
-                Basic.CLIENT_SECRET,
-                TestConstants.CLIENT_SECRET1,
-                Basic.SCOPE,
-                TestConstants.SCOPE1,
-                Basic.EXTRA_PARAMS_PREFIX + "extra1",
-                "value1");
-        try (HTTPClient httpClient = env.newHttpClientBuilder(Map.of()).build();
-            AuthSession session = manager.initSession(httpClient, properties)) {
-          HTTPRequest actual = session.authenticate(request);
-          assertThat(actual.headers().entries("Authorization"))
-              .containsOnly(HTTPHeader.of("Authorization", "Bearer access_initial"));
-        }
-        try (HTTPClient httpClient = env.newHttpClientBuilder(Map.of()).build();
-            AuthSession session = manager.catalogSession(httpClient, properties)) {
-          HTTPRequest actual = session.authenticate(request);
-          assertThat(actual.headers().entries("Authorization"))
-              .containsOnly(HTTPHeader.of("Authorization", "Bearer access_initial"));
-        }
-      }
-    }
-
-    @Test
-    void contextualSessionEmptyContext() {
+    void contextualSessionEmptyContext() throws IOException {
       try (TestEnvironment env = TestEnvironment.builder().build();
           OAuth2Manager manager = new OAuth2Manager("test")) {
         Map<String, String> properties =
@@ -178,13 +131,14 @@ class OAuth2ManagerTest {
                 Basic.TOKEN_ENDPOINT,
                 env.getTokenEndpoint().toString(),
                 Basic.CLIENT_ID,
-                TestConstants.CLIENT_ID1,
+                TestConstants.CLIENT_ID1.getValue(),
                 Basic.CLIENT_SECRET,
-                TestConstants.CLIENT_SECRET1,
+                TestConstants.CLIENT_SECRET1.getValue(),
                 Basic.SCOPE,
-                TestConstants.SCOPE1);
+                TestConstants.SCOPE1.toString());
         SessionCatalog.SessionContext context = SessionCatalog.SessionContext.createEmpty();
-        try (AuthSession catalogSession = manager.catalogSession(env.getHttpClient(), properties);
+        try (HTTPClient client = env.newIcebergRestClientBuilder(Map.of()).build();
+            AuthSession catalogSession = manager.catalogSession(client, properties);
             AuthSession contextualSession = manager.contextualSession(context, catalogSession)) {
           assertThat(contextualSession).isSameAs(catalogSession);
         }
@@ -192,7 +146,7 @@ class OAuth2ManagerTest {
     }
 
     @Test
-    void contextualSessionIdenticalSpec() {
+    void contextualSessionIdenticalSpec() throws IOException {
       try (TestEnvironment env = TestEnvironment.builder().build();
           OAuth2Manager manager = new OAuth2Manager("test")) {
         Map<String, String> properties =
@@ -200,18 +154,19 @@ class OAuth2ManagerTest {
                 Basic.TOKEN_ENDPOINT,
                 env.getTokenEndpoint().toString(),
                 Basic.CLIENT_ID,
-                TestConstants.CLIENT_ID1,
+                TestConstants.CLIENT_ID1.getValue(),
                 Basic.CLIENT_SECRET,
-                TestConstants.CLIENT_SECRET1,
+                TestConstants.CLIENT_SECRET1.getValue(),
                 Basic.SCOPE,
-                TestConstants.SCOPE1);
+                TestConstants.SCOPE1.toString());
         SessionCatalog.SessionContext context =
             new SessionCatalog.SessionContext(
                 "test",
                 "test",
                 properties,
-                Map.of(OAuth2Properties.Basic.SCOPE, TestConstants.SCOPE1));
-        try (AuthSession catalogSession = manager.catalogSession(env.getHttpClient(), properties);
+                Map.of(OAuth2Properties.Basic.SCOPE, TestConstants.SCOPE1.toString()));
+        try (HTTPClient client = env.newIcebergRestClientBuilder(Map.of()).build();
+            AuthSession catalogSession = manager.catalogSession(client, properties);
             AuthSession contextualSession = manager.contextualSession(context, catalogSession)) {
           assertThat(contextualSession).isSameAs(catalogSession);
         }
@@ -219,7 +174,7 @@ class OAuth2ManagerTest {
     }
 
     @Test
-    void contextualSessionDifferentSpec() {
+    void contextualSessionDifferentSpec() throws IOException {
       try (TestEnvironment env = TestEnvironment.builder().build();
           OAuth2Manager manager = new OAuth2Manager("test")) {
         Map<String, String> catalogProperties =
@@ -227,11 +182,11 @@ class OAuth2ManagerTest {
                 Basic.TOKEN_ENDPOINT,
                 env.getTokenEndpoint().toString(),
                 Basic.CLIENT_ID,
-                TestConstants.CLIENT_ID1,
+                TestConstants.CLIENT_ID1.getValue(),
                 Basic.CLIENT_SECRET,
-                TestConstants.CLIENT_SECRET1,
+                TestConstants.CLIENT_SECRET1.getValue(),
                 Basic.SCOPE,
-                TestConstants.SCOPE1,
+                TestConstants.SCOPE1.toString(),
                 Basic.EXTRA_PARAMS_PREFIX + "extra1",
                 "value1");
         SessionContext context =
@@ -240,16 +195,16 @@ class OAuth2ManagerTest {
                 "test",
                 Map.of(
                     Basic.CLIENT_ID,
-                    TestConstants.CLIENT_ID2,
+                    TestConstants.CLIENT_ID2.getValue(),
                     Basic.CLIENT_SECRET,
-                    TestConstants.CLIENT_SECRET2),
+                    TestConstants.CLIENT_SECRET2.getValue()),
                 Map.of(
                     Basic.SCOPE,
-                    TestConstants.SCOPE2,
+                    TestConstants.SCOPE2.toString(),
                     Basic.EXTRA_PARAMS_PREFIX + "extra2",
                     "value2"));
-        try (AuthSession catalogSession =
-                manager.catalogSession(env.getHttpClient(), catalogProperties);
+        try (HTTPClient client = env.newIcebergRestClientBuilder(Map.of()).build();
+            AuthSession catalogSession = manager.catalogSession(client, catalogProperties);
             AuthSession contextualSession = manager.contextualSession(context, catalogSession)) {
           assertThat(contextualSession).isNotSameAs(catalogSession);
           HTTPRequest actual = contextualSession.authenticate(request);
@@ -260,7 +215,7 @@ class OAuth2ManagerTest {
     }
 
     @Test
-    void contextualSessionDifferentSpecLegacyProperties() {
+    void contextualSessionCacheHit() throws IOException {
       try (TestEnvironment env = TestEnvironment.builder().build();
           OAuth2Manager manager = new OAuth2Manager("test")) {
         Map<String, String> catalogProperties =
@@ -268,68 +223,31 @@ class OAuth2ManagerTest {
                 Basic.TOKEN_ENDPOINT,
                 env.getTokenEndpoint().toString(),
                 Basic.CLIENT_ID,
-                TestConstants.CLIENT_ID1,
+                TestConstants.CLIENT_ID1.getValue(),
                 Basic.CLIENT_SECRET,
-                TestConstants.CLIENT_SECRET1,
+                TestConstants.CLIENT_SECRET1.getValue(),
                 Basic.SCOPE,
-                TestConstants.SCOPE1,
-                Manager.MIGRATE_LEGACY_PROPERTIES,
-                "true",
-                Basic.EXTRA_PARAMS_PREFIX + "extra1",
-                "value1");
-        SessionContext context =
-            new SessionContext(
-                "test",
-                "test",
-                Map.of(
-                    org.apache.iceberg.rest.auth.OAuth2Properties.CREDENTIAL,
-                    TestConstants.CLIENT_ID2 + ":" + TestConstants.CLIENT_SECRET2),
-                Map.of(org.apache.iceberg.rest.auth.OAuth2Properties.SCOPE, TestConstants.SCOPE2));
-        try (AuthSession catalogSession =
-                manager.catalogSession(env.getHttpClient(), catalogProperties);
-            AuthSession contextualSession = manager.contextualSession(context, catalogSession)) {
-          assertThat(contextualSession).isNotSameAs(catalogSession);
-          HTTPRequest actual = contextualSession.authenticate(request);
-          assertThat(actual.headers().entries("Authorization"))
-              .containsOnly(HTTPHeader.of("Authorization", "Bearer access_initial"));
-        }
-      }
-    }
-
-    @Test
-    void contextualSessionCacheHit() {
-      try (TestEnvironment env = TestEnvironment.builder().build();
-          OAuth2Manager manager = new OAuth2Manager("test")) {
-        Map<String, String> catalogProperties =
-            Map.of(
-                Basic.TOKEN_ENDPOINT,
-                env.getTokenEndpoint().toString(),
-                Basic.CLIENT_ID,
-                TestConstants.CLIENT_ID1,
-                Basic.CLIENT_SECRET,
-                TestConstants.CLIENT_SECRET1,
-                Basic.SCOPE,
-                TestConstants.SCOPE1);
+                TestConstants.SCOPE1.toString());
         SessionContext context =
             new SessionContext(
                 "test",
                 "test",
                 Map.of(
                     Basic.CLIENT_ID,
-                    TestConstants.CLIENT_ID2,
+                    TestConstants.CLIENT_ID2.getValue(),
                     Basic.CLIENT_SECRET,
-                    TestConstants.CLIENT_SECRET2,
+                    TestConstants.CLIENT_SECRET2.getValue(),
                     TokenExchange.SUBJECT_TOKEN,
-                    TestConstants.SUBJECT_TOKEN,
+                    TestConstants.SUBJECT_TOKEN.getValue(),
                     TokenExchange.ACTOR_TOKEN,
-                    TestConstants.ACTOR_TOKEN),
+                    TestConstants.ACTOR_TOKEN.getValue()),
                 Map.of(
                     Basic.GRANT_TYPE,
-                    GrantType.TOKEN_EXCHANGE.name(),
+                    GrantType.TOKEN_EXCHANGE.getValue(),
                     Basic.SCOPE,
-                    TestConstants.SCOPE2));
-        try (AuthSession catalogSession =
-                manager.catalogSession(env.getHttpClient(), catalogProperties);
+                    TestConstants.SCOPE2.toString()));
+        try (HTTPClient client = env.newIcebergRestClientBuilder(Map.of()).build();
+            AuthSession catalogSession = manager.catalogSession(client, catalogProperties);
             AuthSession contextualSession1 = manager.contextualSession(context, catalogSession);
             AuthSession contextualSession2 = manager.contextualSession(context, catalogSession)) {
           assertThat(contextualSession1).isNotSameAs(catalogSession);
@@ -340,7 +258,7 @@ class OAuth2ManagerTest {
     }
 
     @Test
-    void tableSessionEmptyConfig() {
+    void tableSessionEmptyConfig() throws IOException {
       try (TestEnvironment env = TestEnvironment.builder().build();
           OAuth2Manager manager = new OAuth2Manager("test")) {
         Map<String, String> catalogProperties =
@@ -348,14 +266,14 @@ class OAuth2ManagerTest {
                 Basic.TOKEN_ENDPOINT,
                 env.getTokenEndpoint().toString(),
                 Basic.CLIENT_ID,
-                TestConstants.CLIENT_ID1,
+                TestConstants.CLIENT_ID1.getValue(),
                 Basic.CLIENT_SECRET,
-                TestConstants.CLIENT_SECRET1,
+                TestConstants.CLIENT_SECRET1.getValue(),
                 Basic.SCOPE,
-                TestConstants.SCOPE1);
+                TestConstants.SCOPE1.toString());
         Map<String, String> tableProperties = Map.of();
-        try (AuthSession catalogSession =
-                manager.catalogSession(env.getHttpClient(), catalogProperties);
+        try (HTTPClient client = env.newIcebergRestClientBuilder(Map.of()).build();
+            AuthSession catalogSession = manager.catalogSession(client, catalogProperties);
             AuthSession tableSession =
                 manager.tableSession(table, tableProperties, catalogSession)) {
           assertThat(tableSession).isSameAs(catalogSession);
@@ -364,7 +282,7 @@ class OAuth2ManagerTest {
     }
 
     @Test
-    void tableSessionIdenticalSpec() {
+    void tableSessionIdenticalSpec() throws IOException {
       try (TestEnvironment env = TestEnvironment.builder().build();
           OAuth2Manager manager = new OAuth2Manager("test")) {
         Map<String, String> catalogProperties =
@@ -372,14 +290,14 @@ class OAuth2ManagerTest {
                 Basic.TOKEN_ENDPOINT,
                 env.getTokenEndpoint().toString(),
                 Basic.CLIENT_ID,
-                TestConstants.CLIENT_ID1,
+                TestConstants.CLIENT_ID1.getValue(),
                 Basic.CLIENT_SECRET,
-                TestConstants.CLIENT_SECRET1,
+                TestConstants.CLIENT_SECRET1.getValue(),
                 Basic.SCOPE,
-                TestConstants.SCOPE1);
-        Map<String, String> tableProperties = Map.of(Basic.SCOPE, TestConstants.SCOPE1);
-        try (AuthSession catalogSession =
-                manager.catalogSession(env.getHttpClient(), catalogProperties);
+                TestConstants.SCOPE1.toString());
+        Map<String, String> tableProperties = Map.of(Basic.SCOPE, TestConstants.SCOPE1.toString());
+        try (HTTPClient client = env.newIcebergRestClientBuilder(Map.of()).build();
+            AuthSession catalogSession = manager.catalogSession(client, catalogProperties);
             AuthSession tableSession =
                 manager.tableSession(table, tableProperties, catalogSession)) {
           assertThat(tableSession).isSameAs(catalogSession);
@@ -388,7 +306,7 @@ class OAuth2ManagerTest {
     }
 
     @Test
-    void tableSessionDifferentSpec() {
+    void tableSessionDifferentSpec() throws IOException {
       try (TestEnvironment env = TestEnvironment.builder().build();
           OAuth2Manager manager = new OAuth2Manager("test")) {
         Map<String, String> catalogProperties =
@@ -396,18 +314,21 @@ class OAuth2ManagerTest {
                 Basic.TOKEN_ENDPOINT,
                 env.getTokenEndpoint().toString(),
                 Basic.CLIENT_ID,
-                TestConstants.CLIENT_ID1,
+                TestConstants.CLIENT_ID1.getValue(),
                 Basic.CLIENT_SECRET,
-                TestConstants.CLIENT_SECRET1,
+                TestConstants.CLIENT_SECRET1.getValue(),
                 Basic.SCOPE,
-                TestConstants.SCOPE1,
+                TestConstants.SCOPE1.toString(),
                 Basic.EXTRA_PARAMS_PREFIX + "extra1",
                 "value1");
         Map<String, String> tableProperties =
             Map.of(
-                Basic.SCOPE, TestConstants.SCOPE2, Basic.EXTRA_PARAMS_PREFIX + "extra2", "value2");
-        try (AuthSession catalogSession =
-                manager.catalogSession(env.getHttpClient(), catalogProperties);
+                Basic.SCOPE,
+                TestConstants.SCOPE2.toString(),
+                Basic.EXTRA_PARAMS_PREFIX + "extra2",
+                "value2");
+        try (HTTPClient client = env.newIcebergRestClientBuilder(Map.of()).build();
+            AuthSession catalogSession = manager.catalogSession(client, catalogProperties);
             AuthSession tableSession =
                 manager.tableSession(table, tableProperties, catalogSession)) {
           assertThat(tableSession).isNotSameAs(catalogSession);
@@ -419,7 +340,7 @@ class OAuth2ManagerTest {
     }
 
     @Test
-    void tableSessionDifferentSpecLegacyProperties() {
+    void tableSessionCacheHit() throws IOException {
       try (TestEnvironment env = TestEnvironment.builder().build();
           OAuth2Manager manager = new OAuth2Manager("test")) {
         Map<String, String> catalogProperties =
@@ -427,51 +348,21 @@ class OAuth2ManagerTest {
                 Basic.TOKEN_ENDPOINT,
                 env.getTokenEndpoint().toString(),
                 Basic.CLIENT_ID,
-                TestConstants.CLIENT_ID1,
+                TestConstants.CLIENT_ID1.getValue(),
                 Basic.CLIENT_SECRET,
-                TestConstants.CLIENT_SECRET1,
-                Manager.MIGRATE_LEGACY_PROPERTIES,
-                "true",
-                Basic.EXTRA_PARAMS_PREFIX + "extra1",
-                "value1");
-        Map<String, String> tableProperties =
-            Map.of(org.apache.iceberg.rest.auth.OAuth2Properties.SCOPE, TestConstants.SCOPE1);
-        try (AuthSession catalogSession =
-                manager.catalogSession(env.getHttpClient(), catalogProperties);
-            AuthSession tableSession =
-                manager.tableSession(table, tableProperties, catalogSession)) {
-          assertThat(tableSession).isNotSameAs(catalogSession);
-          HTTPRequest actual = tableSession.authenticate(request);
-          assertThat(actual.headers().entries("Authorization"))
-              .containsOnly(HTTPHeader.of("Authorization", "Bearer access_initial"));
-        }
-      }
-    }
-
-    @Test
-    void tableSessionCacheHit() {
-      try (TestEnvironment env = TestEnvironment.builder().build();
-          OAuth2Manager manager = new OAuth2Manager("test")) {
-        Map<String, String> catalogProperties =
-            Map.of(
-                Basic.TOKEN_ENDPOINT,
-                env.getTokenEndpoint().toString(),
-                Basic.CLIENT_ID,
-                TestConstants.CLIENT_ID1,
-                Basic.CLIENT_SECRET,
-                TestConstants.CLIENT_SECRET1);
+                TestConstants.CLIENT_SECRET1.getValue());
         Map<String, String> tableProperties =
             Map.of(
                 Basic.SCOPE,
-                TestConstants.SCOPE2,
+                TestConstants.SCOPE2.toString(),
                 Basic.GRANT_TYPE,
-                GrantType.TOKEN_EXCHANGE.name(),
+                GrantType.TOKEN_EXCHANGE.getValue(),
                 TokenExchange.SUBJECT_TOKEN,
-                TestConstants.SUBJECT_TOKEN,
+                TestConstants.SUBJECT_TOKEN.getValue(),
                 TokenExchange.ACTOR_TOKEN,
-                TestConstants.ACTOR_TOKEN);
-        try (AuthSession catalogSession =
-                manager.catalogSession(env.getHttpClient(), catalogProperties);
+                TestConstants.ACTOR_TOKEN.getValue());
+        try (HTTPClient client = env.newIcebergRestClientBuilder(Map.of()).build();
+            AuthSession catalogSession = manager.catalogSession(client, catalogProperties);
             AuthSession tableSession1 =
                 manager.tableSession(table, tableProperties, catalogSession);
             AuthSession tableSession2 =
@@ -484,7 +375,7 @@ class OAuth2ManagerTest {
     }
 
     @Test
-    void standaloneTableSession() {
+    void standaloneTableSession() throws IOException {
       try (TestEnvironment env = TestEnvironment.builder().build();
           OAuth2Manager manager = new OAuth2Manager("test")) {
         Map<String, String> tableProperties =
@@ -492,17 +383,16 @@ class OAuth2ManagerTest {
                 Basic.TOKEN_ENDPOINT,
                 env.getTokenEndpoint().toString(),
                 Basic.CLIENT_ID,
-                TestConstants.CLIENT_ID1,
+                TestConstants.CLIENT_ID1.getValue(),
                 Basic.CLIENT_SECRET,
-                TestConstants.CLIENT_SECRET1,
+                TestConstants.CLIENT_SECRET1.getValue(),
                 Basic.SCOPE,
-                TestConstants.SCOPE1,
+                TestConstants.SCOPE1.toString(),
                 Basic.EXTRA_PARAMS_PREFIX + "extra1",
                 "value1");
-        try (AuthSession tableSession1 =
-                manager.tableSession(env.getHttpClient(), tableProperties);
-            AuthSession tableSession2 =
-                manager.tableSession(env.getHttpClient(), tableProperties)) {
+        try (HTTPClient client = env.newIcebergRestClientBuilder(Map.of()).build();
+            AuthSession tableSession1 = manager.tableSession(client, tableProperties);
+            AuthSession tableSession2 = manager.tableSession(client, tableProperties)) {
           assertThat(tableSession1).isSameAs(tableSession2);
           HTTPRequest actual1 = tableSession1.authenticate(request);
           assertThat(actual1.headers().entries("Authorization"))
@@ -515,7 +405,7 @@ class OAuth2ManagerTest {
     }
 
     @Test
-    void close() {
+    void close() throws IOException {
 
       try (OAuth2Manager manager = new OAuth2Manager("test")) {
         manager.close();
@@ -523,7 +413,6 @@ class OAuth2ManagerTest {
         assertThat(manager).extracting("initSession").isNull();
         assertThat(manager).extracting("refreshExecutor").isNull();
         assertThat(manager).extracting("sessionCache").isNull();
-        assertThat(manager).extracting("client").isNull();
       }
 
       try (TestEnvironment env = TestEnvironment.builder().build();
@@ -534,7 +423,7 @@ class OAuth2ManagerTest {
                       new AuthSessionCache<>(name, Duration.ofHours(1)) {
                         @Override
                         public OAuth2Session cachedSession(
-                            OAuth2AgentSpec key, Function<OAuth2AgentSpec, OAuth2Session> loader) {
+                            OAuth2Config key, Function<OAuth2Config, OAuth2Session> loader) {
                           return super.cachedSession(key, k -> Mockito.spy(loader.apply(key)));
                         }
                       })) {
@@ -544,11 +433,11 @@ class OAuth2ManagerTest {
                 Basic.TOKEN_ENDPOINT,
                 env.getTokenEndpoint().toString(),
                 Basic.CLIENT_ID,
-                TestConstants.CLIENT_ID1,
+                TestConstants.CLIENT_ID1.getValue(),
                 Basic.CLIENT_SECRET,
-                TestConstants.CLIENT_SECRET1,
+                TestConstants.CLIENT_SECRET1.getValue(),
                 Basic.SCOPE,
-                TestConstants.SCOPE1);
+                TestConstants.SCOPE1.toString());
 
         SessionContext context =
             new SessionContext(
@@ -556,17 +445,17 @@ class OAuth2ManagerTest {
                 "test",
                 Map.of(
                     Basic.CLIENT_ID,
-                    TestConstants.CLIENT_ID2,
+                    TestConstants.CLIENT_ID2.getValue(),
                     Basic.CLIENT_SECRET,
-                    TestConstants.CLIENT_SECRET2),
-                Map.of(Basic.SCOPE, TestConstants.SCOPE2));
+                    TestConstants.CLIENT_SECRET2.getValue()),
+                Map.of(Basic.SCOPE, TestConstants.SCOPE2.toString()));
 
-        Map<String, String> tableProperties = Map.of(Basic.SCOPE, TestConstants.SCOPE2);
+        Map<String, String> tableProperties = Map.of(Basic.SCOPE, TestConstants.SCOPE2.toString());
 
-        try (AuthSession initSession =
-                Mockito.spy(manager.initSession(env.getHttpClient(), catalogProperties));
+        try (HTTPClient client = env.newIcebergRestClientBuilder(Map.of()).build();
+            AuthSession initSession = Mockito.spy(manager.initSession(client, catalogProperties));
             AuthSession catalogSession =
-                Mockito.spy(manager.catalogSession(env.getHttpClient(), catalogProperties));
+                Mockito.spy(manager.catalogSession(client, catalogProperties));
             AuthSession contextSession = manager.contextualSession(context, catalogSession);
             AuthSession tableSession =
                 manager.tableSession(table, tableProperties, catalogSession)) {
@@ -584,7 +473,6 @@ class OAuth2ManagerTest {
           assertThat(manager).extracting("initSession").isNull();
           assertThat(manager).extracting("refreshExecutor").isNull();
           assertThat(manager).extracting("sessionCache").isNull();
-          assertThat(manager).extracting("client").isNull();
         }
       }
     }
@@ -595,90 +483,116 @@ class OAuth2ManagerTest {
 
     private static final String SESSION_CACHE =
         "sessionCatalog.authManager.sessionCache.sessionCache";
-    private static final String CATALOG_SPEC = "sessionCatalog.catalogAuth.spec";
+    private static final String CATALOG_CONFIG = "sessionCatalog.catalogAuth.config";
 
-    @ParameterizedTest
-    @EnumSource(Dialect.class)
-    void testCatalogProperties(Dialect dialect) throws IOException {
-      try (TestEnvironment env = TestEnvironment.builder().dialect(dialect).build();
+    @Test
+    void testCatalogProperties() throws IOException {
+      try (TestEnvironment env = TestEnvironment.builder().build();
           RESTCatalog catalog = env.newCatalog()) {
-        Table table = catalog.loadTable(TABLE_IDENTIFIER);
+        Table table = catalog.loadTable(TestConstants.TABLE_IDENTIFIER);
         assertThat(table).isNotNull();
-        assertThat(table.name()).isEqualTo(catalog.name() + "." + TABLE_IDENTIFIER);
+        assertThat(table.name()).isEqualTo(catalog.name() + "." + TestConstants.TABLE_IDENTIFIER);
         assertThat(catalog)
-            .extracting(CATALOG_SPEC, type(OAuth2AgentSpec.class))
-            .satisfies(spec -> assertSpec(spec, CLIENT_ID1, CLIENT_SECRET1, SCOPE1));
+            .extracting(CATALOG_CONFIG, type(OAuth2Config.class))
+            .satisfies(
+                spec ->
+                    assertConfig(
+                        spec,
+                        TestConstants.CLIENT_ID1,
+                        TestConstants.CLIENT_SECRET1,
+                        TestConstants.SCOPE1));
         assertThat(catalog).extracting(SESSION_CACHE).isNull();
       }
     }
 
-    @ParameterizedTest
-    @EnumSource(Dialect.class)
-    void testCatalogAndSessionProperties(Dialect dialect) throws IOException {
+    @Test
+    void testCatalogAndSessionProperties() throws IOException {
       try (TestEnvironment env =
-              TestEnvironment.builder().dialect(dialect).sessionContext(SESSION_CONTEXT).build();
+              TestEnvironment.builder().sessionContext(TestConstants.SESSION_CONTEXT).build();
           RESTCatalog catalog = env.newCatalog()) {
-        Table table = catalog.loadTable(TABLE_IDENTIFIER);
+        Table table = catalog.loadTable(TestConstants.TABLE_IDENTIFIER);
         assertThat(table).isNotNull();
-        assertThat(table.name()).isEqualTo(catalog.name() + "." + TABLE_IDENTIFIER);
+        assertThat(table.name()).isEqualTo(catalog.name() + "." + TestConstants.TABLE_IDENTIFIER);
         assertThat(catalog)
-            .extracting(CATALOG_SPEC, type(OAuth2AgentSpec.class))
-            .satisfies(spec -> assertSpec(spec, CLIENT_ID1, CLIENT_SECRET1, SCOPE1));
+            .extracting(CATALOG_CONFIG, type(OAuth2Config.class))
+            .satisfies(
+                spec ->
+                    assertConfig(
+                        spec,
+                        TestConstants.CLIENT_ID1,
+                        TestConstants.CLIENT_SECRET1,
+                        TestConstants.SCOPE1));
         assertThat(catalog)
             .extracting(SESSION_CACHE, asMap())
             .satisfies(
                 cache -> {
                   assertThat(cache).hasSize(1);
-                  OAuth2AgentSpec spec = cache.keySet().iterator().next();
-                  assertSpec(spec, CLIENT_ID2, CLIENT_SECRET2, SCOPE2);
+                  OAuth2Config spec = cache.keySet().iterator().next();
+                  assertConfig(
+                      spec,
+                      TestConstants.CLIENT_ID2,
+                      TestConstants.CLIENT_SECRET2,
+                      TestConstants.SCOPE2);
                 });
       }
     }
 
-    @ParameterizedTest
-    @EnumSource(Dialect.class)
-    void testCatalogAndTableProperties(Dialect dialect) throws IOException {
+    @Test
+    void testCatalogAndTableProperties() throws IOException {
       try (TestEnvironment env =
               TestEnvironment.builder()
-                  .dialect(dialect)
-                  .tableProperties(Map.of(Basic.SCOPE, SCOPE2))
+                  .tableProperties(Map.of(Basic.SCOPE, TestConstants.SCOPE2.toString()))
                   .build();
           RESTCatalog catalog = env.newCatalog()) {
-        Table table = catalog.loadTable(TABLE_IDENTIFIER);
+        Table table = catalog.loadTable(TestConstants.TABLE_IDENTIFIER);
         assertThat(table).isNotNull();
-        assertThat(table.name()).isEqualTo(catalog.name() + "." + TABLE_IDENTIFIER);
+        assertThat(table.name()).isEqualTo(catalog.name() + "." + TestConstants.TABLE_IDENTIFIER);
         assertThat(catalog)
-            .extracting(CATALOG_SPEC, type(OAuth2AgentSpec.class))
-            .satisfies(spec -> assertSpec(spec, CLIENT_ID1, CLIENT_SECRET1, SCOPE1));
+            .extracting(CATALOG_CONFIG, type(OAuth2Config.class))
+            .satisfies(
+                spec ->
+                    assertConfig(
+                        spec,
+                        TestConstants.CLIENT_ID1,
+                        TestConstants.CLIENT_SECRET1,
+                        TestConstants.SCOPE1));
         assertThat(catalog)
             .extracting(SESSION_CACHE, asMap())
             .satisfies(
                 cache -> {
                   assertThat(cache).hasSize(1);
-                  OAuth2AgentSpec spec = cache.keySet().iterator().next();
+                  OAuth2Config spec = cache.keySet().iterator().next();
                   // client id and secret from the catalog properties, scope from the table
                   // properties
-                  assertSpec(spec, CLIENT_ID1, CLIENT_SECRET1, SCOPE2);
+                  assertConfig(
+                      spec,
+                      TestConstants.CLIENT_ID1,
+                      TestConstants.CLIENT_SECRET1,
+                      TestConstants.SCOPE2);
                 });
       }
     }
 
-    @ParameterizedTest
-    @EnumSource(Dialect.class)
-    void testCatalogAndSessionAndTableProperties(Dialect dialect) throws IOException {
+    @Test
+    void testCatalogAndSessionAndTableProperties() throws IOException {
       try (TestEnvironment env =
               TestEnvironment.builder()
-                  .dialect(dialect)
-                  .sessionContext(SESSION_CONTEXT)
-                  .tableProperties(Map.of(Basic.SCOPE, SCOPE3))
+                  .sessionContext(TestConstants.SESSION_CONTEXT)
+                  .tableProperties(Map.of(Basic.SCOPE, TestConstants.SCOPE3.toString()))
                   .build();
           RESTCatalog catalog = env.newCatalog()) {
-        Table table = catalog.loadTable(TABLE_IDENTIFIER);
+        Table table = catalog.loadTable(TestConstants.TABLE_IDENTIFIER);
         assertThat(table).isNotNull();
-        assertThat(table.name()).isEqualTo(catalog.name() + "." + TABLE_IDENTIFIER);
+        assertThat(table.name()).isEqualTo(catalog.name() + "." + TestConstants.TABLE_IDENTIFIER);
         assertThat(catalog)
-            .extracting(CATALOG_SPEC, type(OAuth2AgentSpec.class))
-            .satisfies(spec -> assertSpec(spec, CLIENT_ID1, CLIENT_SECRET1, SCOPE1));
+            .extracting(CATALOG_CONFIG, type(OAuth2Config.class))
+            .satisfies(
+                spec ->
+                    assertConfig(
+                        spec,
+                        TestConstants.CLIENT_ID1,
+                        TestConstants.CLIENT_SECRET1,
+                        TestConstants.SCOPE1));
         assertThat(catalog)
             .extracting(SESSION_CACHE, asMap())
             .satisfies(
@@ -687,29 +601,38 @@ class OAuth2ManagerTest {
                         .hasSize(2)
                         // context session
                         .anySatisfy(
-                            (spec, session) -> assertSpec(spec, CLIENT_ID2, CLIENT_SECRET2, SCOPE2))
+                            (spec, session) ->
+                                assertConfig(
+                                    spec,
+                                    TestConstants.CLIENT_ID2,
+                                    TestConstants.CLIENT_SECRET2,
+                                    TestConstants.SCOPE2))
                         // table session
                         // client id and secret from the context session, scope from the table
                         // properties
                         .anySatisfy(
                             (spec, session) ->
-                                assertSpec(spec, CLIENT_ID2, CLIENT_SECRET2, SCOPE3)));
+                                assertConfig(
+                                    spec,
+                                    TestConstants.CLIENT_ID2,
+                                    TestConstants.CLIENT_SECRET2,
+                                    TestConstants.SCOPE3)));
       }
     }
 
-    private void assertSpec(
-        OAuth2AgentSpec spec, String clientId, String clientSecret, String scope) {
-      assertThat(spec).isNotNull();
-      assertThat(spec.getBasicConfig().getClientId()).contains(clientId);
-      assertThat(spec.getBasicConfig().getClientSecret()).contains(Secret.of(clientSecret));
-      assertThat(spec.getBasicConfig().getScopes()).containsOnly(scope);
+    private void assertConfig(
+        OAuth2Config config, ClientID clientId, Secret clientSecret, Scope scope) {
+      assertThat(config).isNotNull();
+      assertThat(config.getBasicConfig().getClientId()).contains(clientId);
+      assertThat(config.getBasicConfig().getClientSecret()).contains(clientSecret);
+      assertThat(config.getBasicConfig().getScope()).contains(scope);
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
-    private InstanceOfAssertFactory<Cache, MapAssert<OAuth2AgentSpec, OAuth2Session>> asMap() {
-      return new InstanceOfAssertFactory<Cache, MapAssert<OAuth2AgentSpec, OAuth2Session>>(
+    private InstanceOfAssertFactory<Cache, MapAssert<OAuth2Config, OAuth2Session>> asMap() {
+      return new InstanceOfAssertFactory<Cache, MapAssert<OAuth2Config, OAuth2Session>>(
           Cache.class,
-          new Class[] {OAuth2AgentSpec.class, OAuth2Session.class},
+          new Class[] {OAuth2Config.class, OAuth2Session.class},
           actual -> Assertions.assertThat(actual.asMap()));
     }
   }

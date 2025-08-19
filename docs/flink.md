@@ -90,8 +90,7 @@ CREATE CATALOG iceberg_rest_catalog WITH (
 );
 ```
 
-Here is an example of compatibility with Iceberg's built-in OAuth2 manager, assuming the catalog
-server is Apache Polaris:
+Here is an example using Apache Polaris:
 
 ```sql
 CREATE CATALOG iceberg_rest_catalog WITH (
@@ -100,7 +99,6 @@ CREATE CATALOG iceberg_rest_catalog WITH (
   'uri' = 'https://polaris.example.com/api/catalog',
   'warehouse' = 'your-warehouse-name',
   'rest.auth.type' = 'com.dremio.iceberg.authmgr.oauth2.OAuth2Manager',
-  'rest.auth.oauth2.dialect' = 'iceberg_rest',
   'rest.auth.oauth2.client-id' = 'your-client-id',
   'rest.auth.oauth2.client-secret' = 'your-client-secret',
   'rest.auth.oauth2.scope' = 'PRINCIPAL_ROLE:ALL'

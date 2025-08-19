@@ -31,8 +31,11 @@ import static org.assertj.core.api.AssertionsForClassTypes.catchThrowable;
 
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties;
 import com.dremio.iceberg.authmgr.oauth2.config.validator.ConfigValidator;
-import com.dremio.iceberg.authmgr.oauth2.token.TypedToken;
+import com.dremio.iceberg.authmgr.oauth2.test.TestConstants;
 import com.google.common.collect.ImmutableMap;
+import com.nimbusds.oauth2.sdk.id.Audience;
+import com.nimbusds.oauth2.sdk.token.TokenTypeURI;
+import com.nimbusds.oauth2.sdk.token.TypelessAccessToken;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
@@ -54,12 +57,12 @@ class TokenExchangeConfigTest {
   static Stream<Arguments> testValidate() {
     return Stream.of(
         Arguments.of(
-            TokenExchangeConfig.builder().subjectTokenType(TypedToken.URN_ID_TOKEN),
+            TokenExchangeConfig.builder().subjectTokenType(TokenTypeURI.ID_TOKEN),
             singletonList(
                 "subject token type must be urn:ietf:params:oauth:token-type:access_token when using dynamic subject token (rest.auth.oauth2.token-exchange.subject-token-type)")),
         Arguments.of(
             TokenExchangeConfig.builder()
-                .actorTokenType(TypedToken.URN_ID_TOKEN)
+                .actorTokenType(TokenTypeURI.ID_TOKEN)
                 .actorTokenConfig(
                     Map.of(
                         OAuth2Properties.Basic.TOKEN_ENDPOINT,
@@ -89,39 +92,39 @@ class TokenExchangeConfigTest {
         Arguments.of(
             Map.of(
                 AUDIENCE,
-                "audience",
+                TestConstants.AUDIENCE.getValue(),
                 RESOURCE,
-                "https://token-exchange.com/resource",
+                TestConstants.RESOURCE.toString(),
                 SUBJECT_TOKEN,
                 "subject-token",
                 SUBJECT_TOKEN_TYPE,
-                TypedToken.URN_ID_TOKEN.toString(),
+                TokenTypeURI.ID_TOKEN.toString(),
                 ACTOR_TOKEN,
                 "actor-token",
                 ACTOR_TOKEN_TYPE,
-                TypedToken.URN_JWT.toString()),
+                TokenTypeURI.JWT.toString()),
             TokenExchangeConfig.builder()
-                .audience("audience")
-                .resource(URI.create("https://token-exchange.com/resource"))
-                .subjectToken("subject-token")
-                .subjectTokenType(TypedToken.URN_ID_TOKEN)
-                .actorToken("actor-token")
-                .actorTokenType(TypedToken.URN_JWT)
+                .audiences(List.of(TestConstants.AUDIENCE))
+                .resources(List.of(TestConstants.RESOURCE))
+                .subjectToken(new TypelessAccessToken("subject-token"))
+                .subjectTokenType(TokenTypeURI.ID_TOKEN)
+                .actorToken(new TypelessAccessToken("actor-token"))
+                .actorTokenType(TokenTypeURI.JWT)
                 .build(),
             null),
         Arguments.of(
             Map.of(
                 AUDIENCE,
-                "audience",
+                TestConstants.AUDIENCE.getValue(),
                 RESOURCE,
-                "https://token-exchange.com/resource",
+                TestConstants.RESOURCE.toString(),
                 SUBJECT_CONFIG_PREFIX + "token-endpoint",
                 "https://subject-token-endpoint.com/token",
                 ACTOR_CONFIG_PREFIX + "token-refresh.enabled",
                 "false"),
             TokenExchangeConfig.builder()
-                .audience("audience")
-                .resource(URI.create("https://token-exchange.com/resource"))
+                .audiences(List.of(TestConstants.AUDIENCE))
+                .resources(List.of(TestConstants.RESOURCE))
                 .subjectTokenConfig(
                     Map.of(
                         OAuth2Properties.Basic.TOKEN_ENDPOINT,
@@ -146,31 +149,31 @@ class TokenExchangeConfigTest {
             TokenExchangeConfig.builder().build(),
             Map.of(
                 AUDIENCE,
-                "audience",
+                TestConstants.AUDIENCE.getValue(),
                 RESOURCE,
-                "https://token-exchange.com/resource",
+                TestConstants.RESOURCE.toString(),
                 SUBJECT_TOKEN,
                 "subject-token",
                 SUBJECT_TOKEN_TYPE,
-                TypedToken.URN_ID_TOKEN.toString(),
+                TokenTypeURI.ID_TOKEN.toString(),
                 ACTOR_TOKEN,
                 "actor-token",
                 ACTOR_TOKEN_TYPE,
-                TypedToken.URN_JWT.toString(),
+                TokenTypeURI.JWT.toString(),
                 REQUESTED_TOKEN_TYPE,
-                TypedToken.URN_SAML2.toString(),
+                TokenTypeURI.SAML2.toString(),
                 SUBJECT_CONFIG_PREFIX + "token-endpoint",
                 "https://subject-token-endpoint.com/token",
                 ACTOR_CONFIG_PREFIX + "token-refresh.enabled",
                 "false"),
             TokenExchangeConfig.builder()
-                .audience("audience")
-                .resource(URI.create("https://token-exchange.com/resource"))
-                .subjectToken("subject-token")
-                .subjectTokenType(TypedToken.URN_ID_TOKEN)
-                .actorToken("actor-token")
-                .actorTokenType(TypedToken.URN_JWT)
-                .requestedTokenType(TypedToken.URN_SAML2)
+                .audiences(List.of(TestConstants.AUDIENCE))
+                .resources(List.of(TestConstants.RESOURCE))
+                .subjectToken(new TypelessAccessToken("subject-token"))
+                .subjectTokenType(TokenTypeURI.ID_TOKEN)
+                .actorToken(new TypelessAccessToken("actor-token"))
+                .actorTokenType(TokenTypeURI.JWT)
+                .requestedTokenType(TokenTypeURI.SAML2)
                 .subjectTokenConfig(
                     Map.of(
                         OAuth2Properties.Basic.TOKEN_ENDPOINT,
@@ -180,13 +183,13 @@ class TokenExchangeConfigTest {
         // empty properties
         Arguments.of(
             TokenExchangeConfig.builder()
-                .audience("audience")
-                .resource(URI.create("https://token-exchange.com/resource"))
-                .subjectToken("subject-token")
-                .subjectTokenType(TypedToken.URN_ID_TOKEN)
-                .actorToken("actor-token")
-                .actorTokenType(TypedToken.URN_JWT)
-                .requestedTokenType(TypedToken.URN_SAML2)
+                .audiences(List.of(TestConstants.AUDIENCE))
+                .resources(List.of(TestConstants.RESOURCE))
+                .subjectToken(new TypelessAccessToken("subject-token"))
+                .subjectTokenType(TokenTypeURI.ID_TOKEN)
+                .actorToken(new TypelessAccessToken("actor-token"))
+                .actorTokenType(TokenTypeURI.JWT)
+                .requestedTokenType(TokenTypeURI.SAML2)
                 .subjectTokenConfig(
                     Map.of(
                         OAuth2Properties.Basic.TOKEN_ENDPOINT,
@@ -195,13 +198,13 @@ class TokenExchangeConfigTest {
                 .build(),
             Map.of(),
             TokenExchangeConfig.builder()
-                .audience("audience")
-                .resource(URI.create("https://token-exchange.com/resource"))
-                .subjectToken("subject-token")
-                .subjectTokenType(TypedToken.URN_ID_TOKEN)
-                .actorToken("actor-token")
-                .actorTokenType(TypedToken.URN_JWT)
-                .requestedTokenType(TypedToken.URN_SAML2)
+                .audiences(List.of(TestConstants.AUDIENCE))
+                .resources(List.of(TestConstants.RESOURCE))
+                .subjectToken(new TypelessAccessToken("subject-token"))
+                .subjectTokenType(TokenTypeURI.ID_TOKEN)
+                .actorToken(new TypelessAccessToken("actor-token"))
+                .actorTokenType(TokenTypeURI.JWT)
+                .requestedTokenType(TokenTypeURI.SAML2)
                 .subjectTokenConfig(
                     Map.of(
                         OAuth2Properties.Basic.TOKEN_ENDPOINT,
@@ -211,34 +214,34 @@ class TokenExchangeConfigTest {
         // non-empty base and properties
         Arguments.of(
             TokenExchangeConfig.builder()
-                .audience("audience")
-                .resource(URI.create("https://token-exchange.com/resource"))
-                .subjectToken("subject-token")
-                .subjectTokenType(TypedToken.URN_ID_TOKEN)
-                .actorToken("actor-token")
-                .actorTokenType(TypedToken.URN_JWT)
-                .requestedTokenType(TypedToken.URN_SAML2)
+                .audiences(List.of(TestConstants.AUDIENCE))
+                .resources(List.of(TestConstants.RESOURCE))
+                .subjectToken(new TypelessAccessToken("subject-token"))
+                .subjectTokenType(TokenTypeURI.ID_TOKEN)
+                .actorToken(new TypelessAccessToken("actor-token"))
+                .actorTokenType(TokenTypeURI.JWT)
+                .requestedTokenType(TokenTypeURI.SAML2)
                 .subjectTokenConfig(
                     Map.of(
                         OAuth2Properties.Basic.TOKEN_ENDPOINT,
                         "https://subject-token-endpoint.com/token",
-                        OAuth2Properties.Runtime.AGENT_NAME,
+                        OAuth2Properties.System.AGENT_NAME,
                         "subject-agent"))
                 .actorTokenConfig(
                     Map.of(
                         OAuth2Properties.Basic.TOKEN_ENDPOINT,
                         "https://actor-token-endpoint.com/token",
-                        OAuth2Properties.Runtime.AGENT_NAME,
+                        OAuth2Properties.System.AGENT_NAME,
                         "actor-agent"))
                 .build(),
             ImmutableMap.builder()
                 .put(AUDIENCE, "audience2")
                 .put(RESOURCE, URI.create("https://token-exchange.com/resource2").toString())
                 .put(SUBJECT_TOKEN, "subject-token2")
-                .put(SUBJECT_TOKEN_TYPE, TypedToken.URN_SAML1.toString())
+                .put(SUBJECT_TOKEN_TYPE, TokenTypeURI.SAML1.toString())
                 .put(ACTOR_TOKEN, "actor-token2")
-                .put(ACTOR_TOKEN_TYPE, TypedToken.URN_SAML2.toString())
-                .put(REQUESTED_TOKEN_TYPE, TypedToken.URN_SAML1.toString())
+                .put(ACTOR_TOKEN_TYPE, TokenTypeURI.SAML2.toString())
+                .put(REQUESTED_TOKEN_TYPE, TokenTypeURI.SAML1.toString())
                 .put(
                     SUBJECT_CONFIG_PREFIX + "token-endpoint",
                     "https://subject-token-endpoint2.com/token")
@@ -249,20 +252,20 @@ class TokenExchangeConfigTest {
                 .put(ACTOR_CONFIG_PREFIX + "token-refresh.enabled", "true")
                 .build(),
             TokenExchangeConfig.builder()
-                .audience("audience2")
-                .resource(URI.create("https://token-exchange.com/resource2"))
-                .subjectToken("subject-token2")
-                .subjectTokenType(TypedToken.URN_SAML1)
-                .actorToken("actor-token2")
-                .actorTokenType(TypedToken.URN_SAML2)
-                .requestedTokenType(TypedToken.URN_SAML1)
+                .audiences(List.of(new Audience("audience2")))
+                .resources(List.of(URI.create("https://token-exchange.com/resource2")))
+                .subjectToken(new TypelessAccessToken("subject-token2"))
+                .subjectTokenType(TokenTypeURI.SAML1)
+                .actorToken(new TypelessAccessToken("actor-token2"))
+                .actorTokenType(TokenTypeURI.SAML2)
+                .requestedTokenType(TokenTypeURI.SAML1)
                 .subjectTokenConfig(
                     Map.of(
                         OAuth2Properties.Basic.TOKEN_ENDPOINT,
                         "https://subject-token-endpoint2.com/token",
                         OAuth2Properties.TokenRefresh.ENABLED,
                         "false",
-                        OAuth2Properties.Runtime.AGENT_NAME,
+                        OAuth2Properties.System.AGENT_NAME,
                         "subject-agent"))
                 .actorTokenConfig(
                     Map.of(
@@ -270,30 +273,30 @@ class TokenExchangeConfigTest {
                         "https://actor-token-endpoint2.com/token",
                         OAuth2Properties.TokenRefresh.ENABLED,
                         "true",
-                        OAuth2Properties.Runtime.AGENT_NAME,
+                        OAuth2Properties.System.AGENT_NAME,
                         "actor-agent"))
                 .build()),
         // clear base
         Arguments.of(
             TokenExchangeConfig.builder()
-                .audience("audience")
-                .resource(URI.create("https://token-exchange.com/resource"))
-                .subjectToken("subject-token")
-                .subjectTokenType(TypedToken.URN_ID_TOKEN)
-                .actorToken("actor-token")
-                .actorTokenType(TypedToken.URN_JWT)
-                .requestedTokenType(TypedToken.URN_SAML2)
+                .audiences(List.of(TestConstants.AUDIENCE))
+                .resources(List.of(TestConstants.RESOURCE))
+                .subjectToken(new TypelessAccessToken("subject-token"))
+                .subjectTokenType(TokenTypeURI.ID_TOKEN)
+                .actorToken(new TypelessAccessToken("actor-token"))
+                .actorTokenType(TokenTypeURI.JWT)
+                .requestedTokenType(TokenTypeURI.SAML2)
                 .subjectTokenConfig(
                     Map.of(
                         OAuth2Properties.Basic.TOKEN_ENDPOINT,
                         "https://subject-token-endpoint.com/token",
-                        OAuth2Properties.Runtime.AGENT_NAME,
+                        OAuth2Properties.System.AGENT_NAME,
                         "subject-agent"))
                 .actorTokenConfig(
                     Map.of(
                         OAuth2Properties.Basic.TOKEN_ENDPOINT,
                         "https://actor-token-endpoint.com/token",
-                        OAuth2Properties.Runtime.AGENT_NAME,
+                        OAuth2Properties.System.AGENT_NAME,
                         "actor-agent"))
                 .build(),
             ImmutableMap.builder()
@@ -305,9 +308,9 @@ class TokenExchangeConfigTest {
                 .put(ACTOR_TOKEN_TYPE, "")
                 .put(REQUESTED_TOKEN_TYPE, "")
                 .put(SUBJECT_CONFIG_PREFIX + "token-endpoint", "")
-                .put(SUBJECT_CONFIG_PREFIX + "runtime.agent-name", "")
+                .put(SUBJECT_CONFIG_PREFIX + "system.agent-name", "")
                 .put(ACTOR_CONFIG_PREFIX + "token-endpoint", "")
-                .put(ACTOR_CONFIG_PREFIX + "runtime.agent-name", "")
+                .put(ACTOR_CONFIG_PREFIX + "system.agent-name", "")
                 .build(),
             TokenExchangeConfig.DEFAULT));
   }

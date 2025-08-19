@@ -24,9 +24,6 @@ general-purpose implementation that is compatible with any Apache Iceberg REST c
 providing a more flexible and extensible OAuth2 manager than the one bundled with Iceberg REST,
 while strictly adhering to the OAuth2 standards.
 
-This `OAuthManager` can serve as a drop-in replacement for the built-in `OAuth2Manager` bundled
-with Iceberg REST, allowing for easier migration from the latter to the former.
-
 ## Getting Started
 
 To get started with Dremio AuthManager for Apache Iceberg, you can follow the instructions in the

@@ -15,25 +15,25 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.flow;
 
-import static com.dremio.iceberg.authmgr.oauth2.flow.FlowUtils.OAUTH2_AGENT_OPEN_URL;
-import static com.dremio.iceberg.authmgr.oauth2.flow.FlowUtils.OAUTH2_AGENT_TITLE;
 import static java.net.HttpURLConnection.HTTP_OK;
 import static java.net.HttpURLConnection.HTTP_UNAUTHORIZED;
 
 import com.dremio.iceberg.authmgr.oauth2.config.AuthorizationCodeConfig;
-import com.dremio.iceberg.authmgr.oauth2.config.ConfigUtils;
-import com.dremio.iceberg.authmgr.oauth2.config.PkceTransformation;
-import com.dremio.iceberg.authmgr.oauth2.grant.GrantType;
-import com.dremio.iceberg.authmgr.oauth2.rest.AuthorizationCodeTokenRequest;
-import com.dremio.iceberg.authmgr.oauth2.token.Tokens;
-import com.dremio.iceberg.authmgr.oauth2.uri.UriBuilder;
-import com.dremio.iceberg.authmgr.oauth2.uri.UriUtils;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
 import com.google.errorprone.annotations.FormatMethod;
+import com.nimbusds.oauth2.sdk.AuthorizationCode;
+import com.nimbusds.oauth2.sdk.AuthorizationCodeGrant;
+import com.nimbusds.oauth2.sdk.AuthorizationRequest;
+import com.nimbusds.oauth2.sdk.GrantType;
+import com.nimbusds.oauth2.sdk.ResponseType;
+import com.nimbusds.oauth2.sdk.id.ClientID;
+import com.nimbusds.oauth2.sdk.id.State;
+import com.nimbusds.oauth2.sdk.pkce.CodeChallengeMethod;
+import com.nimbusds.oauth2.sdk.pkce.CodeVerifier;
+import com.nimbusds.oauth2.sdk.util.URLUtils;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
-import jakarta.annotation.Nullable;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.UncheckedIOException;
@@ -55,7 +55,7 @@ import org.slf4j.LoggerFactory;
  * flow.
  */
 @AuthManagerImmutable
-abstract class AuthorizationCodeFlow extends AbstractFlow implements InitialFlow {
+abstract class AuthorizationCodeFlow extends AbstractFlow {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(AuthorizationCodeFlow.class);
 
@@ -64,55 +64,50 @@ abstract class AuthorizationCodeFlow extends AbstractFlow implements InitialFlow
   private static final String HTML_TEMPLATE_FAILED =
       "<html><body><h1>Authentication failed</h1><p>Could not obtain access token: %s</p></body></html>";
 
-  private static final int STATE_LENGTH = 16;
-
   interface Builder extends AbstractFlow.Builder<AuthorizationCodeFlow, Builder> {}
 
   @Override
-  public GrantType getGrantType() {
+  public final GrantType getGrantType() {
     return GrantType.AUTHORIZATION_CODE;
   }
 
   @Value.Derived
   String getAgentName() {
-    return getSpec().getRuntimeConfig().getAgentName();
+    return getConfig().getSystemConfig().getAgentName();
   }
 
   @Value.Derived
   String getMsgPrefix() {
-    return FlowUtils.getMsgPrefix(getSpec().getRuntimeConfig().getAgentName());
+    return AbstractFlow.getMsgPrefix(getConfig().getSystemConfig().getAgentName());
   }
 
-  @Value.Derived
-  String getState() {
-    return FlowUtils.randomAlphaNumString(STATE_LENGTH);
+  @Value.Lazy
+  State getState() {
+    return new State();
   }
 
-  @Value.Derived
-  @Nullable
-  String getCodeVerifier() {
-    return getSpec().getAuthorizationCodeConfig().isPkceEnabled()
-        ? FlowUtils.generateCodeVerifier()
-        : null;
+  @Value.Lazy
+  CodeVerifier getCodeVerifier() {
+    return new CodeVerifier();
   }
 
   @Value.Derived
   String getBindHost() {
-    AuthorizationCodeConfig authorizationCodeConfig = getSpec().getAuthorizationCodeConfig();
+    AuthorizationCodeConfig authorizationCodeConfig = getConfig().getAuthorizationCodeConfig();
     return authorizationCodeConfig.getCallbackBindHost();
   }
 
   @Value.Derived
   int getBindPort() {
-    return getSpec().getAuthorizationCodeConfig().getCallbackBindPort().orElse(0);
+    return getConfig().getAuthorizationCodeConfig().getCallbackBindPort().orElse(0);
   }
 
   @Value.Derived
   String getContextPath() {
-    return getSpec()
+    return getConfig()
         .getAuthorizationCodeConfig()
         .getCallbackContextPath()
-        .orElseGet(() -> FlowUtils.getContextPath(getSpec().getRuntimeConfig().getAgentName()));
+        .orElseGet(() -> AbstractFlow.getContextPath(getConfig().getSystemConfig().getAgentName()));
   }
 
   @Value.Derived
@@ -122,7 +117,7 @@ abstract class AuthorizationCodeFlow extends AbstractFlow implements InitialFlow
 
   @Value.Derived
   URI getRedirectUri() {
-    return getSpec()
+    return getConfig()
         .getAuthorizationCodeConfig()
         .getRedirectUri()
         .orElseGet(
@@ -133,25 +128,19 @@ abstract class AuthorizationCodeFlow extends AbstractFlow implements InitialFlow
 
   @Value.Derived
   URI getAuthorizationUri() {
-    UriBuilder authorizationUriBuilder =
-        new UriBuilder(getEndpointProvider().getResolvedAuthorizationEndpoint())
-            .queryParam("response_type", "code")
-            .queryParam("client_id", getSpec().getBasicConfig().getClientId().orElseThrow())
-            .queryParam(
-                "scope",
-                ConfigUtils.scopesAsString(getSpec().getBasicConfig().getScopes()).orElse(null))
-            .queryParam("redirect_uri", getRedirectUri().toString())
-            .queryParam("state", getState());
-    if (getSpec().getAuthorizationCodeConfig().isPkceEnabled()) {
-      PkceTransformation transformation =
-          getSpec().getAuthorizationCodeConfig().getPkceTransformation();
-      String codeChallenge = FlowUtils.generateCodeChallenge(transformation, getCodeVerifier());
-      authorizationUriBuilder
-          .queryParam("code_challenge", codeChallenge)
-          .queryParam("code_challenge_method", transformation.getCanonicalName())
-          .build();
+    ClientID clientId = getConfig().getBasicConfig().getClientId().orElseThrow();
+    AuthorizationRequest.Builder builder =
+        new AuthorizationRequest.Builder(ResponseType.CODE, clientId)
+            .endpointURI(getEndpointProvider().getResolvedAuthorizationEndpoint())
+            .redirectionURI(getRedirectUri())
+            .state(getState());
+    getConfig().getBasicConfig().getScope().ifPresent(builder::scope);
+    if (getConfig().getAuthorizationCodeConfig().isPkceEnabled()) {
+      CodeChallengeMethod method =
+          getConfig().getAuthorizationCodeConfig().getCodeChallengeMethod();
+      builder.codeChallenge(getCodeVerifier(), method);
     }
-    return authorizationUriBuilder.build();
+    return builder.build().toURI();
   }
 
   /**
@@ -172,8 +161,8 @@ abstract class AuthorizationCodeFlow extends AbstractFlow implements InitialFlow
    */
   @Value.Derived
   @SuppressWarnings("FutureReturnValueIgnored")
-  CompletableFuture<Tokens> getTokensFuture() {
-    CompletableFuture<Tokens> future =
+  CompletableFuture<TokensResult> getTokensFuture() {
+    CompletableFuture<TokensResult> future =
         getRedirectUriFuture()
             .thenApply(this::extractAuthorizationCode)
             .thenCompose(this::fetchNewTokens)
@@ -201,12 +190,12 @@ abstract class AuthorizationCodeFlow extends AbstractFlow implements InitialFlow
   }
 
   @Override
-  public CompletionStage<Tokens> fetchNewTokens() {
+  public CompletionStage<TokensResult> fetchNewTokens() {
     LOGGER.debug(
         "[{}] Authorization Code Flow: started, redirect URI: {}",
         getAgentName(),
         getRedirectUri());
-    PrintStream console = getSpec().getRuntimeConfig().getConsole();
+    PrintStream console = getConfig().getSystemConfig().getConsole();
     synchronized (console) {
       console.println();
       console.println(getMsgPrefix() + OAUTH2_AGENT_TITLE);
@@ -256,30 +245,28 @@ abstract class AuthorizationCodeFlow extends AbstractFlow implements InitialFlow
     return null;
   }
 
-  private String extractAuthorizationCode(HttpExchange exchange) {
+  private AuthorizationCode extractAuthorizationCode(HttpExchange exchange) {
     LOGGER.debug("[{}] Authorization Code Flow: extracting code", getAgentName());
     Map<String, List<String>> params =
-        UriUtils.decodeParameters(exchange.getRequestURI().getRawQuery());
+        URLUtils.parseParameters(exchange.getRequestURI().getRawQuery());
     List<String> states = params.getOrDefault("state", List.of());
-    if (states.size() != 1 || !getState().equals(states.get(0))) {
+    if (states.size() != 1 || !getState().getValue().equals(states.get(0))) {
       throw new IllegalArgumentException("Missing or invalid state");
     }
     List<String> codes = params.getOrDefault("code", List.of());
     if (codes.size() != 1) {
       throw new IllegalArgumentException("Missing or invalid authorization code");
     }
-    return codes.get(0);
+    return new AuthorizationCode(codes.get(0));
   }
 
-  private CompletionStage<Tokens> fetchNewTokens(String code) {
+  private CompletionStage<TokensResult> fetchNewTokens(AuthorizationCode code) {
     LOGGER.debug("[{}] Authorization Code Flow: fetching new tokens", getAgentName());
-    AuthorizationCodeTokenRequest.Builder request =
-        AuthorizationCodeTokenRequest.builder().code(code).redirectUri(getRedirectUri());
-    String codeVerifier = getCodeVerifier();
-    if (codeVerifier != null) {
-      request.codeVerifier(codeVerifier);
-    }
-    return invokeTokenEndpoint(null, request);
+    AuthorizationCodeGrant grant =
+        getConfig().getAuthorizationCodeConfig().isPkceEnabled()
+            ? new AuthorizationCodeGrant(code, getRedirectUri(), getCodeVerifier())
+            : new AuthorizationCodeGrant(code, getRedirectUri());
+    return invokeTokenEndpoint(grant);
   }
 
   private void log(Throwable error) {

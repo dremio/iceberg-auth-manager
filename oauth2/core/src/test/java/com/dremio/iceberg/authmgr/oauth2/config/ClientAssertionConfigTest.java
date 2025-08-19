@@ -27,8 +27,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 import static org.assertj.core.api.AssertionsForClassTypes.catchThrowable;
 
-import com.dremio.iceberg.authmgr.oauth2.auth.JwtSigningAlgorithm;
 import com.dremio.iceberg.authmgr.oauth2.config.validator.ConfigValidator;
+import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.oauth2.sdk.id.Audience;
+import com.nimbusds.oauth2.sdk.id.Issuer;
+import com.nimbusds.oauth2.sdk.id.Subject;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -65,9 +68,15 @@ class ClientAssertionConfigTest {
   static Stream<Arguments> testValidate() {
     return Stream.of(
         Arguments.of(
-            ClientAssertionConfig.builder().algorithm(JwtSigningAlgorithm.RSA_SHA256),
+            ClientAssertionConfig.builder().algorithm(JWSAlgorithm.RS256),
             singletonList(
-                "client assertion: JWT signing algorithm RS256 requires a private key (rest.auth.oauth2.client-assertion.jwt.algorithm / rest.auth.oauth2.client-assertion.jwt.private-key)")),
+                "client assertion: JWS signing algorithm RS256 requires a private key (rest.auth.oauth2.client-assertion.jwt.algorithm / rest.auth.oauth2.client-assertion.jwt.private-key)")),
+        Arguments.of(
+            ClientAssertionConfig.builder()
+                .algorithm(JWSAlgorithm.HS256)
+                .privateKey(Paths.get(tempFile.toString())),
+            singletonList(
+                "client assertion: private key must not be set for JWS algorithm HS256 (rest.auth.oauth2.client-assertion.jwt.algorithm / rest.auth.oauth2.client-assertion.jwt.private-key)")),
         Arguments.of(
             ClientAssertionConfig.builder().privateKey(Paths.get("/invalid/path")),
             singletonList(
@@ -109,12 +118,12 @@ class ClientAssertionConfigTest {
                 PRIVATE_KEY,
                 tempFile.toString()),
             ClientAssertionConfig.builder()
-                .issuer("https://example.com/token")
-                .subject("subject")
-                .audience("audience")
+                .issuer(new Issuer("https://example.com/token"))
+                .subject(new Subject("subject"))
+                .audience(new Audience("audience"))
                 .tokenLifespan(Duration.ofHours(1))
                 .extraClaims(Map.of("key1", "value1"))
-                .algorithm(JwtSigningAlgorithm.RSA_SHA256)
+                .algorithm(JWSAlgorithm.RS256)
                 .privateKey(tempFile)
                 .build(),
             null));
@@ -148,42 +157,42 @@ class ClientAssertionConfigTest {
                 PRIVATE_KEY,
                 tempFile.toString()),
             ClientAssertionConfig.builder()
-                .issuer("https://example.com/token")
-                .subject("subject")
-                .audience("audience")
+                .issuer(new Issuer("https://example.com/token"))
+                .subject(new Subject("subject"))
+                .audience(new Audience("audience"))
                 .tokenLifespan(Duration.ofHours(1))
                 .extraClaims(Map.of("key1", "value1"))
-                .algorithm(JwtSigningAlgorithm.RSA_SHA256)
+                .algorithm(JWSAlgorithm.RS256)
                 .privateKey(tempFile)
                 .build()),
         Arguments.of(
             ClientAssertionConfig.builder()
-                .issuer("https://example.com/token")
-                .subject("subject")
-                .audience("audience")
+                .issuer(new Issuer("https://example.com/token"))
+                .subject(new Subject("subject"))
+                .audience(new Audience("audience"))
                 .tokenLifespan(Duration.ofHours(1))
                 .extraClaims(Map.of("key1", "value1"))
-                .algorithm(JwtSigningAlgorithm.RSA_SHA256)
+                .algorithm(JWSAlgorithm.RS256)
                 .privateKey(tempFile)
                 .build(),
             Map.of(),
             ClientAssertionConfig.builder()
-                .issuer("https://example.com/token")
-                .subject("subject")
-                .audience("audience")
+                .issuer(new Issuer("https://example.com/token"))
+                .subject(new Subject("subject"))
+                .audience(new Audience("audience"))
                 .tokenLifespan(Duration.ofHours(1))
                 .extraClaims(Map.of("key1", "value1"))
-                .algorithm(JwtSigningAlgorithm.RSA_SHA256)
+                .algorithm(JWSAlgorithm.RS256)
                 .privateKey(tempFile)
                 .build()),
         Arguments.of(
             ClientAssertionConfig.builder()
-                .issuer("https://example.com/token")
-                .subject("subject")
-                .audience("audience")
+                .issuer(new Issuer("https://example.com/token"))
+                .subject(new Subject("subject"))
+                .audience(new Audience("audience"))
                 .tokenLifespan(Duration.ofHours(1))
                 .extraClaims(Map.of("key1", "value1"))
-                .algorithm(JwtSigningAlgorithm.RSA_SHA256)
+                .algorithm(JWSAlgorithm.RS256)
                 .privateKey(tempFile)
                 .build(),
             Map.of(

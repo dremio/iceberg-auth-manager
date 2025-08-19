@@ -68,19 +68,27 @@ public abstract class DeviceCodeUserFlow extends UserFlow {
   private URI enterUserCode(URI codePageUrl, String userCode, Set<String> cookies)
       throws Exception {
     LOGGER.debug("Entering user code...");
-    // receive device code page
+    // receive device code page (and discard the HTML content)
     getHtmlPage(codePageUrl, cookies);
     // send device code form to same URL but with POST
     HttpURLConnection codeActionConn = openConnection(codePageUrl);
-    Map<String, String> data = ImmutableMap.of("device_user_code", userCode);
+    // Emulate a failure at this step for unit tests only; for integration tests, we'll do it later
+    boolean wrongCode =
+        getUserBehavior().isEmulateFailure() && getUserBehavior().getUsername().isEmpty();
+    Map<String, String> data =
+        ImmutableMap.of("device_user_code", wrongCode ? "wrong_code" : userCode);
     postForm(codeActionConn, data, cookies);
     URI loginUrl = null;
-    if (getUserBehavior().getUsername().isEmpty()) {
-      // Unit tests: expect just a 200 OK
-      assertThat(codeActionConn.getResponseCode()).isEqualTo(HTTP_OK);
+    if (wrongCode) {
+      assertThat(codeActionConn.getResponseCode()).isEqualTo(HttpURLConnection.HTTP_UNAUTHORIZED);
     } else {
-      // Expect a redirect to the login page
-      loginUrl = readRedirectUrl(codeActionConn, cookies);
+      if (getUserBehavior().getUsername().isEmpty()) {
+        // Unit tests: expect just a 200 OK
+        assertThat(codeActionConn.getResponseCode()).isEqualTo(HTTP_OK);
+      } else {
+        // Expect a redirect to the login page
+        loginUrl = readRedirectUrl(codeActionConn, cookies);
+      }
     }
     codeActionConn.disconnect();
     return loginUrl;

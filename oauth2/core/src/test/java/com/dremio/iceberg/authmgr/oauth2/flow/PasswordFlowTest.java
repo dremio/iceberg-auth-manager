@@ -15,11 +15,12 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.flow;
 
-import static com.dremio.iceberg.authmgr.oauth2.test.TokenAssertions.assertTokens;
+import static com.dremio.iceberg.authmgr.oauth2.test.TokenAssertions.assertTokensResult;
+import static org.assertj.core.api.Assertions.assertThat;
 
-import com.dremio.iceberg.authmgr.oauth2.grant.GrantType;
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
-import com.dremio.iceberg.authmgr.oauth2.token.Tokens;
+import com.nimbusds.oauth2.sdk.GrantType;
+import com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod;
 import java.util.concurrent.ExecutionException;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -27,19 +28,27 @@ import org.junit.jupiter.params.provider.CsvSource;
 class PasswordFlowTest {
 
   @ParameterizedTest
-  @CsvSource({"true, true", "true, false", "false, true", "false, false"})
-  void fetchNewTokens(boolean privateClient, boolean returnRefreshTokens)
+  @CsvSource({
+    "client_secret_basic , true",
+    "client_secret_basic , false",
+    "client_secret_post  , true",
+    "client_secret_post  , false",
+    "none                , true",
+    "none                , false",
+  })
+  void fetchNewTokens(ClientAuthenticationMethod authenticationMethod, boolean returnRefreshTokens)
       throws InterruptedException, ExecutionException {
     try (TestEnvironment env =
             TestEnvironment.builder()
                 .grantType(GrantType.PASSWORD)
-                .privateClient(privateClient)
+                .clientAuthenticationMethod(authenticationMethod)
                 .returnRefreshTokens(returnRefreshTokens)
                 .build();
         FlowFactory flowFactory = env.newFlowFactory()) {
-      InitialFlow flow = flowFactory.createInitialFlow();
-      Tokens tokens = flow.fetchNewTokens().toCompletableFuture().get();
-      assertTokens(tokens, "access_initial", returnRefreshTokens ? "refresh_initial" : null);
+      Flow flow = flowFactory.createInitialFlow();
+      TokensResult tokens = flow.fetchNewTokens().toCompletableFuture().get();
+      assertThat(flow).isInstanceOf(PasswordFlow.class);
+      assertTokensResult(tokens, "access_initial", returnRefreshTokens ? "refresh_initial" : null);
     }
   }
 }

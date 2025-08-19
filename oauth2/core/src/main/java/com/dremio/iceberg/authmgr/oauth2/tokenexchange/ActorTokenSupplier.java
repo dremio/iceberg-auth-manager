@@ -15,28 +15,20 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.tokenexchange;
 
-import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2AgentSpec;
+import com.dremio.iceberg.authmgr.oauth2.OAuth2Config;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
-import java.net.URI;
+import com.nimbusds.oauth2.sdk.token.Token;
+import com.nimbusds.oauth2.sdk.token.TokenTypeURI;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.function.Supplier;
-import org.apache.iceberg.rest.RESTClient;
 
 /** A component that centralizes the logic for supplying the actor token for token exchanges. */
 @AuthManagerImmutable
 public abstract class ActorTokenSupplier extends AbstractTokenSupplier {
 
-  public static ActorTokenSupplier of(
-      OAuth2AgentSpec spec,
-      ScheduledExecutorService executor,
-      Supplier<RESTClient> restClientSupplier) {
-    return ImmutableActorTokenSupplier.builder()
-        .mainSpec(spec)
-        .executor(executor)
-        .restClientSupplier(restClientSupplier)
-        .build();
+  public static ActorTokenSupplier create(OAuth2Config config, ScheduledExecutorService executor) {
+    return ImmutableActorTokenSupplier.builder().mainConfig(config).executor(executor).build();
   }
 
   @Override
@@ -48,22 +40,22 @@ public abstract class ActorTokenSupplier extends AbstractTokenSupplier {
   }
 
   @Override
-  protected Optional<String> getToken() {
-    return getMainSpec().getTokenExchangeConfig().getActorToken();
+  protected Optional<Token> getToken() {
+    return getMainConfig().getTokenExchangeConfig().getActorToken();
   }
 
   @Override
-  protected URI getTokenType() {
-    return getMainSpec().getTokenExchangeConfig().getActorTokenType();
+  protected TokenTypeURI getTokenType() {
+    return getMainConfig().getTokenExchangeConfig().getActorTokenType();
   }
 
   @Override
-  protected Map<String, String> getTokenConfig() {
-    return getMainSpec().getTokenExchangeConfig().getActorTokenConfig();
+  protected Map<String, String> getTokenAgentProperties() {
+    return getMainConfig().getTokenExchangeConfig().getActorTokenConfig();
   }
 
   @Override
   protected String getDefaultAgentName() {
-    return getMainSpec().getRuntimeConfig().getAgentName() + "-actor";
+    return getMainConfig().getSystemConfig().getAgentName() + "-actor";
   }
 }

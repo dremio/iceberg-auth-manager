@@ -15,17 +15,66 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.config;
 
-import jakarta.annotation.Nullable;
+import com.nimbusds.oauth2.sdk.GrantType;
+import com.nimbusds.oauth2.sdk.ParseException;
+import com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod;
+import com.nimbusds.oauth2.sdk.id.Audience;
+import com.nimbusds.oauth2.sdk.token.TokenTypeURI;
+import java.net.URI;
 import java.util.List;
-import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-public class ConfigUtils {
+public final class ConfigUtils {
 
-  public static Optional<String> scopesAsString(List<String> scopes) {
-    return scopes.stream().reduce((a, b) -> a + " " + b);
+  private ConfigUtils() {}
+
+  public static GrantType parseGrantType(String grantType) {
+    try {
+      return GrantType.parse(grantType);
+    } catch (ParseException e) {
+      throw new IllegalArgumentException("Failed to parse grant type: " + grantType, e);
+    }
   }
 
-  public static List<String> scopesAsList(@Nullable String scopes) {
-    return scopes == null || scopes.isBlank() ? List.of() : List.of(scopes.trim().split(" +"));
+  public static TokenTypeURI parseTokenTypeURI(String uri) {
+    try {
+      return TokenTypeURI.parse(uri);
+    } catch (ParseException e) {
+      throw new IllegalArgumentException("Failed to parse token type URI: " + uri, e);
+    }
+  }
+
+  public static List<Audience> parseAudienceList(String audience) {
+    return parseSpaceSeparatedList(audience, Audience::new);
+  }
+
+  public static List<URI> parseUriList(String uris) {
+    return parseSpaceSeparatedList(uris, URI::create);
+  }
+
+  private static <T> List<T> parseSpaceSeparatedList(String text, Function<String, T> mapper) {
+    if (text == null || text.isBlank()) {
+      return List.of();
+    }
+    String[] parts = text.trim().split(" +");
+    return Stream.of(parts).map(mapper).collect(Collectors.toList());
+  }
+
+  public static boolean requiresClientSecret(ClientAuthenticationMethod method) {
+    return method.equals(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
+        || method.equals(ClientAuthenticationMethod.CLIENT_SECRET_POST)
+        || method.equals(ClientAuthenticationMethod.CLIENT_SECRET_JWT);
+  }
+
+  public static boolean requiresJwsAlgorithm(ClientAuthenticationMethod method) {
+    return method.equals(ClientAuthenticationMethod.PRIVATE_KEY_JWT)
+        || method.equals(ClientAuthenticationMethod.CLIENT_SECRET_JWT);
+  }
+
+  public static boolean requiresUserInteraction(GrantType grantType) {
+    return grantType.equals(GrantType.AUTHORIZATION_CODE)
+        || grantType.equals(GrantType.DEVICE_CODE);
   }
 }

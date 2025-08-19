@@ -21,18 +21,18 @@ import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.SCOPE1;
 import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.SCOPE2;
 import static com.dremio.iceberg.authmgr.oauth2.test.expectation.ErrorExpectation.AUTHORIZATION_SERVER_ERROR_RESPONSE;
 
-import com.dremio.iceberg.authmgr.oauth2.config.PkceTransformation;
-import com.dremio.iceberg.authmgr.oauth2.flow.FlowUtils;
-import com.dremio.iceberg.authmgr.oauth2.rest.ImmutableAuthorizationCodeTokenRequest;
-import com.dremio.iceberg.authmgr.oauth2.rest.PostFormRequest;
-import com.dremio.iceberg.authmgr.oauth2.uri.UriBuilder;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
-import java.net.URI;
+import com.google.common.collect.ImmutableMap;
+import com.nimbusds.oauth2.sdk.AuthorizationCode;
+import com.nimbusds.oauth2.sdk.GrantType;
+import com.nimbusds.oauth2.sdk.pkce.CodeChallenge;
+import com.nimbusds.oauth2.sdk.pkce.CodeChallengeMethod;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import org.apache.http.client.utils.URIBuilder;
 import org.immutables.value.Value;
 import org.mockserver.model.HttpRequest;
 import org.mockserver.model.HttpResponse;
@@ -56,21 +56,20 @@ public abstract class AuthorizationCodeExpectation extends InitialTokenFetchExpe
   }
 
   @Override
-  protected PostFormRequest tokenRequestBody() {
-    return ImmutableAuthorizationCodeTokenRequest.builder()
-        .clientId(
-            getTestEnvironment().isPrivateClient()
-                ? null
-                : String.format("(%s|%s)", CLIENT_ID1, CLIENT_ID2))
-        .code("\\w{4}-\\w{4}")
-        .redirectUri(URI.create("http://.*"))
-        .scope(String.format("(%s|%s)", SCOPE1, SCOPE2))
-        .putExtraParameter("(extra1|extra2)", "(value1|value2)")
-        .build();
+  protected ImmutableMap.Builder<String, String> requestBody() {
+    ImmutableMap.Builder<String, String> builder =
+        super.requestBody()
+            .put("grant_type", GrantType.AUTHORIZATION_CODE.toString())
+            .put("code", "[a-zA-Z0-9-._~]+")
+            .put("redirect_uri", "http://.*");
+    if (getTestEnvironment().isPkceEnabled()) {
+      builder.put("code_verifier", "[a-zA-Z0-9-._~]+");
+    }
+    return builder;
   }
 
   @Override
-  protected HttpResponse tokenResponse(
+  protected HttpResponse response(
       HttpRequest httpRequest, String accessToken, String refreshToken) {
     Map<String, List<String>> params = decodeBodyParameters(httpRequest);
     String redirectUri = params.get("redirect_uri").get(0);
@@ -79,27 +78,29 @@ public abstract class AuthorizationCodeExpectation extends InitialTokenFetchExpe
       return AUTHORIZATION_SERVER_ERROR_RESPONSE;
     }
     List<String> code = params.get("code");
-    if (code == null || code.isEmpty() || !code.get(0).equals(pendingAuthRequest.getCode())) {
+    if (code == null
+        || code.isEmpty()
+        || !code.get(0).equals(pendingAuthRequest.getCode().getValue())) {
       return AUTHORIZATION_SERVER_ERROR_RESPONSE;
     }
     if (getTestEnvironment().isPkceEnabled()) {
-      if (pendingAuthRequest.getPkceTransformation().isEmpty()
-          || pendingAuthRequest.getPkceCodeChallenge().isEmpty()) {
+      if (pendingAuthRequest.getCodeChallengeMethod().isEmpty()
+          || pendingAuthRequest.getCodeChallenge().isEmpty()) {
         return AUTHORIZATION_SERVER_ERROR_RESPONSE;
       }
       List<String> codeVerifier = params.get("code_verifier");
       if (codeVerifier == null || codeVerifier.isEmpty()) {
         return AUTHORIZATION_SERVER_ERROR_RESPONSE;
       }
-      String expectedCodeChallenge =
-          FlowUtils.generateCodeChallenge(
-              pendingAuthRequest.getPkceTransformation().get(), codeVerifier.get(0));
-      if (!pendingAuthRequest.getPkceCodeChallenge().get().equals(expectedCodeChallenge)) {
+      if (!pendingAuthRequest
+          .getCodeChallenge()
+          .get()
+          .equals(pendingAuthRequest.getCodeChallenge().get())) {
         return AUTHORIZATION_SERVER_ERROR_RESPONSE;
       }
     }
     getPendingAuthRequests().remove(redirectUri);
-    return super.tokenResponse(httpRequest, accessToken, refreshToken);
+    return super.response(httpRequest, accessToken, refreshToken);
   }
 
   private void createAuthEndpointExpectation() {
@@ -111,12 +112,12 @@ public abstract class AuthorizationCodeExpectation extends InitialTokenFetchExpe
             .withQueryStringParameter("client_id", String.format("(%s|%s)", CLIENT_ID1, CLIENT_ID2))
             .withQueryStringParameter("scope", String.format("(%s|%s)", SCOPE1, SCOPE2))
             .withQueryStringParameter(
-                "redirect_uri", "http://localhost:\\d+/iceberg-auth-manager-\\w+(-\\w+)?/auth")
-            .withQueryStringParameter("state", "\\w+");
+                "redirect_uri", "http://localhost:\\d+/iceberg-auth-manager-\\d+(-\\w+)?/auth")
+            .withQueryStringParameter("state", "[a-zA-Z0-9-._~]+");
     if (getTestEnvironment().isPkceEnabled()) {
       request.withQueryStringParameter("code_challenge", "[a-zA-Z0-9-._~]+");
       request.withQueryStringParameter(
-          "code_challenge_method", getTestEnvironment().getPkceTransformation().getCanonicalName());
+          "code_challenge_method", getTestEnvironment().getCodeChallengeMethod().getValue());
     }
     getClientAndServer()
         .when(request)
@@ -124,31 +125,29 @@ public abstract class AuthorizationCodeExpectation extends InitialTokenFetchExpe
             httpRequest -> {
               Parameters parameters = httpRequest.getQueryStringParameters();
               String redirectUri = parameters.getValues("redirect_uri").get(0);
-              String code =
-                  FlowUtils.randomAlphaNumString(4) + "-" + FlowUtils.randomAlphaNumString(4);
+              AuthorizationCode code = new AuthorizationCode();
               String location =
-                  new UriBuilder(redirectUri)
-                      .queryParam("code", code)
-                      .queryParam("state", parameters.getValues("state").get(0))
+                  new URIBuilder(redirectUri)
+                      .addParameter("code", code.getValue())
+                      .addParameter("state", parameters.getValues("state").get(0))
                       .build()
                       .toString();
-              PkceTransformation pkceTransformation = null;
-              String codeChallenge = null;
+              CodeChallengeMethod method = null;
+              CodeChallenge codeChallenge = null;
               if (getTestEnvironment().isPkceEnabled()) {
                 if (parameters.getValues("code_challenge_method").isEmpty()
                     || parameters.getValues("code_challenge").isEmpty()) {
                   return AUTHORIZATION_SERVER_ERROR_RESPONSE;
                 }
-                pkceTransformation =
-                    PkceTransformation.fromConfigName(
-                        parameters.getValues("code_challenge_method").get(0));
-                codeChallenge = parameters.getValues("code_challenge").get(0);
+                method =
+                    CodeChallengeMethod.parse(parameters.getValues("code_challenge_method").get(0));
+                codeChallenge = CodeChallenge.parse(parameters.getValues("code_challenge").get(0));
               }
               var pendingAuthRequest =
                   ImmutableAuthorizationCodeExpectation.PendingAuthRequest.builder()
                       .code(code)
-                      .pkceTransformation(Optional.ofNullable(pkceTransformation))
-                      .pkceCodeChallenge(Optional.ofNullable(codeChallenge))
+                      .codeChallengeMethod(Optional.ofNullable(method))
+                      .codeChallenge(Optional.ofNullable(codeChallenge))
                       .build();
               getPendingAuthRequests().put(redirectUri, pendingAuthRequest);
               return HttpResponse.response().withStatusCode(302).withHeader("Location", location);
@@ -158,10 +157,10 @@ public abstract class AuthorizationCodeExpectation extends InitialTokenFetchExpe
   @AuthManagerImmutable
   public interface PendingAuthRequest {
 
-    String getCode();
+    AuthorizationCode getCode();
 
-    Optional<PkceTransformation> getPkceTransformation();
+    Optional<CodeChallengeMethod> getCodeChallengeMethod();
 
-    Optional<String> getPkceCodeChallenge();
+    Optional<CodeChallenge> getCodeChallenge();
   }
 }

@@ -16,34 +16,28 @@
 package com.dremio.iceberg.authmgr.oauth2;
 
 import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2Agent;
-import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2AgentSpec;
-import com.dremio.iceberg.authmgr.oauth2.token.AccessToken;
+import com.nimbusds.oauth2.sdk.token.AccessToken;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.function.Supplier;
 import org.apache.iceberg.rest.HTTPHeaders;
 import org.apache.iceberg.rest.HTTPHeaders.HTTPHeader;
 import org.apache.iceberg.rest.HTTPRequest;
 import org.apache.iceberg.rest.ImmutableHTTPRequest;
-import org.apache.iceberg.rest.RESTClient;
 import org.apache.iceberg.rest.auth.AuthSession;
 
 public class OAuth2Session implements AuthSession {
 
   private final OAuth2Agent agent;
 
-  public OAuth2Session(
-      OAuth2AgentSpec spec,
-      ScheduledExecutorService executor,
-      Supplier<RESTClient> restClientSupplier) {
-    this.agent = new OAuth2Agent(spec, executor, restClientSupplier);
+  public OAuth2Session(OAuth2Config config, ScheduledExecutorService executor) {
+    this.agent = new OAuth2Agent(config, executor);
   }
 
   private OAuth2Session(OAuth2Session toCopy) {
     this.agent = toCopy.agent.copy();
   }
 
-  public OAuth2AgentSpec getSpec() {
-    return agent.getSpec();
+  public OAuth2Config getConfig() {
+    return agent.getConfig();
   }
 
   /**
@@ -57,7 +51,7 @@ public class OAuth2Session implements AuthSession {
   @Override
   public HTTPRequest authenticate(HTTPRequest request) {
     AccessToken accessToken = agent.authenticate();
-    HTTPHeader authorization = HTTPHeader.of("Authorization", "Bearer " + accessToken.getPayload());
+    HTTPHeader authorization = HTTPHeader.of("Authorization", "Bearer " + accessToken.getValue());
     HTTPHeaders newHeaders = request.headers().putIfAbsent(HTTPHeaders.of(authorization));
     return newHeaders.equals(request.headers())
         ? request

@@ -21,9 +21,10 @@ import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.ResourceOwner.U
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties;
 import com.dremio.iceberg.authmgr.oauth2.config.option.ConfigOption;
 import com.dremio.iceberg.authmgr.oauth2.config.option.ConfigOptions;
-import com.dremio.iceberg.authmgr.oauth2.grant.GrantType;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
+import com.nimbusds.oauth2.sdk.GrantType;
+import com.nimbusds.oauth2.sdk.auth.Secret;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -76,11 +77,6 @@ public interface ResourceOwnerConfig {
     Builder username(String username);
 
     @CanIgnoreReturnValue
-    default Builder password(String password) {
-      return password(Secret.of(password));
-    }
-
-    @CanIgnoreReturnValue
     Builder password(Secret password);
 
     ResourceOwnerConfig build();
@@ -90,7 +86,7 @@ public interface ResourceOwnerConfig {
     }
 
     private ConfigOption<Secret> passwordOption() {
-      return ConfigOptions.simple(PASSWORD, this::password, Secret::of);
+      return ConfigOptions.simple(PASSWORD, this::password, Secret::new);
     }
   }
 }

@@ -68,13 +68,13 @@ public class SparkNessieKeycloakS3IT extends SparkNessieS3ITBase {
                 .withEnv("nessie.server.authentication.enabled", "true")
                 .withEnv("quarkus.oidc.auth-server-url", "http://keycloak:8080/realms/master")
                 .withEnv("quarkus.oidc.token.issuer", keycloak.getIssuerClaim())
-                .withEnv("quarkus.oidc.client-id", TestConstants.CLIENT_ID1)
+                .withEnv("quarkus.oidc.client-id", TestConstants.CLIENT_ID1.getValue())
                 .withNetwork(network));
   }
 
   @Override
   protected CompletableFuture<String> fetchNewToken() {
-    return keycloakStart.thenApply(v -> keycloak.fetchNewToken(TestConstants.SCOPE1));
+    return keycloakStart.thenApply(v -> keycloak.fetchNewToken(TestConstants.SCOPE1.toString()));
   }
 
   @Override
@@ -84,11 +84,7 @@ public class SparkNessieKeycloakS3IT extends SparkNessieS3ITBase {
         .put(
             "spark.sql.catalog.test.rest.auth.oauth2.issuer-url",
             keycloak.getIssuerUrl().toString())
-        .put("spark.sql.catalog.test.rest.auth.oauth2.scope", TestConstants.SCOPE1)
-        // FIXME remove the workaround
-        // when https://github.com/dremio/iceberg-auth-manager/pull/75 is merged
-        .put("spark.sql.catalog.test.oauth2-server-uri", keycloak.getTokenEndpoint().toString())
-        .put("spark.sql.catalog.test.scope", TestConstants.SCOPE1)
+        .put("spark.sql.catalog.test.rest.auth.oauth2.scope", TestConstants.SCOPE1.toString())
         .build();
   }
 

@@ -15,21 +15,21 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.tokenexchange;
 
+import com.dremio.iceberg.authmgr.oauth2.OAuth2Config;
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties;
 import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2Agent;
-import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2AgentSpec;
-import com.dremio.iceberg.authmgr.oauth2.grant.GrantType;
-import com.dremio.iceberg.authmgr.oauth2.token.TypedToken;
+import com.nimbusds.oauth2.sdk.GrantType;
+import com.nimbusds.oauth2.sdk.token.AccessToken;
+import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
+import com.nimbusds.oauth2.sdk.token.Token;
+import com.nimbusds.oauth2.sdk.token.TokenTypeURI;
 import jakarta.annotation.Nullable;
-import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.function.Supplier;
-import org.apache.iceberg.rest.RESTClient;
 import org.immutables.value.Value;
 
 public abstract class AbstractTokenSupplier implements AutoCloseable {
@@ -42,13 +42,20 @@ public abstract class AbstractTokenSupplier implements AutoCloseable {
    *
    * <p>If no token is configured, the returned stage will be already completed, with a null value.
    */
-  public CompletionStage<TypedToken> supplyTokenAsync() {
+  public CompletionStage<AccessToken> supplyTokenAsync() {
     if (getTokenAgent() != null) {
-      return getTokenAgent().authenticateAsync().thenApply(TypedToken::of);
+      return getTokenAgent().authenticateAsync();
     }
-    return getToken().isPresent()
-        ? CompletableFuture.completedFuture(TypedToken.of(getToken().get(), getTokenType()))
-        : CompletableFuture.completedFuture(null);
+    if (getToken().isPresent()) {
+      Token token = getToken().get();
+      BearerAccessToken accessToken =
+          token instanceof BearerAccessToken
+              ? (BearerAccessToken) token
+              : new BearerAccessToken(token.getValue(), 0, null, getTokenType());
+      return CompletableFuture.completedFuture(accessToken);
+    } else {
+      return CompletableFuture.completedFuture(null);
+    }
   }
 
   /**
@@ -65,18 +72,18 @@ public abstract class AbstractTokenSupplier implements AutoCloseable {
   @Value.Default
   @Nullable
   protected OAuth2Agent getTokenAgent() {
-    if (getMainSpec().getBasicConfig().getGrantType() != GrantType.TOKEN_EXCHANGE
+    if (getMainConfig().getBasicConfig().getGrantType() != GrantType.TOKEN_EXCHANGE
         || getToken().isPresent()
-        || getTokenConfig().isEmpty()) {
+        || getTokenAgentProperties().isEmpty()) {
       return null;
     }
-    Map<String, String> config = getTokenConfig();
-    if (!config.containsKey(OAuth2Properties.Runtime.AGENT_NAME)) {
-      config = new HashMap<>(config);
-      config.put(OAuth2Properties.Runtime.AGENT_NAME, getDefaultAgentName());
+    Map<String, String> tokenAgentProperties = getTokenAgentProperties();
+    if (!tokenAgentProperties.containsKey(OAuth2Properties.System.AGENT_NAME)) {
+      tokenAgentProperties = new HashMap<>(tokenAgentProperties);
+      tokenAgentProperties.put(OAuth2Properties.System.AGENT_NAME, getDefaultAgentName());
     }
-    OAuth2AgentSpec tokenSpec = getMainSpec().merge(config);
-    return new OAuth2Agent(tokenSpec, getExecutor(), getRestClientSupplier());
+    OAuth2Config tokenAgentConfig = getMainConfig().merge(tokenAgentProperties);
+    return new OAuth2Agent(tokenAgentConfig, getExecutor());
   }
 
   @Override
@@ -86,18 +93,16 @@ public abstract class AbstractTokenSupplier implements AutoCloseable {
     }
   }
 
-  protected abstract OAuth2AgentSpec getMainSpec();
+  protected abstract OAuth2Config getMainConfig();
 
   protected abstract ScheduledExecutorService getExecutor();
 
-  protected abstract Supplier<RESTClient> getRestClientSupplier();
+  protected abstract Optional<Token> getToken();
 
-  protected abstract Optional<String> getToken();
-
-  protected abstract URI getTokenType();
+  protected abstract TokenTypeURI getTokenType();
 
   @Value.Derived
-  protected abstract Map<String, String> getTokenConfig();
+  protected abstract Map<String, String> getTokenAgentProperties();
 
   protected abstract String getDefaultAgentName();
 }

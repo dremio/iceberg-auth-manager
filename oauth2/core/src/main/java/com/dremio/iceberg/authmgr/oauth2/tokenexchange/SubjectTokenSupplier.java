@@ -15,29 +15,22 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.tokenexchange;
 
-import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2AgentSpec;
+import com.dremio.iceberg.authmgr.oauth2.OAuth2Config;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
-import java.net.URI;
+import com.nimbusds.oauth2.sdk.token.Token;
+import com.nimbusds.oauth2.sdk.token.TokenTypeURI;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.function.Supplier;
-import org.apache.iceberg.rest.RESTClient;
 import org.immutables.value.Value;
 
 /** A component that centralizes the logic for supplying the subject token for token exchanges. */
 @AuthManagerImmutable
 public abstract class SubjectTokenSupplier extends AbstractTokenSupplier {
 
-  public static SubjectTokenSupplier of(
-      OAuth2AgentSpec spec,
-      ScheduledExecutorService executor,
-      Supplier<RESTClient> restClientSupplier) {
-    return ImmutableSubjectTokenSupplier.builder()
-        .mainSpec(spec)
-        .executor(executor)
-        .restClientSupplier(restClientSupplier)
-        .build();
+  public static SubjectTokenSupplier create(
+      OAuth2Config config, ScheduledExecutorService executor) {
+    return ImmutableSubjectTokenSupplier.builder().mainConfig(config).executor(executor).build();
   }
 
   @Override
@@ -50,29 +43,29 @@ public abstract class SubjectTokenSupplier extends AbstractTokenSupplier {
 
   @Value.Check
   protected void validate() {
-    if (getToken().isEmpty() && getTokenConfig().isEmpty()) {
+    if (getToken().isEmpty() && getTokenAgentProperties().isEmpty()) {
       throw new IllegalArgumentException(
           "Subject token is dynamic but no configuration is provided");
     }
   }
 
   @Override
-  protected Optional<String> getToken() {
-    return getMainSpec().getTokenExchangeConfig().getSubjectToken();
+  protected Optional<Token> getToken() {
+    return getMainConfig().getTokenExchangeConfig().getSubjectToken();
   }
 
   @Override
-  protected URI getTokenType() {
-    return getMainSpec().getTokenExchangeConfig().getSubjectTokenType();
+  protected TokenTypeURI getTokenType() {
+    return getMainConfig().getTokenExchangeConfig().getSubjectTokenType();
   }
 
   @Override
-  protected Map<String, String> getTokenConfig() {
-    return getMainSpec().getTokenExchangeConfig().getSubjectTokenConfig();
+  protected Map<String, String> getTokenAgentProperties() {
+    return getMainConfig().getTokenExchangeConfig().getSubjectTokenConfig();
   }
 
   @Override
   protected String getDefaultAgentName() {
-    return getMainSpec().getRuntimeConfig().getAgentName() + "-subject";
+    return getMainConfig().getSystemConfig().getAgentName() + "-subject";
   }
 }

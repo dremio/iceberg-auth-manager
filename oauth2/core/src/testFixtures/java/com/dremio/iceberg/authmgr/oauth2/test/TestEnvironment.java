@@ -15,36 +15,27 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.test;
 
+import com.dremio.iceberg.authmgr.oauth2.OAuth2Config;
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Manager;
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.Basic;
-import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.Runtime;
+import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.System;
 import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2Agent;
-import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2AgentSpec;
-import com.dremio.iceberg.authmgr.oauth2.auth.ClientAuthentication;
 import com.dremio.iceberg.authmgr.oauth2.config.AuthorizationCodeConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.BasicConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.ClientAssertionConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.ConfigUtils;
 import com.dremio.iceberg.authmgr.oauth2.config.DeviceCodeConfig;
-import com.dremio.iceberg.authmgr.oauth2.config.Dialect;
-import com.dremio.iceberg.authmgr.oauth2.config.PkceTransformation;
 import com.dremio.iceberg.authmgr.oauth2.config.ResourceOwnerConfig;
-import com.dremio.iceberg.authmgr.oauth2.config.RuntimeConfig;
+import com.dremio.iceberg.authmgr.oauth2.config.SystemConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.TokenExchangeConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.TokenRefreshConfig;
-import com.dremio.iceberg.authmgr.oauth2.endpoint.EndpointProvider;
-import com.dremio.iceberg.authmgr.oauth2.endpoint.EndpointProviderFactory;
 import com.dremio.iceberg.authmgr.oauth2.flow.FlowFactory;
-import com.dremio.iceberg.authmgr.oauth2.flow.FlowUtils;
-import com.dremio.iceberg.authmgr.oauth2.grant.GrantType;
 import com.dremio.iceberg.authmgr.oauth2.test.ImmutableTestEnvironment.Builder;
 import com.dremio.iceberg.authmgr.oauth2.test.expectation.ImmutableAuthorizationCodeExpectation;
 import com.dremio.iceberg.authmgr.oauth2.test.expectation.ImmutableClientCredentialsExpectation;
 import com.dremio.iceberg.authmgr.oauth2.test.expectation.ImmutableConfigEndpointExpectation;
 import com.dremio.iceberg.authmgr.oauth2.test.expectation.ImmutableDeviceCodeExpectation;
 import com.dremio.iceberg.authmgr.oauth2.test.expectation.ImmutableErrorExpectation;
-import com.dremio.iceberg.authmgr.oauth2.test.expectation.ImmutableIcebergClientCredentialsExpectation;
-import com.dremio.iceberg.authmgr.oauth2.test.expectation.ImmutableIcebergRefreshTokenExpectation;
 import com.dremio.iceberg.authmgr.oauth2.test.expectation.ImmutableLoadTableEndpointExpectation;
 import com.dremio.iceberg.authmgr.oauth2.test.expectation.ImmutableMetadataDiscoveryExpectation;
 import com.dremio.iceberg.authmgr.oauth2.test.expectation.ImmutablePasswordExpectation;
@@ -57,8 +48,17 @@ import com.dremio.iceberg.authmgr.oauth2.test.user.InteractiveUserEmulator;
 import com.dremio.iceberg.authmgr.oauth2.test.user.UserBehavior;
 import com.dremio.iceberg.authmgr.oauth2.test.user.UserEmulator;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
+import com.nimbusds.oauth2.sdk.GrantType;
+import com.nimbusds.oauth2.sdk.Scope;
+import com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod;
+import com.nimbusds.oauth2.sdk.auth.Secret;
+import com.nimbusds.oauth2.sdk.id.Audience;
+import com.nimbusds.oauth2.sdk.id.ClientID;
+import com.nimbusds.oauth2.sdk.pkce.CodeChallengeMethod;
+import com.nimbusds.oauth2.sdk.token.AccessToken;
+import com.nimbusds.oauth2.sdk.token.Token;
+import com.nimbusds.oauth2.sdk.token.TokenTypeURI;
 import jakarta.annotation.Nullable;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -90,10 +90,6 @@ public abstract class TestEnvironment implements AutoCloseable {
 
   @Value.Check
   public void validate() {
-    Preconditions.checkArgument(getGrantType().isInitial(), "Grant type must be initial");
-    getServer();
-    getHttpClient();
-    getUser();
     if (isCreateDefaultExpectations()) {
       createExpectations();
     }
@@ -105,17 +101,7 @@ public abstract class TestEnvironment implements AutoCloseable {
   }
 
   @Value.Default
-  public Dialect getDialect() {
-    return Dialect.STANDARD;
-  }
-
-  @Value.Default
   public boolean isUnitTest() {
-    return true;
-  }
-
-  @Value.Default
-  public boolean isPrivateClient() {
     return true;
   }
 
@@ -126,7 +112,7 @@ public abstract class TestEnvironment implements AutoCloseable {
 
   @Value.Default
   public boolean isReturnRefreshTokens() {
-    return true;
+    return !getGrantType().equals(GrantType.CLIENT_CREDENTIALS);
   }
 
   @Value.Default
@@ -145,17 +131,6 @@ public abstract class TestEnvironment implements AutoCloseable {
   }
 
   @Value.Default
-  public HTTPClient getHttpClient() {
-    return newHttpClientBuilder(Map.of()).build();
-  }
-
-  public HTTPClient.Builder newHttpClientBuilder(Map<String, String> properties) {
-    return HTTPClient.builder(properties)
-        .uri(getCatalogServerUrl())
-        .withAuthSession(AuthSession.EMPTY);
-  }
-
-  @Value.Default
   public ScheduledExecutorService getExecutor() {
     return ThreadPools.newScheduledPool(getAgentName() + "-refresh", getExecutorPoolSize());
   }
@@ -165,11 +140,6 @@ public abstract class TestEnvironment implements AutoCloseable {
     return 1;
   }
 
-  @Value.Lazy
-  public EndpointProvider getEndpointProvider() {
-    return EndpointProviderFactory.createEndpointProvider(getAgentSpec(), this::getHttpClient);
-  }
-
   public void reset() {
     getServer().reset();
   }
@@ -177,10 +147,6 @@ public abstract class TestEnvironment implements AutoCloseable {
   @Override
   public void close() {
     getUser().close();
-    try {
-      getHttpClient().close();
-    } catch (IOException ignored) {
-    }
     try {
       getExecutor().shutdown();
       if (!getExecutor().awaitTermination(10, TimeUnit.SECONDS)) {
@@ -221,9 +187,7 @@ public abstract class TestEnvironment implements AutoCloseable {
 
   @Value.Default
   public URI getTokenEndpoint() {
-    return getDialect() == Dialect.ICEBERG_REST
-        ? URI.create(ResourcePaths.tokens())
-        : getAuthorizationServerUrl().resolve("protocol/openid-connect/token");
+    return getAuthorizationServerUrl().resolve("protocol/openid-connect/token");
   }
 
   @Value.Default
@@ -256,7 +220,7 @@ public abstract class TestEnvironment implements AutoCloseable {
 
   @Value.Default
   public String getWellKnownPath() {
-    return EndpointProvider.WELL_KNOWN_PATHS.get(0);
+    return ".well-known/openid-configuration";
   }
 
   @Value.Default
@@ -265,8 +229,8 @@ public abstract class TestEnvironment implements AutoCloseable {
   }
 
   @Value.Default
-  public OAuth2AgentSpec getAgentSpec() {
-    return OAuth2AgentSpec.builder()
+  public OAuth2Config getOAuth2Config() {
+    return OAuth2Config.builder()
         .basicConfig(getBasicConfig())
         .resourceOwnerConfig(getResourceOwnerConfig())
         .authorizationCodeConfig(getAuthorizationCodeConfig())
@@ -274,7 +238,7 @@ public abstract class TestEnvironment implements AutoCloseable {
         .tokenRefreshConfig(getTokenRefreshConfig())
         .tokenExchangeConfig(getTokenExchangeConfig())
         .clientAssertionConfig(getClientAssertionConfig())
-        .runtimeConfig(getRuntimeConfig())
+        .systemConfig(getSystemConfig())
         .build();
   }
 
@@ -282,21 +246,20 @@ public abstract class TestEnvironment implements AutoCloseable {
   public BasicConfig getBasicConfig() {
     BasicConfig.Builder builder =
         BasicConfig.builder()
-            .scopes(getScopes())
-            .extraRequestParameters(Map.of("extra1", "value1"))
             .grantType(getGrantType())
-            .dialect(getDialect())
+            .clientAuthenticationMethod(getClientAuthenticationMethod())
+            .scope(getScope())
+            .extraRequestParameters(Map.of("extra1", "value1"))
             .minTimeout(getTimeout())
             .timeout(getTimeout());
     if (getToken().isPresent()) {
       builder.token(getToken().get());
     } else {
       builder.clientId(getClientId());
-      if (isPrivateClient()) {
-        builder.clientSecret(getClientSecret());
-      }
     }
-    getClientAuthentication().ifPresent(builder::clientAuthentication);
+    if (ConfigUtils.requiresClientSecret(getClientAuthenticationMethod())) {
+      builder.clientSecret(getClientSecret());
+    }
     if (isDiscoveryEnabled()) {
       builder.issuerUrl(getAuthorizationServerUrl());
     } else {
@@ -306,22 +269,25 @@ public abstract class TestEnvironment implements AutoCloseable {
   }
 
   @Value.Default
-  public String getClientId() {
+  public ClientID getClientId() {
     return TestConstants.CLIENT_ID1;
   }
 
   @Value.Default
-  public String getClientSecret() {
+  public Secret getClientSecret() {
     return TestConstants.CLIENT_SECRET1;
   }
 
-  public abstract Optional<ClientAuthentication> getClientAuthentication();
+  @Value.Default
+  public ClientAuthenticationMethod getClientAuthenticationMethod() {
+    return ClientAuthenticationMethod.CLIENT_SECRET_BASIC;
+  }
 
-  public abstract Optional<String> getToken();
+  public abstract Optional<AccessToken> getToken();
 
   @Value.Default
-  public List<String> getScopes() {
-    return List.of(TestConstants.SCOPE1);
+  public Scope getScope() {
+    return TestConstants.SCOPE1;
   }
 
   @Value.Default
@@ -354,11 +320,6 @@ public abstract class TestEnvironment implements AutoCloseable {
   }
 
   @Value.Default
-  public Duration getRefreshTokenLifespan() {
-    return TestConstants.REFRESH_TOKEN_LIFESPAN;
-  }
-
-  @Value.Default
   public ResourceOwnerConfig getResourceOwnerConfig() {
     return ResourceOwnerConfig.builder()
         .username(TestConstants.USERNAME)
@@ -367,7 +328,7 @@ public abstract class TestEnvironment implements AutoCloseable {
   }
 
   @Value.Default
-  public String getPassword() {
+  public Secret getPassword() {
     return TestConstants.PASSWORD;
   }
 
@@ -376,7 +337,7 @@ public abstract class TestEnvironment implements AutoCloseable {
     AuthorizationCodeConfig.Builder builder =
         AuthorizationCodeConfig.builder()
             .pkceEnabled(isPkceEnabled())
-            .pkceTransformation(getPkceTransformation());
+            .codeChallengeMethod(getCodeChallengeMethod());
     if (!isDiscoveryEnabled()) {
       builder.authorizationEndpoint(getAuthorizationEndpoint());
     }
@@ -389,8 +350,8 @@ public abstract class TestEnvironment implements AutoCloseable {
   }
 
   @Value.Default
-  public PkceTransformation getPkceTransformation() {
-    return PkceTransformation.S256;
+  public CodeChallengeMethod getCodeChallengeMethod() {
+    return CodeChallengeMethod.S256;
   }
 
   @Value.Default
@@ -422,22 +383,22 @@ public abstract class TestEnvironment implements AutoCloseable {
       builder.actorToken(getActorToken());
     }
     if (getAudience() != null) {
-      builder.audience(getAudience());
+      builder.audiences(List.of(getAudience()));
     }
     if (getResource() != null) {
-      builder.resource(getResource());
+      builder.resources(List.of(getResource()));
     }
     return builder.build();
   }
 
   @Value.Default
   @Nullable
-  public String getSubjectToken() {
+  public Token getSubjectToken() {
     return TestConstants.SUBJECT_TOKEN;
   }
 
   @Value.Default
-  public URI getSubjectTokenType() {
+  public TokenTypeURI getSubjectTokenType() {
     return TestConstants.SUBJECT_TOKEN_TYPE;
   }
 
@@ -447,41 +408,42 @@ public abstract class TestEnvironment implements AutoCloseable {
   }
 
   @Value.Default
-  public String getSubjectClientId() {
+  public ClientID getSubjectClientId() {
     return TestConstants.CLIENT_ID2;
   }
 
   @Value.Default
-  public String getSubjectClientSecret() {
+  public Secret getSubjectClientSecret() {
     return TestConstants.CLIENT_SECRET2;
   }
 
   @Value.Default
-  public List<String> getSubjectScopes() {
-    return List.of(TestConstants.SCOPE2);
+  public Scope getSubjectScope() {
+    return TestConstants.SCOPE2;
   }
 
   @Value.Default
   public Map<String, String> getSubjectTokenConfig() {
     ImmutableMap.Builder<String, String> builder =
         ImmutableMap.<String, String>builder()
-            .put(Basic.GRANT_TYPE, getSubjectGrantType().getCommonName())
-            .put(Basic.CLIENT_ID, getSubjectClientId())
-            .put(Basic.CLIENT_SECRET, getSubjectClientSecret())
-            .put(Basic.EXTRA_PARAMS_PREFIX + "extra2", "value2");
-    ConfigUtils.scopesAsString(getSubjectScopes())
-        .ifPresent(scope -> builder.put(Basic.SCOPE, scope));
+            .put(Basic.GRANT_TYPE, getSubjectGrantType().getValue())
+            .put(Basic.CLIENT_ID, getSubjectClientId().getValue())
+            .put(Basic.EXTRA_PARAMS_PREFIX + "extra2", "value2")
+            .put(Basic.SCOPE, getSubjectScope().toString());
+    if (ConfigUtils.requiresClientSecret(getClientAuthenticationMethod())) {
+      builder.put(Basic.CLIENT_SECRET, getSubjectClientSecret().getValue());
+    }
     return builder.build();
   }
 
   @Value.Default
   @Nullable
-  public String getActorToken() {
+  public Token getActorToken() {
     return TestConstants.ACTOR_TOKEN;
   }
 
   @Value.Default
-  public URI getActorTokenType() {
+  public TokenTypeURI getActorTokenType() {
     return TestConstants.ACTOR_TOKEN_TYPE;
   }
 
@@ -491,41 +453,42 @@ public abstract class TestEnvironment implements AutoCloseable {
   }
 
   @Value.Default
-  public String getActorClientId() {
+  public ClientID getActorClientId() {
     return TestConstants.CLIENT_ID1;
   }
 
   @Value.Default
-  public String getActorClientSecret() {
+  public Secret getActorClientSecret() {
     return TestConstants.CLIENT_SECRET1;
   }
 
   @Value.Default
-  public List<String> getActorScopes() {
-    return List.of(TestConstants.SCOPE1);
+  public Scope getActorScope() {
+    return TestConstants.SCOPE1;
   }
 
   @Value.Default
   public Map<String, String> getActorTokenConfig() {
     ImmutableMap.Builder<String, String> builder =
         ImmutableMap.<String, String>builder()
-            .put(Basic.GRANT_TYPE, getActorGrantType().getCommonName())
-            .put(Basic.CLIENT_ID, getActorClientId())
-            .put(Basic.CLIENT_SECRET, getActorClientSecret())
-            .put(Basic.EXTRA_PARAMS_PREFIX + "extra2", "value2");
-    ConfigUtils.scopesAsString(getActorScopes())
-        .ifPresent(scope -> builder.put(Basic.SCOPE, scope));
+            .put(Basic.GRANT_TYPE, getActorGrantType().getValue())
+            .put(Basic.CLIENT_ID, getActorClientId().getValue())
+            .put(Basic.EXTRA_PARAMS_PREFIX + "extra2", "value2")
+            .put(Basic.SCOPE, getActorScope().toString());
+    if (ConfigUtils.requiresClientSecret(getClientAuthenticationMethod())) {
+      builder.put(Basic.CLIENT_SECRET, getActorClientSecret().getValue());
+    }
     return builder.build();
   }
 
   @Value.Default
-  public URI getRequestedTokenType() {
+  public TokenTypeURI getRequestedTokenType() {
     return TestConstants.REQUESTED_TOKEN_TYPE;
   }
 
   @Value.Default
   @Nullable
-  public String getAudience() {
+  public Audience getAudience() {
     return TestConstants.AUDIENCE;
   }
 
@@ -541,10 +504,12 @@ public abstract class TestEnvironment implements AutoCloseable {
   }
 
   @Value.Default
-  public RuntimeConfig getRuntimeConfig() {
-    RuntimeConfig.Builder builder =
-        RuntimeConfig.builder().clock(getClock()).agentName(getAgentName()).console(getConsole());
-    return builder.build();
+  public SystemConfig getSystemConfig() {
+    return SystemConfig.builder()
+        .agentName(getAgentName())
+        .clock(getClock())
+        .console(getConsole())
+        .build();
   }
 
   @Value.Default
@@ -554,7 +519,7 @@ public abstract class TestEnvironment implements AutoCloseable {
 
   @Value.Default
   public String getAgentName() {
-    return "iceberg-auth-manager-" + FlowUtils.randomAlphaNumString(4);
+    return "iceberg-auth-manager-" + java.lang.System.nanoTime();
   }
 
   @Value.Derived
@@ -577,24 +542,12 @@ public abstract class TestEnvironment implements AutoCloseable {
     if (isForceInactiveUser()) {
       return UserEmulator.INACTIVE;
     } else {
-      GrantType mainGrant = getBasicConfig().getGrantType();
-      GrantType subjectGrant =
-          mainGrant == GrantType.TOKEN_EXCHANGE
-                  && getTokenExchangeConfig().getSubjectToken().isEmpty()
-                  && getTokenExchangeConfig().getSubjectTokenConfig().containsKey(Basic.GRANT_TYPE)
-              ? GrantType.fromConfigName(
-                  getTokenExchangeConfig().getSubjectTokenConfig().get(Basic.GRANT_TYPE))
-              : GrantType.CLIENT_CREDENTIALS;
-      GrantType actorGrant =
-          mainGrant == GrantType.TOKEN_EXCHANGE
-                  && getTokenExchangeConfig().getActorToken().isEmpty()
-                  && getTokenExchangeConfig().getActorTokenConfig().containsKey(Basic.GRANT_TYPE)
-              ? GrantType.fromConfigName(
-                  getTokenExchangeConfig().getActorTokenConfig().get(Basic.GRANT_TYPE))
-              : GrantType.CLIENT_CREDENTIALS;
-      if (mainGrant.requiresUserInteraction()
-          || subjectGrant.requiresUserInteraction()
-          || actorGrant.requiresUserInteraction()) {
+      GrantType mainGrant = getGrantType();
+      GrantType subjectGrant = getSubjectGrantType();
+      GrantType actorGrant = getActorGrantType();
+      if (ConfigUtils.requiresUserInteraction(mainGrant)
+          || ConfigUtils.requiresUserInteraction(subjectGrant)
+          || ConfigUtils.requiresUserInteraction(actorGrant)) {
         return new InteractiveUserEmulator(getUserBehavior());
       }
     }
@@ -603,27 +556,19 @@ public abstract class TestEnvironment implements AutoCloseable {
 
   @Value.Default
   public Map<String, String> getCatalogProperties() {
-    ImmutableMap.Builder<String, String> builder =
-        ImmutableMap.<String, String>builder()
-            .put(CatalogProperties.URI, getCatalogServerUrl().toString())
-            .put("prefix", TestConstants.WAREHOUSE)
-            .put(CatalogProperties.FILE_IO_IMPL, "org.apache.iceberg.inmemory.InMemoryFileIO")
-            .put(AuthProperties.AUTH_TYPE, OAuth2Manager.class.getName())
-            .put(Basic.GRANT_TYPE, getGrantType().toString())
-            .put(Basic.CLIENT_ID, getClientId())
-            .put(Basic.CLIENT_SECRET, getClientSecret())
-            .put(Basic.SCOPE, ConfigUtils.scopesAsString(getScopes()).orElse(TestConstants.SCOPE1))
-            .put(Basic.EXTRA_PARAMS_PREFIX + "extra1", "value1")
-            .put(Runtime.AGENT_NAME, getAgentName());
-    if (getDialect() == Dialect.ICEBERG_REST) {
-      builder
-          .put(Basic.DIALECT, Dialect.ICEBERG_REST.toString())
-          .put(Basic.TOKEN_ENDPOINT, getTokenEndpoint().toString());
-
-    } else {
-      builder.put(Basic.ISSUER_URL, getAuthorizationServerUrl().toString());
-    }
-    return builder.build();
+    return ImmutableMap.<String, String>builder()
+        .put(CatalogProperties.URI, getCatalogServerUrl().toString())
+        .put("prefix", TestConstants.WAREHOUSE)
+        .put(CatalogProperties.FILE_IO_IMPL, "org.apache.iceberg.inmemory.InMemoryFileIO")
+        .put(AuthProperties.AUTH_TYPE, OAuth2Manager.class.getName())
+        .put(Basic.GRANT_TYPE, getGrantType().toString())
+        .put(Basic.ISSUER_URL, getAuthorizationServerUrl().toString())
+        .put(Basic.CLIENT_ID, getClientId().getValue())
+        .put(Basic.CLIENT_SECRET, getClientSecret().getValue())
+        .put(Basic.SCOPE, getScope().toString())
+        .put(Basic.EXTRA_PARAMS_PREFIX + "extra1", "value1")
+        .put(System.AGENT_NAME, getAgentName())
+        .build();
   }
 
   @Value.Default
@@ -636,9 +581,15 @@ public abstract class TestEnvironment implements AutoCloseable {
     return Map.of();
   }
 
+  public HTTPClient.Builder newIcebergRestClientBuilder(Map<String, String> properties) {
+    return HTTPClient.builder(properties)
+        .uri(getCatalogServerUrl())
+        .withAuthSession(AuthSession.EMPTY);
+  }
+
   public RESTCatalog newCatalog() {
     RESTCatalog catalog =
-        new RESTCatalog(getSessionContext(), config -> newHttpClientBuilder(config).build());
+        new RESTCatalog(getSessionContext(), config -> newIcebergRestClientBuilder(config).build());
     UserEmulator user = getUser();
     user.addErrorListener(
         e -> {
@@ -648,39 +599,53 @@ public abstract class TestEnvironment implements AutoCloseable {
             throw new RuntimeException(ex);
           }
         });
-    catalog.initialize("catalog-" + FlowUtils.randomAlphaNumString(4), getCatalogProperties());
+    catalog.initialize("catalog-" + java.lang.System.nanoTime(), getCatalogProperties());
     return catalog;
   }
 
   public FlowFactory newFlowFactory() {
-    return FlowFactory.of(getAgentSpec(), getExecutor(), this::getHttpClient);
+    return FlowFactory.create(getOAuth2Config(), getExecutor());
   }
 
   public OAuth2Agent newAgent() {
-    OAuth2Agent agent = new OAuth2Agent(getAgentSpec(), getExecutor(), this::getHttpClient);
+    OAuth2Agent agent = new OAuth2Agent(getOAuth2Config(), getExecutor());
     getUser().addErrorListener(e -> agent.close());
     return agent;
   }
 
   public void createExpectations() {
-    if (getDialect() == Dialect.STANDARD) {
-      ImmutableClientCredentialsExpectation.of(this).create();
-    } else {
-      ImmutableIcebergClientCredentialsExpectation.of(this).create();
-    }
-    ImmutablePasswordExpectation.of(this).create();
-    ImmutableAuthorizationCodeExpectation.of(this).create();
-    ImmutableDeviceCodeExpectation.of(this).create();
-    ImmutableTokenExchangeExpectation.of(this).create();
-    if (getDialect() == Dialect.STANDARD) {
-      ImmutableRefreshTokenExpectation.of(this).create();
-    } else {
-      ImmutableIcebergRefreshTokenExpectation.of(this).create();
-    }
-    ImmutableConfigEndpointExpectation.of(this).create();
-    ImmutableLoadTableEndpointExpectation.of(this).create();
+    createInitialGrantExpectations(getGrantType());
+    createRefreshTokenExpectations();
+    createCatalogExpectations();
     createMetadataDiscoveryExpectations();
     createErrorExpectations();
+  }
+
+  public void createInitialGrantExpectations(GrantType grantType) {
+    if (grantType.equals(GrantType.CLIENT_CREDENTIALS)) {
+      ImmutableClientCredentialsExpectation.of(this).create();
+    } else if (grantType.equals(GrantType.PASSWORD)) {
+      ImmutablePasswordExpectation.of(this).create();
+    } else if (grantType.equals(GrantType.AUTHORIZATION_CODE)) {
+      ImmutableAuthorizationCodeExpectation.of(this).create();
+    } else if (grantType.equals(GrantType.DEVICE_CODE)) {
+      ImmutableDeviceCodeExpectation.of(this).create();
+    } else if (grantType.equals(GrantType.TOKEN_EXCHANGE)) {
+      ImmutableTokenExchangeExpectation.of(this).create();
+      createInitialGrantExpectations(getSubjectGrantType());
+      createInitialGrantExpectations(getActorGrantType());
+    }
+  }
+
+  public void createRefreshTokenExpectations() {
+    if (isTokenRefreshEnabled()) {
+      ImmutableRefreshTokenExpectation.of(this).create();
+    }
+  }
+
+  public void createCatalogExpectations() {
+    ImmutableConfigEndpointExpectation.of(this).create();
+    ImmutableLoadTableEndpointExpectation.of(this).create();
   }
 
   public void createMetadataDiscoveryExpectations() {

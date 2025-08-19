@@ -15,12 +15,13 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.flow;
 
-import static com.dremio.iceberg.authmgr.oauth2.test.TokenAssertions.assertTokens;
+import static com.dremio.iceberg.authmgr.oauth2.test.TokenAssertions.assertTokensResult;
+import static org.assertj.core.api.Assertions.assertThat;
 
-import com.dremio.iceberg.authmgr.oauth2.config.PkceTransformation;
-import com.dremio.iceberg.authmgr.oauth2.grant.GrantType;
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
-import com.dremio.iceberg.authmgr.oauth2.token.Tokens;
+import com.nimbusds.oauth2.sdk.GrantType;
+import com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod;
+import com.nimbusds.oauth2.sdk.pkce.CodeChallengeMethod;
 import java.util.concurrent.ExecutionException;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -29,37 +30,38 @@ class AuthorizationCodeFlowTest {
 
   @ParameterizedTest
   @CsvSource({
-    "true, S256, true, true",
-    "true, S256, true, false",
-    "true, S256, false, true",
-    "true, S256, false, false",
-    "true, PLAIN, true, true",
-    "true, PLAIN, true, false",
-    "true, PLAIN, false, true",
-    "true, PLAIN, false, false",
-    "false, S256, true, true",
-    "false, S256, true, false",
-    "false, S256, false, true",
-    "false, S256, false, false",
+    "client_secret_basic, true,  S256,  true",
+    "none               , true,  S256,  true",
+    "client_secret_post , true,  S256,  false",
+    "none               , true,  S256,  false",
+    "client_secret_basic, true,  plain, true",
+    "none               , true,  plain, true",
+    "client_secret_post , true,  plain, false",
+    "none               , true,  plain, false",
+    "client_secret_basic, false, S256,  true",
+    "none               , false, S256,  true",
+    "client_secret_post , false, S256,  false",
+    "none               , false, S256,  false",
   })
   void fetchNewTokens(
+      ClientAuthenticationMethod authenticationMethod,
       boolean pkceEnabled,
-      PkceTransformation pkceTransformation,
-      boolean privateClient,
+      CodeChallengeMethod codeChallengeMethod,
       boolean returnRefreshTokens)
       throws InterruptedException, ExecutionException {
     try (TestEnvironment env =
             TestEnvironment.builder()
                 .grantType(GrantType.AUTHORIZATION_CODE)
+                .clientAuthenticationMethod(authenticationMethod)
                 .pkceEnabled(pkceEnabled)
-                .pkceTransformation(pkceTransformation)
-                .privateClient(privateClient)
+                .codeChallengeMethod(codeChallengeMethod)
                 .returnRefreshTokens(returnRefreshTokens)
                 .build();
         FlowFactory flowFactory = env.newFlowFactory()) {
-      InitialFlow flow = flowFactory.createInitialFlow();
-      Tokens tokens = flow.fetchNewTokens().toCompletableFuture().get();
-      assertTokens(tokens, "access_initial", returnRefreshTokens ? "refresh_initial" : null);
+      Flow flow = flowFactory.createInitialFlow();
+      assertThat(flow).isInstanceOf(AuthorizationCodeFlow.class);
+      TokensResult tokens = flow.fetchNewTokens().toCompletableFuture().get();
+      assertTokensResult(tokens, "access_initial", returnRefreshTokens ? "refresh_initial" : null);
     }
   }
 }

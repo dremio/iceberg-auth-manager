@@ -15,12 +15,13 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.flow;
 
-import static com.dremio.iceberg.authmgr.oauth2.test.TokenAssertions.assertTokens;
+import static com.dremio.iceberg.authmgr.oauth2.test.TokenAssertions.assertTokensResult;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import com.dremio.iceberg.authmgr.oauth2.config.DeviceCodeConfig;
-import com.dremio.iceberg.authmgr.oauth2.grant.GrantType;
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
-import com.dremio.iceberg.authmgr.oauth2.token.Tokens;
+import com.nimbusds.oauth2.sdk.GrantType;
+import com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod;
 import java.time.Duration;
 import java.util.concurrent.ExecutionException;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -29,25 +30,33 @@ import org.junit.jupiter.params.provider.CsvSource;
 class DeviceCodeFlowTest {
 
   @ParameterizedTest
-  @CsvSource({"true, true", "true, false", "false, true", "false, false"})
-  void fetchNewTokens(boolean privateClient, boolean returnRefreshTokens)
+  @CsvSource({
+    "client_secret_basic , true",
+    "client_secret_basic , false",
+    "client_secret_post  , true",
+    "client_secret_post  , false",
+    "none                , true",
+    "none                , false",
+  })
+  void fetchNewTokens(ClientAuthenticationMethod authenticationMethod, boolean returnRefreshTokens)
       throws ExecutionException, InterruptedException {
     try (TestEnvironment env =
             TestEnvironment.builder()
                 .grantType(GrantType.DEVICE_CODE)
+                .clientAuthenticationMethod(authenticationMethod)
                 .deviceCodeConfig(
                     DeviceCodeConfig.builder()
                         .minPollInterval(Duration.ofMillis(10))
                         .pollInterval(Duration.ofMillis(10))
                         .ignoreServerPollInterval(true)
                         .build())
-                .privateClient(privateClient)
                 .returnRefreshTokens(returnRefreshTokens)
                 .build();
         FlowFactory flowFactory = env.newFlowFactory()) {
-      InitialFlow flow = flowFactory.createInitialFlow();
-      Tokens tokens = flow.fetchNewTokens().toCompletableFuture().get();
-      assertTokens(tokens, "access_initial", returnRefreshTokens ? "refresh_initial" : null);
+      Flow flow = flowFactory.createInitialFlow();
+      assertThat(flow).isInstanceOf(DeviceCodeFlow.class);
+      TokensResult tokens = flow.fetchNewTokens().toCompletableFuture().get();
+      assertTokensResult(tokens, "access_initial", returnRefreshTokens ? "refresh_initial" : null);
     }
   }
 }

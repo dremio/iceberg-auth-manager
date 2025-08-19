@@ -36,6 +36,8 @@ Other properties are listed below.
 
 ## Basic Settings
 
+Basic OAuth2 properties. These properties are used to configure the basic OAuth2 options such as the issuer URL, token endpoint, client ID, and client secret.
+
 ### `rest.auth.oauth2.token`
 
 The initial access token to use. Optional. If this is set, the agent will not attempt to fetch the first new token from the Authorization server, but will use this token instead.
@@ -64,35 +66,33 @@ Either this property or `rest.auth.oauth2.issuer-url` must be set. In case it is
 
 The grant type to use when authenticating against the OAuth2 server. Valid values are:
 
-- `client_credentials`
-- `password`
-- `authorization_code`
-- `device_code`
-- `token_exchange`
+- client_credentials (`client_credentials`)
+- password (`password`)
+- authorization_code (`authorization_code`)
+- urn:ietf:params:oauth:grant-type:device_code (`urn:ietf:params:oauth:grant-type:device_code`)
+- urn:ietf:params:oauth:grant-type:token-exchange (`urn:ietf:params:oauth:grant-type:token-exchange`)
 
 Optional, defaults to `client_credentials`.
 
 ### `rest.auth.oauth2.client-id`
 
-Client ID to use when authenticating against the OAuth2 server. Required, unless using the Iceberg OAuth2 dialect (`rest.auth.oauth2.dialect`).
+Client ID to use when authenticating against the OAuth2 server. Required, unless a static token (`rest.auth.oauth2.token`) is provided.
 
 ### `rest.auth.oauth2.client-auth`
 
 The OAuth2 client authentication method to use. Valid values are:
 
-- `none`: the client does not authenticate itself at the token endpoint, because it is a public client with no client secret or other authentication mechanism.
-- `client_secret_basic`: client secret is sent in the HTTP Basic Authorization header.
-- `client_secret_post`: client secret is sent in the request body as a form parameter.
-- `client_secret_jwt`: client secret is used to sign a JWT token.
-- `private_key_jwt`: client authenticates with a JWT assertion signed with a private key.
+- none (`none`): the client does not authenticate itself at the token endpoint, because it is a public client with no client secret or other authentication mechanism.
+- client_secret_basic (`client_secret_basic`): client secret is sent in the HTTP Basic Authorization header.
+- client_secret_post (`client_secret_post`): client secret is sent in the request body as a form parameter.
+- client_secret_jwt (`client_secret_jwt`): client secret is used to sign a JWT token.
+- private_key_jwt (`private_key_jwt`): client authenticates with a JWT assertion signed with a private key.
 
-The default is `client_secret_basic` if the client is private, or `none` if the client is public.
-
-This property is ignored when dialect is `iceberg_rest` or when a token (`rest.auth.oauth2.token`) is provided.
+The default is `client_secret_basic`.
 
 ### `rest.auth.oauth2.client-secret`
 
-Client secret to use when authenticating against the OAuth2 server. Required if the client is private and is authenticated using the standard "client-secret" methods. If other authentication methods are used, this property is ignored.
+Client secret to use when authenticating against the OAuth2 server. Required if the client is private and is authenticated using the standard "client-secret" methods. If other authentication methods are used (e.g. `private_key_jwt`), this property is ignored.
 
 ### `rest.auth.oauth2.scope`
 
@@ -117,27 +117,15 @@ For example, Auth0 requires the `audience` parameter to be set to the API identi
 rest.auth.oauth2.extra-params.audience=https://iceberg-rest-catalog/api
 ```
 
-### `rest.auth.oauth2.dialect`
-
-The OAuth2 dialect. Possible values are: `standard` and `iceberg_rest`.
-
-If the Iceberg dialect is selected, the agent will behave exactly like the built-in OAuth2 manager from Iceberg Core. This dialect should only be selected if the token endpoint is internal to the REST catalog server, and the server is configured to understand this dialect.
-
-The Iceberg dialect's main differences from standard OAuth2 are:
-
-- Only `client_credentials` grant type is supported;
-- Token refreshes are done with the `token_exchange` grant type;
-- Token refreshes are done with Bearer authentication, not Basic authentication;
-- Public clients are not supported, however client secrets without client IDs are supported;
-- Client ID and client secret are sent as request body parameters, and not as Basic authentication.
-
-Optional. The default value is `iceberg_rest` if either `rest.auth.oauth2.token` is provided or `rest.auth.oauth2.token-endpoint` contains a relative URI, and `standard` otherwise.
-
 ### `rest.auth.oauth2.timeout`
 
 Defines how long the agent should wait for tokens to be acquired. Optional, defaults to `PT5M`.
 
 ## Client Assertion Settings
+
+Configuration properties for JWT client assertion as specified in [JSON Web Token (JWT) Profile for OAuth 2.0 Client Authentication and Authorization Grants](https://datatracker.ietf.org/doc/html/rfc7523).
+
+These properties allow the client to authenticate using the `client_secret_jwt` or `private_key_jwt` authentication methods.
 
 ### `rest.auth.oauth2.client-assertion.jwt.issuer`
 
@@ -157,9 +145,9 @@ The expiration time of the client assertion JWT. Optional. The default is 5 minu
 
 ### `rest.auth.oauth2.client-assertion.jwt.algorithm`
 
-The signing algorithm to use for the client assertion JWT. Optional. The default is `hmac_sha512` if the authentication method is `client_secret_jwt`, or `rsa_sha512` if the authentication method is `private_key_jwt`.
+The signing algorithm to use for the client assertion JWT. Optional. The default is `HS512` if the authentication method is `client_secret_jwt`, or `RS512` if the authentication method is `private_key_jwt`.
 
-Algorithm names must match either the JWS name or the JCA name of the algorithm.
+Algorithm names must match the "alg" Param Value as described in [RFC 7518 Section 3.1](https://datatracker.ietf.org/doc/html/rfc7518#section-3.1).
 
 ### `rest.auth.oauth2.client-assertion.jwt.private-key`
 
@@ -170,6 +158,8 @@ The path on the local filesystem to the private key to use for signing the clien
 Extra claims to include in the client assertion JWT. This is a prefix property, and multiple values can be set, each with a different key and value.
 
 ## Token Refresh Settings
+
+Configuration properties for the token refresh feature.
 
 ### `rest.auth.oauth2.token-refresh.enabled`
 
@@ -191,6 +181,10 @@ Defines for how long the OAuth2 manager should keep the tokens fresh, if the age
 
 ## Resource Owner Settings
 
+Configuration properties for the [Resource Owner Password Credentials Grant](https://datatracker.ietf.org/doc/html/rfc6749#section-4.3) flow.
+
+Note: according to the [OAuth 2.0 Security Best Current Practice, section 2.4](https://datatracker.ietf.org/doc/html/draft-ietf-oauth-security-topics#section-2.4) this flow should NOT be used anymore because it "insecurely exposes the credentials of the resource owner to the client".
+
 ### `rest.auth.oauth2.resource-owner.username`
 
 Username to use when authenticating against the OAuth2 server. Required if using OAuth2 authentication and `password` grant type, ignored otherwise.
@@ -200,6 +194,10 @@ Username to use when authenticating against the OAuth2 server. Required if using
 Password to use when authenticating against the OAuth2 server. Required if using OAuth2 authentication and the `password` grant type, ignored otherwise.
 
 ## Authorization Code Settings
+
+Configuration properties for the [Authorization Code Grant](https://datatracker.ietf.org/doc/html/rfc6749#section-4.1) flow.
+
+This flow is used to obtain an access token by redirecting the user to the OAuth2 authorization server, where they can log in and authorize the client application to access their resources.
 
 ### `rest.auth.oauth2.auth-code.endpoint`
 
@@ -241,11 +239,15 @@ Optional; if not present, a default context path will be used.
 
 Whether to enable PKCE (Proof Key for Code Exchange) for the authorization code flow. The default is `true`.
 
-### `rest.auth.oauth2.auth-code.pkce.transformation`
+### `rest.auth.oauth2.auth-code.pkce.method`
 
-The PKCE transformation to use. The default is `S256`. This is only used if PKCE is enabled.
+The PKCE code challenge method to use. The default is `S256`. This is only used if PKCE is enabled.
 
 ## Device Code Settings
+
+Configuration properties for the [Device Authorization Grant](https://datatracker.ietf.org/doc/html/rfc8628) flow.
+
+This flow is used to obtain an access token for devices that do not have a browser or limited input capabilities. The user is prompted to visit a URL on another device and enter a code to authorize the device.
 
 ### `rest.auth.oauth2.device-code.endpoint`
 
@@ -255,9 +257,13 @@ If using the "Device Code" grant type, either this property or `rest.auth.oauth2
 
 ### `rest.auth.oauth2.device-code.poll-interval`
 
-Defines how often the agent should poll the OAuth2 server for the device code flow to complete. This is only used if the grant type to use is `device_code`. Optional, defaults to `PT5S`.
+Defines how often the agent should poll the OAuth2 server for the device code flow to complete. This is only used if the grant type to use is `urn:ietf:params:oauth:grant-type:device_code`. Optional, defaults to `PT5S`.
 
 ## Token Exchange Settings
+
+Configuration properties for the [Token Exchange](https://datatracker.ietf.org/doc/html/rfc8693) flow.
+
+This flow allows a client to exchange one token for another, typically to obtain a token that is more suitable for the target resource or service.
 
 ### `rest.auth.oauth2.token-exchange.subject-token`
 
@@ -331,31 +337,33 @@ The above configuration will result in a token exchange where the actor token is
 
 ### `rest.auth.oauth2.token-exchange.resource`
 
-For token exchanges only. A URI that indicates the target service or resource where the client intends to use the requested security token. Optional.
+For token exchanges only. A space-separatee list of URIs that indicate the target service(s) or resource(s) where the client intends to use the requested security token. Optional.
 
 ### `rest.auth.oauth2.token-exchange.audience`
 
-For token exchanges only. The logical name of the target service where the client intends to use the requested security token. This serves a purpose similar to the resource parameter but with the client providing a logical name for the target service.
+For token exchanges only. A space-separated list of logical names of the target service(s) where the client intends to use the requested security token. This serves a purpose similar to the resource parameter but with the client providing a logical name for the target service.
 
-## Runtime Settings
+## System Settings
 
-### `rest.auth.oauth2.runtime.agent-name`
+Configuration properties for the whole system.
+
+These properties are used to configure properties such as the session cache timeout and the HTTP client type.
+
+### `rest.auth.oauth2.system.agent-name`
 
 The distinctive name of the OAuth2 agent. Defaults to `iceberg-auth-manager`. This name is printed in all log messages and user prompts.
 
-## Manager Settings
-
-### `rest.auth.oauth2.manager.session-cache-timeout`
+### `rest.auth.oauth2.system.session-cache-timeout`
 
 The session cache timeout. Cached sessions will become eligible for eviction after this duration of inactivity. Defaults to `PT1H`. Must be a valid [ISO-8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations).
 
 This value is used for housekeeping; it does not mean that cached sessions will stop working after this time, but that the session cache will evict the session after this time of inactivity. If the context is used again, a new session will be created and cached.
 
-### `rest.auth.oauth2.manager.migrate-legacy-properties`
+### `rest.auth.oauth2.system.http-client.type`
 
-Whether to migrate Iceberg OAuth2 legacy properties. Defaults to `false`.
+The type of HTTP client to use for making HTTP requests to the OAuth2 server. Valid values are:
 
-When enabled, the manager will automatically migrate legacy Iceberg OAuth2 properties to their new equivalents; e.g. it would map `oauth2-server-uri` to `rest.auth.oauth2.token-endpoint`.
+- default (`default`): uses the built-in URLConnection-based client provided by the underlying OAuth2 library.
 
-When disabled, legacy properties are ignored.
+Optional, defaults to `default`.
 

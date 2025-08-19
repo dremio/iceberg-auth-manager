@@ -34,8 +34,6 @@ limitations under the License.
   <logger name="com.dremio.iceberg.authmgr.oauth2.flow" level="INFO"/>
   <!-- User emulator logs -->
   <logger name="com.dremio.iceberg.authmgr.oauth2.test.user" level="INFO"/>
-  <!-- HTTP client logs; set this to DEBUG to log requests and responses -->
-  <logger name="org.apache.hc.client5.http.wire" level="INFO"/>
   <!-- Keycloak container logs -->
   <logger name="com.dremio.iceberg.authmgr.oauth2.test.container.KeycloakContainer" level="WARN"/>
   <!-- Polaris container logs -->
