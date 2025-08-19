@@ -221,7 +221,9 @@ public abstract class TestEnvironment implements AutoCloseable {
 
   @Value.Default
   public URI getTokenEndpoint() {
-    return getAuthorizationServerUrl().resolve("protocol/openid-connect/token");
+    return getDialect() == Dialect.ICEBERG_REST
+        ? URI.create(ResourcePaths.tokens())
+        : getAuthorizationServerUrl().resolve("protocol/openid-connect/token");
   }
 
   @Value.Default
@@ -293,7 +295,6 @@ public abstract class TestEnvironment implements AutoCloseable {
       if (isPrivateClient()) {
         builder.clientSecret(getClientSecret());
       }
-      builder.clientId(getClientId());
     }
     getClientAuthentication().ifPresent(builder::clientAuthentication);
     if (isDiscoveryEnabled()) {
@@ -602,20 +603,27 @@ public abstract class TestEnvironment implements AutoCloseable {
 
   @Value.Default
   public Map<String, String> getCatalogProperties() {
-    return ImmutableMap.<String, String>builder()
-        .put(CatalogProperties.URI, getCatalogServerUrl().toString())
-        .put("prefix", TestConstants.WAREHOUSE)
-        .put(CatalogProperties.FILE_IO_IMPL, "org.apache.iceberg.inmemory.InMemoryFileIO")
-        .put(AuthProperties.AUTH_TYPE, OAuth2Manager.class.getName())
-        .put(Basic.GRANT_TYPE, getGrantType().toString())
-        .put(Basic.ISSUER_URL, getAuthorizationServerUrl().toString())
-        .put(Basic.CLIENT_ID, getClientId())
-        .put(Basic.CLIENT_SECRET, getClientSecret())
-        .put(Basic.SCOPE, ConfigUtils.scopesAsString(getScopes()).orElse(TestConstants.SCOPE1))
-        .put(Basic.DIALECT, getDialect().toString())
-        .put(Basic.EXTRA_PARAMS_PREFIX + "extra1", "value1")
-        .put(Runtime.AGENT_NAME, getAgentName())
-        .build();
+    ImmutableMap.Builder<String, String> builder =
+        ImmutableMap.<String, String>builder()
+            .put(CatalogProperties.URI, getCatalogServerUrl().toString())
+            .put("prefix", TestConstants.WAREHOUSE)
+            .put(CatalogProperties.FILE_IO_IMPL, "org.apache.iceberg.inmemory.InMemoryFileIO")
+            .put(AuthProperties.AUTH_TYPE, OAuth2Manager.class.getName())
+            .put(Basic.GRANT_TYPE, getGrantType().toString())
+            .put(Basic.CLIENT_ID, getClientId())
+            .put(Basic.CLIENT_SECRET, getClientSecret())
+            .put(Basic.SCOPE, ConfigUtils.scopesAsString(getScopes()).orElse(TestConstants.SCOPE1))
+            .put(Basic.EXTRA_PARAMS_PREFIX + "extra1", "value1")
+            .put(Runtime.AGENT_NAME, getAgentName());
+    if (getDialect() == Dialect.ICEBERG_REST) {
+      builder
+          .put(Basic.DIALECT, Dialect.ICEBERG_REST.toString())
+          .put(Basic.TOKEN_ENDPOINT, getTokenEndpoint().toString());
+
+    } else {
+      builder.put(Basic.ISSUER_URL, getAuthorizationServerUrl().toString());
+    }
+    return builder.build();
   }
 
   @Value.Default
