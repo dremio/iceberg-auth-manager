@@ -105,9 +105,21 @@ rest.auth.oauth2.client-assertion.jwt.algorithm=RSA_SHA256
 rest.auth.oauth2.client-assertion.jwt.private-key=/path/to/private_key.pem
 ```
 
-When using this method, the private key file must be provided using the `rest.auth.oauth2.client-assertion.jwt.private-key` property. The file must be in PEM format; it may contain a private key, or a private key and a certificate chain. Only the private key is used.
+When using this method, the private key file must be provided using the `rest.auth.oauth2.client-assertion.jwt.private-key` property. 
 
-The authorization server then validates the signature using the client's registered public key.
+The file must be in PEM format. It may contain multiple objects; the first private key encountered
+in the file is used.
+
+The following format is always supported:
+
+1. RSA keys in PKCS#8 format (`BEGIN PRIVATE KEY`)
+
+If the BouncyCastle library is available at runtime, the following formats are also supported:
+
+2. RSA keys in PKCS#1 format (`BEGIN RSA PRIVATE KEY`)
+3. EC (Elliptic Curve) keys (`BEGIN EC PRIVATE KEY`)
+
+Only unencrypted private keys are supported.
 
 #### Configuring JWT Assertions
 

@@ -373,7 +373,17 @@ Algorithm names must match the "alg" Param Value as described in [RFC 7518 Secti
 
 ### `rest.auth.oauth2.client-assertion.jwt.private-key`
 
-The path on the local filesystem to the private key to use for signing the client assertion JWT. Required if the authentication method is `private_key_jwt`. The file must be in PEM format; it may contain a private key, or a private key and a certificate chain. Only the private key is used.
+The path on the local filesystem to the private key to use for signing the client assertion JWT. Required if the authentication method is `private_key_jwt`.
+
+The file must be in PEM format; it may contain a private key, or a private key and a certificate chain. Only the private key is used.
+
+Supported key formats are:
+
+- RSA PKCS#8 (`BEGIN PRIVATE KEY`): always supported
+- RSA PKCS#1 (`BEGIN RSA PRIVATE KEY`): requires the BouncyCastle library
+- ECDSA (`BEGIN EC PRIVATE KEY`): requires the BouncyCastle library
+
+Only unencrypted keys are supported currently.
 
 ### `rest.auth.oauth2.client-assertion.jwt.extra-claims.*`
 

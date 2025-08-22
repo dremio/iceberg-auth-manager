@@ -89,8 +89,20 @@ public interface ClientAssertionConfig {
   /**
    * The path on the local filesystem to the private key to use for signing the client assertion
    * JWT. Required if the authentication method is {@link
-   * ClientAuthenticationMethod#PRIVATE_KEY_JWT}. The file must be in PEM format; it may contain a
-   * private key, or a private key and a certificate chain. Only the private key is used.
+   * ClientAuthenticationMethod#PRIVATE_KEY_JWT}.
+   *
+   * <p>The file must be in PEM format; it may contain a private key, or a private key and a
+   * certificate chain. Only the private key is used.
+   *
+   * <p>Supported key formats are:
+   *
+   * <ul>
+   *   <li>RSA PKCS#8 ({@code BEGIN PRIVATE KEY}): always supported
+   *   <li>RSA PKCS#1 ({@code BEGIN RSA PRIVATE KEY}): requires the BouncyCastle library
+   *   <li>ECDSA ({@code BEGIN EC PRIVATE KEY}): requires the BouncyCastle library
+   * </ul>
+   *
+   * Only unencrypted keys are supported currently.
    */
   @WithName(PRIVATE_KEY)
   Optional<Path> getPrivateKey();

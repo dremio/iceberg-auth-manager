@@ -13,27 +13,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dremio.iceberg.authmgr.oauth2.flow;
+package com.dremio.iceberg.authmgr.oauth2.crypto;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.KeyFactory;
-import java.security.interfaces.RSAPrivateKey;
+import java.security.PrivateKey;
 import java.security.spec.PKCS8EncodedKeySpec;
 import org.apache.commons.codec.binary.Base64;
 
-final class PemUtils {
+final class JcaPemReader implements PemReader {
 
-  static RSAPrivateKey readPrivateKey(Path file) {
+  @Override
+  public PrivateKey readPrivateKey(Path file) {
     try {
       byte[] encoded = Base64.decodeBase64(readPemEncodedPrivateKey(file));
       KeyFactory keyFactory = KeyFactory.getInstance("RSA");
       PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(encoded);
-      return (RSAPrivateKey) keyFactory.generatePrivate(keySpec);
+      return keyFactory.generatePrivate(keySpec);
     } catch (Exception e) {
-      throw new RuntimeException(e);
+      throw new IllegalArgumentException("Failed to read PEM file: " + file, e);
     }
   }
 
@@ -51,6 +52,9 @@ final class PemUtils {
           keyBuilder.append(line.trim());
         }
       }
+    }
+    if (keyBuilder.length() == 0) {
+      throw new IllegalArgumentException("No private key found in file: " + file);
     }
     return keyBuilder.toString();
   }

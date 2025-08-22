@@ -37,10 +37,11 @@ slf4j = "2.0.17"
 # (aka mention of the dependency removed).
 #
 assertj-core = { module = "org.assertj:assertj-core", version = "3.27.3" }
-bouncycastle-bcpkix = { module = "org.bouncycastle:bcpkix-jdk15on", version = "1.70" }
+bouncycastle-bcpkix = { module = "org.bouncycastle:bcpkix-jdk18on", version = "1.81" }
 caffeine = { module = "com.github.ben-manes.caffeine:caffeine", version = "3.2.2" }
 errorprone = { module = "com.google.errorprone:error_prone_core", version.ref = "errorprone"  }
 errorprone-annotations = { module = "com.google.errorprone:error_prone_annotations", version.ref = "errorprone" }
+guava = { module = "com.google.guava:guava", version = "33.4.8-jre" }
 hadoop-common = { module = "org.apache.hadoop:hadoop-common", version.ref = "hadoop" }
 hadoop-hdfs-client = { module = "org.apache.hadoop:hadoop-hdfs-client", version.ref = "hadoop" }
 hadoop-mapreduce-client-core = { module = "org.apache.hadoop:hadoop-mapreduce-client-core", version.ref = "hadoop" }

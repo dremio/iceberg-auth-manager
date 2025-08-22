@@ -15,21 +15,31 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.test.container;
 
+import static com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod.CLIENT_SECRET_BASIC;
+import static com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod.CLIENT_SECRET_JWT;
+import static com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod.NONE;
+import static com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod.PRIVATE_KEY_JWT;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.dremio.iceberg.authmgr.oauth2.test.CryptoUtils;
 import com.dremio.iceberg.authmgr.oauth2.test.TestConstants;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod;
-import com.nimbusds.oauth2.sdk.id.ClientID;
 import dasniko.testcontainers.keycloak.ExtendableKeycloakContainer;
 import jakarta.ws.rs.core.Response;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.keycloak.admin.client.Keycloak;
 import org.keycloak.admin.client.resource.RealmResource;
 import org.keycloak.representations.idm.ClientRepresentation;
@@ -46,12 +56,33 @@ import org.testcontainers.containers.output.Slf4jLogConsumer;
 
 public class KeycloakContainer extends ExtendableKeycloakContainer<KeycloakContainer> {
 
+  // Client1 is used for client_secret_basic and client_secret_post authentication
+  public static final String CLIENT_ID1 = "Client1";
+  public static final String CLIENT_SECRET1 = "s3cr3t";
+
+  // Client2 is used for "none" authentication (public client)
+  public static final String CLIENT_ID2 = "Client2";
+
+  // Client3 is used for client_secret_jwt authentication
+  public static final String CLIENT_ID3 = "Client3";
+  public static final String CLIENT_SECRET3 = Strings.repeat("S3CR3T", 10);
+
+  // Client4 is used for private_key_jwt authentication (RSA)
+  public static final String CLIENT_ID4 = "Client4";
+  public static final String CLIENT_SECRET4 = loadCertificate("/openssl/rsa_certificate.pem");
+
+  // Client5 is used for private_key_jwt authentication (ECDSA)
+  public static final String CLIENT_ID5 = "Client5";
+  public static final String CLIENT_SECRET5 = loadCertificate("/openssl/ecdsa_certificate.pem");
+
+  public static final String SCOPE1 = "catalog";
+
   private static final Logger LOGGER = LoggerFactory.getLogger(KeycloakContainer.class);
 
   private static final Duration ACCESS_TOKEN_LIFESPAN = Duration.ofSeconds(15);
   private static final Duration SESSION_LIFESPAN = Duration.ofSeconds(20);
 
-  public static final String CONTEXT_PATH = "/realms/master/";
+  private static final String CONTEXT_PATH = "/realms/master/";
 
   private URI rootUrl;
   private URI issuerUrl;
@@ -84,22 +115,11 @@ public class KeycloakContainer extends ExtendableKeycloakContainer<KeycloakConta
       updateMasterRealm(master);
       createScope(master);
       createUser(master);
-      createClient(
-          master,
-          TestConstants.CLIENT_ID1,
-          TestConstants.CLIENT_SECRET1.getValue(),
-          ClientAuthenticationMethod.CLIENT_SECRET_BASIC);
-      createClient(master, TestConstants.CLIENT_ID2, null, ClientAuthenticationMethod.NONE);
-      createClient(
-          master,
-          TestConstants.CLIENT_ID3,
-          TestConstants.CLIENT_SECRET3.getValue(),
-          ClientAuthenticationMethod.CLIENT_SECRET_JWT);
-      createClient(
-          master,
-          TestConstants.CLIENT_ID4,
-          CryptoUtils.encodedSelfSignedCertificate(TestConstants.CLIENT_ID4.getValue()),
-          ClientAuthenticationMethod.PRIVATE_KEY_JWT);
+      createClient(master, CLIENT_ID1, CLIENT_SECRET1, CLIENT_SECRET_BASIC);
+      createClient(master, CLIENT_ID2, null, NONE);
+      createClient(master, CLIENT_ID3, CLIENT_SECRET3, CLIENT_SECRET_JWT);
+      createClient(master, CLIENT_ID4, CLIENT_SECRET4, PRIVATE_KEY_JWT);
+      createClient(master, CLIENT_ID5, CLIENT_SECRET5, PRIVATE_KEY_JWT);
     }
   }
 
@@ -166,7 +186,7 @@ public class KeycloakContainer extends ExtendableKeycloakContainer<KeycloakConta
   protected void createScope(RealmResource master) {
     ClientScopeRepresentation scope = new ClientScopeRepresentation();
     scope.setId(UUID.randomUUID().toString());
-    scope.setName(TestConstants.SCOPE1.toString());
+    scope.setName(SCOPE1);
     scope.setProtocol("openid-connect");
     scope.setAttributes(
         Map.of(
@@ -183,17 +203,16 @@ public class KeycloakContainer extends ExtendableKeycloakContainer<KeycloakConta
 
   protected void createClient(
       RealmResource master,
-      ClientID clientId,
+      String clientId,
       String clientSecret,
       ClientAuthenticationMethod authenticationMethod) {
     ClientRepresentation client = new ClientRepresentation();
     String clientUuid = UUID.randomUUID().toString();
     client.setId(clientUuid);
-    client.setClientId(clientId.getValue());
-    client.setPublicClient(authenticationMethod == ClientAuthenticationMethod.NONE);
+    client.setClientId(clientId);
+    client.setPublicClient(authenticationMethod == NONE);
     client.setServiceAccountsEnabled(
-        authenticationMethod
-            != ClientAuthenticationMethod.NONE); // required for client credentials grant
+        authenticationMethod != NONE); // required for client credentials grant
     client.setDirectAccessGrantsEnabled(true); // required for password grant
     client.setStandardFlowEnabled(true); // required for authorization code grant
     client.setRedirectUris(ImmutableList.of("http://localhost:*"));
@@ -204,14 +223,14 @@ public class KeycloakContainer extends ExtendableKeycloakContainer<KeycloakConta
             .put("oauth2.device.authorization.grant.enabled", "true")
             .put("standard.token.exchange.enabled", "true")
             .put("standard.token.exchange.enableRefreshRequestedTokenType", "SAME_SESSION");
-    if (!authenticationMethod.equals(ClientAuthenticationMethod.NONE)) {
-      if (authenticationMethod.equals(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
+    if (!authenticationMethod.equals(NONE)) {
+      if (authenticationMethod.equals(CLIENT_SECRET_BASIC)
           || authenticationMethod.equals(ClientAuthenticationMethod.CLIENT_SECRET_POST)) {
         client.setSecret(clientSecret);
-      } else if (authenticationMethod.equals(ClientAuthenticationMethod.CLIENT_SECRET_JWT)) {
+      } else if (authenticationMethod.equals(CLIENT_SECRET_JWT)) {
         client.setSecret(clientSecret);
         client.setClientAuthenticatorType("client-secret-jwt");
-      } else if (authenticationMethod.equals(ClientAuthenticationMethod.PRIVATE_KEY_JWT)) {
+      } else if (authenticationMethod.equals(PRIVATE_KEY_JWT)) {
         attributes.put("jwt.credential.certificate", clientSecret);
         client.setClientAuthenticatorType("client-jwt");
       }
@@ -287,6 +306,24 @@ public class KeycloakContainer extends ExtendableKeycloakContainer<KeycloakConta
     try (Response response =
         master.clients().get(clientUuid).getProtocolMappers().createMapper(mapper)) {
       assertThat(response.getStatus()).isEqualTo(201);
+    }
+  }
+
+  /**
+   * Loads a certificate from the classpath and returns it as a string in the format expected by
+   * Keycloak (i.e. without the BEGIN/END markers and with all line breaks removed).
+   */
+  private static String loadCertificate(String resource) {
+    try (InputStream is =
+            Objects.requireNonNull(KeycloakContainer.class.getResourceAsStream(resource));
+        BufferedReader reader =
+            new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
+      return reader
+          .lines()
+          .filter(line -> !line.startsWith("-----"))
+          .collect(Collectors.joining(""));
+    } catch (IOException e) {
+      throw new RuntimeException(e);
     }
   }
 

@@ -15,10 +15,25 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.agent;
 
+import static com.dremio.iceberg.authmgr.oauth2.test.container.KeycloakContainer.CLIENT_ID1;
+import static com.dremio.iceberg.authmgr.oauth2.test.container.KeycloakContainer.CLIENT_ID2;
+import static com.dremio.iceberg.authmgr.oauth2.test.container.KeycloakContainer.CLIENT_ID3;
+import static com.dremio.iceberg.authmgr.oauth2.test.container.KeycloakContainer.CLIENT_ID4;
+import static com.dremio.iceberg.authmgr.oauth2.test.container.KeycloakContainer.CLIENT_ID5;
+import static com.dremio.iceberg.authmgr.oauth2.test.container.KeycloakContainer.CLIENT_SECRET3;
 import static com.nimbusds.oauth2.sdk.GrantType.AUTHORIZATION_CODE;
+import static com.nimbusds.oauth2.sdk.GrantType.CLIENT_CREDENTIALS;
 import static com.nimbusds.oauth2.sdk.GrantType.DEVICE_CODE;
 import static com.nimbusds.oauth2.sdk.GrantType.PASSWORD;
 import static com.nimbusds.oauth2.sdk.GrantType.TOKEN_EXCHANGE;
+import static com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod.CLIENT_SECRET_BASIC;
+import static com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod.CLIENT_SECRET_JWT;
+import static com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod.CLIENT_SECRET_POST;
+import static com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod.NONE;
+import static com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod.PRIVATE_KEY_JWT;
+import static com.nimbusds.oauth2.sdk.token.TokenTypeURI.ACCESS_TOKEN;
+import static com.nimbusds.oauth2.sdk.token.TokenTypeURI.REFRESH_TOKEN;
+import static org.assertj.core.api.Assumptions.assumeThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
 import com.dremio.iceberg.authmgr.oauth2.config.BasicConfig;
@@ -26,10 +41,9 @@ import com.dremio.iceberg.authmgr.oauth2.config.ClientAssertionConfig;
 import com.dremio.iceberg.authmgr.oauth2.flow.OAuth2Exception;
 import com.dremio.iceberg.authmgr.oauth2.flow.TokensResult;
 import com.dremio.iceberg.authmgr.oauth2.http.HttpClientType;
-import com.dremio.iceberg.authmgr.oauth2.test.CryptoUtils;
 import com.dremio.iceberg.authmgr.oauth2.test.ImmutableTestEnvironment.Builder;
-import com.dremio.iceberg.authmgr.oauth2.test.TestConstants;
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
+import com.dremio.iceberg.authmgr.oauth2.test.container.KeycloakContainer;
 import com.dremio.iceberg.authmgr.oauth2.test.container.KeycloakExtension;
 import com.dremio.iceberg.authmgr.oauth2.test.junit.EnumLike;
 import com.dremio.iceberg.authmgr.oauth2.test.user.UserBehavior;
@@ -38,16 +52,17 @@ import com.nimbusds.jwt.JWT;
 import com.nimbusds.jwt.JWTParser;
 import com.nimbusds.oauth2.sdk.ErrorObject;
 import com.nimbusds.oauth2.sdk.GrantType;
-import com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod;
 import com.nimbusds.oauth2.sdk.auth.Secret;
 import com.nimbusds.oauth2.sdk.id.ClientID;
 import com.nimbusds.oauth2.sdk.pkce.CodeChallengeMethod;
 import com.nimbusds.oauth2.sdk.token.AccessToken;
-import com.nimbusds.oauth2.sdk.token.TokenTypeURI;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.text.ParseException;
 import java.util.Map;
+import java.util.Objects;
 import org.assertj.core.api.SoftAssertions;
 import org.assertj.core.api.junit.jupiter.InjectSoftAssertions;
 import org.assertj.core.api.junit.jupiter.SoftAssertionsExtension;
@@ -63,14 +78,17 @@ import org.junitpioneer.jupiter.cartesian.CartesianTest.Values;
 @ExtendWith(SoftAssertionsExtension.class)
 public class OAuth2AgentKeycloakIT {
 
-  private static Path privateKeyPath;
+  private static boolean bouncyCastleAvailable;
 
   @InjectSoftAssertions private SoftAssertions soft;
 
   @BeforeAll
-  static void copyPrivateKeyFile(@TempDir Path tempDir) {
-    privateKeyPath = Paths.get(tempDir.toString(), "key.pem");
-    CryptoUtils.copyPrivateKey(privateKeyPath);
+  static void probeForBouncyCastle() {
+    try {
+      Class.forName("org.bouncycastle.jce.provider.BouncyCastleProvider");
+      bouncyCastleAvailable = true;
+    } catch (ClassNotFoundException ignored) {
+    }
   }
 
   @CartesianTest
@@ -84,11 +102,11 @@ public class OAuth2AgentKeycloakIT {
             envBuilder
                 .httpClientType(httpClientType)
                 .grantType(initialGrantType)
-                .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
+                .clientAuthenticationMethod(CLIENT_SECRET_BASIC)
                 .build();
         OAuth2Agent agent = env.newAgent()) {
-      boolean expectRefreshToken = initialGrantType != GrantType.CLIENT_CREDENTIALS;
-      assertAgent(agent, TestConstants.CLIENT_ID1, expectRefreshToken);
+      boolean expectRefreshToken = initialGrantType != CLIENT_CREDENTIALS;
+      assertAgent(agent, CLIENT_ID1, expectRefreshToken);
     }
   }
 
@@ -103,11 +121,10 @@ public class OAuth2AgentKeycloakIT {
             envBuilder
                 .httpClientType(httpClientType)
                 .grantType(initialGrantType)
-                .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_POST)
+                .clientAuthenticationMethod(CLIENT_SECRET_POST)
                 .build();
         OAuth2Agent agent = env.newAgent()) {
-      assertAgent(
-          agent, TestConstants.CLIENT_ID1, initialGrantType != GrantType.CLIENT_CREDENTIALS);
+      assertAgent(agent, CLIENT_ID1, initialGrantType != CLIENT_CREDENTIALS);
     }
   }
 
@@ -123,13 +140,12 @@ public class OAuth2AgentKeycloakIT {
             envBuilder
                 .httpClientType(httpClientType)
                 .grantType(initialGrantType)
-                .clientAuthenticationMethod(ClientAuthenticationMethod.NONE)
+                .clientAuthenticationMethod(NONE)
                 .discoveryEnabled(false) // also test discovery disabled
-                .clientId(TestConstants.CLIENT_ID2)
-                .clientSecret(TestConstants.CLIENT_SECRET2)
+                .clientId(new ClientID(CLIENT_ID2))
                 .build();
         OAuth2Agent agent = env.newAgent()) {
-      assertAgent(agent, TestConstants.CLIENT_ID2, true);
+      assertAgent(agent, CLIENT_ID2, true);
     }
   }
 
@@ -144,35 +160,45 @@ public class OAuth2AgentKeycloakIT {
             envBuilder
                 .httpClientType(httpClientType)
                 .grantType(initialGrantType)
-                .clientId(TestConstants.CLIENT_ID3)
-                .clientSecret(TestConstants.CLIENT_SECRET3)
-                .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_JWT)
+                .clientId(new ClientID(CLIENT_ID3))
+                .clientSecret(new Secret(CLIENT_SECRET3))
+                .clientAuthenticationMethod(CLIENT_SECRET_JWT)
                 .build();
         OAuth2Agent agent = env.newAgent()) {
-      assertAgent(
-          agent, TestConstants.CLIENT_ID3, initialGrantType != GrantType.CLIENT_CREDENTIALS);
+      assertAgent(agent, CLIENT_ID3, initialGrantType != CLIENT_CREDENTIALS);
     }
   }
 
   @CartesianTest
   void privateKeyJwt(
-      @Enum HttpClientType httpClientType,
       @EnumLike(excludes = "urn:ietf:params:oauth:grant-type:token-exchange")
           GrantType initialGrantType,
-      Builder envBuilder)
+      @Values(
+              strings = {
+                "/openssl/rsa_private_key_pkcs8.pem",
+                "/openssl/rsa_private_key_pkcs1.pem",
+                "/openssl/ecdsa_private_key.pem"
+              })
+          String resource,
+      Builder envBuilder,
+      @TempDir Path tempDir)
       throws Exception {
+    assumeThat(bouncyCastleAvailable || resource.contains("pkcs8"))
+        .as("BouncyCastle is required for RSA PKCS#1 and ECDSA keys")
+        .isTrue();
+    Path privateKeyPath = copyPrivateKey(resource, tempDir);
+    JWSAlgorithm algorithm = resource.contains("rsa") ? JWSAlgorithm.RS256 : JWSAlgorithm.ES256;
+    String clientId = resource.contains("rsa") ? CLIENT_ID4 : CLIENT_ID5;
     try (TestEnvironment env =
             envBuilder
-                .httpClientType(httpClientType)
                 .grantType(initialGrantType)
-                .clientId(TestConstants.CLIENT_ID4)
-                .clientAuthenticationMethod(ClientAuthenticationMethod.PRIVATE_KEY_JWT)
-                .jwsAlgorithm(JWSAlgorithm.RS256)
+                .clientId(new ClientID(clientId))
+                .clientAuthenticationMethod(PRIVATE_KEY_JWT)
+                .jwsAlgorithm(algorithm)
                 .privateKey(privateKeyPath)
                 .build();
         OAuth2Agent agent = env.newAgent()) {
-      assertAgent(
-          agent, TestConstants.CLIENT_ID4, initialGrantType != GrantType.CLIENT_CREDENTIALS);
+      assertAgent(agent, clientId, initialGrantType != CLIENT_CREDENTIALS);
     }
   }
 
@@ -189,7 +215,7 @@ public class OAuth2AgentKeycloakIT {
                 .codeChallengeMethod(method)
                 .build();
         OAuth2Agent agent = env.newAgent()) {
-      assertAgent(agent, TestConstants.CLIENT_ID1, true);
+      assertAgent(agent, CLIENT_ID1, true);
     }
   }
 
@@ -207,11 +233,11 @@ public class OAuth2AgentKeycloakIT {
     try (TestEnvironment env =
             envBuilder
                 .grantType(TOKEN_EXCHANGE)
-                .requestedTokenType(TokenTypeURI.ACCESS_TOKEN) // request only access token
+                .requestedTokenType(ACCESS_TOKEN) // request only access token
                 .subjectGrantType(subjectGrantType)
                 .build();
         OAuth2Agent agent = env.newAgent()) {
-      assertAgent(agent, TestConstants.CLIENT_ID1, false);
+      assertAgent(agent, CLIENT_ID1, false);
     }
   }
 
@@ -231,12 +257,11 @@ public class OAuth2AgentKeycloakIT {
     try (TestEnvironment env =
             envBuilder
                 .grantType(TOKEN_EXCHANGE)
-                .requestedTokenType(TokenTypeURI.REFRESH_TOKEN) // request access and refresh tokens
+                .requestedTokenType(REFRESH_TOKEN) // request access and refresh tokens
                 .subjectGrantType(subjectGrantType)
                 .build();
         OAuth2Agent agent = env.newAgent()) {
-      assertAgent(
-          agent, TestConstants.CLIENT_ID1, subjectGrantType != GrantType.CLIENT_CREDENTIALS);
+      assertAgent(agent, CLIENT_ID1, subjectGrantType != CLIENT_CREDENTIALS);
     }
   }
 
@@ -255,7 +280,7 @@ public class OAuth2AgentKeycloakIT {
             envBuilder.grantType(TOKEN_EXCHANGE).subjectToken(subjectToken).build();
         OAuth2Agent agent = env.newAgent()) {
       AccessToken accessToken = agent.authenticate();
-      introspectToken(accessToken, TestConstants.CLIENT_ID1);
+      introspectToken(accessToken, CLIENT_ID1);
     }
   }
 
@@ -273,7 +298,7 @@ public class OAuth2AgentKeycloakIT {
     try (TestEnvironment env = envBuilder.grantType(TOKEN_EXCHANGE).actorToken(actorToken).build();
         OAuth2Agent agent = env.newAgent()) {
       AccessToken accessToken = agent.authenticate();
-      introspectToken(accessToken, TestConstants.CLIENT_ID1);
+      introspectToken(accessToken, CLIENT_ID1);
     }
   }
 
@@ -289,17 +314,16 @@ public class OAuth2AgentKeycloakIT {
           GrantType subjectGrantType,
       Builder envBuilder)
       throws Exception {
-    boolean expectRefreshToken = subjectGrantType != GrantType.CLIENT_CREDENTIALS;
+    boolean expectRefreshToken = subjectGrantType != CLIENT_CREDENTIALS;
     try (TestEnvironment env =
             envBuilder
                 .grantType(TOKEN_EXCHANGE)
-                .requestedTokenType(
-                    expectRefreshToken ? TokenTypeURI.REFRESH_TOKEN : TokenTypeURI.ACCESS_TOKEN)
+                .requestedTokenType(expectRefreshToken ? REFRESH_TOKEN : ACCESS_TOKEN)
                 .subjectGrantType(subjectGrantType)
-                .actorGrantType(GrantType.CLIENT_CREDENTIALS)
+                .actorGrantType(CLIENT_CREDENTIALS)
                 .build();
         OAuth2Agent agent = env.newAgent()) {
-      assertAgent(agent, TestConstants.CLIENT_ID1, expectRefreshToken);
+      assertAgent(agent, CLIENT_ID1, expectRefreshToken);
     }
   }
 
@@ -315,29 +339,30 @@ public class OAuth2AgentKeycloakIT {
   void delegation4(
       @EnumLike(excludes = "urn:ietf:params:oauth:grant-type:token-exchange")
           GrantType subjectGrantType,
-      Builder envBuilder)
+      Builder envBuilder,
+      @TempDir Path tempDir)
       throws Exception {
-    boolean expectRefreshToken = subjectGrantType != GrantType.CLIENT_CREDENTIALS;
+    Path privateKeyPath = copyPrivateKey("/openssl/rsa_private_key_pkcs8.pem", tempDir);
+    boolean expectRefreshToken = subjectGrantType != CLIENT_CREDENTIALS;
     try (TestEnvironment env =
             envBuilder
                 .grantType(TOKEN_EXCHANGE)
-                .clientId(TestConstants.CLIENT_ID4)
-                .clientAuthenticationMethod(ClientAuthenticationMethod.PRIVATE_KEY_JWT)
+                .clientId(new ClientID(CLIENT_ID4))
+                .clientAuthenticationMethod(PRIVATE_KEY_JWT)
                 .jwsAlgorithm(JWSAlgorithm.RS256)
                 .privateKey(privateKeyPath)
-                .requestedTokenType(
-                    expectRefreshToken ? TokenTypeURI.REFRESH_TOKEN : TokenTypeURI.ACCESS_TOKEN)
+                .requestedTokenType(expectRefreshToken ? REFRESH_TOKEN : ACCESS_TOKEN)
                 .subjectGrantType(subjectGrantType) // triggers a user emulator if necessary
                 .subjectTokenConfig(
                     Map.of(
                         BasicConfig.GRANT_TYPE,
                         subjectGrantType.getValue(),
                         BasicConfig.SCOPE,
-                        TestConstants.SCOPE1.toString(),
+                        KeycloakContainer.SCOPE1,
                         BasicConfig.CLIENT_ID,
-                        TestConstants.CLIENT_ID4.getValue(),
+                        CLIENT_ID4,
                         BasicConfig.CLIENT_AUTH,
-                        ClientAuthenticationMethod.PRIVATE_KEY_JWT.getValue(),
+                        PRIVATE_KEY_JWT.getValue(),
                         ClientAssertionConfig.GROUP_NAME + "." + ClientAssertionConfig.PRIVATE_KEY,
                         privateKeyPath.toString(),
                         ClientAssertionConfig.GROUP_NAME + "." + ClientAssertionConfig.ALGORITHM,
@@ -345,25 +370,25 @@ public class OAuth2AgentKeycloakIT {
                 .actorTokenConfig(
                     Map.of(
                         BasicConfig.GRANT_TYPE,
-                        GrantType.CLIENT_CREDENTIALS.getValue(),
+                        CLIENT_CREDENTIALS.getValue(),
                         BasicConfig.SCOPE,
-                        TestConstants.SCOPE1.toString(),
+                        KeycloakContainer.SCOPE1,
                         BasicConfig.CLIENT_ID,
-                        TestConstants.CLIENT_ID1.getValue(),
+                        CLIENT_ID1,
                         BasicConfig.CLIENT_SECRET,
-                        TestConstants.CLIENT_SECRET1.getValue(),
+                        KeycloakContainer.CLIENT_SECRET1,
                         BasicConfig.CLIENT_AUTH,
-                        ClientAuthenticationMethod.CLIENT_SECRET_BASIC.getValue()))
+                        CLIENT_SECRET_BASIC.getValue()))
                 .build();
         OAuth2Agent agent = env.newAgent()) {
-      assertAgent(agent, TestConstants.CLIENT_ID4, expectRefreshToken);
+      assertAgent(agent, CLIENT_ID4, expectRefreshToken);
       // test copy before and after close
       try (OAuth2Agent agent2 = agent.copy()) {
-        assertAgent(agent2, TestConstants.CLIENT_ID4, expectRefreshToken);
+        assertAgent(agent2, CLIENT_ID4, expectRefreshToken);
       }
       agent.close();
       try (OAuth2Agent agent3 = agent.copy()) {
-        assertAgent(agent3, TestConstants.CLIENT_ID4, expectRefreshToken);
+        assertAgent(agent3, CLIENT_ID4, expectRefreshToken);
       }
     }
   }
@@ -375,7 +400,7 @@ public class OAuth2AgentKeycloakIT {
         OAuth2Agent agent = env.newAgent()) {
       // initial grant
       TokensResult firstTokens = agent.authenticateInternal();
-      introspectToken(firstTokens.getTokens().getAccessToken(), TestConstants.CLIENT_ID1);
+      introspectToken(firstTokens.getTokens().getAccessToken(), CLIENT_ID1);
       soft.assertThat(agent).extracting("tokenRefreshFuture").isNull();
     }
   }
@@ -452,16 +477,16 @@ public class OAuth2AgentKeycloakIT {
     try (TestEnvironment env = envBuilder.build();
         OAuth2Agent agent = env.newAgent()) {
       try (OAuth2Agent agent2 = agent.copy()) {
-        assertAgent(agent2, TestConstants.CLIENT_ID1, false);
+        assertAgent(agent2, CLIENT_ID1, false);
       }
       agent.close();
       try (OAuth2Agent agent3 = agent.copy()) {
-        assertAgent(agent3, TestConstants.CLIENT_ID1, false);
+        assertAgent(agent3, CLIENT_ID1, false);
       }
     }
   }
 
-  private void assertAgent(OAuth2Agent agent, ClientID clientId, boolean expectRefreshToken)
+  private void assertAgent(OAuth2Agent agent, String clientId, boolean expectRefreshToken)
       throws Exception {
     // initial grant
     TokensResult initial = agent.authenticateInternal();
@@ -485,12 +510,20 @@ public class OAuth2AgentKeycloakIT {
     }
   }
 
-  private void introspectToken(AccessToken accessToken, ClientID clientId) throws ParseException {
+  private void introspectToken(AccessToken accessToken, String clientId) throws ParseException {
     soft.assertThat(accessToken).isNotNull();
     JWT jwt = JWTParser.parse(accessToken.getValue());
     soft.assertThat(jwt).isNotNull();
-    soft.assertThat(jwt.getJWTClaimsSet().getStringClaim("azp")).isEqualTo(clientId.getValue());
+    soft.assertThat(jwt.getJWTClaimsSet().getStringClaim("azp")).isEqualTo(clientId);
     soft.assertThat(jwt.getJWTClaimsSet().getStringClaim("scope"))
-        .contains(TestConstants.SCOPE1.toString());
+        .contains(KeycloakContainer.SCOPE1);
+  }
+
+  private Path copyPrivateKey(String resource, Path tempDir) throws IOException {
+    try (InputStream src = Objects.requireNonNull(getClass().getResource(resource)).openStream()) {
+      Path dest = tempDir.resolve("private-key.pem");
+      Files.copy(src, dest);
+      return dest;
+    }
   }
 }

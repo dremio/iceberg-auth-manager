@@ -35,7 +35,6 @@ import static org.mockserver.verify.VerificationTimes.atLeast;
 import com.dremio.iceberg.authmgr.oauth2.flow.OAuth2Exception;
 import com.dremio.iceberg.authmgr.oauth2.flow.TokensResult;
 import com.dremio.iceberg.authmgr.oauth2.http.HttpClientType;
-import com.dremio.iceberg.authmgr.oauth2.test.CryptoUtils;
 import com.dremio.iceberg.authmgr.oauth2.test.TestClock;
 import com.dremio.iceberg.authmgr.oauth2.test.TestConstants;
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
@@ -50,10 +49,15 @@ import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
 import com.nimbusds.oauth2.sdk.token.RefreshToken;
 import com.nimbusds.oauth2.sdk.token.Tokens;
 import com.nimbusds.oauth2.sdk.token.TypelessAccessToken;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.Duration;
+import java.util.Base64;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
@@ -468,14 +472,16 @@ class OAuth2AgentTest {
   }
 
   @Test
-  void testSsl(@TempDir Path tempDir) {
-    Path dest = Paths.get(tempDir.toString(), "mockserver.p12");
-    CryptoUtils.copyMockserverKeystore(dest);
+  void testSsl(@TempDir Path tempDir) throws IOException {
+    Path trustStorePath = tempDir.resolve("truststore.p12");
+    try (InputStream is = getClass().getResourceAsStream("/mockserver.p12")) {
+      Files.copy(Objects.requireNonNull(is), trustStorePath);
+    }
     try (TestEnvironment env =
             TestEnvironment.builder()
                 .ssl(true)
                 .httpClientType(HttpClientType.APACHE)
-                .sslTrustStorePath(dest)
+                .sslTrustStorePath(trustStorePath)
                 .sslTrustStorePassword("s3cr3t")
                 .sslProtocols("TLSv1.3,TLSv1.2")
                 .sslCipherSuites(
@@ -541,7 +547,10 @@ class OAuth2AgentTest {
                 .proxyPassword("testpass")
                 .build()) {
 
-      String authHeader = CryptoUtils.encodeBasicHeader("testuser", "testpass");
+      String authHeader =
+          "Basic "
+              + Base64.getEncoder()
+                  .encodeToString("testuser:testpass".getBytes(StandardCharsets.UTF_8));
 
       proxyServer
           .when(request().withHeader("Proxy-Authorization", authHeader))

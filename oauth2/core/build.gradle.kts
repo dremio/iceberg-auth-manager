@@ -49,6 +49,9 @@ dependencies {
 
   implementation(libs.smallrye.config) { exclude(group = "jakarta.annotation") }
 
+  // optional, but recommended for private_key_jwt
+  compileOnly(libs.bouncycastle.bcpkix)
+
   implementation(libs.slf4j.api)
   implementation(libs.caffeine)
 
@@ -72,10 +75,7 @@ dependencies {
   testFixturesApi(libs.nimbus.oauth2.oidc.sdk)
   testFixturesApi(libs.nimbus.jose.jwt)
 
-  testFixturesApi(libs.bouncycastle.bcpkix)
-
-  testFixturesApi(libs.mockserver.netty)
-  testFixturesApi(libs.mockserver.client.java)
+  testFixturesApi(libs.guava)
 
   testFixturesApi(platform(libs.testcontainers.bom))
   testFixturesApi("org.testcontainers:testcontainers")
@@ -83,16 +83,27 @@ dependencies {
   testFixturesApi(libs.keycloak.admin.client)
   testFixturesApi(libs.testcontainers.keycloak)
 
+  // Required to compile expectation classes
+  testFixturesCompileOnly(libs.mockserver.netty)
+  testFixturesCompileOnly(libs.mockserver.client.java)
+
   testFixturesCompileOnly(project(":authmgr-immutables"))
   testFixturesAnnotationProcessor(project(":authmgr-immutables", configuration = "processor"))
 
   testCompileOnly(libs.jakarta.annotation.api)
+
+  testImplementation(libs.mockserver.netty)
+  testImplementation(libs.mockserver.client.java)
+
+  testImplementation(libs.bouncycastle.bcpkix)
 
   testCompileOnly(project(":authmgr-immutables"))
   testAnnotationProcessor(project(":authmgr-immutables", configuration = "processor"))
 
   intTestCompileOnly(project(":authmgr-immutables"))
   intTestAnnotationProcessor(project(":authmgr-immutables", configuration = "processor"))
+
+  intTestRuntimeOnly(libs.bouncycastle.bcpkix)
 
   longTestCompileOnly(project(":authmgr-immutables"))
   longTestAnnotationProcessor(project(":authmgr-immutables", configuration = "processor"))
@@ -109,6 +120,23 @@ tasks.named<Test>("intTest").configure {
   configForks(3)
   commonTestConfig()
 }
+
+val bouncyCastle = configurations.create("bouncyCastle")
+
+dependencies { bouncyCastle(libs.bouncycastle.bcpkix) }
+
+tasks.register<Test>("intTestNoBouncyCastle") {
+  description = "Runs integration tests without BouncyCastle dependencies"
+  group = "verification"
+  configForks(3)
+  commonTestConfig()
+  shouldRunAfter("test")
+  useJUnitPlatform()
+  testClassesDirs = sourceSets.intTest.get().output.classesDirs
+  classpath = sourceSets.intTest.get().runtimeClasspath - bouncyCastle
+}
+
+tasks.named("check") { dependsOn("intTestNoBouncyCastle") }
 
 tasks.named<Test>("longTest").configure {
   configForks(3)
