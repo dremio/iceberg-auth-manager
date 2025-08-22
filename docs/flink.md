@@ -107,3 +107,15 @@ CREATE CATALOG iceberg_rest_catalog WITH (
 
 See the [configuration](./configuration.md) section for more details on how to configure the Dremio 
 AuthManager for Apache Iceberg.
+
+### Using BouncyCastle for Cryptographic Operations
+
+When using `private_key_jwt` as the client authentication method, the Dremio AuthManager for Apache
+Iceberg can use BouncyCastle for cryptographic operations. BouncyCastle is not required, but it
+provides additional functionality, such as support for PKCS#1 private keys.
+
+The `authmgr-oauth2-runtime` artifact does not include BouncyCastle by default. The JARs need to be
+added to Flink's `lib/` directory manually.
+
+You can download the JARs from
+[Maven Central](https://central.sonatype.com/namespace/org.bouncycastle).

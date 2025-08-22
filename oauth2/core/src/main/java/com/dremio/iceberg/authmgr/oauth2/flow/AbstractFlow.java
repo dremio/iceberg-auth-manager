@@ -21,6 +21,7 @@ import static com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod.CLIENT_SEC
 import static com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod.PRIVATE_KEY_JWT;
 
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Config;
+import com.dremio.iceberg.authmgr.oauth2.crypto.CryptoProvider;
 import com.dremio.iceberg.authmgr.oauth2.endpoint.EndpointProvider;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import com.nimbusds.jose.JOSEException;
@@ -200,7 +201,7 @@ abstract class AbstractFlow implements Flow {
       JWSAlgorithm algorithm =
           getConfig().getClientAssertionConfig().getAlgorithm().orElse(JWSAlgorithm.RS256);
       Path privateKeyPath = getConfig().getClientAssertionConfig().getPrivateKey().orElseThrow();
-      RSAPrivateKey privateKey = PemUtils.readPrivateKey(privateKeyPath);
+      RSAPrivateKey privateKey = CryptoProvider.INSTANCE.readPrivateKey(privateKeyPath);
       try {
         SignedJWT assertion =
             JWTAssertionFactory.create(details, algorithm, privateKey, null, null, null, null);

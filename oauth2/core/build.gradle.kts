@@ -37,6 +37,8 @@ dependencies {
   }
   implementation(libs.nimbus.jose.jwt)
 
+  implementation(libs.bouncycastle.bcpkix)
+
   implementation(libs.slf4j.api)
   implementation(libs.caffeine)
 

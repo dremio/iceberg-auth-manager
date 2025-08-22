@@ -18,7 +18,7 @@ package com.dremio.iceberg.authmgr.oauth2.test.container;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.dremio.iceberg.authmgr.oauth2.test.TestConstants;
-import com.dremio.iceberg.authmgr.oauth2.test.TestPemUtils;
+import com.dremio.iceberg.authmgr.oauth2.test.TestCryptoUtils;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod;
@@ -98,7 +98,7 @@ public class KeycloakContainer extends ExtendableKeycloakContainer<KeycloakConta
       createClient(
           master,
           TestConstants.CLIENT_ID4,
-          TestPemUtils.encodedSelfSignedCertificate(TestConstants.CLIENT_ID4.getValue()),
+          TestCryptoUtils.encodedSelfSignedCertificate(TestConstants.CLIENT_ID4.getValue()),
           ClientAuthenticationMethod.PRIVATE_KEY_JWT);
     }
   }

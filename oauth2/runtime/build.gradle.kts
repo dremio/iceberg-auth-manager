@@ -54,6 +54,8 @@ dependencies {
     exclude(group = "com.fasterxml.jackson.core")
     exclude(group = "com.github.ben-manes.caffeine")
     exclude(group = "org.slf4j")
+    // exclude optional dependencies (users should explicitly add them if needed)
+    exclude(group = "org.bouncycastle")
   }
   coreSources(project(":authmgr-oauth2-core", "sourcesElements"))
   coreJavadoc(project(":authmgr-oauth2-core", "javadocElements"))

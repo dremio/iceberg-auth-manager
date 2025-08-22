@@ -28,8 +28,8 @@ import com.dremio.iceberg.authmgr.oauth2.flow.OAuth2Exception;
 import com.dremio.iceberg.authmgr.oauth2.flow.TokensResult;
 import com.dremio.iceberg.authmgr.oauth2.test.ImmutableTestEnvironment.Builder;
 import com.dremio.iceberg.authmgr.oauth2.test.TestConstants;
+import com.dremio.iceberg.authmgr.oauth2.test.TestCryptoUtils;
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
-import com.dremio.iceberg.authmgr.oauth2.test.TestPemUtils;
 import com.dremio.iceberg.authmgr.oauth2.test.container.KeycloakExtension;
 import com.dremio.iceberg.authmgr.oauth2.test.user.UserBehavior;
 import com.nimbusds.jose.JWSAlgorithm;
@@ -71,7 +71,7 @@ public class OAuth2AgentKeycloakIT {
   @BeforeAll
   static void copyPrivateKeyFile(@TempDir Path tempDir) {
     privateKeyPath = Paths.get(tempDir.toString(), "key.pem");
-    TestPemUtils.copyPrivateKey(privateKeyPath);
+    TestCryptoUtils.writePkcs8PrivateKey(privateKeyPath);
   }
 
   @ParameterizedTest
