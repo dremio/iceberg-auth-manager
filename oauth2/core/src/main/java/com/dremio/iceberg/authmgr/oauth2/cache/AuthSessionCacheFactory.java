@@ -15,10 +15,10 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.cache;
 
-import java.util.Map;
+import com.dremio.iceberg.authmgr.oauth2.OAuth2Config;
 import java.util.function.BiFunction;
 import org.apache.iceberg.rest.auth.AuthSession;
 
 @FunctionalInterface
 public interface AuthSessionCacheFactory<K, V extends AuthSession>
-    extends BiFunction<String, Map<String, String>, AuthSessionCache<K, V>> {}
+    extends BiFunction<String, OAuth2Config, AuthSessionCache<K, V>> {}

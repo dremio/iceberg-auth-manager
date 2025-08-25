@@ -15,19 +15,19 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.test.user;
 
-import static com.dremio.iceberg.authmgr.oauth2.uri.UriUtils.decodeParameters;
 import static java.net.HttpURLConnection.HTTP_OK;
 import static java.net.HttpURLConnection.HTTP_UNAUTHORIZED;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.dremio.iceberg.authmgr.oauth2.uri.UriBuilder;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
+import com.nimbusds.oauth2.sdk.util.URLUtils;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.apache.http.client.utils.URIBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,13 +65,13 @@ public abstract class AuthorizationCodeUserFlow extends UserFlow {
     assertThat(callbackUrl).hasParameter("code").hasParameter("state");
     boolean useWrongCode = getUserBehavior().isEmulateFailure();
     if (useWrongCode) {
-      Map<String, List<String>> params = decodeParameters(callbackUrl.getQuery());
+      Map<String, List<String>> params = URLUtils.parseParameters(callbackUrl.getQuery());
       assertThat(params.get("state")).hasSize(1);
       callbackUrl =
-          new UriBuilder(callbackUrl)
-              .clearQueryParams()
-              .queryParam("code", "WRONG-CODE")
-              .queryParam("state", params.get("state").get(0))
+          new URIBuilder(callbackUrl)
+              .clearParameters()
+              .addParameter("code", "WRONG-CODE")
+              .addParameter("state", params.get("state").get(0))
               .build();
     }
     HttpURLConnection conn = (HttpURLConnection) callbackUrl.toURL().openConnection();

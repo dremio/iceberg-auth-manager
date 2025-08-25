@@ -15,12 +15,12 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.flow;
 
-import static com.dremio.iceberg.authmgr.oauth2.test.TokenAssertions.assertTokens;
+import static com.dremio.iceberg.authmgr.oauth2.test.TokenAssertions.assertTokensResult;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import com.dremio.iceberg.authmgr.oauth2.config.DeviceCodeConfig;
-import com.dremio.iceberg.authmgr.oauth2.grant.GrantType;
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
-import com.dremio.iceberg.authmgr.oauth2.token.Tokens;
+import com.nimbusds.oauth2.sdk.GrantType;
 import java.time.Duration;
 import java.util.concurrent.ExecutionException;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -45,9 +45,10 @@ class DeviceCodeFlowTest {
                 .returnRefreshTokens(returnRefreshTokens)
                 .build();
         FlowFactory flowFactory = env.newFlowFactory()) {
-      InitialFlow flow = flowFactory.createInitialFlow();
-      Tokens tokens = flow.fetchNewTokens().toCompletableFuture().get();
-      assertTokens(tokens, "access_initial", returnRefreshTokens ? "refresh_initial" : null);
+      Flow flow = flowFactory.createInitialFlow();
+      assertThat(flow).isInstanceOf(DeviceCodeFlow.class);
+      TokensResult tokens = flow.fetchNewTokens().toCompletableFuture().get();
+      assertTokensResult(tokens, "access_initial", returnRefreshTokens ? "refresh_initial" : null);
     }
   }
 }

@@ -49,7 +49,7 @@ public class SparkPolarisS3IT extends SparkPolarisS3ITBase {
   protected Map<String, Object> sparkConfig(Path tempDir) {
     return ImmutableMap.<String, Object>builder()
         .putAll(super.sparkConfig(tempDir))
-        .put("spark.sql.catalog.test.rest.auth.oauth2.dialect", "iceberg_rest")
+        .put("spark.sql.catalog.test.rest.auth.oauth2.token-endpoint", polaris.getTokenEndpoint())
         .put("spark.sql.catalog.test.rest.auth.oauth2.scope", "PRINCIPAL_ROLE:ALL")
         .build();
   }

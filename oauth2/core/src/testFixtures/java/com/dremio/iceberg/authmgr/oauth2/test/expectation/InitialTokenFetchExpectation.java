@@ -20,7 +20,7 @@ public abstract class InitialTokenFetchExpectation extends AbstractTokenEndpoint
   @Override
   public void create() {
     getClientAndServer()
-        .when(tokenRequest())
-        .respond(httpRequest -> tokenResponse(httpRequest, "access_initial", "refresh_initial"));
+        .when(request())
+        .respond(httpRequest -> response(httpRequest, "access_initial", "refresh_initial"));
   }
 }

@@ -15,10 +15,14 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.flow;
 
-import com.dremio.iceberg.authmgr.oauth2.rest.RefreshTokenRequest;
-import com.dremio.iceberg.authmgr.oauth2.token.Tokens;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
-import java.util.Objects;
+import com.google.errorprone.annotations.CanIgnoreReturnValue;
+import com.nimbusds.oauth2.sdk.AccessTokenResponse;
+import com.nimbusds.oauth2.sdk.GrantType;
+import com.nimbusds.oauth2.sdk.RefreshTokenGrant;
+import com.nimbusds.oauth2.sdk.token.RefreshToken;
+import com.nimbusds.oauth2.sdk.token.Tokens;
+import java.time.Instant;
 import java.util.concurrent.CompletionStage;
 
 /**
@@ -26,24 +30,34 @@ import java.util.concurrent.CompletionStage;
  * Refresh</a> flow.
  */
 @AuthManagerImmutable
-abstract class RefreshTokenFlow extends AbstractFlow implements RefreshFlow {
+abstract class RefreshTokenFlow extends AbstractFlow {
 
-  interface Builder extends AbstractFlow.Builder<RefreshTokenFlow, Builder> {}
+  interface Builder extends AbstractFlow.Builder<RefreshTokenFlow, Builder> {
+
+    @CanIgnoreReturnValue
+    Builder refreshToken(RefreshToken refreshToken);
+  }
 
   @Override
-  public CompletionStage<Tokens> refreshTokens(Tokens currentTokens) {
-    Objects.requireNonNull(currentTokens, "currentTokens is null");
-    Objects.requireNonNull(
-        currentTokens.getRefreshToken(), "currentTokens.getRefreshTokens() is null");
-    RefreshTokenRequest.Builder request =
-        RefreshTokenRequest.builder().refreshToken(currentTokens.getRefreshToken().getPayload());
-    return invokeTokenEndpoint(currentTokens, request)
-        .thenApply(
-            tokens -> {
-              if (tokens.getRefreshToken() == null) {
-                tokens = Tokens.of(tokens.getAccessToken(), currentTokens.getRefreshToken());
-              }
-              return tokens;
-            });
+  public final GrantType getGrantType() {
+    return GrantType.REFRESH_TOKEN;
+  }
+
+  abstract RefreshToken getRefreshToken();
+
+  @Override
+  public CompletionStage<TokensResult> fetchNewTokens() {
+    return invokeTokenEndpoint(new RefreshTokenGrant(getRefreshToken()));
+  }
+
+  @Override
+  TokensResult toTokensResult(AccessTokenResponse response) {
+    Instant now = getConfig().getSystemConfig().getClock().instant();
+    Tokens tokens = response.toSuccessResponse().getTokens();
+    // if the server doesn't return a new refresh token, keep using the current one
+    if (tokens.getRefreshToken() == null) {
+      tokens = new Tokens(tokens.getAccessToken(), getRefreshToken());
+    }
+    return TokensResult.of(tokens, now);
   }
 }

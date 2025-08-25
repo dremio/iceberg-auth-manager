@@ -20,6 +20,7 @@ import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.ResourceOwner.U
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.catchThrowable;
 
+import com.nimbusds.oauth2.sdk.auth.Secret;
 import java.util.Map;
 import java.util.stream.Stream;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -51,7 +52,7 @@ class ResourceOwnerConfigTest {
         Arguments.of(null, null, new NullPointerException("properties must not be null")),
         Arguments.of(
             Map.of(USERNAME, "Alice", PASSWORD, "s3cr3t"),
-            ResourceOwnerConfig.builder().username("Alice").password("s3cr3t").build(),
+            ResourceOwnerConfig.builder().username("Alice").password(new Secret("s3cr3t")).build(),
             null));
   }
 
@@ -68,17 +69,17 @@ class ResourceOwnerConfigTest {
         Arguments.of(
             ResourceOwnerConfig.builder().build(),
             Map.of(USERNAME, "Alice", PASSWORD, "s3cr3t"),
-            ResourceOwnerConfig.builder().username("Alice").password("s3cr3t").build()),
+            ResourceOwnerConfig.builder().username("Alice").password(new Secret("s3cr3t")).build()),
         Arguments.of(
-            ResourceOwnerConfig.builder().username("Alice").password("s3cr3t").build(),
+            ResourceOwnerConfig.builder().username("Alice").password(new Secret("s3cr3t")).build(),
             Map.of(),
-            ResourceOwnerConfig.builder().username("Alice").password("s3cr3t").build()),
+            ResourceOwnerConfig.builder().username("Alice").password(new Secret("s3cr3t")).build()),
         Arguments.of(
-            ResourceOwnerConfig.builder().username("Alice").password("s3cr3t").build(),
+            ResourceOwnerConfig.builder().username("Alice").password(new Secret("s3cr3t")).build(),
             Map.of(USERNAME, "Bob", PASSWORD, "w00t"),
-            ResourceOwnerConfig.builder().username("Bob").password("w00t").build()),
+            ResourceOwnerConfig.builder().username("Bob").password(new Secret("w00t")).build()),
         Arguments.of(
-            ResourceOwnerConfig.builder().username("Alice").password("s3cr3t").build(),
+            ResourceOwnerConfig.builder().username("Alice").password(new Secret("s3cr3t")).build(),
             Map.of(USERNAME, "", PASSWORD, ""),
             ResourceOwnerConfig.builder().build()));
   }

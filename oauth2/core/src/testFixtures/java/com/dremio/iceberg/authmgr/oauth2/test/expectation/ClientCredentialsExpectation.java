@@ -18,18 +18,17 @@ package com.dremio.iceberg.authmgr.oauth2.test.expectation;
 import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.SCOPE1;
 import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.SCOPE2;
 
-import com.dremio.iceberg.authmgr.oauth2.rest.ImmutableClientCredentialsTokenRequest;
-import com.dremio.iceberg.authmgr.oauth2.rest.PostFormRequest;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
+import com.google.common.collect.ImmutableMap;
+import com.nimbusds.oauth2.sdk.GrantType;
 
 @AuthManagerImmutable
 public abstract class ClientCredentialsExpectation extends InitialTokenFetchExpectation {
 
   @Override
-  protected PostFormRequest tokenRequestBody() {
-    return ImmutableClientCredentialsTokenRequest.builder()
-        .scope(String.format("(%s|%s)", SCOPE1, SCOPE2))
-        .putExtraParameter("(extra1|extra2)", "(value1|value2)")
-        .build();
+  protected ImmutableMap.Builder<String, String> requestBody() {
+    return super.requestBody()
+        .put("grant_type", GrantType.CLIENT_CREDENTIALS.getValue())
+        .put("scope", String.format("(%s|%s)", SCOPE1, SCOPE2));
   }
 }

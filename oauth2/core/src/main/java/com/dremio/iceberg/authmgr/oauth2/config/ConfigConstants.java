@@ -15,6 +15,7 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.config;
 
+import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties;
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.Basic;
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.DeviceCode;
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.TokenRefresh;
@@ -41,6 +42,9 @@ final class ConfigConstants {
       Duration.parse(TokenRefresh.DEFAULT_SAFETY_WINDOW);
   static final Duration TOKEN_REFRESH_DEFAULT_ACCESS_TOKEN_LIFESPAN =
       Duration.parse(TokenRefresh.DEFAULT_ACCESS_TOKEN_LIFESPAN);
+
+  static final Duration DEFAULT_SESSION_CACHE_TIMEOUT =
+      Duration.parse(OAuth2Properties.System.DEFAULT_SESSION_CACHE_TIMEOUT);
 
   private ConfigConstants() {}
 }

@@ -48,7 +48,7 @@ val coreJavadoc by
   }
 
 dependencies {
-  implementation(project(":authmgr-oauth2-core")) {
+  api(project(":authmgr-oauth2-core")) {
     // exclude dependencies that are already provided by Iceberg runtime jars
     exclude(group = "org.apache.iceberg")
     exclude(group = "com.fasterxml.jackson.core")
@@ -60,14 +60,20 @@ dependencies {
 }
 
 tasks.shadowJar {
+  isZip64 = true
   archiveClassifier = "" // publish the shadowed JAR instead of the original JAR
   // relocate dependencies that are specific to the AuthManager
-  relocate("com.auth0.jwt", "com.dremio.iceberg.authmgr.shaded.com.auth0.jwt")
+  relocate("com.nimbusds", "com.dremio.iceberg.authmgr.shaded.com.nimbusds")
+  relocate("net.minidev", "com.dremio.iceberg.authmgr.shaded.net.minidev")
+  relocate("org.objectweb.asm", "com.dremio.iceberg.authmgr.shaded.org.objectweb.asm")
   // relocate to same packages as in Iceberg runtime jars
   relocate("com.fasterxml.jackson", "org.apache.iceberg.shaded.com.fasterxml.jackson")
   relocate("com.github.benmanes", "org.apache.iceberg.shaded.com.github.benmanes")
-  // exclude module-info.class
+  // exclude unwanted files
   exclude("META-INF/**/module-info.class")
+  exclude("META-INF/proguard/**")
+  exclude("iso3166_*.properties")
+  minimize()
 }
 
 // Configure the source jar to copy from the core project's source jar

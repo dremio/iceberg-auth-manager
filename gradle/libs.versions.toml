@@ -24,6 +24,8 @@ iceberg = "1.9.2" # When updating iceberg version, also update the iceberg test 
 immutables = "2.11.1"
 mockito = "5.18.0"
 mockserver = "5.15.0"
+nimbus-oauth2 = "11.27.1"
+nimbus-jose-jwt = "10.4.2"
 slf4j = "2.0.17"
 
 [bundles]
@@ -31,11 +33,10 @@ slf4j = "2.0.17"
 
 [libraries]
 #
-# If a dependency is removed, check whether the LICENSE and/or NOTICE files need to be adopted
+# If a dependency is removed, check whether the LICENSE and/or NOTICE files need to be adapted
 # (aka mention of the dependency removed).
 #
 assertj-core = { module = "org.assertj:assertj-core", version = "3.27.3" }
-auth0-jwt = { module = "com.auth0:java-jwt", version = "4.5.0" }
 bouncycastle-bcpkix = { module = "org.bouncycastle:bcpkix-jdk15on", version = "1.70" }
 caffeine = { module = "com.github.ben-manes.caffeine:caffeine", version = "3.2.2" }
 errorprone = { module = "com.google.errorprone:error_prone_core", version.ref = "errorprone"  }
@@ -56,6 +57,8 @@ mockito-core = { module = "org.mockito:mockito-core", version.ref = "mockito" }
 mockito-junit-jupiter = { module = "org.mockito:mockito-junit-jupiter", version.ref = "mockito" }
 mockserver-client-java = { module = "org.mock-server:mockserver-client-java", version.ref = "mockserver" }
 mockserver-netty = { module = "org.mock-server:mockserver-netty", version.ref = "mockserver" }
+nimbus-oauth2-oidc-sdk = { module = "com.nimbusds:oauth2-oidc-sdk", version.ref = "nimbus-oauth2" }
+nimbus-jose-jwt = { module = "com.nimbusds:nimbus-jose-jwt", version.ref = "nimbus-jose-jwt" }
 s3mock-testcontainers = { module = "com.adobe.testing:s3mock-testcontainers", version = "4.7.0" }
 slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
 testcontainers-bom = { module = "org.testcontainers:testcontainers-bom", version = "1.21.3" }

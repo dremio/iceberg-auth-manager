@@ -15,18 +15,17 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.test.expectation;
 
-import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.CLIENT_ID1;
-import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.CLIENT_ID2;
 import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.SCOPE1;
 import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.SCOPE2;
 import static com.dremio.iceberg.authmgr.oauth2.test.expectation.ErrorExpectation.AUTHORIZATION_SERVER_ERROR_RESPONSE;
 import static org.mockserver.model.Parameter.param;
 
-import com.dremio.iceberg.authmgr.oauth2.flow.FlowUtils;
-import com.dremio.iceberg.authmgr.oauth2.rest.ImmutableDeviceAccessTokenRequest;
-import com.dremio.iceberg.authmgr.oauth2.rest.ImmutableDeviceAuthorizationResponse;
-import com.dremio.iceberg.authmgr.oauth2.rest.PostFormRequest;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
+import com.google.common.collect.ImmutableMap;
+import com.nimbusds.oauth2.sdk.GrantType;
+import com.nimbusds.oauth2.sdk.device.DeviceCode;
+import com.nimbusds.oauth2.sdk.device.UserCode;
+import com.nimbusds.oauth2.sdk.id.Identifier;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -44,7 +43,7 @@ public abstract class DeviceCodeExpectation extends InitialTokenFetchExpectation
 
   /** A map of pending authorization requests, keyed by the user and device code. */
   @Value.Lazy
-  protected ConcurrentMap<String, DeviceCodeExpectation.PendingAuthRequest>
+  protected ConcurrentMap<Identifier, DeviceCodeExpectation.PendingAuthRequest>
       getPendingAuthRequests() {
     return new ConcurrentHashMap<>();
   }
@@ -57,28 +56,22 @@ public abstract class DeviceCodeExpectation extends InitialTokenFetchExpectation
   }
 
   @Override
-  protected PostFormRequest tokenRequestBody() {
-    return ImmutableDeviceAccessTokenRequest.builder()
-        .clientId(
-            getTestEnvironment().isPrivateClient()
-                ? null
-                : String.format("(%s|%s)", CLIENT_ID1, CLIENT_ID2))
-        .deviceCode("\\w{8}-\\w{8}")
-        .scope(String.format("(%s|%s)", SCOPE1, SCOPE2))
-        .putExtraParameter("(extra1|extra2)", "(value1|value2)")
-        .build();
+  protected ImmutableMap.Builder<String, String> requestBody() {
+    return super.requestBody()
+        .put("grant_type", GrantType.DEVICE_CODE.getValue())
+        .put("device_code", "[a-zA-Z0-9-._~]+");
   }
 
   @Override
-  protected HttpResponse tokenResponse(
+  protected HttpResponse response(
       HttpRequest httpRequest, String accessToken, String refreshToken) {
     Map<String, List<String>> params = decodeBodyParameters(httpRequest);
-    String deviceCode = params.get("device_code").get(0);
+    DeviceCode deviceCode = new DeviceCode(params.get("device_code").get(0));
     PendingAuthRequest pendingAuthRequest = getPendingAuthRequests().get(deviceCode);
     if (pendingAuthRequest.isUserCodeReceived()) {
       getPendingAuthRequests().remove(pendingAuthRequest.getDeviceCode());
       getPendingAuthRequests().remove(pendingAuthRequest.getUserCode());
-      return super.tokenResponse(httpRequest, accessToken, refreshToken);
+      return super.response(httpRequest, accessToken, refreshToken);
     } else {
       return HttpResponse.response()
           .withStatusCode(401)
@@ -94,30 +87,32 @@ public abstract class DeviceCodeExpectation extends InitialTokenFetchExpectation
             HttpRequest.request()
                 .withMethod("POST")
                 .withPath(getTestEnvironment().getDeviceAuthorizationEndpoint().getPath())
-                .withContentType(MediaType.APPLICATION_FORM_URLENCODED)
+                .withHeader("Content-Type", "application/x-www-form-urlencoded(; charset=UTF-8)?")
                 .withBody(
                     ParameterBody.params(param("scope", String.format("(%s|%s)", SCOPE1, SCOPE2)))))
         .respond(
             httpRequest -> {
-              String userCode =
-                  FlowUtils.randomAlphaNumString(4) + "-" + FlowUtils.randomAlphaNumString(4);
-              String deviceCode =
-                  FlowUtils.randomAlphaNumString(8) + "-" + FlowUtils.randomAlphaNumString(8);
+              UserCode userCode = new UserCode();
+              DeviceCode deviceCode = new DeviceCode();
               var pendingAuthRequest = new PendingAuthRequest(userCode, deviceCode);
               getPendingAuthRequests().put(userCode, pendingAuthRequest);
               getPendingAuthRequests().put(deviceCode, pendingAuthRequest);
               return HttpResponse.response()
                   .withBody(
                       JsonBody.json(
-                          ImmutableDeviceAuthorizationResponse.builder()
-                              .deviceCode(deviceCode)
-                              .userCode(userCode)
-                              .verificationUri(getTestEnvironment().getDeviceVerificationEndpoint())
-                              .verificationUriComplete(
-                                  getTestEnvironment().getDeviceVerificationEndpoint())
-                              .expiresInSeconds(300)
-                              .intervalSeconds(1)
-                              .build()));
+                          Map.of(
+                              "device_code",
+                              deviceCode.getValue(),
+                              "user_code",
+                              userCode.getValue(),
+                              "verification_uri",
+                              getTestEnvironment().getDeviceVerificationEndpoint().toString(),
+                              "verification_uri_complete",
+                              getTestEnvironment().getDeviceVerificationEndpoint().toString(),
+                              "expires_in",
+                              300,
+                              "interval",
+                              1)));
             });
   }
 
@@ -147,8 +142,8 @@ public abstract class DeviceCodeExpectation extends InitialTokenFetchExpectation
             HttpRequest.request()
                 .withMethod("POST")
                 .withPath(path)
-                .withContentType(MediaType.APPLICATION_FORM_URLENCODED)
-                .withBody(ParameterBody.params(param("device_user_code", "\\w{4}-\\w{4}"))))
+                .withHeader("Content-Type", "application/x-www-form-urlencoded(; charset=UTF-8)?")
+                .withBody(ParameterBody.params(param("device_user_code", "[a-zA-Z0-9-._~]+"))))
         .respond(
             httpRequest -> {
               // See https://github.com/mock-server/mockserver/issues/1468
@@ -157,7 +152,8 @@ public abstract class DeviceCodeExpectation extends InitialTokenFetchExpectation
               if (userCode == null || userCode.isEmpty()) {
                 return AUTHORIZATION_SERVER_ERROR_RESPONSE;
               }
-              PendingAuthRequest pendingAuthRequest = getPendingAuthRequests().get(userCode.get(0));
+              PendingAuthRequest pendingAuthRequest =
+                  getPendingAuthRequests().get(new UserCode(userCode.get(0)));
               if (pendingAuthRequest == null) {
                 return AUTHORIZATION_SERVER_ERROR_RESPONSE;
               }
@@ -171,21 +167,21 @@ public abstract class DeviceCodeExpectation extends InitialTokenFetchExpectation
 
   public static final class PendingAuthRequest {
 
-    private final String userCode;
-    private final String deviceCode;
+    private final UserCode userCode;
+    private final DeviceCode deviceCode;
 
     private volatile boolean userCodeReceived;
 
-    public PendingAuthRequest(String userCode, String deviceCode) {
+    public PendingAuthRequest(UserCode userCode, DeviceCode deviceCode) {
       this.userCode = userCode;
       this.deviceCode = deviceCode;
     }
 
-    public String getUserCode() {
+    public UserCode getUserCode() {
       return userCode;
     }
 
-    public String getDeviceCode() {
+    public DeviceCode getDeviceCode() {
       return deviceCode;
     }
 

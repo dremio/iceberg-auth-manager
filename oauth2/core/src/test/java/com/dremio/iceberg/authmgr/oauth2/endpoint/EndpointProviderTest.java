@@ -20,12 +20,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.assertj.core.api.InstanceOfAssertFactories.throwable;
 
-import com.dremio.iceberg.authmgr.oauth2.flow.OAuth2Exception;
-import com.dremio.iceberg.authmgr.oauth2.rest.MetadataDiscoveryResponse;
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
 import com.dremio.iceberg.authmgr.oauth2.test.server.UnitTestHttpServer;
-import org.apache.iceberg.exceptions.RESTException;
-import org.apache.iceberg.rest.responses.ErrorResponse;
+import com.nimbusds.oauth2.sdk.ParseException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -37,11 +34,7 @@ import org.mockserver.model.MediaType;
 
 class EndpointProviderTest {
 
-  private static final String INVALID_METADATA =
-      "{"
-          + "\"authorization_endpoint\":\"http://server.com/realms/master/protocol/openid-connect/auth\","
-          + "\"token_endpoint\":\"http://server.com/realms/master/protocol/openid-connect/token\""
-          + "}";
+  private static final String INVALID_METADATA = "{\"authorization_endpoint\":\" invalid \"}";
 
   @Test
   void withoutDiscovery() {
@@ -96,11 +89,10 @@ class EndpointProviderTest {
             .wellKnownPath(wellKnownPath)
             .build()) {
       EndpointProvider endpointProvider = env.getEndpointProvider();
-      MetadataDiscoveryResponse actual = endpointProvider.getOpenIdProviderMetadata();
-      assertThat(actual.getIssuerUrl()).isEqualTo(env.getAuthorizationServerUrl());
-      assertThat(actual.getTokenEndpoint()).isEqualTo(env.getTokenEndpoint());
-      assertThat(actual.getAuthorizationEndpoint()).isEqualTo(env.getAuthorizationEndpoint());
-      assertThat(actual.getDeviceAuthorizationEndpoint())
+      var actual = endpointProvider.getOpenIdProviderMetadata();
+      assertThat(actual.getTokenEndpointURI()).isEqualTo(env.getTokenEndpoint());
+      assertThat(actual.getAuthorizationEndpointURI()).isEqualTo(env.getAuthorizationEndpoint());
+      assertThat(actual.getDeviceAuthorizationEndpointURI())
           .isEqualTo(env.getDeviceAuthorizationEndpoint());
     }
   }
@@ -112,23 +104,19 @@ class EndpointProviderTest {
       EndpointProvider endpointProvider = env.getEndpointProvider();
       Throwable e = catchThrowable(endpointProvider::getOpenIdProviderMetadata);
       assertThat(e)
-          .isInstanceOf(RESTException.class)
-          .hasMessageContaining("Failed to fetch OpenID provider metadata");
-      // first well-known path
+          .isInstanceOf(RuntimeException.class)
+          .hasMessageContaining("Failed to fetch provider metadata");
+      // OIDC well-known path
       assertThat(e.getCause())
-          .asInstanceOf(throwable(OAuth2Exception.class))
-          .hasMessageContaining("OAuth2 request failed: Invalid request")
-          .extracting(OAuth2Exception::getErrorResponse)
-          .extracting(ErrorResponse::type, ErrorResponse::code, ErrorResponse::message)
-          .containsExactly("invalid_request", 401, "Invalid request");
-      // second well-known path
+          .asInstanceOf(throwable(RuntimeException.class))
+          .hasMessageContaining("Failed to fetch OIDC provider metadata")
+          .hasMessageContaining("Invalid request");
+      // OAuth well-known path
       assertThat(e.getSuppressed())
           .singleElement()
-          .asInstanceOf(throwable(OAuth2Exception.class))
-          .hasMessageContaining("OAuth2 request failed: Invalid request")
-          .extracting(OAuth2Exception::getErrorResponse)
-          .extracting(ErrorResponse::type, ErrorResponse::code, ErrorResponse::message)
-          .containsExactly("invalid_request", 401, "Invalid request");
+          .asInstanceOf(throwable(RuntimeException.class))
+          .hasMessageContaining("Failed to fetch OAuth provider metadata")
+          .hasMessageContaining("Invalid request");
     }
   }
 
@@ -145,20 +133,18 @@ class EndpointProviderTest {
                   .withBody(JsonBody.json(INVALID_METADATA)));
       EndpointProvider endpointProvider = env.getEndpointProvider();
       Throwable e = catchThrowable(endpointProvider::getOpenIdProviderMetadata);
-      // first well-known path
+      // OIDC well-known path
       assertThat(e)
-          .isInstanceOf(RESTException.class)
-          .hasMessageContaining("Failed to fetch OpenID provider metadata");
+          .isInstanceOf(RuntimeException.class)
+          .hasMessageContaining("Failed to fetch provider metadata");
       assertThat(e.getCause())
-          .asInstanceOf(throwable(RESTException.class))
-          .hasMessageContaining(
-              "Received a success response code of 200, but failed to parse response body into MetadataDiscoveryResponse");
-      // second well-known path
+          .asInstanceOf(throwable(ParseException.class))
+          .hasMessageContaining("Illegal character in path at index 0");
+      // OAuth well-known path
       assertThat(e.getSuppressed())
           .singleElement()
-          .asInstanceOf(throwable(RESTException.class))
-          .hasMessageContaining(
-              "Received a success response code of 200, but failed to parse response body into MetadataDiscoveryResponse");
+          .asInstanceOf(throwable(ParseException.class))
+          .hasMessageContaining("Illegal character in path at index 0");
     }
   }
 }

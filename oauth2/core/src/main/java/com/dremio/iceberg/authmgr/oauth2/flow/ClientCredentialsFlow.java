@@ -15,10 +15,10 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.flow;
 
-import com.dremio.iceberg.authmgr.oauth2.grant.GrantType;
-import com.dremio.iceberg.authmgr.oauth2.rest.ClientCredentialsTokenRequest;
-import com.dremio.iceberg.authmgr.oauth2.token.Tokens;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
+import com.nimbusds.oauth2.sdk.AuthorizationGrant;
+import com.nimbusds.oauth2.sdk.ClientCredentialsGrant;
+import com.nimbusds.oauth2.sdk.GrantType;
 import java.util.concurrent.CompletionStage;
 
 /**
@@ -27,18 +27,19 @@ import java.util.concurrent.CompletionStage;
  * flow.
  */
 @AuthManagerImmutable
-abstract class ClientCredentialsFlow extends AbstractFlow implements InitialFlow {
+abstract class ClientCredentialsFlow extends AbstractFlow {
+
+  private static final AuthorizationGrant GRANT = new ClientCredentialsGrant();
 
   interface Builder extends AbstractFlow.Builder<ClientCredentialsFlow, Builder> {}
 
   @Override
-  public GrantType getGrantType() {
+  public final GrantType getGrantType() {
     return GrantType.CLIENT_CREDENTIALS;
   }
 
   @Override
-  public CompletionStage<Tokens> fetchNewTokens() {
-    ClientCredentialsTokenRequest.Builder request = ClientCredentialsTokenRequest.builder();
-    return invokeTokenEndpoint(null, request);
+  public CompletionStage<TokensResult> fetchNewTokens() {
+    return invokeTokenEndpoint(GRANT);
   }
 }

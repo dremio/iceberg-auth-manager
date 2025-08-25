@@ -16,40 +16,31 @@
 package com.dremio.iceberg.authmgr.oauth2.test.expectation;
 
 import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.ACTOR_TOKEN;
-import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.ACTOR_TOKEN_TYPE;
 import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.AUDIENCE;
-import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.CLIENT_ID1;
-import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.CLIENT_ID2;
-import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.REQUESTED_TOKEN_TYPE;
 import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.RESOURCE;
 import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.SCOPE1;
 import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.SCOPE2;
 import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.SUBJECT_TOKEN;
-import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.SUBJECT_TOKEN_TYPE;
 
-import com.dremio.iceberg.authmgr.oauth2.rest.ImmutableTokenExchangeRequest;
-import com.dremio.iceberg.authmgr.oauth2.rest.PostFormRequest;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
+import com.google.common.collect.ImmutableMap;
+import com.nimbusds.oauth2.sdk.GrantType;
+import com.nimbusds.oauth2.sdk.token.TokenTypeURI;
 
 @AuthManagerImmutable
 public abstract class TokenExchangeExpectation extends InitialTokenFetchExpectation {
 
   @Override
-  protected PostFormRequest tokenRequestBody() {
-    return ImmutableTokenExchangeRequest.builder()
-        .clientId(
-            getTestEnvironment().isPrivateClient()
-                ? null
-                : String.format("(%s|%s)", CLIENT_ID1, CLIENT_ID2))
-        .subjectToken(String.format("(%s|%s)", SUBJECT_TOKEN, "access_.*"))
-        .subjectTokenType(SUBJECT_TOKEN_TYPE)
-        .actorToken(String.format("(%s|%s)", ACTOR_TOKEN, "access_.*"))
-        .actorTokenType(ACTOR_TOKEN_TYPE)
-        .requestedTokenType(REQUESTED_TOKEN_TYPE)
-        .audience(AUDIENCE)
-        .resource(RESOURCE)
-        .scope(String.format("(%s|%s)", SCOPE1, SCOPE2))
-        .putExtraParameter("(extra1|extra2)", "(value1|value2)")
-        .build();
+  protected ImmutableMap.Builder<String, String> requestBody() {
+    return super.requestBody()
+        .put("grant_type", GrantType.TOKEN_EXCHANGE.toString())
+        .put("subject_token", String.format("(%s|%s)", SUBJECT_TOKEN, "access_.*"))
+        .put("actor_token", String.format("(%s|%s)", ACTOR_TOKEN, "access_.*"))
+        .put("subject_token_type", TokenTypeURI.ACCESS_TOKEN.toString())
+        .put("actor_token_type", TokenTypeURI.ACCESS_TOKEN.toString())
+        .put("requested_token_type", TokenTypeURI.ACCESS_TOKEN.toString())
+        .put("audience", AUDIENCE.toString())
+        .put("resource", RESOURCE.toString())
+        .put("scope", String.format("(%s|%s)", SCOPE1, SCOPE2));
   }
 }

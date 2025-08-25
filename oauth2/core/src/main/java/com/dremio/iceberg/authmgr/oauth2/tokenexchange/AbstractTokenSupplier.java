@@ -15,21 +15,21 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.tokenexchange;
 
+import com.dremio.iceberg.authmgr.oauth2.OAuth2Config;
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties;
 import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2Agent;
-import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2AgentSpec;
-import com.dremio.iceberg.authmgr.oauth2.grant.GrantType;
-import com.dremio.iceberg.authmgr.oauth2.token.TypedToken;
+import com.nimbusds.oauth2.sdk.GrantType;
+import com.nimbusds.oauth2.sdk.http.HTTPRequestSender;
+import com.nimbusds.oauth2.sdk.token.AccessToken;
+import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
+import com.nimbusds.oauth2.sdk.token.TokenTypeURI;
 import jakarta.annotation.Nullable;
-import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.function.Supplier;
-import org.apache.iceberg.rest.RESTClient;
 import org.immutables.value.Value;
 
 public abstract class AbstractTokenSupplier implements AutoCloseable {
@@ -42,12 +42,13 @@ public abstract class AbstractTokenSupplier implements AutoCloseable {
    *
    * <p>If no token is configured, the returned stage will be already completed, with a null value.
    */
-  public CompletionStage<TypedToken> supplyTokenAsync() {
+  public CompletionStage<AccessToken> supplyTokenAsync() {
     if (getTokenAgent() != null) {
-      return getTokenAgent().authenticateAsync().thenApply(TypedToken::of);
+      return getTokenAgent().authenticateAsync();
     }
     return getToken().isPresent()
-        ? CompletableFuture.completedFuture(TypedToken.of(getToken().get(), getTokenType()))
+        ? CompletableFuture.completedFuture(
+            new BearerAccessToken(getToken().get(), 0, null, getTokenType()))
         : CompletableFuture.completedFuture(null);
   }
 
@@ -71,12 +72,12 @@ public abstract class AbstractTokenSupplier implements AutoCloseable {
       return null;
     }
     Map<String, String> config = getTokenConfig();
-    if (!config.containsKey(OAuth2Properties.Runtime.AGENT_NAME)) {
+    if (!config.containsKey(OAuth2Properties.System.AGENT_NAME)) {
       config = new HashMap<>(config);
-      config.put(OAuth2Properties.Runtime.AGENT_NAME, getDefaultAgentName());
+      config.put(OAuth2Properties.System.AGENT_NAME, getDefaultAgentName());
     }
-    OAuth2AgentSpec tokenSpec = getMainSpec().merge(config);
-    return new OAuth2Agent(tokenSpec, getExecutor(), getRestClientSupplier());
+    OAuth2Config tokenSpec = getMainSpec().merge(config);
+    return new OAuth2Agent(tokenSpec, getExecutor(), getHttpClient());
   }
 
   @Override
@@ -86,15 +87,15 @@ public abstract class AbstractTokenSupplier implements AutoCloseable {
     }
   }
 
-  protected abstract OAuth2AgentSpec getMainSpec();
+  protected abstract OAuth2Config getMainSpec();
 
   protected abstract ScheduledExecutorService getExecutor();
 
-  protected abstract Supplier<RESTClient> getRestClientSupplier();
+  protected abstract HTTPRequestSender getHttpClient();
 
   protected abstract Optional<String> getToken();
 
-  protected abstract URI getTokenType();
+  protected abstract TokenTypeURI getTokenType();
 
   @Value.Derived
   protected abstract Map<String, String> getTokenConfig();

@@ -15,11 +15,10 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.flow;
 
-import com.dremio.iceberg.authmgr.oauth2.config.Secret;
-import com.dremio.iceberg.authmgr.oauth2.grant.GrantType;
-import com.dremio.iceberg.authmgr.oauth2.rest.PasswordTokenRequest;
-import com.dremio.iceberg.authmgr.oauth2.token.Tokens;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
+import com.nimbusds.oauth2.sdk.GrantType;
+import com.nimbusds.oauth2.sdk.ResourceOwnerPasswordCredentialsGrant;
+import com.nimbusds.oauth2.sdk.auth.Secret;
 import java.util.concurrent.CompletionStage;
 
 /**
@@ -28,30 +27,27 @@ import java.util.concurrent.CompletionStage;
  * Credentials Grant</a> flow.
  */
 @AuthManagerImmutable
-abstract class PasswordFlow extends AbstractFlow implements InitialFlow {
+abstract class PasswordFlow extends AbstractFlow {
 
   interface Builder extends AbstractFlow.Builder<PasswordFlow, Builder> {}
 
   @Override
-  public GrantType getGrantType() {
+  public final GrantType getGrantType() {
     return GrantType.PASSWORD;
   }
 
   @Override
-  public CompletionStage<Tokens> fetchNewTokens() {
+  public CompletionStage<TokensResult> fetchNewTokens() {
     String username =
-        getSpec()
+        getConfig()
             .getResourceOwnerConfig()
             .getUsername()
             .orElseThrow(() -> new IllegalStateException("Username is required"));
-    String password =
-        getSpec()
+    Secret password =
+        getConfig()
             .getResourceOwnerConfig()
             .getPassword()
-            .map(Secret::getSecret)
             .orElseThrow(() -> new IllegalStateException("Password is required"));
-    PasswordTokenRequest.Builder request =
-        PasswordTokenRequest.builder().username(username).password(password);
-    return invokeTokenEndpoint(null, request);
+    return invokeTokenEndpoint(new ResourceOwnerPasswordCredentialsGrant(username, password));
   }
 }

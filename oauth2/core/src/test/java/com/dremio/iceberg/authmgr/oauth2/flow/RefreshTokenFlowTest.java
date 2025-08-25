@@ -15,25 +15,17 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.flow;
 
-import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.ACCESS_TOKEN_EXPIRATION_TIME;
-import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.REFRESH_TOKEN_EXPIRATION_TIME;
-import static com.dremio.iceberg.authmgr.oauth2.test.TokenAssertions.assertTokens;
+import static com.dremio.iceberg.authmgr.oauth2.test.TokenAssertions.assertTokensResult;
+import static org.assertj.core.api.Assertions.assertThat;
 
-import com.dremio.iceberg.authmgr.oauth2.grant.GrantType;
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
-import com.dremio.iceberg.authmgr.oauth2.token.AccessToken;
-import com.dremio.iceberg.authmgr.oauth2.token.RefreshToken;
-import com.dremio.iceberg.authmgr.oauth2.token.Tokens;
+import com.nimbusds.oauth2.sdk.GrantType;
+import com.nimbusds.oauth2.sdk.token.RefreshToken;
 import java.util.concurrent.ExecutionException;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
 class RefreshTokenFlowTest {
-
-  private final Tokens currentTokens =
-      Tokens.of(
-          AccessToken.of("access_initial", "Bearer", ACCESS_TOKEN_EXPIRATION_TIME),
-          RefreshToken.of("refresh_initial", REFRESH_TOKEN_EXPIRATION_TIME));
 
   @ParameterizedTest
   @CsvSource({"true, true", "true, false", "false, true", "false, false"})
@@ -46,9 +38,10 @@ class RefreshTokenFlowTest {
                 .returnRefreshTokens(returnRefreshTokens)
                 .build();
         FlowFactory flowFactory = env.newFlowFactory()) {
-      RefreshFlow flow = flowFactory.createTokenRefreshFlow();
-      Tokens tokens = flow.refreshTokens(currentTokens).toCompletableFuture().get();
-      assertTokens(
+      Flow flow = flowFactory.createTokenRefreshFlow(new RefreshToken("refresh_initial"));
+      TokensResult tokens = flow.fetchNewTokens().toCompletableFuture().get();
+      assertThat(flow).isInstanceOf(RefreshTokenFlow.class);
+      assertTokensResult(
           tokens,
           "access_refreshed",
           returnRefreshTokens ? "refresh_refreshed" : "refresh_initial");
