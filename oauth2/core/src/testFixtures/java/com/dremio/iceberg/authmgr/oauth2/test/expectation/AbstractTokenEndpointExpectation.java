@@ -60,7 +60,7 @@ public abstract class AbstractTokenEndpointExpectation extends AbstractExpectati
   }
 
   protected ImmutableList.Builder<Header> requestHeaders() {
-    ImmutableList.Builder<Header> builder = ImmutableList.<Header>builder();
+    ImmutableList.Builder<Header> builder = ImmutableList.builder();
     if (getTestEnvironment()
         .getClientAuthenticationMethod()
         .equals(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)) {
@@ -93,17 +93,19 @@ public abstract class AbstractTokenEndpointExpectation extends AbstractExpectati
     return builder;
   }
 
-  protected ImmutableMap.Builder<String, String> responseBody(
+  protected ImmutableMap.Builder<String, Object> responseBody(
       String accessToken, String refreshToken) {
-    ImmutableMap.Builder<String, String> builder =
-        ImmutableMap.<String, String>builder()
+    ImmutableMap.Builder<String, Object> builder =
+        ImmutableMap.<String, Object>builder()
             .put("access_token", accessToken)
             .put("token_type", "bearer")
-            .put(
-                "expires_in",
-                String.valueOf((int) getTestEnvironment().getAccessTokenLifespan().toSeconds()));
+            .put("expires_in", getTestEnvironment().getAccessTokenLifespan().toSeconds());
     if (getTestEnvironment().isReturnRefreshTokens()) {
       builder.put("refresh_token", refreshToken);
+      if (getTestEnvironment().isReturnRefreshTokenLifespan()) {
+        builder.put(
+            "refresh_expires_in", getTestEnvironment().getRefreshTokenLifespan().toSeconds());
+      }
     }
     if (getTestEnvironment().getGrantType().equals(GrantType.TOKEN_EXCHANGE)) {
       // included for completeness, but not used

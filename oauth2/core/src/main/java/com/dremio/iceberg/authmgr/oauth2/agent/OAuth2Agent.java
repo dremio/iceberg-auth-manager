@@ -228,8 +228,10 @@ public final class OAuth2Agent implements Closeable {
 
   CompletionStage<TokensResult> refreshCurrentTokens(TokensResult currentTokens) {
     RefreshToken refreshToken = currentTokens.getTokens().getRefreshToken();
-    if (refreshToken == null) {
-      LOGGER.debug("[{}] Must fetch new tokens, refresh token is null", name);
+    if (refreshToken == null
+        || currentTokens.isRefreshTokenExpired(
+            clock.instant().plus(config.getTokenRefreshConfig().getSafetyWindow()))) {
+      LOGGER.debug("[{}] Must fetch new tokens, refresh token is null or expired", name);
       return MUST_FETCH_NEW_TOKENS_FUTURE;
     }
     Flow flow = flowFactory.createTokenRefreshFlow(refreshToken);
@@ -241,7 +243,10 @@ public final class OAuth2Agent implements Closeable {
     if (newTokens != null) {
       if (LOGGER.isDebugEnabled()) {
         LOGGER.debug("[{}] Successfully fetched new tokens", name);
-        LOGGER.debug("[{}] Access token expiration time: {}", name, newTokens.getExpirationTime());
+        LOGGER.debug(
+            "[{}] Access token expiration time: {}",
+            name,
+            newTokens.getAccessTokenExpirationTime());
       }
     } else if (!closing.get()) {
       if (error instanceof CompletionException) {
@@ -307,10 +312,10 @@ public final class OAuth2Agent implements Closeable {
 
   private Duration nextTokenRefresh(@Nullable TokensResult currentTokens, Instant now) {
     Duration minRefreshDelay = config.getTokenRefreshConfig().getMinRefreshDelay();
-    if (currentTokens == null || currentTokens.isExpired(now)) {
+    if (currentTokens == null || currentTokens.isAccessTokenExpired(now)) {
       return minRefreshDelay;
     }
-    Instant expirationTime = currentTokens.getExpirationTime();
+    Instant expirationTime = currentTokens.getAccessTokenExpirationTime();
     if (expirationTime == null) {
       Duration defaultLifespan = config.getTokenRefreshConfig().getAccessTokenLifespan();
       maybeWarn(
@@ -391,7 +396,8 @@ public final class OAuth2Agent implements Closeable {
     LOGGER.debug("[{}] Waking up...", name);
     TokensResult currentTokens = Futures.getNow(currentTokensFuture);
     if (currentTokens == null
-        || currentTokens.isExpired(now.plus(config.getTokenRefreshConfig().getSafetyWindow()))) {
+        || currentTokens.isAccessTokenExpired(
+            now.plus(config.getTokenRefreshConfig().getSafetyWindow()))) {
       LOGGER.debug("[{}] Refreshing tokens immediately", name);
       renewTokens();
     } else {

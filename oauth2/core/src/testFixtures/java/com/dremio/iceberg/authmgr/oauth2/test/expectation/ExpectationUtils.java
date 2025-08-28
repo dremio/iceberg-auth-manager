@@ -42,7 +42,7 @@ public final class ExpectationUtils {
     }
   }
 
-  public static JsonBody getJsonBody(Map<String, String> response) {
+  public static JsonBody getJsonBody(Map<String, Object> response) {
     return JsonBody.json(response);
   }
 

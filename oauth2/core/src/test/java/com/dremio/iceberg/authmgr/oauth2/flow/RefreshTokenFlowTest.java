@@ -30,20 +30,27 @@ class RefreshTokenFlowTest {
 
   @ParameterizedTest
   @CsvSource({
-    "client_secret_basic , true",
-    "client_secret_basic , false",
-    "client_secret_post  , true",
-    "client_secret_post  , false",
-    "none                , true",
-    "none                , false",
+    "client_secret_basic , true  , true",
+    "client_secret_basic , true  , false",
+    "client_secret_basic , false , false",
+    "client_secret_post  , true  , true",
+    "client_secret_post  , true  , false",
+    "client_secret_post  , false , false",
+    "none                , true  , true",
+    "none                , true  , false",
+    "none                , false , false",
   })
-  void fetchNewTokens(ClientAuthenticationMethod authenticationMethod, boolean returnRefreshTokens)
+  void fetchNewTokens(
+      ClientAuthenticationMethod authenticationMethod,
+      boolean returnRefreshTokens,
+      boolean returnRefreshTokenLifespan)
       throws ExecutionException, InterruptedException {
     try (TestEnvironment env =
             TestEnvironment.builder()
                 .grantType(GrantType.AUTHORIZATION_CODE)
                 .clientAuthenticationMethod(authenticationMethod)
                 .returnRefreshTokens(returnRefreshTokens)
+                .returnRefreshTokenLifespan(returnRefreshTokenLifespan)
                 .build();
         FlowFactory flowFactory = env.newFlowFactory()) {
       Flow flow = flowFactory.createTokenRefreshFlow(new RefreshToken("refresh_initial"));
@@ -52,7 +59,8 @@ class RefreshTokenFlowTest {
       assertTokensResult(
           tokens,
           "access_refreshed",
-          returnRefreshTokens ? "refresh_refreshed" : "refresh_initial");
+          returnRefreshTokens ? "refresh_refreshed" : "refresh_initial",
+          returnRefreshTokenLifespan);
     }
   }
 }

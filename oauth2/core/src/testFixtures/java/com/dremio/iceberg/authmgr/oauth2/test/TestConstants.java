@@ -73,6 +73,14 @@ public class TestConstants {
   public static final Duration ACCESS_TOKEN_LIFESPAN =
       Duration.ofSeconds(ACCESS_TOKEN_EXPIRES_IN_SECONDS);
 
+  public static final int REFRESH_TOKEN_EXPIRES_IN_SECONDS = 86400;
+
+  public static final Instant REFRESH_TOKEN_EXPIRATION_TIME =
+      NOW.plusSeconds(REFRESH_TOKEN_EXPIRES_IN_SECONDS);
+
+  public static final Duration REFRESH_TOKEN_LIFESPAN =
+      Duration.ofSeconds(REFRESH_TOKEN_EXPIRES_IN_SECONDS);
+
   public static final TypelessAccessToken SUBJECT_TOKEN = new TypelessAccessToken("subject");
   public static final TypelessAccessToken ACTOR_TOKEN = new TypelessAccessToken("actor");
 

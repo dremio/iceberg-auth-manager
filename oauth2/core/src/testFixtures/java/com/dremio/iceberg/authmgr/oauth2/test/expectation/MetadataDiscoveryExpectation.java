@@ -31,8 +31,8 @@ public abstract class MetadataDiscoveryExpectation extends AbstractExpectation {
     if (getTestEnvironment().isDiscoveryEnabled()) {
       URI issuerUrl = getTestEnvironment().getAuthorizationServerUrl();
       URI discoveryEndpoint = getTestEnvironment().getDiscoveryEndpoint();
-      ImmutableMap.Builder<String, String> builder =
-          ImmutableMap.<String, String>builder()
+      ImmutableMap.Builder<String, Object> builder =
+          ImmutableMap.<String, Object>builder()
               .put("issuer", issuerUrl.toString())
               .put(
                   "authorization_endpoint",

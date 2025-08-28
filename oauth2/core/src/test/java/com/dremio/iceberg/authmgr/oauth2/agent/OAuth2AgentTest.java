@@ -15,9 +15,9 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.agent;
 
-import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.ACCESS_TOKEN_EXPIRES_IN_SECONDS;
 import static com.dremio.iceberg.authmgr.oauth2.test.TokenAssertions.assertAccessToken;
 import static com.dremio.iceberg.authmgr.oauth2.test.TokenAssertions.assertTokensResult;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.ATOMIC_BOOLEAN;
 import static org.assertj.core.api.InstanceOfAssertFactories.throwable;
 import static org.mockito.ArgumentMatchers.any;
@@ -43,6 +43,7 @@ import com.nimbusds.oauth2.sdk.token.RefreshToken;
 import com.nimbusds.oauth2.sdk.token.Tokens;
 import com.nimbusds.oauth2.sdk.token.TypelessAccessToken;
 import java.time.Duration;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
@@ -254,35 +255,94 @@ class OAuth2AgentTest {
 
   @ParameterizedTest
   @CsvSource({
-    "client_secret_basic , true",
-    "client_secret_basic , false",
-    "client_secret_post  , true",
-    "client_secret_post  , false",
-    "none                , true",
-    "none                , false",
+    "client_secret_basic , true  , true",
+    "client_secret_basic , true  , false",
+    "client_secret_basic , false , false",
+    "client_secret_post  , true  , true",
+    "client_secret_post  , true  , false",
+    "client_secret_post  , false , false",
+    "none                , true  , true",
+    "none                , true  , false",
+    "none                , false , false",
   })
   void testRefreshToken(
-      ClientAuthenticationMethod authenticationMethod, boolean returnRefreshTokens)
+      ClientAuthenticationMethod authenticationMethod,
+      boolean returnRefreshTokens,
+      boolean returnRefreshTokenLifespan)
       throws InterruptedException, ExecutionException {
     try (TestEnvironment env =
             TestEnvironment.builder()
                 .grantType(GrantType.PASSWORD)
                 .clientAuthenticationMethod(authenticationMethod)
                 .returnRefreshTokens(returnRefreshTokens)
+                .returnRefreshTokenLifespan(returnRefreshTokenLifespan)
                 .build();
         OAuth2Agent agent = env.newAgent()) {
       TokensResult currentTokens =
           TokensResult.of(
               new Tokens(
-                  new BearerAccessToken(
-                      "access_initial", ACCESS_TOKEN_EXPIRES_IN_SECONDS, TestConstants.SCOPE1),
-                  new RefreshToken("refresh_initial")),
-              TestConstants.NOW);
+                  new BearerAccessToken("access_initial"), new RefreshToken("refresh_initial")),
+              TestConstants.NOW,
+              Map.of());
       TokensResult tokens = agent.refreshCurrentTokens(currentTokens).toCompletableFuture().get();
       assertTokensResult(
           tokens,
           "access_refreshed",
-          returnRefreshTokens ? "refresh_refreshed" : "refresh_initial");
+          returnRefreshTokens ? "refresh_refreshed" : "refresh_initial",
+          returnRefreshTokenLifespan);
+    }
+  }
+
+  @Test
+  void testRefreshTokenMustFetchNewTokens() {
+    try (TestEnvironment env = TestEnvironment.builder().build();
+        OAuth2Agent agent = env.newAgent()) {
+      // no refresh token
+      TokensResult currentTokens =
+          TokensResult.of(
+              new Tokens(new BearerAccessToken("access_initial"), null),
+              TestConstants.NOW,
+              Map.of());
+      assertThat(agent.refreshCurrentTokens(currentTokens))
+          .completesExceptionallyWithin(Duration.ofSeconds(10))
+          .withThrowableOfType(ExecutionException.class)
+          .withCauseInstanceOf(OAuth2Agent.MustFetchNewTokensException.class);
+      // refresh token with no lifespan => assume not expired
+      currentTokens =
+          TokensResult.of(
+              new Tokens(
+                  new BearerAccessToken("access_initial"), new RefreshToken("refresh_initial")),
+              TestConstants.NOW,
+              Map.of());
+      assertThat(agent.refreshCurrentTokens(currentTokens)).isNotCompletedExceptionally();
+      // refresh token with lifespan zero => assume not expired
+      currentTokens =
+          TokensResult.of(
+              new Tokens(
+                  new BearerAccessToken("access_initial"), new RefreshToken("refresh_initial")),
+              TestConstants.NOW,
+              Map.of("refresh_expires_in", 0L));
+      assertThat(agent.refreshCurrentTokens(currentTokens)).isNotCompletedExceptionally();
+      // refresh token with lifespan non-zero but expired => assume expired
+      // (note: the safety window is 5s)
+      currentTokens =
+          TokensResult.of(
+              new Tokens(
+                  new BearerAccessToken("access_initial"), new RefreshToken("refresh_initial")),
+              TestConstants.NOW,
+              Map.of("refresh_expires_in", 5L));
+      assertThat(agent.refreshCurrentTokens(currentTokens))
+          .completesExceptionallyWithin(Duration.ofSeconds(10))
+          .withThrowableOfType(ExecutionException.class)
+          .withCauseInstanceOf(OAuth2Agent.MustFetchNewTokensException.class);
+      // refresh token with lifespan non-zero and not expired => assume not expired
+      currentTokens =
+          TokensResult.of(
+              new Tokens(
+                  new BearerAccessToken("access_initial"), new RefreshToken("refresh_initial")),
+              TestConstants.NOW,
+              Map.of("refresh_expires_in", 6L));
+      assertThat(agent.refreshCurrentTokens(currentTokens)).isNotCompletedExceptionally();
     }
   }
 

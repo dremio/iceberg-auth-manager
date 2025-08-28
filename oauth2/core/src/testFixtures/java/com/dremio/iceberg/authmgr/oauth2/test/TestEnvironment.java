@@ -116,6 +116,11 @@ public abstract class TestEnvironment implements AutoCloseable {
   }
 
   @Value.Default
+  public boolean isReturnRefreshTokenLifespan() {
+    return true;
+  }
+
+  @Value.Default
   public boolean isIncludeDeviceAuthEndpointInDiscoveryMetadata() {
     return true;
   }
@@ -317,6 +322,11 @@ public abstract class TestEnvironment implements AutoCloseable {
   @Value.Default
   public Duration getAccessTokenLifespan() {
     return TestConstants.ACCESS_TOKEN_LIFESPAN;
+  }
+
+  @Value.Default
+  public Duration getRefreshTokenLifespan() {
+    return TestConstants.REFRESH_TOKEN_LIFESPAN;
   }
 
   @Value.Default

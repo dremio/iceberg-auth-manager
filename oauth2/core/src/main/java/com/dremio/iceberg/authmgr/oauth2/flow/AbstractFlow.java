@@ -49,7 +49,6 @@ import com.nimbusds.oauth2.sdk.id.ClientID;
 import com.nimbusds.oauth2.sdk.id.Issuer;
 import com.nimbusds.oauth2.sdk.id.JWTID;
 import com.nimbusds.oauth2.sdk.id.Subject;
-import com.nimbusds.oauth2.sdk.token.Tokens;
 import java.net.URI;
 import java.nio.file.Path;
 import java.security.interfaces.RSAPrivateKey;
@@ -152,8 +151,7 @@ abstract class AbstractFlow implements Flow {
 
   TokensResult toTokensResult(AccessTokenResponse response) {
     Instant now = getConfig().getSystemConfig().getClock().instant();
-    Tokens tokens = response.toSuccessResponse().getTokens();
-    return TokensResult.of(tokens, now);
+    return TokensResult.of(response, now);
   }
 
   void log(HTTPRequest request, HTTPResponse response, Throwable error) {

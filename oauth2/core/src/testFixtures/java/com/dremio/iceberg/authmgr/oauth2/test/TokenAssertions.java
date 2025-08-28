@@ -21,20 +21,35 @@ import com.dremio.iceberg.authmgr.oauth2.flow.TokensResult;
 import com.nimbusds.oauth2.sdk.token.AccessToken;
 import com.nimbusds.oauth2.sdk.token.AccessTokenType;
 import com.nimbusds.oauth2.sdk.token.RefreshToken;
-import com.nimbusds.oauth2.sdk.token.Tokens;
+import jakarta.annotation.Nullable;
 
-public class TokenAssertions {
+public final class TokenAssertions {
+
+  private TokenAssertions() {}
 
   public static void assertTokensResult(
-      TokensResult result, String accessToken, String refreshToken) {
-    assertTokens(result.getTokens(), accessToken, refreshToken);
-    assertThat(result.getExpirationTime()).isEqualTo(TestConstants.ACCESS_TOKEN_EXPIRATION_TIME);
+      TokensResult result, String accessToken, @Nullable String refreshToken) {
+    assertTokensResult(result, accessToken, refreshToken, refreshToken != null);
   }
 
-  public static void assertTokens(Tokens result, String accessToken, String refreshToken) {
+  public static void assertTokensResult(
+      TokensResult result,
+      String accessToken,
+      @Nullable String refreshToken,
+      boolean expectRefreshTokenExp) {
     assertAccessToken(
-        result.getAccessToken(), accessToken, TestConstants.ACCESS_TOKEN_EXPIRES_IN_SECONDS);
-    assertRefreshToken(result.getRefreshToken(), refreshToken);
+        result.getTokens().getAccessToken(),
+        accessToken,
+        TestConstants.ACCESS_TOKEN_EXPIRES_IN_SECONDS);
+    assertRefreshToken(result.getTokens().getRefreshToken(), refreshToken);
+    assertThat(result.getAccessTokenExpirationTime())
+        .isEqualTo(TestConstants.ACCESS_TOKEN_EXPIRATION_TIME);
+    if (expectRefreshTokenExp) {
+      assertThat(result.getRefreshTokenExpirationTime())
+          .isEqualTo(TestConstants.REFRESH_TOKEN_EXPIRATION_TIME);
+    } else {
+      assertThat(result.getRefreshTokenExpirationTime()).isNull();
+    }
   }
 
   public static void assertAccessToken(AccessToken actual, String expected, int expiresInSeconds) {

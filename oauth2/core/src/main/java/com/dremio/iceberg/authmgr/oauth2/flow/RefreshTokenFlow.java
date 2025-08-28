@@ -58,6 +58,6 @@ abstract class RefreshTokenFlow extends AbstractFlow {
     if (tokens.getRefreshToken() == null) {
       tokens = new Tokens(tokens.getAccessToken(), getRefreshToken());
     }
-    return TokensResult.of(tokens, now);
+    return TokensResult.of(tokens, now, response.getCustomParameters());
   }
 }

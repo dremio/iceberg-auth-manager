@@ -91,14 +91,6 @@ public class OAuth2AgentKeycloakIT {
         OAuth2Agent agent = env.newAgent()) {
       boolean expectRefreshToken = initialGrantType != GrantType.CLIENT_CREDENTIALS;
       assertAgent(agent, TestConstants.CLIENT_ID1, expectRefreshToken);
-      // also test copy before and after close
-      try (OAuth2Agent agent2 = agent.copy()) {
-        assertAgent(agent2, TestConstants.CLIENT_ID1, expectRefreshToken);
-      }
-      agent.close();
-      try (OAuth2Agent agent3 = agent.copy()) {
-        assertAgent(agent3, TestConstants.CLIENT_ID1, expectRefreshToken);
-      }
     }
   }
 
@@ -490,6 +482,20 @@ public class OAuth2AgentKeycloakIT {
             .extracting(OAuth2Exception::getErrorObject)
             .extracting(ErrorObject::getHTTPStatusCode, ErrorObject::getCode)
             .containsExactly(400, "access_denied"); // Keycloak replies with 400 instead of 401
+      }
+    }
+  }
+
+  @Test
+  void agentCopy(Builder envBuilder) throws Exception {
+    try (TestEnvironment env = envBuilder.build();
+        OAuth2Agent agent = env.newAgent()) {
+      try (OAuth2Agent agent2 = agent.copy()) {
+        assertAgent(agent2, TestConstants.CLIENT_ID1, false);
+      }
+      agent.close();
+      try (OAuth2Agent agent3 = agent.copy()) {
+        assertAgent(agent3, TestConstants.CLIENT_ID1, false);
       }
     }
   }
