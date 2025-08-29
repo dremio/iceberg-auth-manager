@@ -74,6 +74,41 @@ java {
   withSourcesJar()
 }
 
+tasks.withType<Jar>().configureEach {
+  manifest {
+    attributes(
+      "Implementation-Title" to project.name,
+      "Implementation-Version" to project.version,
+      "Implementation-Vendor" to "Dremio Corporation",
+      "Implementation-URL" to "https://github.com/dremio/iceberg-auth-manager/",
+    )
+  }
+}
+
+if (project.hasProperty("release")) {
+  tasks.withType<Jar>().configureEach {
+    dependsOn(rootProject.tasks.named("generateGitProperties"))
+    doFirst {
+      val gitProps = rootProject.extra["gitProps"] as Map<*, *>
+      manifest {
+        attributes(
+          "Created-By" to "Gradle ${gradle.gradleVersion}",
+          "Built-By" to gitProps["git.build.user.email"],
+          "Build-Jdk" to
+            "${System.getProperty("java.vendor")} ${System.getProperty("java.vm.version")}",
+          "Build-Jdk-Spec" to System.getProperty("java.specification.version"),
+          "Build-OS" to
+            "${System.getProperty("os.name")} ${System.getProperty("os.arch")} ${System.getProperty("os.version")}",
+          "Build-Revision" to gitProps["git.commit.id"],
+          "Build-Timestamp" to gitProps["git.commit.time"],
+          "Build-Tool" to "Gradle ${gradle.gradleVersion}",
+          "Git-Tag" to gitProps["git.closest.tag.name"],
+        )
+      }
+    }
+  }
+}
+
 tasks.withType<Javadoc>().configureEach {
   val opt = options as CoreJavadocOptions
   // don't spam log w/ "warning: no @param/@return"

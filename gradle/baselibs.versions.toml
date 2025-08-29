@@ -19,6 +19,7 @@
 
 [libraries]
 errorprone = { module = "net.ltgt.gradle:gradle-errorprone-plugin", version = "4.3.0" }
+git-properties = { module = "com.gorylenko.gradle-git-properties:com.gorylenko.gradle-git-properties.gradle.plugin", version = "2.5.2" }
 idea-ext = { module = "gradle.plugin.org.jetbrains.gradle.plugin.idea-ext:gradle-idea-ext", version = "1.2" }
 jreleaser = { module = "org.jreleaser:jreleaser-gradle-plugin", version = "1.19.0" }
 shadow = { module = "com.gradleup.shadow:shadow-gradle-plugin", version = "8.3.8" }

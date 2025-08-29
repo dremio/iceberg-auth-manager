@@ -24,6 +24,7 @@ plugins {
   id("authmgr-root")
   id("authmgr-maven")
   id("authmgr-jreleaser")
+  id("authmgr-git-info")
   alias(libs.plugins.rat)
 }
 
