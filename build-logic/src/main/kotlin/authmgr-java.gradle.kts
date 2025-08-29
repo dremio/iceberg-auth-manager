@@ -74,6 +74,11 @@ java {
   withSourcesJar()
 }
 
+tasks.withType<Jar>().configureEach {
+  from(rootProject.file("LICENSE")) { into("META-INF") }
+  from(rootProject.file("NOTICE")) { into("META-INF") }
+}
+
 tasks.withType<Javadoc>().configureEach {
   val opt = options as CoreJavadocOptions
   // don't spam log w/ "warning: no @param/@return"

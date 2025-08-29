@@ -14,10 +14,16 @@
  * limitations under the License.
  */
 
+import com.github.jengelman.gradle.plugins.shadow.transformers.ApacheNoticeResourceTransformer
+import com.github.jk1.license.filter.SpdxLicenseBundleNormalizer
+import com.github.jk1.license.render.ReportRenderer
+import java.time.LocalDate
+
 plugins {
   id("authmgr-java")
   id("authmgr-shadow-jar")
   id("authmgr-maven")
+  id("com.github.jk1.dependency-license-report")
 }
 
 description = "Runtime bundle for Dremio AuthManager for Apache Iceberg"
@@ -60,7 +66,7 @@ dependencies {
 }
 
 tasks.shadowJar {
-  isZip64 = true
+  dependsOn("checkLicense")
   archiveClassifier = "" // publish the shadowed JAR instead of the original JAR
   // relocate dependencies that are specific to the AuthManager
   relocate("com.nimbusds", "com.dremio.iceberg.authmgr.shaded.com.nimbusds")
@@ -73,18 +79,30 @@ tasks.shadowJar {
   exclude("META-INF/**/module-info.class")
   exclude("META-INF/proguard/**")
   exclude("iso3166_*.properties")
+  // include binary distribution LICENSE file, excluding other LICENSE files
+  exclude("META-INF/LICENSE", "META-INF/LICENSE.txt")
+  from("$projectDir/build/reports/license/LICENSE") { into("META-INF") }
+  // include project's NOTICE then merge all NOTICE files
+  from("${rootDir}/NOTICE") { into("META-INF") }
+  val noticeResourceTransformer = ApacheNoticeResourceTransformer()
+  noticeResourceTransformer.projectName = "Dremio AuthManager for Apache Iceberg"
+  noticeResourceTransformer.copyright = "Copyright (c) ${LocalDate.now().year} Dremio"
+  noticeResourceTransformer.inceptionYear = "2025"
+  transform(noticeResourceTransformer)
   minimize()
 }
 
 // Configure the source jar to copy from the core project's source jar
 tasks.named<Jar>("sourcesJar") {
   dependsOn(":authmgr-oauth2-core:sourcesJar")
+  duplicatesStrategy = DuplicatesStrategy.INCLUDE // LICENSE files may be duplicated
   from({ coreSources.incoming.artifactView { lenient(true) }.files.map { zipTree(it) } })
 }
 
 // Configure the javadoc jar to copy from the core project's javadoc jar
 tasks.named<Jar>("javadocJar") {
   dependsOn(":authmgr-oauth2-core:javadocJar")
+  duplicatesStrategy = DuplicatesStrategy.INCLUDE // LICENSE files may be duplicated
   from({ coreJavadoc.incoming.artifactView { lenient(true) }.files.map { zipTree(it) } })
 }
 
@@ -93,3 +111,19 @@ tasks.withType<Javadoc> { enabled = false }
 
 // We're replacing the "original jar" with the uber-jar.
 tasks.named("jar") { enabled = false }
+
+licenseReport {
+  outputDir = "$projectDir/build/reports/license"
+  configurations = arrayOf("runtimeClasspath")
+  filters = arrayOf(SpdxLicenseBundleNormalizer())
+  allowedLicensesFile =
+    rootProject.projectDir.resolve("gradle/license/allowed-licenses.json5").absoluteFile
+  renderers = arrayOf<ReportRenderer>(BinaryDistributionLicenseGenerator())
+  excludeOwnGroup = true
+}
+
+tasks.named("checkLicense") {
+  inputs
+    .files(rootProject.projectDir.resolve("gradle/license/allowed-licenses.json5"))
+    .withPathSensitivity(PathSensitivity.RELATIVE)
+}
