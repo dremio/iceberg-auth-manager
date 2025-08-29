@@ -561,8 +561,8 @@ public final class OAuth2Properties {
      * are:
      *
      * <ul>
-     *   <li>{@link HttpClientType#DEFAULT default}: uses the built-in URLConnection-based client
-     *       provided by the underlying OAuth2 library.
+     *   <li>{@link HttpClientType#DEFAULT default}: currently uses the built-in URLConnection-based
+     *       client provided by the underlying OAuth2 library.
      * </ul>
      *
      * <p>Optional, defaults to {@code default}.
