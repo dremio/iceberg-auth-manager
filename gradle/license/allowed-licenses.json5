@@ -1,0 +1,39 @@
+/*
+ * Copyright (C) 2025 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+{
+  "allowedLicenses": [
+
+    // See https://www.apache.org/legal/resolved.html
+
+    // Category A
+    { "moduleLicense" : "Apache-1.0" },
+    { "moduleLicense" : "Apache-2.0" },
+    { "moduleLicense" : "BSD-2.Clause" },
+    { "moduleLicense" : "BSD-3.Clause" },
+    { "moduleLicense" : "CC0-1.0" },
+    { "moduleLicense" : "MIT" },
+    { "moduleLicense" : "MIT-0" },
+    { "moduleLicense" : "Public-Domain" },
+
+    // Category B
+    { "moduleLicense" : "CDDL-1.0" },
+    { "moduleLicense" : "CDDL-1.1" },
+    { "moduleLicense" : "CPL-1.0" },
+    { "moduleLicense" : "EPL-1.0" },
+    { "moduleLicense" : "EPL-2.0" }
+
+  ]
+}

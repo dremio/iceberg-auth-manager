@@ -75,6 +75,9 @@ java {
 }
 
 tasks.withType<Jar>().configureEach {
+  from(rootProject.file("LICENSE")) { into("META-INF") }
+  from(rootProject.file("NOTICE")) { into("META-INF") }
+
   manifest {
     attributes(
       "Implementation-Title" to project.name,
