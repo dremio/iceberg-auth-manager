@@ -68,10 +68,10 @@ jobs:
 
       - name: Gradle Check Generated Docs
         run: |
-          ./gradlew --no-scan :authmgr-docs-generator:generateDocs
+          ./gradlew --no-scan generateDocs
           git diff --exit-code docs/configuration.md
           if [ $? -ne 0 ]; then
-            echo "Generated documentation does not match existing documentation. Please run './gradlew :authmgr-docs-generator:generateDocs' and commit the changes."
+            echo "Generated documentation does not match existing documentation. Please run './gradlew generateDocs' and commit the changes."
             exit 1
           fi
 

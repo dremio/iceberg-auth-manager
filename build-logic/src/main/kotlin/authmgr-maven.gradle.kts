@@ -33,11 +33,7 @@ afterEvaluate {
 
   // Projects to exclude from publication and BOM
   val excludedProjects =
-    setOf(
-      "authmgr-docs-generator",
-      "authmgr-oauth2-runtime-flink-tests",
-      "authmgr-oauth2-runtime-spark-tests",
-    )
+    setOf("authmgr-oauth2-runtime-flink-tests", "authmgr-oauth2-runtime-spark-tests")
 
   publishing {
     publications {

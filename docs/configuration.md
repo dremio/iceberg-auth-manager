@@ -32,7 +32,7 @@ Other properties are listed below.
 
 > [!WARNING]
 > This page is automatically generated from the code. Do not edit it manually.
-> To update this page, run: `./gradlew :authmgr-docs-generator:generateDocs`.
+> To update this page, run: `./gradlew generateDocs`.
 
 ## Basic Settings
 
@@ -66,11 +66,11 @@ Either this property or `rest.auth.oauth2.issuer-url` must be set. In case it is
 
 The grant type to use when authenticating against the OAuth2 server. Valid values are:
 
-- client_credentials (`client_credentials`)
-- password (`password`)
-- authorization_code (`authorization_code`)
-- urn:ietf:params:oauth:grant-type:device_code (`urn:ietf:params:oauth:grant-type:device_code`)
-- urn:ietf:params:oauth:grant-type:token-exchange (`urn:ietf:params:oauth:grant-type:token-exchange`)
+- `client_credentials`
+- `password`
+- `authorization_code`
+- `urn:ietf:params:oauth:grant-type:device_code`
+- `urn:ietf:params:oauth:grant-type:token-exchange`
 
 Optional, defaults to `client_credentials`.
 
@@ -82,11 +82,11 @@ Client ID to use when authenticating against the OAuth2 server. Required, unless
 
 The OAuth2 client authentication method to use. Valid values are:
 
-- none (`none`): the client does not authenticate itself at the token endpoint, because it is a public client with no client secret or other authentication mechanism.
-- client_secret_basic (`client_secret_basic`): client secret is sent in the HTTP Basic Authorization header.
-- client_secret_post (`client_secret_post`): client secret is sent in the request body as a form parameter.
-- client_secret_jwt (`client_secret_jwt`): client secret is used to sign a JWT token.
-- private_key_jwt (`private_key_jwt`): client authenticates with a JWT assertion signed with a private key.
+- `none`: the client does not authenticate itself at the token endpoint, because it is a public client with no client secret or other authentication mechanism.
+- `client_secret_basic`: client secret is sent in the HTTP Basic Authorization header.
+- `client_secret_post`: client secret is sent in the request body as a form parameter.
+- `client_secret_jwt`: client secret is used to sign a JWT token.
+- `private_key_jwt`: client authenticates with a JWT assertion signed with a private key.
 
 The default is `client_secret_basic`.
 

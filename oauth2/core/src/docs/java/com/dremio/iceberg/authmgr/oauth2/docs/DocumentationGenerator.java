@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dremio.iceberg.authmgr.docs;
+package com.dremio.iceberg.authmgr.oauth2.docs;
 
 import com.thoughtworks.qdox.JavaProjectBuilder;
 import com.thoughtworks.qdox.model.JavaClass;
@@ -222,18 +222,18 @@ public class DocumentationGenerator {
   }
 
   private String resolveReference(String linkRef, JavaClass nestedClass, String text) {
-    String className;
-    String fieldName;
-    if (linkRef.startsWith("#")) {
-      className = nestedClass.getSimpleName();
-      fieldName = linkRef.substring(1);
-    } else {
-      String[] parts = linkRef.split("#");
-      className = parts[0];
-      fieldName = parts[1];
-    }
     String refTarget = KNOWN_REFS.get(linkRef);
     if (refTarget == null) {
+      String className;
+      String fieldName;
+      if (linkRef.startsWith("#")) {
+        className = nestedClass.getSimpleName();
+        fieldName = linkRef.substring(1);
+      } else {
+        String[] parts = linkRef.split("#");
+        className = parts[0];
+        fieldName = parts[1];
+      }
       JavaClass classRef =
           className.equals("OAuth2Properties")
               ? topClass
@@ -246,7 +246,13 @@ public class DocumentationGenerator {
         refTarget = resolvePropertyName(field, prefix);
       }
     }
-    return text != null ? text.trim() + " (`" + refTarget + "`)" : "`" + refTarget + "`";
+    if (text == null) {
+      return "`" + refTarget + "`";
+    }
+    text = text.trim();
+    return text.isEmpty() || text.equals(refTarget)
+        ? "`" + refTarget + "`"
+        : text + " (`" + refTarget + "`)";
   }
 
   private String cleanupHtmlTags(String text) {

@@ -26,11 +26,7 @@ jreleaser {
 
   // Projects to exclude from publication and release
   val excludedProjects =
-    setOf(
-      "authmgr-docs-generator",
-      "authmgr-oauth2-runtime-flink-tests",
-      "authmgr-oauth2-runtime-spark-tests",
-    )
+    setOf("authmgr-oauth2-runtime-flink-tests", "authmgr-oauth2-runtime-spark-tests")
 
   project {
     name.set("Dremio Iceberg AuthManager")

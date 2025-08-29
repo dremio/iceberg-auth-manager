@@ -27,6 +27,14 @@ description = "Core OAuth2 implementation for Dremio AuthManager for Apache Iceb
 
 ext { set("mavenName", "Auth Manager for Apache Iceberg - OAuth2 - Core") }
 
+val docs by
+  configurations.creating {
+    description = "Dependencies for generating configuration documentation"
+    isCanBeResolved = true
+    isCanBeConsumed = false
+    isVisible = false
+  }
+
 dependencies {
   implementation(platform(libs.iceberg.bom))
   implementation("org.apache.iceberg:iceberg-api")
@@ -86,6 +94,8 @@ dependencies {
 
   longTestCompileOnly(project(":authmgr-immutables"))
   longTestAnnotationProcessor(project(":authmgr-immutables", configuration = "processor"))
+
+  docs("com.thoughtworks.qdox:qdox:2.2.0")
 }
 
 tasks.named<Test>("test").configure {
@@ -138,3 +148,42 @@ fun Test.commonTestConfig() {
     systemProperty("authmgr.test.mockserver.memoryUsageCsvDirectory", outputDir)
   }
 }
+
+sourceSets.create("docs") {
+  java.srcDir("src/docs/java")
+  resources.srcDir("src/docs/resources")
+  compileClasspath += docs
+  runtimeClasspath += docs
+}
+
+tasks.named("processDocsResources", ProcessResources::class) {
+  duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+tasks.register<JavaExec>("generateDocs") {
+  group = "documentation"
+  description = "Generates configuration documentation from OAuth2Properties"
+  mainClass.set("com.dremio.iceberg.authmgr.oauth2.docs.DocumentationGenerator")
+  classpath = sourceSets.getByName("docs").runtimeClasspath
+
+  val inputFile =
+    project.file("src/main/java/com/dremio/iceberg/authmgr/oauth2/OAuth2Properties.java")
+  val outputFile = rootProject.file("docs/configuration.md")
+
+  val headerFile = sourceSets.getByName("docs").resources.singleFile
+  val header = headerFile.readText()
+
+  inputs.files(inputFile, headerFile)
+  outputs.file(outputFile)
+
+  args(
+    inputFile.absolutePath,
+    "com.dremio.iceberg.authmgr.oauth2.OAuth2Properties",
+    header,
+    outputFile.absolutePath,
+  )
+
+  doFirst { outputFile.parentFile.mkdirs() }
+}
+
+tasks.named("publish") { dependsOn("generateDocs") }
