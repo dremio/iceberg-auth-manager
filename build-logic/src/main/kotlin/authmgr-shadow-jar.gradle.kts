@@ -23,6 +23,7 @@ val shadowJar = tasks.named<ShadowJar>("shadowJar")
 shadowJar.configure {
   outputs.cacheIf { false } // do not cache uber/shaded jars
   mergeServiceFiles()
+  duplicatesStrategy = DuplicatesStrategy.INCLUDE
 }
 
 tasks.withType<ShadowJar>().configureEach { isZip64 = true }
