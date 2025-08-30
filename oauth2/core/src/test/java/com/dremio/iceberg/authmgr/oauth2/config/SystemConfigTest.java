@@ -16,14 +16,12 @@
 package com.dremio.iceberg.authmgr.oauth2.config;
 
 import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.System.AGENT_NAME;
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.System.HTTP_CLIENT_TYPE;
 import static java.util.Collections.singletonList;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 import static org.assertj.core.api.AssertionsForClassTypes.catchThrowable;
 
 import com.dremio.iceberg.authmgr.oauth2.config.validator.ConfigValidator;
-import com.dremio.iceberg.authmgr.oauth2.http.HttpClientType;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -70,13 +68,8 @@ class SystemConfigTest {
     return Stream.of(
         Arguments.of(null, null, new NullPointerException("properties must not be null")),
         Arguments.of(
-            Map.of(
-                AGENT_NAME, "my-agent",
-                HTTP_CLIENT_TYPE, "apache"),
-            SystemConfig.builder()
-                .agentName("my-agent")
-                .httpClientType(HttpClientType.APACHE)
-                .build(),
+            Map.of(AGENT_NAME, "my-agent"),
+            SystemConfig.builder().agentName("my-agent").build(),
             null));
   }
 
@@ -94,37 +87,19 @@ class SystemConfigTest {
     return Stream.of(
         Arguments.of(
             SystemConfig.builder().build(),
-            Map.of(AGENT_NAME, "my-agent", HTTP_CLIENT_TYPE, "apache"),
-            SystemConfig.builder()
-                .agentName("my-agent")
-                .httpClientType(HttpClientType.APACHE)
-                .build()),
+            Map.of(AGENT_NAME, "my-agent"),
+            SystemConfig.builder().agentName("my-agent").build()),
         Arguments.of(
-            SystemConfig.builder()
-                .agentName("my-agent")
-                .httpClientType(HttpClientType.APACHE)
-                .build(),
+            SystemConfig.builder().agentName("my-agent").build(),
             Map.of(),
-            SystemConfig.builder()
-                .agentName("my-agent")
-                .httpClientType(HttpClientType.APACHE)
-                .build()),
+            SystemConfig.builder().agentName("my-agent").build()),
         Arguments.of(
-            SystemConfig.builder()
-                .agentName("my-agent1")
-                .httpClientType(HttpClientType.DEFAULT)
-                .build(),
-            Map.of(AGENT_NAME, "my-agent2", HTTP_CLIENT_TYPE, "apache"),
-            SystemConfig.builder()
-                .agentName("my-agent2")
-                .httpClientType(HttpClientType.APACHE)
-                .build()),
+            SystemConfig.builder().agentName("my-agent1").build(),
+            Map.of(AGENT_NAME, "my-agent2"),
+            SystemConfig.builder().agentName("my-agent2").build()),
         Arguments.of(
-            SystemConfig.builder()
-                .agentName("my-agent2")
-                .httpClientType(HttpClientType.APACHE)
-                .build(),
-            Map.of(AGENT_NAME, "", HTTP_CLIENT_TYPE, ""),
+            SystemConfig.builder().agentName("my-agent2").build(),
+            Map.of(AGENT_NAME, ""),
             SystemConfig.builder().build()));
   }
 }

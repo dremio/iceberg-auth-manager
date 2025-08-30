@@ -26,10 +26,11 @@ import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.Basic;
 import com.dremio.iceberg.authmgr.oauth2.config.ClientAssertionConfig;
 import com.dremio.iceberg.authmgr.oauth2.flow.OAuth2Exception;
 import com.dremio.iceberg.authmgr.oauth2.flow.TokensResult;
+import com.dremio.iceberg.authmgr.oauth2.http.HttpClientType;
+import com.dremio.iceberg.authmgr.oauth2.test.CryptoUtils;
 import com.dremio.iceberg.authmgr.oauth2.test.ImmutableTestEnvironment.Builder;
 import com.dremio.iceberg.authmgr.oauth2.test.TestConstants;
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
-import com.dremio.iceberg.authmgr.oauth2.test.TestPemUtils;
 import com.dremio.iceberg.authmgr.oauth2.test.container.KeycloakExtension;
 import com.dremio.iceberg.authmgr.oauth2.test.user.UserBehavior;
 import com.nimbusds.jose.JWSAlgorithm;
@@ -56,7 +57,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
-import org.junit.jupiter.params.provider.ValueSource;
 
 @ExtendWith(KeycloakExtension.class)
 @ExtendWith(SoftAssertionsExtension.class)
@@ -69,20 +69,26 @@ public class OAuth2AgentKeycloakIT {
   @BeforeAll
   static void copyPrivateKeyFile(@TempDir Path tempDir) {
     privateKeyPath = Paths.get(tempDir.toString(), "key.pem");
-    TestPemUtils.copyPrivateKey(privateKeyPath);
+    CryptoUtils.copyPrivateKey(privateKeyPath);
   }
 
   @ParameterizedTest
-  @ValueSource(
-      strings = {
-        "client_credentials",
-        "password",
-        "authorization_code",
-        "urn:ietf:params:oauth:grant-type:device_code",
-      })
-  void clientSecretBasic(GrantType initialGrantType, Builder envBuilder) throws Exception {
+  @CsvSource({
+    "DEFAULT , client_credentials",
+    "DEFAULT , password",
+    "DEFAULT , authorization_code",
+    "DEFAULT , urn:ietf:params:oauth:grant-type:device_code",
+    "APACHE  , client_credentials",
+    "APACHE  , password",
+    "APACHE  , authorization_code",
+    "APACHE  , urn:ietf:params:oauth:grant-type:device_code",
+  })
+  void clientSecretBasic(
+      HttpClientType httpClientType, GrantType initialGrantType, Builder envBuilder)
+      throws Exception {
     try (TestEnvironment env =
             envBuilder
+                .httpClientType(httpClientType)
                 .grantType(initialGrantType)
                 .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
                 .build();
@@ -93,16 +99,22 @@ public class OAuth2AgentKeycloakIT {
   }
 
   @ParameterizedTest
-  @ValueSource(
-      strings = {
-        "client_credentials",
-        "password",
-        "authorization_code",
-        "urn:ietf:params:oauth:grant-type:device_code",
-      })
-  void clientSecretPost(GrantType initialGrantType, Builder envBuilder) throws Exception {
+  @CsvSource({
+    "DEFAULT , client_credentials",
+    "DEFAULT , password",
+    "DEFAULT , authorization_code",
+    "DEFAULT , urn:ietf:params:oauth:grant-type:device_code",
+    "APACHE  , client_credentials",
+    "APACHE  , password",
+    "APACHE  , authorization_code",
+    "APACHE  , urn:ietf:params:oauth:grant-type:device_code",
+  })
+  void clientSecretPost(
+      HttpClientType httpClientType, GrantType initialGrantType, Builder envBuilder)
+      throws Exception {
     try (TestEnvironment env =
             envBuilder
+                .httpClientType(httpClientType)
                 .grantType(initialGrantType)
                 .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_POST)
                 .build();
@@ -113,15 +125,19 @@ public class OAuth2AgentKeycloakIT {
   }
 
   @ParameterizedTest
-  @ValueSource(
-      strings = {
-        "password",
-        "authorization_code",
-        "urn:ietf:params:oauth:grant-type:device_code",
-      })
-  void publicClient(GrantType initialGrantType, Builder envBuilder) throws Exception {
+  @CsvSource({
+    "DEFAULT , password",
+    "DEFAULT , authorization_code",
+    "DEFAULT , urn:ietf:params:oauth:grant-type:device_code",
+    "APACHE  , password",
+    "APACHE  , authorization_code",
+    "APACHE  , urn:ietf:params:oauth:grant-type:device_code",
+  })
+  void publicClient(HttpClientType httpClientType, GrantType initialGrantType, Builder envBuilder)
+      throws Exception {
     try (TestEnvironment env =
             envBuilder
+                .httpClientType(httpClientType)
                 .grantType(initialGrantType)
                 .clientAuthenticationMethod(ClientAuthenticationMethod.NONE)
                 .discoveryEnabled(false) // also test discovery disabled
@@ -134,16 +150,22 @@ public class OAuth2AgentKeycloakIT {
   }
 
   @ParameterizedTest
-  @ValueSource(
-      strings = {
-        "client_credentials",
-        "password",
-        "authorization_code",
-        "urn:ietf:params:oauth:grant-type:device_code",
-      })
-  void clientSecretJwt(GrantType initialGrantType, Builder envBuilder) throws Exception {
+  @CsvSource({
+    "DEFAULT , client_credentials",
+    "DEFAULT , password",
+    "DEFAULT , authorization_code",
+    "DEFAULT , urn:ietf:params:oauth:grant-type:device_code",
+    "APACHE  , client_credentials",
+    "APACHE  , password",
+    "APACHE  , authorization_code",
+    "APACHE  , urn:ietf:params:oauth:grant-type:device_code",
+  })
+  void clientSecretJwt(
+      HttpClientType httpClientType, GrantType initialGrantType, Builder envBuilder)
+      throws Exception {
     try (TestEnvironment env =
             envBuilder
+                .httpClientType(httpClientType)
                 .grantType(initialGrantType)
                 .clientId(TestConstants.CLIENT_ID3)
                 .clientSecret(TestConstants.CLIENT_SECRET3)
@@ -156,16 +178,21 @@ public class OAuth2AgentKeycloakIT {
   }
 
   @ParameterizedTest
-  @ValueSource(
-      strings = {
-        "client_credentials",
-        "password",
-        "authorization_code",
-        "urn:ietf:params:oauth:grant-type:device_code",
-      })
-  void privateKeyJwt(GrantType initialGrantType, Builder envBuilder) throws Exception {
+  @CsvSource({
+    "DEFAULT , client_credentials",
+    "DEFAULT , password",
+    "DEFAULT , authorization_code",
+    "DEFAULT , urn:ietf:params:oauth:grant-type:device_code",
+    "APACHE  , client_credentials",
+    "APACHE  , password",
+    "APACHE  , authorization_code",
+    "APACHE  , urn:ietf:params:oauth:grant-type:device_code",
+  })
+  void privateKeyJwt(HttpClientType httpClientType, GrantType initialGrantType, Builder envBuilder)
+      throws Exception {
     try (TestEnvironment env =
             envBuilder
+                .httpClientType(httpClientType)
                 .grantType(initialGrantType)
                 .clientId(TestConstants.CLIENT_ID4)
                 .clientAuthenticationMethod(ClientAuthenticationMethod.PRIVATE_KEY_JWT)
@@ -201,13 +228,12 @@ public class OAuth2AgentKeycloakIT {
    * tokens are present.
    */
   @ParameterizedTest
-  @ValueSource(
-      strings = {
-        "client_credentials",
-        "password",
-        "authorization_code",
-        "urn:ietf:params:oauth:grant-type:device_code"
-      })
+  @CsvSource({
+    "client_credentials",
+    "password",
+    "authorization_code",
+    "urn:ietf:params:oauth:grant-type:device_code"
+  })
   void impersonation1(GrantType subjectGrantType, Builder envBuilder) throws Exception {
     try (TestEnvironment env =
             envBuilder
@@ -227,8 +253,7 @@ public class OAuth2AgentKeycloakIT {
    * token.
    */
   @ParameterizedTest
-  @ValueSource(
-      strings = {"password", "authorization_code", "urn:ietf:params:oauth:grant-type:device_code"})
+  @CsvSource({"password", "authorization_code", "urn:ietf:params:oauth:grant-type:device_code"})
   void impersonation2(GrantType subjectGrantType, Builder envBuilder) throws Exception {
     try (TestEnvironment env =
             envBuilder
@@ -286,13 +311,12 @@ public class OAuth2AgentKeycloakIT {
    * they are not supported.
    */
   @ParameterizedTest
-  @ValueSource(
-      strings = {
-        "client_credentials",
-        "password",
-        "authorization_code",
-        "urn:ietf:params:oauth:grant-type:device_code"
-      })
+  @CsvSource({
+    "client_credentials",
+    "password",
+    "authorization_code",
+    "urn:ietf:params:oauth:grant-type:device_code"
+  })
   void delegation3(GrantType subjectGrantType, Builder envBuilder) throws Exception {
     boolean expectRefreshToken = subjectGrantType != GrantType.CLIENT_CREDENTIALS;
     try (TestEnvironment env =
@@ -317,13 +341,12 @@ public class OAuth2AgentKeycloakIT {
    * supported.
    */
   @ParameterizedTest
-  @ValueSource(
-      strings = {
-        "client_credentials",
-        "password",
-        "authorization_code",
-        "urn:ietf:params:oauth:grant-type:device_code"
-      })
+  @CsvSource({
+    "client_credentials",
+    "password",
+    "authorization_code",
+    "urn:ietf:params:oauth:grant-type:device_code"
+  })
   void delegation4(GrantType subjectGrantType, Builder envBuilder) throws Exception {
     boolean expectRefreshToken = subjectGrantType != GrantType.CLIENT_CREDENTIALS;
     try (TestEnvironment env =

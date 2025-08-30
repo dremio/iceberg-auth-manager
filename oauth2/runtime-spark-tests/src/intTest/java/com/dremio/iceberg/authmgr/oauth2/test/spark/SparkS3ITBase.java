@@ -95,6 +95,7 @@ public abstract class SparkS3ITBase {
         .put("spark.sql.catalog.test.rest.auth.type", OAuth2Manager.class.getName())
         .put("spark.sql.catalog.test.rest.auth.oauth2.client-id", CLIENT_ID1.getValue())
         .put("spark.sql.catalog.test.rest.auth.oauth2.client-secret", CLIENT_SECRET1.getValue())
+        .put("spark.sql.catalog.test.rest.auth.oauth2.http.client-type", "apache")
         .build();
   }
 

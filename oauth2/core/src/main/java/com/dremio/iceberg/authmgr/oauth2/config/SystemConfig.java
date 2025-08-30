@@ -17,14 +17,12 @@ package com.dremio.iceberg.authmgr.oauth2.config;
 
 import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.System.AGENT_NAME;
 import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.System.DEFAULT_AGENT_NAME;
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.System.HTTP_CLIENT_TYPE;
 import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.System.SESSION_CACHE_TIMEOUT;
 
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties;
 import com.dremio.iceberg.authmgr.oauth2.config.option.ConfigOption;
 import com.dremio.iceberg.authmgr.oauth2.config.option.ConfigOptions;
 import com.dremio.iceberg.authmgr.oauth2.config.validator.ConfigValidator;
-import com.dremio.iceberg.authmgr.oauth2.http.HttpClientType;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.io.PrintStream;
@@ -59,17 +57,6 @@ public interface SystemConfig {
   @Value.Default
   default Duration getSessionCacheTimeout() {
     return ConfigConstants.DEFAULT_SESSION_CACHE_TIMEOUT;
-  }
-
-  /**
-   * The type of HTTP client to use for network communication. Defaults to {@link
-   * HttpClientType#DEFAULT}.
-   *
-   * @see OAuth2Properties.System#HTTP_CLIENT_TYPE
-   */
-  @Value.Default
-  default HttpClientType getHttpClientType() {
-    return HttpClientType.DEFAULT;
   }
 
   /**
@@ -111,7 +98,6 @@ public interface SystemConfig {
     SystemConfig.Builder builder = builder();
     builder.agentNameOption().set(properties, getAgentName());
     builder.sessionCacheTimeoutOption().set(properties, getSessionCacheTimeout());
-    builder.httpClientTypeOption().set(properties, getHttpClientType());
     builder.clock(getClock());
     builder.console(getConsole());
     return builder.build();
@@ -131,7 +117,6 @@ public interface SystemConfig {
       Objects.requireNonNull(properties, "properties must not be null");
       agentNameOption().set(properties);
       sessionCacheTimeoutOption().set(properties);
-      httpClientTypeOption().set(properties);
       return this;
     }
 
@@ -147,9 +132,6 @@ public interface SystemConfig {
     @CanIgnoreReturnValue
     Builder sessionCacheTimeout(Duration sessionCacheTimeout);
 
-    @CanIgnoreReturnValue
-    Builder httpClientType(HttpClientType httpClientType);
-
     SystemConfig build();
 
     private ConfigOption<String> agentNameOption() {
@@ -159,11 +141,6 @@ public interface SystemConfig {
     private ConfigOption<Duration> sessionCacheTimeoutOption() {
       return ConfigOptions.simple(
           SESSION_CACHE_TIMEOUT, this::sessionCacheTimeout, Duration::parse);
-    }
-
-    private ConfigOption<HttpClientType> httpClientTypeOption() {
-      return ConfigOptions.simple(
-          HTTP_CLIENT_TYPE, this::httpClientType, HttpClientType::fromString);
     }
   }
 }

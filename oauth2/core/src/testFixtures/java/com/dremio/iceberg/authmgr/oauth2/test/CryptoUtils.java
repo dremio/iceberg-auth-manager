@@ -17,7 +17,9 @@ package com.dremio.iceberg.authmgr.oauth2.test;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.math.BigInteger;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -31,6 +33,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Base64;
 import java.util.Date;
+import java.util.Objects;
 import javax.security.auth.x500.X500Principal;
 import org.bouncycastle.cert.X509v3CertificateBuilder;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
@@ -38,7 +41,7 @@ import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder;
 import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 
-public final class TestPemUtils {
+public final class CryptoUtils {
 
   private static volatile KeyPair keyPair;
 
@@ -79,6 +82,23 @@ public final class TestPemUtils {
     }
   }
 
+  /** Copies the mockserver.p12 keystore to the specified destination file. */
+  public static void copyMockserverKeystore(Path destination) {
+    URL src = Objects.requireNonNull(CryptoUtils.class.getResource("/mockserver.p12"));
+    try (InputStream is = src.openStream()) {
+      Files.copy(is, destination);
+    } catch (IOException e) {
+      throw new RuntimeException("Failed to copy mockserver.p12 to " + destination, e);
+    }
+  }
+
+  /** Encodes the given credentials as a Basic Auth header. */
+  public static String encodeBasicHeader(String username, String password) {
+    return "Basic "
+        + Base64.getEncoder()
+            .encodeToString((username + ":" + password).getBytes(StandardCharsets.UTF_8));
+  }
+
   /**
    * Returns a Base64-encoded X.509 certificate without PEM headers/footers. This is the format
    * expected by Keycloak.
@@ -99,7 +119,7 @@ public final class TestPemUtils {
   private static KeyPair getKeyPair() throws NoSuchAlgorithmException {
     KeyPair result = keyPair;
     if (result == null) {
-      synchronized (TestPemUtils.class) {
+      synchronized (CryptoUtils.class) {
         result = keyPair;
         if (result == null) {
           KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
@@ -117,5 +137,5 @@ public final class TestPemUtils {
         + "\n-----END PRIVATE KEY-----";
   }
 
-  private TestPemUtils() {}
+  private CryptoUtils() {}
 }

@@ -29,6 +29,7 @@ import com.dremio.iceberg.authmgr.oauth2.config.BasicConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.ClientAssertionConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.ConfigUtils;
 import com.dremio.iceberg.authmgr.oauth2.config.DeviceCodeConfig;
+import com.dremio.iceberg.authmgr.oauth2.config.HttpConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.ResourceOwnerConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.SystemConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.TokenExchangeConfig;
@@ -108,6 +109,20 @@ public interface OAuth2Config {
   @Value.Auxiliary
   default SystemConfig getSystemConfig() {
     return SystemConfig.DEFAULT;
+  }
+
+  /**
+   * The HTTP configuration. Optional.
+   *
+   * @implNote This property is marked as {@link Value.Auxiliary} in order to not affect equals and
+   *     hashCode computations for {@link OAuth2Config} instances. IOW, two {@link OAuth2Config}
+   *     instances that differ only in their HTTP config should be considered equal. This is
+   *     important as instances of this class may be used as keys in maps.
+   */
+  @Value.Default
+  @Value.Auxiliary
+  default HttpConfig getHttpConfig() {
+    return HttpConfig.DEFAULT;
   }
 
   @Value.Check
@@ -194,6 +209,7 @@ public interface OAuth2Config {
         .tokenExchangeConfig(getTokenExchangeConfig().merge(properties))
         .clientAssertionConfig(getClientAssertionConfig().merge(properties))
         .systemConfig(getSystemConfig().merge(properties))
+        .httpConfig(getHttpConfig().merge(properties))
         .build();
   }
 
@@ -224,7 +240,8 @@ public interface OAuth2Config {
           .tokenRefreshConfig(TokenRefreshConfig.builder().from(properties).build())
           .tokenExchangeConfig(TokenExchangeConfig.builder().from(properties).build())
           .clientAssertionConfig(ClientAssertionConfig.builder().from(properties).build())
-          .systemConfig(SystemConfig.builder().from(properties).build());
+          .systemConfig(SystemConfig.builder().from(properties).build())
+          .httpConfig(HttpConfig.builder().from(properties).build());
     }
 
     @CanIgnoreReturnValue
@@ -250,6 +267,9 @@ public interface OAuth2Config {
 
     @CanIgnoreReturnValue
     Builder systemConfig(SystemConfig systemConfig);
+
+    @CanIgnoreReturnValue
+    Builder httpConfig(HttpConfig httpConfig);
 
     OAuth2Config build();
   }

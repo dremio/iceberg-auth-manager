@@ -46,5 +46,10 @@ final class ConfigConstants {
   static final Duration DEFAULT_SESSION_CACHE_TIMEOUT =
       Duration.parse(OAuth2Properties.System.DEFAULT_SESSION_CACHE_TIMEOUT);
 
+  static final Duration HTTP_DEFAULT_READ_TIMEOUT =
+      Duration.parse(OAuth2Properties.Http.DEFAULT_READ_TIMEOUT);
+  static final Duration HTTP_DEFAULT_CONNECT_TIMEOUT =
+      Duration.parse(OAuth2Properties.Http.DEFAULT_CONNECT_TIMEOUT);
+
   private ConfigConstants() {}
 }

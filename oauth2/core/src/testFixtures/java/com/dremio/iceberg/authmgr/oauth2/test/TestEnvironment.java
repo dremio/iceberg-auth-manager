@@ -25,11 +25,13 @@ import com.dremio.iceberg.authmgr.oauth2.config.BasicConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.ClientAssertionConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.ConfigUtils;
 import com.dremio.iceberg.authmgr.oauth2.config.DeviceCodeConfig;
+import com.dremio.iceberg.authmgr.oauth2.config.HttpConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.ResourceOwnerConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.SystemConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.TokenExchangeConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.TokenRefreshConfig;
 import com.dremio.iceberg.authmgr.oauth2.flow.FlowFactory;
+import com.dremio.iceberg.authmgr.oauth2.http.HttpClientType;
 import com.dremio.iceberg.authmgr.oauth2.test.ImmutableTestEnvironment.Builder;
 import com.dremio.iceberg.authmgr.oauth2.test.expectation.ImmutableAuthorizationCodeExpectation;
 import com.dremio.iceberg.authmgr.oauth2.test.expectation.ImmutableClientCredentialsExpectation;
@@ -133,7 +135,12 @@ public abstract class TestEnvironment implements AutoCloseable {
 
   @Value.Lazy
   public HttpServer getServer() {
-    return isUnitTest() ? new UnitTestHttpServer() : new IntegrationTestHttpServer();
+    return isUnitTest() ? new UnitTestHttpServer(isSsl()) : new IntegrationTestHttpServer();
+  }
+
+  @Value.Default
+  public boolean isSsl() {
+    return false;
   }
 
   @Value.Default
@@ -245,6 +252,7 @@ public abstract class TestEnvironment implements AutoCloseable {
         .tokenExchangeConfig(getTokenExchangeConfig())
         .clientAssertionConfig(getClientAssertionConfig())
         .systemConfig(getSystemConfig())
+        .httpConfig(getHttpConfig())
         .build();
   }
 
@@ -536,6 +544,16 @@ public abstract class TestEnvironment implements AutoCloseable {
   @Value.Derived
   public PrintStream getConsole() {
     return getUser().getConsole();
+  }
+
+  @Value.Default
+  public HttpConfig getHttpConfig() {
+    return HttpConfig.builder().clientType(getHttpClientType()).build();
+  }
+
+  @Value.Default
+  public HttpClientType getHttpClientType() {
+    return HttpClientType.DEFAULT;
   }
 
   @Value.Default
