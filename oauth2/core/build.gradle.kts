@@ -40,11 +40,6 @@ dependencies {
   implementation(libs.slf4j.api)
   implementation(libs.caffeine)
 
-  implementation(platform(libs.jackson.bom))
-  implementation("com.fasterxml.jackson.core:jackson-annotations")
-  implementation("com.fasterxml.jackson.core:jackson-core")
-  implementation("com.fasterxml.jackson.core:jackson-databind")
-
   compileOnly(libs.jakarta.annotation.api)
   compileOnly(libs.errorprone.annotations)
 
@@ -57,10 +52,6 @@ dependencies {
 
   testFixturesApi(platform(libs.junit.bom))
   testFixturesApi("org.junit.jupiter:junit-jupiter")
-
-  testFixturesApi(platform(libs.jackson.bom))
-  testFixturesApi("com.fasterxml.jackson.core:jackson-core")
-  testFixturesApi("com.fasterxml.jackson.core:jackson-databind")
 
   testFixturesApi(libs.assertj.core)
   testFixturesApi(libs.mockito.core)

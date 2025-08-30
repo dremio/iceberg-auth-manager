@@ -48,7 +48,6 @@ immutables-builder = { module = "org.immutables:builder", version.ref = "immutab
 immutables-value-annotations = { module = "org.immutables:value-annotations", version.ref = "immutables" }
 immutables-value-processor = { module = "org.immutables:value-processor", version.ref = "immutables" }
 iceberg-bom = { module = "org.apache.iceberg:iceberg-bom", version.ref = "iceberg" }
-jackson-bom = { module = "com.fasterxml.jackson:jackson-bom", version = "2.19.2" }
 jakarta-annotation-api = { module = "jakarta.annotation:jakarta.annotation-api", version = "3.0.0" }
 junit-bom = { module = "org.junit:junit-bom", version = "5.13.4" }
 keycloak-admin-client = { module = "org.keycloak:keycloak-admin-client", version = "26.0.6" }
