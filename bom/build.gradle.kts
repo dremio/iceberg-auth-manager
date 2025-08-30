@@ -14,8 +14,19 @@
  * limitations under the License.
  */
 
-plugins { id("authmgr-maven") }
+plugins {
+  `java-platform`
+  id("authmgr-maven")
+}
 
 description = "Bill of Materials for Dremio AuthManager for Apache Iceberg"
 
 ext { set("mavenName", "Auth Manager for Apache Iceberg - BOM") }
+
+dependencies {
+  constraints {
+    api(project(":authmgr-immutables"))
+    api(project(":authmgr-oauth2-core"))
+    api(project(":authmgr-oauth2-runtime"))
+  }
+}
