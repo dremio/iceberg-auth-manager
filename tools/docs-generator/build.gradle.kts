@@ -14,10 +14,7 @@
  * limitations under the License.
  */
 
-plugins {
-  id("authmgr-java")
-  id("authmgr-maven")
-}
+plugins { id("authmgr-java") }
 
 description = "Documentation Generator Tool for Dremio AuthManager for Apache Iceberg"
 
@@ -48,8 +45,6 @@ val generateDocs by
   }
 
 tasks.named("build") { dependsOn(generateDocs) }
-
-tasks.named("publish") { dependsOn(generateDocs) }
 
 rootProject.tasks.named("rat") { dependsOn(generateDocs) }
 
