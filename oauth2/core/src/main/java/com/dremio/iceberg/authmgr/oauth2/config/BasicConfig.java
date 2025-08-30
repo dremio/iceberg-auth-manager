@@ -201,10 +201,10 @@ public interface BasicConfig {
         List.of(ISSUER_URL, TOKEN_ENDPOINT),
         "either issuer URL or token endpoint must be set");
     if (getIssuerUrl().isPresent()) {
-      validator.checkEndpoint(getIssuerUrl().get(), ISSUER_URL, "Issuer URL %s");
+      validator.checkEndpoint(getIssuerUrl().get(), ISSUER_URL, "Issuer URL");
     }
     if (getTokenEndpoint().isPresent()) {
-      validator.checkEndpoint(getTokenEndpoint().get(), TOKEN_ENDPOINT, "Token endpoint %s");
+      validator.checkEndpoint(getTokenEndpoint().get(), TOKEN_ENDPOINT, "Token endpoint");
     }
     validator.check(
         SUPPORTED_INITIAL_GRANT_TYPES.contains(getGrantType()),

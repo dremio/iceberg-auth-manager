@@ -69,7 +69,6 @@ public final class ConfigSanitizer {
         "Ignoring property '{}': this property is not allowed to be vended by catalog servers.");
   }
 
-  @SuppressWarnings("Slf4jConstantLogMessage")
   private Map<String, String> sanitizeProperties(
       Map<String, String> properties, Set<String> denyList, String message) {
     properties = new HashMap<>(properties);

@@ -132,7 +132,7 @@ public interface AuthorizationCodeConfig {
       validator.checkEndpoint(
           getAuthorizationEndpoint().get(),
           ENDPOINT,
-          "authorization code flow: authorization endpoint %s");
+          "authorization code flow: authorization endpoint");
     }
     if (getCallbackBindPort().isPresent()) {
       validator.check(

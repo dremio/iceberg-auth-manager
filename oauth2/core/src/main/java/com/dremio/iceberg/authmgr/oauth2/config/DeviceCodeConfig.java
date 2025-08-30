@@ -91,7 +91,7 @@ public interface DeviceCodeConfig {
       validator.checkEndpoint(
           getDeviceAuthorizationEndpoint().get(),
           ENDPOINT,
-          "device code flow: device authorization endpoint %s");
+          "device code flow: device authorization endpoint");
     }
     validator.check(
         getPollInterval().compareTo(getMinPollInterval()) >= 0,

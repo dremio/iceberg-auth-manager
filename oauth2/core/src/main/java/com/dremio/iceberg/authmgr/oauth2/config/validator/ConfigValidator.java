@@ -15,6 +15,8 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.config.validator;
 
+import com.google.errorprone.annotations.FormatMethod;
+import com.google.errorprone.annotations.FormatString;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,24 +27,37 @@ public final class ConfigValidator {
 
   private final List<ConfigViolation> violations = new ArrayList<>();
 
-  @SuppressWarnings("FormatStringAnnotation")
-  public void check(boolean cond, String offendingKey, String msg, Object... args) {
+  public void check(boolean cond, String offendingKey, String msg) {
+    if (!cond) {
+      violations.add(ConfigViolation.of(offendingKey, msg));
+    }
+  }
+
+  public void check(boolean cond, List<String> offendingKeys, String msg) {
+    if (!cond) {
+      violations.add(ConfigViolation.of(offendingKeys, msg));
+    }
+  }
+
+  @FormatMethod
+  public void check(boolean cond, String offendingKey, @FormatString String msg, Object... args) {
     if (!cond) {
       violations.add(ConfigViolation.of(offendingKey, msg, args));
     }
   }
 
-  @SuppressWarnings("FormatStringAnnotation")
-  public void check(boolean cond, List<String> offendingKeys, String msg, Object... args) {
+  @FormatMethod
+  public void check(
+      boolean cond, List<String> offendingKeys, @FormatString String msg, Object... args) {
     if (!cond) {
       violations.add(ConfigViolation.of(offendingKeys, msg, args));
     }
   }
 
-  public void checkEndpoint(URI endpoint, String offendingKey, String msg) {
-    check(endpoint.getQuery() == null, offendingKey, msg, "must not have a query part");
-    check(endpoint.getFragment() == null, offendingKey, msg, "must not have a fragment part");
-    check(endpoint.isAbsolute(), offendingKey, msg, "must not be relative");
+  public void checkEndpoint(URI endpoint, String offendingKey, String name) {
+    check(endpoint.getQuery() == null, offendingKey, name + " must not have a query part");
+    check(endpoint.getFragment() == null, offendingKey, name + " must not have a fragment part");
+    check(endpoint.isAbsolute(), offendingKey, name + " must not be relative");
   }
 
   public void validate() {

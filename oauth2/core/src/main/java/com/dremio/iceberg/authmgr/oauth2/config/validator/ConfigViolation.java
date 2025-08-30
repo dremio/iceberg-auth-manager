@@ -20,6 +20,7 @@ import static java.lang.String.join;
 
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
 import com.google.errorprone.annotations.FormatMethod;
+import com.google.errorprone.annotations.FormatString;
 import java.util.List;
 import org.immutables.value.Value;
 
@@ -38,18 +39,23 @@ interface ConfigViolation {
     return getMessage() + " (" + join(" / ", getOffendingKeys()) + ")";
   }
 
-  static ConfigViolation of(String offendingKey, String message) {
-    return of(List.of(offendingKey), "%s", message);
-  }
-
   @FormatMethod
-  static ConfigViolation of(String offendingKey, String message, Object... args) {
+  static ConfigViolation of(String offendingKey, @FormatString String message, Object... args) {
     return of(offendingKey, format(message, args));
   }
 
   @FormatMethod
-  static ConfigViolation of(List<String> offendingKeys, String message, Object... args) {
-    return ImmutableConfigViolation.of(offendingKeys, format(message, args));
+  static ConfigViolation of(
+      List<String> offendingKeys, @FormatString String message, Object... args) {
+    return of(offendingKeys, format(message, args));
+  }
+
+  static ConfigViolation of(String offendingKey, String message) {
+    return of(List.of(offendingKey), message);
+  }
+
+  static ConfigViolation of(List<String> offendingKeys, String message) {
+    return ImmutableConfigViolation.of(offendingKeys, message);
   }
 
   static ImmutableConfigViolation.Builder builder() {
