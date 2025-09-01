@@ -23,6 +23,7 @@ import jakarta.ws.rs.core.GenericType;
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.Response;
 import java.net.URI;
+import java.time.Duration;
 import java.util.Map;
 import org.apache.iceberg.rest.ResourcePaths;
 import org.slf4j.Logger;
@@ -34,6 +35,8 @@ import org.testcontainers.containers.wait.strategy.HttpWaitStrategy;
 public class PolarisContainer extends GenericContainer<PolarisContainer> {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(PolarisContainer.class);
+
+  private static final Duration ACCESS_TOKEN_LIFESPAN = Duration.ofSeconds(15);
 
   private final String clientId;
   private final String clientSecret;
@@ -57,6 +60,9 @@ public class PolarisContainer extends GenericContainer<PolarisContainer> {
             .forPort(8182)
             .forResponsePredicate(body -> body.contains("\"status\": \"UP\"")));
     withEnv("POLARIS_BOOTSTRAP_CREDENTIALS", "POLARIS," + clientId + "," + clientSecret);
+    withEnv(
+        "polaris-authentication.token-broker.max-token-generation",
+        ACCESS_TOKEN_LIFESPAN.toString());
     withEnv("quarkus.log.level", getRootLoggerLevel());
     withEnv("quarkus.log.category.\"io.quarkus.oidc\".level", getPolarisLoggerLevel());
     withEnv("quarkus.log.category.\"org.apache.polaris\".level", getPolarisLoggerLevel());
@@ -68,12 +74,20 @@ public class PolarisContainer extends GenericContainer<PolarisContainer> {
     baseUri = URI.create("http://localhost:" + getMappedPort(8181));
   }
 
+  public URI baseUri() {
+    return baseUri;
+  }
+
   public URI getCatalogApiEndpoint() {
     return baseUri.resolve("/api/catalog/");
   }
 
   public URI getTokenEndpoint() {
     return getCatalogApiEndpoint().resolve(ResourcePaths.tokens());
+  }
+
+  public Duration getAccessTokenLifespan() {
+    return ACCESS_TOKEN_LIFESPAN;
   }
 
   private static String getRootLoggerLevel() {
