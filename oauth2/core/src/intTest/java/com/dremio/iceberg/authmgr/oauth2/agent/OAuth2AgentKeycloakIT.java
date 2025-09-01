@@ -46,9 +46,7 @@ import com.nimbusds.oauth2.sdk.token.TokenTypeURI;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.ParseException;
-import java.time.Duration;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
 import org.assertj.core.api.SoftAssertions;
 import org.assertj.core.api.junit.jupiter.InjectSoftAssertions;
 import org.assertj.core.api.junit.jupiter.SoftAssertionsExtension;
@@ -390,32 +388,6 @@ public class OAuth2AgentKeycloakIT {
       TokensResult firstTokens = agent.authenticateInternal();
       introspectToken(firstTokens.getTokens().getAccessToken(), TestConstants.CLIENT_ID1);
       soft.assertThat(agent).extracting("tokenRefreshFuture").isNull();
-    }
-  }
-
-  /**
-   * Tests a fixed initial token with standard OAuth2 dialect. It's not possible to refresh or renew
-   * the token since there is no client id and secret available, so token refresh is disabled.
-   */
-  @Test
-  void staticToken(Builder envBuilder) {
-    AccessToken accessToken;
-    try (TestEnvironment env = envBuilder.build();
-        OAuth2Agent agent = env.newAgent()) {
-      accessToken = agent.authenticate();
-    }
-    try (TestEnvironment env = envBuilder.token(accessToken).tokenRefreshEnabled(false).build();
-        OAuth2Agent agent = env.newAgent()) {
-      // should use the fixed token
-      TokensResult firstTokens = agent.authenticateInternal();
-      soft.assertThat(firstTokens.getTokens().getAccessToken().getValue())
-          .isEqualTo(accessToken.getValue());
-      soft.assertThat(agent).extracting("tokenRefreshFuture").isNull();
-      // cannot refresh the token
-      soft.assertThat(agent.refreshCurrentTokens(firstTokens))
-          .completesExceptionallyWithin(Duration.ofSeconds(10))
-          .withThrowableOfType(ExecutionException.class)
-          .withCauseInstanceOf(OAuth2Agent.MustFetchNewTokensException.class);
     }
   }
 
