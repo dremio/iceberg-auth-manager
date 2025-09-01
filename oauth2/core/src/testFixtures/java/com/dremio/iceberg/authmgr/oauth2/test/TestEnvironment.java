@@ -49,6 +49,7 @@ import com.dremio.iceberg.authmgr.oauth2.test.user.UserBehavior;
 import com.dremio.iceberg.authmgr.oauth2.test.user.UserEmulator;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
 import com.google.common.collect.ImmutableMap;
+import com.google.errorprone.annotations.MustBeClosed;
 import com.nimbusds.oauth2.sdk.GrantType;
 import com.nimbusds.oauth2.sdk.Scope;
 import com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod;
@@ -597,6 +598,7 @@ public abstract class TestEnvironment implements AutoCloseable {
         .withAuthSession(AuthSession.EMPTY);
   }
 
+  @MustBeClosed
   public RESTCatalog newCatalog() {
     RESTCatalog catalog =
         new RESTCatalog(getSessionContext(), config -> newIcebergRestClientBuilder(config).build());
@@ -613,10 +615,12 @@ public abstract class TestEnvironment implements AutoCloseable {
     return catalog;
   }
 
+  @MustBeClosed
   public FlowFactory newFlowFactory() {
     return FlowFactory.create(getOAuth2Config(), getExecutor());
   }
 
+  @MustBeClosed
   public OAuth2Agent newAgent() {
     OAuth2Agent agent = new OAuth2Agent(getOAuth2Config(), getExecutor());
     getUser().addErrorListener(e -> agent.close());
