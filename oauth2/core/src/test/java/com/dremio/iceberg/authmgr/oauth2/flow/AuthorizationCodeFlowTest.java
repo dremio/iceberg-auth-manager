@@ -19,35 +19,22 @@ import static com.dremio.iceberg.authmgr.oauth2.test.TokenAssertions.assertToken
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
+import com.dremio.iceberg.authmgr.oauth2.test.junit.EnumLike;
 import com.nimbusds.oauth2.sdk.GrantType;
 import com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod;
 import com.nimbusds.oauth2.sdk.pkce.CodeChallengeMethod;
 import java.util.concurrent.ExecutionException;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
+import org.junitpioneer.jupiter.cartesian.CartesianTest;
+import org.junitpioneer.jupiter.cartesian.CartesianTest.Values;
 
 class AuthorizationCodeFlowTest {
 
-  @ParameterizedTest
-  @CsvSource({
-    "client_secret_basic, true,  S256,  true",
-    "none               , true,  S256,  true",
-    "client_secret_post , true,  S256,  false",
-    "none               , true,  S256,  false",
-    "client_secret_basic, true,  plain, true",
-    "none               , true,  plain, true",
-    "client_secret_post , true,  plain, false",
-    "none               , true,  plain, false",
-    "client_secret_basic, false, S256,  true",
-    "none               , false, S256,  true",
-    "client_secret_post , false, S256,  false",
-    "none               , false, S256,  false",
-  })
+  @CartesianTest
   void fetchNewTokens(
-      ClientAuthenticationMethod authenticationMethod,
-      boolean pkceEnabled,
-      CodeChallengeMethod codeChallengeMethod,
-      boolean returnRefreshTokens)
+      @EnumLike ClientAuthenticationMethod authenticationMethod,
+      @Values(booleans = {true, false}) boolean pkceEnabled,
+      @EnumLike CodeChallengeMethod codeChallengeMethod,
+      @Values(booleans = {true, false}) boolean returnRefreshTokens)
       throws InterruptedException, ExecutionException {
     try (TestEnvironment env =
             TestEnvironment.builder()

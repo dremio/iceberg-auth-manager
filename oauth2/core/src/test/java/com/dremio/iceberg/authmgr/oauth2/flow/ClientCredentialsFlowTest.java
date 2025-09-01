@@ -19,14 +19,18 @@ import static com.dremio.iceberg.authmgr.oauth2.test.TokenAssertions.assertToken
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
+import com.dremio.iceberg.authmgr.oauth2.test.junit.EnumLike;
+import com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod;
 import java.util.concurrent.ExecutionException;
-import org.junit.jupiter.api.Test;
+import org.junitpioneer.jupiter.cartesian.CartesianTest;
 
 class ClientCredentialsFlowTest {
 
-  @Test
-  void fetchNewTokens() throws InterruptedException, ExecutionException {
-    try (TestEnvironment env = TestEnvironment.builder().build();
+  @CartesianTest
+  void fetchNewTokens(@EnumLike(excludes = "none") ClientAuthenticationMethod authenticationMethod)
+      throws InterruptedException, ExecutionException {
+    try (TestEnvironment env =
+            TestEnvironment.builder().clientAuthenticationMethod(authenticationMethod).build();
         FlowFactory flowFactory = env.newFlowFactory()) {
       Flow flow = flowFactory.createInitialFlow();
       assertThat(flow).isInstanceOf(ClientCredentialsFlow.class);

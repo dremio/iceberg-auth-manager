@@ -40,7 +40,8 @@ public class TestConstants {
 
   public static final Secret CLIENT_SECRET1 = new Secret("s3cr3t");
   public static final Secret CLIENT_SECRET2 = new Secret("sEcrEt");
-  public static final Secret CLIENT_SECRET3 = new Secret(Strings.repeat("S3CR3T", 10));
+  public static final Secret CLIENT_SECRET3 =
+      new Secret(Strings.repeat("S3CR3T", 10)); // for client secret JWT
 
   public static final String USERNAME = "Alice";
   public static final Secret PASSWORD = new Secret("s3cr3t");

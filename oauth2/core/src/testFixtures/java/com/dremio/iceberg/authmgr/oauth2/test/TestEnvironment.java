@@ -66,11 +66,13 @@ import jakarta.annotation.Nullable;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.net.URI;
+import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import org.apache.iceberg.CatalogProperties;
@@ -548,13 +550,52 @@ public abstract class TestEnvironment implements AutoCloseable {
 
   @Value.Default
   public HttpConfig getHttpConfig() {
-    return HttpConfig.builder().clientType(getHttpClientType()).build();
+    HttpConfig.Builder builder =
+        HttpConfig.builder()
+            .clientType(getHttpClientType())
+            .sslProtocols(getSslProtocols())
+            .sslCipherSuites(getSslCipherSuites())
+            .sslTrustAll(isSslTrustAll())
+            .compressionEnabled(isCompressionEnabled());
+    getProxyHost().ifPresent(builder::proxyHost);
+    getProxyPort().ifPresent(builder::proxyPort);
+    getProxyUsername().ifPresent(builder::proxyUsername);
+    getProxyPassword().ifPresent(builder::proxyPassword);
+    getSslTrustStorePath().ifPresent(builder::sslTrustStorePath);
+    getSslTrustStorePassword().ifPresent(builder::sslTrustStorePassword);
+    return builder.build();
   }
 
   @Value.Default
   public HttpClientType getHttpClientType() {
     return HttpClientType.DEFAULT;
   }
+
+  public abstract List<String> getSslProtocols();
+
+  public abstract List<String> getSslCipherSuites();
+
+  @Value.Default
+  public boolean isSslTrustAll() {
+    return false;
+  }
+
+  @Value.Default
+  public boolean isCompressionEnabled() {
+    return true;
+  }
+
+  public abstract Optional<String> getProxyHost();
+
+  public abstract OptionalInt getProxyPort();
+
+  public abstract Optional<String> getProxyUsername();
+
+  public abstract Optional<String> getProxyPassword();
+
+  public abstract Optional<Path> getSslTrustStorePath();
+
+  public abstract Optional<String> getSslTrustStorePassword();
 
   @Value.Default
   public boolean isForceInactiveUser() {

@@ -17,33 +17,24 @@ package com.dremio.iceberg.authmgr.oauth2.flow;
 
 import static com.dremio.iceberg.authmgr.oauth2.test.TokenAssertions.assertTokensResult;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
+import com.dremio.iceberg.authmgr.oauth2.test.junit.EnumLike;
 import com.nimbusds.oauth2.sdk.GrantType;
 import com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod;
 import com.nimbusds.oauth2.sdk.token.RefreshToken;
 import java.util.concurrent.ExecutionException;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
+import org.junitpioneer.jupiter.cartesian.CartesianTest;
+import org.junitpioneer.jupiter.cartesian.CartesianTest.Values;
 
 class RefreshTokenFlowTest {
 
-  @ParameterizedTest
-  @CsvSource({
-    "client_secret_basic , true  , true",
-    "client_secret_basic , true  , false",
-    "client_secret_basic , false , false",
-    "client_secret_post  , true  , true",
-    "client_secret_post  , true  , false",
-    "client_secret_post  , false , false",
-    "none                , true  , true",
-    "none                , true  , false",
-    "none                , false , false",
-  })
+  @CartesianTest
   void fetchNewTokens(
-      ClientAuthenticationMethod authenticationMethod,
-      boolean returnRefreshTokens,
-      boolean returnRefreshTokenLifespan)
+      @EnumLike ClientAuthenticationMethod authenticationMethod,
+      @Values(booleans = {true, false}) boolean returnRefreshTokens,
+      @Values(booleans = {true, false}) boolean returnRefreshTokenLifespan)
       throws ExecutionException, InterruptedException {
     try (TestEnvironment env =
             TestEnvironment.builder()
@@ -53,6 +44,7 @@ class RefreshTokenFlowTest {
                 .returnRefreshTokenLifespan(returnRefreshTokenLifespan)
                 .build();
         FlowFactory flowFactory = env.newFlowFactory()) {
+      assumeTrue(returnRefreshTokens || !returnRefreshTokenLifespan);
       Flow flow = flowFactory.createTokenRefreshFlow(new RefreshToken("refresh_initial"));
       TokensResult tokens = flow.fetchNewTokens().toCompletableFuture().get();
       assertThat(flow).isInstanceOf(RefreshTokenFlow.class);

@@ -19,24 +19,19 @@ import static com.dremio.iceberg.authmgr.oauth2.test.TokenAssertions.assertToken
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
+import com.dremio.iceberg.authmgr.oauth2.test.junit.EnumLike;
 import com.nimbusds.oauth2.sdk.GrantType;
 import com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod;
 import java.util.concurrent.ExecutionException;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
+import org.junitpioneer.jupiter.cartesian.CartesianTest;
+import org.junitpioneer.jupiter.cartesian.CartesianTest.Values;
 
 class TokenExchangeFlowTest {
 
-  @ParameterizedTest
-  @CsvSource({
-    "client_secret_basic , true",
-    "client_secret_basic , false",
-    "client_secret_post  , true",
-    "client_secret_post  , false",
-    "none                , true",
-    "none                , false",
-  })
-  void fetchNewTokens(ClientAuthenticationMethod authenticationMethod, boolean returnRefreshTokens)
+  @CartesianTest
+  void fetchNewTokens(
+      @EnumLike ClientAuthenticationMethod authenticationMethod,
+      @Values(booleans = {true, false}) boolean returnRefreshTokens)
       throws InterruptedException, ExecutionException {
     try (TestEnvironment env =
             TestEnvironment.builder()
@@ -52,27 +47,13 @@ class TokenExchangeFlowTest {
     }
   }
 
-  @ParameterizedTest
-  @CsvSource({
-    "client_secret_basic, false, client_credentials                           , client_credentials",
-    "client_secret_basic, true,  password                                     , password",
-    "client_secret_post , false, password                                     , password",
-    "none               , true,  password                                     , password",
-    "none               , false, password                                     , password",
-    "client_secret_basic, true,  authorization_code                           , urn:ietf:params:oauth:grant-type:device_code",
-    "client_secret_basic, false, authorization_code                           , urn:ietf:params:oauth:grant-type:device_code",
-    "client_secret_post , true,  authorization_code                           , urn:ietf:params:oauth:grant-type:device_code",
-    "none               , false, authorization_code                           , urn:ietf:params:oauth:grant-type:device_code",
-    "client_secret_basic, true,  urn:ietf:params:oauth:grant-type:device_code , authorization_code",
-    "client_secret_basic, false, urn:ietf:params:oauth:grant-type:device_code , authorization_code",
-    "client_secret_post , true,  urn:ietf:params:oauth:grant-type:device_code , authorization_code",
-    "none               , false, urn:ietf:params:oauth:grant-type:device_code , authorization_code",
-  })
+  @CartesianTest
   void fetchNewTokensDynamic(
-      ClientAuthenticationMethod authenticationMethod,
-      boolean returnRefreshTokens,
-      GrantType subjectGrantType,
-      GrantType actorGrantType)
+      @EnumLike(excludes = "none") ClientAuthenticationMethod authenticationMethod,
+      @Values(booleans = {true, false}) boolean returnRefreshTokens,
+      @EnumLike(includes = {"client_credentials", "authorization_code"}) GrantType subjectGrantType,
+      @EnumLike(includes = {"password", "urn:ietf:params:oauth:grant-type:device_code"})
+          GrantType actorGrantType)
       throws InterruptedException, ExecutionException {
     try (TestEnvironment env =
             TestEnvironment.builder()
