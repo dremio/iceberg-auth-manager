@@ -69,8 +69,11 @@ tasks.shadowJar {
   // relocate to same packages as in Iceberg runtime jars
   relocate("com.fasterxml.jackson", "org.apache.iceberg.shaded.com.fasterxml.jackson")
   relocate("com.github.benmanes", "org.apache.iceberg.shaded.com.github.benmanes")
-  // exclude unwanted files
+  // exclude module-info.class files
   exclude("META-INF/**/module-info.class")
+  // exclude unnecessary files from Nimbus OIDC SDK and JoSE JWT
+  exclude("META-INF/maven/com.github.stephenc.jcip/**")
+  exclude("META-INF/maven/com.google.code.gson/**")
   exclude("META-INF/proguard/**")
   exclude("iso3166_*.properties")
   minimize()
