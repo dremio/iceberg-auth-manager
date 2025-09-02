@@ -125,7 +125,7 @@ jobs:
           java-version: 21
 
       - name: Build with Gradle
-        run: ./gradlew --no-scan build publish -x intTest
+        run: ./gradlew --no-scan build publish -x intTest -Prelease
 
       - name: Print POMs names and contents
         run: |
