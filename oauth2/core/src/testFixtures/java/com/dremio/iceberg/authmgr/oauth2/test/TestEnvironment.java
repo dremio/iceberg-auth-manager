@@ -265,7 +265,7 @@ public abstract class TestEnvironment implements AutoCloseable {
             .grantType(getGrantType())
             .clientAuthenticationMethod(getClientAuthenticationMethod())
             .scope(getScope())
-            .extraRequestParameters(Map.of("extra1", "value1"))
+            .extraRequestParameters(getExtraRequestParameters())
             .minTimeout(getTimeout())
             .timeout(getTimeout());
     if (getToken().isPresent()) {
@@ -307,6 +307,11 @@ public abstract class TestEnvironment implements AutoCloseable {
   }
 
   @Value.Default
+  public Map<String, String> getExtraRequestParameters() {
+    return Map.of("extra1", "value1");
+  }
+
+  @Value.Default
   public Duration getTimeout() {
     return Duration.ofSeconds(5);
   }
@@ -342,10 +347,12 @@ public abstract class TestEnvironment implements AutoCloseable {
 
   @Value.Default
   public ResourceOwnerConfig getResourceOwnerConfig() {
-    return ResourceOwnerConfig.builder()
-        .username(TestConstants.USERNAME)
-        .password(getPassword())
-        .build();
+    return ResourceOwnerConfig.builder().username(getUsername()).password(getPassword()).build();
+  }
+
+  @Value.Default
+  public String getUsername() {
+    return TestConstants.USERNAME;
   }
 
   @Value.Default
@@ -362,6 +369,7 @@ public abstract class TestEnvironment implements AutoCloseable {
     if (!isDiscoveryEnabled()) {
       builder.authorizationEndpoint(getAuthorizationEndpoint());
     }
+    getRedirectUri().ifPresent(builder::redirectUri);
     return builder.build();
   }
 
@@ -374,6 +382,8 @@ public abstract class TestEnvironment implements AutoCloseable {
   public CodeChallengeMethod getCodeChallengeMethod() {
     return CodeChallengeMethod.S256;
   }
+
+  public abstract Optional<URI> getRedirectUri();
 
   @Value.Default
   public DeviceCodeConfig getDeviceCodeConfig() {

@@ -25,10 +25,7 @@ import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.AfterAll;
 import org.testcontainers.containers.Network;
 
-/**
- * A test that exercises Spark with Polaris configured with an external authentication provider
- * (Keycloak).
- */
+/** A test that exercises Spark with Polaris configured with Keycloak. */
 public class SparkPolarisKeycloakS3IT extends SparkPolarisS3ITBase {
 
   private KeycloakContainer keycloak;

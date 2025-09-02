@@ -35,11 +35,20 @@ public class PolarisContainer extends GenericContainer<PolarisContainer> {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(PolarisContainer.class);
 
+  private final String clientId;
+  private final String clientSecret;
+
   private URI baseUri;
 
-  @SuppressWarnings("resource")
   public PolarisContainer() {
+    this(TestConstants.CLIENT_ID1.getValue(), TestConstants.CLIENT_SECRET1.getValue());
+  }
+
+  @SuppressWarnings("resource")
+  public PolarisContainer(String clientId, String clientSecret) {
     super("apache/polaris:1.0.1-incubating");
+    this.clientId = clientId;
+    this.clientSecret = clientSecret;
     withLogConsumer(new Slf4jLogConsumer(LOGGER));
     withExposedPorts(8181, 8182);
     waitingFor(
@@ -47,12 +56,7 @@ public class PolarisContainer extends GenericContainer<PolarisContainer> {
             .forPath("/q/health")
             .forPort(8182)
             .forResponsePredicate(body -> body.contains("\"status\": \"UP\"")));
-    withEnv(
-        "POLARIS_BOOTSTRAP_CREDENTIALS",
-        "POLARIS,"
-            + TestConstants.CLIENT_ID1.getValue()
-            + ","
-            + TestConstants.CLIENT_SECRET1.getValue());
+    withEnv("POLARIS_BOOTSTRAP_CREDENTIALS", "POLARIS," + clientId + "," + clientSecret);
     withEnv("quarkus.log.level", getRootLoggerLevel());
     withEnv("quarkus.log.category.\"io.quarkus.oidc\".level", getPolarisLoggerLevel());
     withEnv("quarkus.log.category.\"org.apache.polaris\".level", getPolarisLoggerLevel());
@@ -96,9 +100,9 @@ public class PolarisContainer extends GenericContainer<PolarisContainer> {
                                 "scope",
                                 "PRINCIPAL_ROLE:ALL",
                                 "client_id",
-                                TestConstants.CLIENT_ID1.getValue(),
+                                clientId,
                                 "client_secret",
-                                TestConstants.CLIENT_SECRET1.getValue()))))) {
+                                clientSecret))))) {
       if (response.getStatus() != 200) {
         throw new RuntimeException("Failed to get token: " + response.readEntity(String.class));
       }

@@ -73,11 +73,6 @@ public class SparkNessieKeycloakS3IT extends SparkNessieS3ITBase {
   }
 
   @Override
-  protected CompletableFuture<String> fetchNewToken() {
-    return keycloakStart.thenApply(v -> keycloak.fetchNewToken(TestConstants.SCOPE1.toString()));
-  }
-
-  @Override
   protected Map<String, Object> sparkConfig(Path tempDir) {
     return ImmutableMap.<String, Object>builder()
         .putAll(super.sparkConfig(tempDir))
