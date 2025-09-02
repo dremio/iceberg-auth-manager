@@ -665,4 +665,19 @@ public abstract class TestEnvironment implements AutoCloseable {
   public void createErrorExpectations() {
     ImmutableErrorExpectation.of(this).create();
   }
+
+  @Override
+  public final int hashCode() {
+    return java.lang.System.identityHashCode(this);
+  }
+
+  @Override
+  public final boolean equals(Object obj) {
+    return this == obj;
+  }
+
+  @Override
+  public final String toString() {
+    return "TestEnvironment";
+  }
 }
