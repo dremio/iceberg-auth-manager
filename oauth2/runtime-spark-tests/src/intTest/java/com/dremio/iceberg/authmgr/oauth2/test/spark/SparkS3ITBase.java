@@ -66,7 +66,7 @@ public abstract class SparkS3ITBase {
 
   protected CompletableFuture<Void> startAllContainers(Network network) {
     s3 = createS3Container(network);
-    return CompletableFuture.allOf(CompletableFuture.runAsync(this.s3::start));
+    return CompletableFuture.runAsync(this.s3::start);
   }
 
   @SuppressWarnings("resource")
