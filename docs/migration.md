@@ -25,23 +25,32 @@ This document describes the differences between this `AuthManager`, and Iceberg'
 Iceberg's built-in OAuth2 `AuthManager` properties are listed below, along with their equivalent
 properties in this `AuthManager`.
 
-| Legacy Property         | New Property                                                        |
-|-------------------------|---------------------------------------------------------------------|
-| `oauth2-server-uri`     | `rest.auth.oauth2.token-endpoint`                                   |
-| `token`                 | `rest.auth.oauth2.token`                                            |
-| `credential`            | `rest.auth.oauth2.client-id` <br/> `rest.auth.oauth2.client-secret` |
-| `scope`                 | `rest.auth.oauth2.scope`                                            |
-| `audience`              | `rest.auth.oauth2.token-exchange.audience`                          |
-| `resource`              | `rest.auth.oauth2.token-exchange.resource`                          |
-| `token-expires-in-ms`   | `rest.auth.oauth2.token-refresh.access-token-lifespan`              |
-| `token-refresh-enabled` | `rest.auth.oauth2.token-refresh.enabled`                            |
+| Legacy Property                          | New Property                                                        |
+|------------------------------------------|---------------------------------------------------------------------|
+| `oauth2-server-uri`                      | `rest.auth.oauth2.token-endpoint` (1)                               |
+| `token`                                  | `rest.auth.oauth2.token` (2)                                        |
+| `credential`                             | `rest.auth.oauth2.client-id` <br/> `rest.auth.oauth2.client-secret` |
+| `scope`                                  | `rest.auth.oauth2.scope`                                            |
+| `token-expires-in-ms`                    | `rest.auth.oauth2.token-refresh.access-token-lifespan` (3)          |
+| `token-refresh-enabled`                  | `rest.auth.oauth2.token-refresh.enabled`                            |   
+| `audience`                               | no equivalent (4)                                                   |
+| `resource`                               | no equivalent (4)                                                   |
+| `token-exchange-enabled` (Iceberg 1.10+) | no equivalent (5)                                                   |   
 
 Notes: 
 
-- The token endpoint URL must be an absolute URL; relative URLs are not supported by this
+1. The token endpoint URL must be an absolute URL; relative URLs are not supported by this
   `AuthManager`.
-- The `access-token-lifespan` property must be an ISO-8601 duration string, e.g. `PT55S` for 55
-  seconds, `PT1H` for 1 hour, etc.
+2. Static bearer access tokens are supported, but their usage is discouraged (see below).
+3. The `access-token-lifespan` property must be an ISO-8601 duration string, e.g. `PT55S` for 55
+   seconds, `PT1H` for 1 hour, etc.
+4. This `AuthManager` supports the `rest.auth.oauth2.token-exchange.audience` and
+   `rest.auth.oauth2.token-exchange.resource` properties, but only when the token exchange grant
+   type is used for the initial token fetch. In Iceberg's built-in OAuth2 `AuthManager`, the
+   `audience` and `resource` properties are used for token refreshes instead (see below).
+5. This property disables the use of the token exchange grant type for token refreshes; however,
+   this `AuthManager` does not support the token exchange grant type for token refreshes at all (see
+   below).
 
 ## Differences Between Auth Managers
 
@@ -74,13 +83,12 @@ See [Client Authentication Methods](./client-authentication.md) for more details
 
 ### Support for Static Bearer Access Tokens
 
-Iceberg's built-in OAuth2 `AuthManager` supports static bearer access tokens via the `token`
-property.
+Iceberg's built-in OAuth2 `AuthManager` supports static bearer access tokens through the `token`
+property. Dremio's Auth Manager also offers support for this feature through the
+`rest.auth.oauth2.token` property, but it does not encourage its usage because static tokens cannot
+be refreshed using standard OAuth2 token refresh mechanisms (see below).
 
-This is _not_ supported by Dremio Auth Manager as sharing bearer tokens is not a best practice, and
-besides, static tokens cannot be refreshed using OAuth2 token refresh mechanisms (see below).
-
-Note: Dremio Auth Manager _does_ support static subject and actor tokens when using the token
+Note: Dremio Auth Manager also supports static subject and actor tokens when using the token
 exchange grant type: this is a common use case for impersonation and delegation, and does not
 preclude the use of OAuth2 token refresh mechanisms (see [Token Exchange](./token-exchange.md)).
 
