@@ -72,7 +72,5 @@ tasks.named<RatTask>("rat").configure {
 }
 
 afterEvaluate {
-  publishing {
-    publications { named<MavenPublication>("staging-maven") { pom { packaging = "pom" } } }
-  }
+  publishing { publications { named<MavenPublication>("maven") { pom { packaging = "pom" } } } }
 }
