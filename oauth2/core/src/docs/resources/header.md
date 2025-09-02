@@ -32,5 +32,5 @@ Other properties are listed below.
 
 > [!WARNING]
 > This page is automatically generated from the code. Do not edit it manually.
-> To update this page, run: `./gradlew :authmgr-docs-generator:generateDocs`.
+> To update this page, run: `./gradlew generateDocs`.
 
