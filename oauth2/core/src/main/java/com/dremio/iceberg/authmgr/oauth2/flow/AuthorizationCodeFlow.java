@@ -18,7 +18,6 @@ package com.dremio.iceberg.authmgr.oauth2.flow;
 import static java.net.HttpURLConnection.HTTP_OK;
 import static java.net.HttpURLConnection.HTTP_UNAUTHORIZED;
 
-import com.dremio.iceberg.authmgr.oauth2.config.AuthorizationCodeConfig;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
 import com.google.errorprone.annotations.FormatMethod;
 import com.nimbusds.oauth2.sdk.AuthorizationCode;
@@ -93,8 +92,7 @@ abstract class AuthorizationCodeFlow extends AbstractFlow {
 
   @Value.Derived
   String getBindHost() {
-    AuthorizationCodeConfig authorizationCodeConfig = getConfig().getAuthorizationCodeConfig();
-    return authorizationCodeConfig.getCallbackBindHost();
+    return getConfig().getAuthorizationCodeConfig().getCallbackBindHost();
   }
 
   @Value.Derived
@@ -110,13 +108,25 @@ abstract class AuthorizationCodeFlow extends AbstractFlow {
         .orElseGet(() -> AbstractFlow.getContextPath(getConfig().getSystemConfig().getAgentName()));
   }
 
-  @Value.Derived
+  /**
+   * The internal HTTP server used to receive the redirect URI call.
+   *
+   * @implNote The server is started when the flow is created, and stopped when the tokens are
+   *     received.
+   */
+  @Value.Derived // cannot be lazy, the server MUST be started when the flow is created
   HttpServer getServer() {
-    return createServer(getBindHost(), getBindPort(), getContextPath(), this::doRequest);
+    return getConfig()
+        .getAuthorizationCodeConfig()
+        .getRedirectUri()
+        .map(uri -> createServer(uri.getHost(), uri.getPort(), uri.getPath(), this::doRequest))
+        .orElseGet(
+            () -> createServer(getBindHost(), getBindPort(), getContextPath(), this::doRequest));
   }
 
+  /** The redirect URI, resolved to the actual port number after the server has started. */
   @Value.Derived
-  URI getRedirectUri() {
+  URI getResolvedRedirectUri() {
     return getConfig()
         .getAuthorizationCodeConfig()
         .getRedirectUri()
@@ -126,15 +136,17 @@ abstract class AuthorizationCodeFlow extends AbstractFlow {
                     getBindHost(), getServer().getAddress().getPort(), getContextPath()));
   }
 
+  /** The request to the authorization endpoint that will be presented to the user. */
   @Value.Derived
   URI getAuthorizationUri() {
     ClientID clientId = getConfig().getBasicConfig().getClientId().orElseThrow();
     AuthorizationRequest.Builder builder =
         new AuthorizationRequest.Builder(ResponseType.CODE, clientId)
             .endpointURI(getEndpointProvider().getResolvedAuthorizationEndpoint())
-            .redirectionURI(getRedirectUri())
+            .redirectionURI(getResolvedRedirectUri())
             .state(getState());
     getConfig().getBasicConfig().getScope().ifPresent(builder::scope);
+    getConfig().getBasicConfig().getExtraRequestParameters().forEach(builder::customParameter);
     if (getConfig().getAuthorizationCodeConfig().isPkceEnabled()) {
       CodeChallengeMethod method =
           getConfig().getAuthorizationCodeConfig().getCodeChallengeMethod();
@@ -194,7 +206,7 @@ abstract class AuthorizationCodeFlow extends AbstractFlow {
     LOGGER.debug(
         "[{}] Authorization Code Flow: started, redirect URI: {}",
         getAgentName(),
-        getRedirectUri());
+        getResolvedRedirectUri());
     PrintStream console = getConfig().getSystemConfig().getConsole();
     synchronized (console) {
       console.println();
@@ -264,8 +276,8 @@ abstract class AuthorizationCodeFlow extends AbstractFlow {
     LOGGER.debug("[{}] Authorization Code Flow: fetching new tokens", getAgentName());
     AuthorizationCodeGrant grant =
         getConfig().getAuthorizationCodeConfig().isPkceEnabled()
-            ? new AuthorizationCodeGrant(code, getRedirectUri(), getCodeVerifier())
-            : new AuthorizationCodeGrant(code, getRedirectUri());
+            ? new AuthorizationCodeGrant(code, getResolvedRedirectUri(), getCodeVerifier())
+            : new AuthorizationCodeGrant(code, getResolvedRedirectUri());
     return invokeTokenEndpoint(grant);
   }
 
@@ -283,16 +295,15 @@ abstract class AuthorizationCodeFlow extends AbstractFlow {
   }
 
   @SuppressWarnings("HttpUrlsUsage")
-  private static URI defaultRedirectUri(String bindHost, int bindPort, String contextPath) {
-    return URI.create(java.lang.String.format("http://%s:%d/%s", bindHost, bindPort, contextPath))
-        .normalize();
+  private static URI defaultRedirectUri(String host, int port, String contextPath) {
+    return URI.create(String.format("http://%s:%d/%s", host, port, contextPath)).normalize();
   }
 
   private static HttpServer createServer(
       String hostname, int port, String contextPath, HttpHandler handler) {
     try {
       HttpServer server = HttpServer.create(new InetSocketAddress(hostname, port), 0);
-      server.createContext(contextPath, handler);
+      server.createContext(contextPath.isEmpty() ? "/" : contextPath, handler);
       server.start();
       return server;
     } catch (IOException e) {
