@@ -38,10 +38,7 @@ class HttpConfigTest {
       Map<String, String> properties, HttpConfig expected, Throwable expectedThrowable) {
     if (properties != null && expected != null) {
       HttpConfig actual = HttpConfig.builder().from(properties).build();
-      assertThat(actual)
-          .usingRecursiveComparison()
-          .ignoringFields("clock", "console")
-          .isEqualTo(expected);
+      assertThat(actual).isEqualTo(expected);
     } else {
       Throwable actual = catchThrowable(() -> HttpConfig.builder().from(properties));
       assertThat(actual)
