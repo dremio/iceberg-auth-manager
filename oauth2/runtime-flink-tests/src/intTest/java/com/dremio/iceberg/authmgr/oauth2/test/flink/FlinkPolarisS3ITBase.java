@@ -135,6 +135,7 @@ public abstract class FlinkPolarisS3ITBase {
         .put("rest.auth.type", OAuth2Manager.class.getName())
         .put("rest.auth.oauth2.client-id", CLIENT_ID1.getValue())
         .put("rest.auth.oauth2.client-secret", CLIENT_SECRET1.getValue())
+        .put("rest.auth.oauth2.http.client-type", "apache")
         .build();
   }
 

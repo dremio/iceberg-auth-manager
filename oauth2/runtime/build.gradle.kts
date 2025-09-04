@@ -51,6 +51,7 @@ dependencies {
   api(project(":authmgr-oauth2-core")) {
     // exclude dependencies that are already provided by Iceberg runtime jars
     exclude(group = "org.apache.iceberg")
+    exclude(group = "org.apache.httpcomponents.client5")
     exclude(group = "com.fasterxml.jackson.core")
     exclude(group = "com.github.ben-manes.caffeine")
     exclude(group = "org.slf4j")
@@ -69,6 +70,7 @@ tasks.shadowJar {
   // relocate to same packages as in Iceberg runtime jars
   relocate("com.fasterxml.jackson", "org.apache.iceberg.shaded.com.fasterxml.jackson")
   relocate("com.github.benmanes", "org.apache.iceberg.shaded.com.github.benmanes")
+  relocate("org.apache.hc", "org.apache.iceberg.shaded.org.apache.hc")
   // exclude unwanted files
   exclude("META-INF/**/module-info.class")
   exclude("META-INF/proguard/**")

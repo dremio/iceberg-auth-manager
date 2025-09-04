@@ -37,6 +37,8 @@ dependencies {
   }
   implementation(libs.nimbus.jose.jwt)
 
+  implementation(libs.httpclient5)
+
   implementation(libs.slf4j.api)
   implementation(libs.caffeine)
 
@@ -52,6 +54,7 @@ dependencies {
 
   testFixturesApi(platform(libs.junit.bom))
   testFixturesApi("org.junit.jupiter:junit-jupiter")
+  testFixturesApi(libs.junit.pioneer)
 
   testFixturesApi(libs.assertj.core)
   testFixturesApi(libs.mockito.core)

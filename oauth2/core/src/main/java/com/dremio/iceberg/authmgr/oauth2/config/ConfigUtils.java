@@ -54,12 +54,28 @@ public final class ConfigUtils {
     return parseSpaceSeparatedList(uris, URI::create);
   }
 
-  private static <T> List<T> parseSpaceSeparatedList(String text, Function<String, T> mapper) {
+  public static List<String> parseSpaceSeparatedList(String text) {
+    return parseList(text, " +", Function.identity());
+  }
+
+  public static List<String> parseCommaSeparatedList(String text) {
+    return parseList(text, ",", Function.identity());
+  }
+
+  public static <T> List<T> parseSpaceSeparatedList(String text, Function<String, T> mapper) {
+    return parseList(text, " +", mapper);
+  }
+
+  public static <T> List<T> parseCommaSeparatedList(String text, Function<String, T> mapper) {
+    return parseList(text, ",", mapper);
+  }
+
+  public static <T> List<T> parseList(String text, String separator, Function<String, T> mapper) {
     if (text == null || text.isBlank()) {
       return List.of();
     }
-    String[] parts = text.trim().split(" +");
-    return Stream.of(parts).map(mapper).collect(Collectors.toList());
+    String[] parts = text.trim().split(separator);
+    return Stream.of(parts).map(String::trim).map(mapper).collect(Collectors.toList());
   }
 
   public static boolean requiresClientSecret(ClientAuthenticationMethod method) {

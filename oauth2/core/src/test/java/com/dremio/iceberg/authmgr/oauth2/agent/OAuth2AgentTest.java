@@ -18,20 +18,28 @@ package com.dremio.iceberg.authmgr.oauth2.agent;
 import static com.dremio.iceberg.authmgr.oauth2.test.TokenAssertions.assertAccessToken;
 import static com.dremio.iceberg.authmgr.oauth2.test.TokenAssertions.assertTokensResult;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.InstanceOfAssertFactories.ATOMIC_BOOLEAN;
 import static org.assertj.core.api.InstanceOfAssertFactories.throwable;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.mockserver.model.HttpRequest.request;
+import static org.mockserver.model.HttpResponse.response;
+import static org.mockserver.verify.VerificationTimes.atLeast;
 
 import com.dremio.iceberg.authmgr.oauth2.flow.OAuth2Exception;
 import com.dremio.iceberg.authmgr.oauth2.flow.TokensResult;
+import com.dremio.iceberg.authmgr.oauth2.http.HttpClientType;
+import com.dremio.iceberg.authmgr.oauth2.test.CryptoUtils;
 import com.dremio.iceberg.authmgr.oauth2.test.TestClock;
 import com.dremio.iceberg.authmgr.oauth2.test.TestConstants;
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
+import com.dremio.iceberg.authmgr.oauth2.test.junit.EnumLike;
 import com.dremio.iceberg.authmgr.oauth2.test.user.UserBehavior;
 import com.nimbusds.oauth2.sdk.GrantType;
 import com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod;
@@ -42,7 +50,10 @@ import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
 import com.nimbusds.oauth2.sdk.token.RefreshToken;
 import com.nimbusds.oauth2.sdk.token.Tokens;
 import com.nimbusds.oauth2.sdk.token.TypelessAccessToken;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RejectedExecutionException;
@@ -55,25 +66,27 @@ import org.assertj.core.api.junit.jupiter.InjectSoftAssertions;
 import org.assertj.core.api.junit.jupiter.SoftAssertionsExtension;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.provider.EnumSource;
+import org.junitpioneer.jupiter.cartesian.CartesianTest;
+import org.junitpioneer.jupiter.cartesian.CartesianTest.Enum;
+import org.junitpioneer.jupiter.cartesian.CartesianTest.Values;
+import org.mockserver.integration.ClientAndServer;
+import org.mockserver.model.HttpForward;
 
 @ExtendWith(SoftAssertionsExtension.class)
 class OAuth2AgentTest {
 
   @InjectSoftAssertions protected SoftAssertions soft;
 
-  @ParameterizedTest
-  @CsvSource({
-    "client_secret_basic , true",
-    "client_secret_basic , false",
-    "client_secret_post  , true",
-    "client_secret_post  , false",
-  })
+  @CartesianTest
   void testClientCredentials(
-      ClientAuthenticationMethod authenticationMethod, boolean returnRefreshTokens) {
+      @Enum HttpClientType httpClientType,
+      @EnumLike(excludes = "none") ClientAuthenticationMethod authenticationMethod,
+      @Values(booleans = {true, false}) boolean returnRefreshTokens) {
     try (TestEnvironment env =
             TestEnvironment.builder()
+                .httpClientType(httpClientType)
                 .clientAuthenticationMethod(authenticationMethod)
                 .returnRefreshTokens(returnRefreshTokens)
                 .build();
@@ -100,19 +113,15 @@ class OAuth2AgentTest {
     }
   }
 
-  @ParameterizedTest
-  @CsvSource({
-    "client_secret_basic , true",
-    "client_secret_basic , false",
-    "client_secret_post  , true",
-    "client_secret_post  , false",
-    "none                , true",
-    "none                , false",
-  })
-  void testPassword(ClientAuthenticationMethod authenticationMethod, boolean returnRefreshTokens) {
+  @CartesianTest
+  void testPassword(
+      @Enum HttpClientType httpClientType,
+      @EnumLike ClientAuthenticationMethod authenticationMethod,
+      @Values(booleans = {true, false}) boolean returnRefreshTokens) {
     try (TestEnvironment env =
             TestEnvironment.builder()
                 .grantType(GrantType.PASSWORD)
+                .httpClientType(httpClientType)
                 .clientAuthenticationMethod(authenticationMethod)
                 .returnRefreshTokens(returnRefreshTokens)
                 .build();
@@ -142,20 +151,15 @@ class OAuth2AgentTest {
     }
   }
 
-  @ParameterizedTest
-  @CsvSource({
-    "client_secret_basic , true",
-    "client_secret_basic , false",
-    "client_secret_post  , true",
-    "client_secret_post  , false",
-    "none                , true",
-    "none                , false",
-  })
+  @CartesianTest
   void testAuthorizationCode(
-      ClientAuthenticationMethod authenticationMethod, boolean returnRefreshTokens) {
+      @Enum HttpClientType httpClientType,
+      @EnumLike ClientAuthenticationMethod authenticationMethod,
+      @Values(booleans = {true, false}) boolean returnRefreshTokens) {
     try (TestEnvironment env =
             TestEnvironment.builder()
                 .grantType(GrantType.AUTHORIZATION_CODE)
+                .httpClientType(httpClientType)
                 .clientAuthenticationMethod(authenticationMethod)
                 .returnRefreshTokens(returnRefreshTokens)
                 .build();
@@ -196,20 +200,15 @@ class OAuth2AgentTest {
     }
   }
 
-  @ParameterizedTest
-  @CsvSource({
-    "client_secret_basic , true",
-    "client_secret_basic , false",
-    "client_secret_post  , true",
-    "client_secret_post  , false",
-    "none                , true",
-    "none                , false",
-  })
+  @CartesianTest
   void testDeviceCode(
-      ClientAuthenticationMethod authenticationMethod, boolean returnRefreshTokens) {
+      @Enum HttpClientType httpClientType,
+      @EnumLike ClientAuthenticationMethod authenticationMethod,
+      @Values(booleans = {true, false}) boolean returnRefreshTokens) {
     try (TestEnvironment env =
             TestEnvironment.builder()
                 .grantType(GrantType.DEVICE_CODE)
+                .httpClientType(httpClientType)
                 .clientAuthenticationMethod(authenticationMethod)
                 .returnRefreshTokens(returnRefreshTokens)
                 .build();
@@ -253,43 +252,25 @@ class OAuth2AgentTest {
     }
   }
 
-  @ParameterizedTest
-  @CsvSource({
-    "client_secret_basic , true  , true",
-    "client_secret_basic , true  , false",
-    "client_secret_basic , false , false",
-    "client_secret_post  , true  , true",
-    "client_secret_post  , true  , false",
-    "client_secret_post  , false , false",
-    "none                , true  , true",
-    "none                , true  , false",
-    "none                , false , false",
-  })
+  @CartesianTest
   void testRefreshToken(
-      ClientAuthenticationMethod authenticationMethod,
-      boolean returnRefreshTokens,
-      boolean returnRefreshTokenLifespan)
+      @Enum HttpClientType httpClientType,
+      @EnumLike ClientAuthenticationMethod authenticationMethod,
+      @Values(booleans = {true, false}) boolean returnRefreshTokenLifespan)
       throws InterruptedException, ExecutionException {
     try (TestEnvironment env =
             TestEnvironment.builder()
                 .grantType(GrantType.PASSWORD)
+                .httpClientType(httpClientType)
                 .clientAuthenticationMethod(authenticationMethod)
-                .returnRefreshTokens(returnRefreshTokens)
                 .returnRefreshTokenLifespan(returnRefreshTokenLifespan)
                 .build();
         OAuth2Agent agent = env.newAgent()) {
-      TokensResult currentTokens =
-          TokensResult.of(
-              new Tokens(
-                  new BearerAccessToken("access_initial"), new RefreshToken("refresh_initial")),
-              TestConstants.NOW,
-              Map.of());
-      TokensResult tokens = agent.refreshCurrentTokens(currentTokens).toCompletableFuture().get();
+      TokensResult firstTokens = agent.authenticateInternal();
+      TokensResult refreshedTokens =
+          agent.refreshCurrentTokens(firstTokens).toCompletableFuture().get();
       assertTokensResult(
-          tokens,
-          "access_refreshed",
-          returnRefreshTokens ? "refresh_refreshed" : "refresh_initial",
-          returnRefreshTokenLifespan);
+          refreshedTokens, "access_refreshed", "refresh_refreshed", returnRefreshTokenLifespan);
     }
   }
 
@@ -346,21 +327,16 @@ class OAuth2AgentTest {
     }
   }
 
-  @ParameterizedTest
-  @CsvSource({
-    "client_secret_basic , true",
-    "client_secret_basic , false",
-    "client_secret_post  , true",
-    "client_secret_post  , false",
-    "none                , true",
-    "none                , false",
-  })
+  @CartesianTest
   void testTokenExchangeStaticSubjectActor(
-      ClientAuthenticationMethod authenticationMethod, boolean returnRefreshTokens)
+      @Enum HttpClientType httpClientType,
+      @EnumLike ClientAuthenticationMethod authenticationMethod,
+      @Values(booleans = {true, false}) boolean returnRefreshTokens)
       throws ExecutionException, InterruptedException {
     try (TestEnvironment env =
             TestEnvironment.builder()
                 .grantType(GrantType.TOKEN_EXCHANGE)
+                .httpClientType(httpClientType)
                 .clientAuthenticationMethod(authenticationMethod)
                 .returnRefreshTokens(returnRefreshTokens)
                 .build();
@@ -375,28 +351,21 @@ class OAuth2AgentTest {
     }
   }
 
-  @ParameterizedTest
-  @CsvSource({
-    "client_secret_basic , true  , client_credentials",
-    "client_secret_post  , false , client_credentials",
-    "client_secret_basic , true  , password",
-    "client_secret_post  , false , password",
-    "none                , true  , password",
-    "client_secret_basic , true  , authorization_code",
-    "client_secret_post  , false , authorization_code",
-    "none                , true  , authorization_code",
-    "client_secret_basic , true  , urn:ietf:params:oauth:grant-type:device_code",
-    "client_secret_post  , false , urn:ietf:params:oauth:grant-type:device_code",
-    "none                , true  , urn:ietf:params:oauth:grant-type:device_code",
-  })
+  @CartesianTest
   void testTokenExchangeDynamicSubject(
-      ClientAuthenticationMethod authenticationMethod,
-      boolean returnRefreshTokens,
-      GrantType subjectGrantType)
+      @Enum HttpClientType httpClientType,
+      @EnumLike ClientAuthenticationMethod authenticationMethod,
+      @Values(booleans = {true, false}) boolean returnRefreshTokens,
+      @EnumLike(excludes = "urn:ietf:params:oauth:grant-type:token-exchange")
+          GrantType subjectGrantType)
       throws InterruptedException, ExecutionException {
+    assumeTrue(
+        !subjectGrantType.equals(GrantType.CLIENT_CREDENTIALS)
+            || !authenticationMethod.equals(ClientAuthenticationMethod.NONE));
     try (TestEnvironment env =
             TestEnvironment.builder()
                 .grantType(GrantType.TOKEN_EXCHANGE)
+                .httpClientType(httpClientType)
                 .subjectToken(null)
                 .subjectGrantType(subjectGrantType)
                 .clientAuthenticationMethod(authenticationMethod)
@@ -412,28 +381,21 @@ class OAuth2AgentTest {
     }
   }
 
-  @ParameterizedTest
-  @CsvSource({
-    "client_secret_basic , true  , client_credentials",
-    "client_secret_post  , false , client_credentials",
-    "client_secret_basic , true  , password",
-    "client_secret_post  , false , password",
-    "none                , true  , password",
-    "client_secret_basic , true  , authorization_code",
-    "client_secret_post  , false , authorization_code",
-    "none                , true  , authorization_code",
-    "client_secret_basic , true  , urn:ietf:params:oauth:grant-type:device_code",
-    "client_secret_post  , false , urn:ietf:params:oauth:grant-type:device_code",
-    "none                , true  , urn:ietf:params:oauth:grant-type:device_code",
-  })
+  @CartesianTest
   void testTokenExchangeDynamicActor(
-      ClientAuthenticationMethod authenticationMethod,
-      boolean returnRefreshTokens,
-      GrantType actorGrantType)
+      @Enum HttpClientType httpClientType,
+      @EnumLike ClientAuthenticationMethod authenticationMethod,
+      @Values(booleans = {true, false}) boolean returnRefreshTokens,
+      @EnumLike(excludes = "urn:ietf:params:oauth:grant-type:token-exchange")
+          GrantType actorGrantType)
       throws InterruptedException, ExecutionException {
+    assumeTrue(
+        !actorGrantType.equals(GrantType.CLIENT_CREDENTIALS)
+            || !authenticationMethod.equals(ClientAuthenticationMethod.NONE));
     try (TestEnvironment env =
             TestEnvironment.builder()
                 .grantType(GrantType.TOKEN_EXCHANGE)
+                .httpClientType(httpClientType)
                 .actorToken(null)
                 .actorGrantType(actorGrantType)
                 .clientAuthenticationMethod(authenticationMethod)
@@ -487,10 +449,14 @@ class OAuth2AgentTest {
     }
   }
 
-  @Test
-  void testStaticToken() {
+  @CartesianTest
+  @EnumSource(HttpClientType.class)
+  void testStaticToken(@Enum HttpClientType httpClientType) {
     try (TestEnvironment env =
-            TestEnvironment.builder().token(new BearerAccessToken("access_initial")).build();
+            TestEnvironment.builder()
+                .httpClientType(httpClientType)
+                .token(new BearerAccessToken("access_initial"))
+                .build();
         OAuth2Agent agent = env.newAgent()) {
       TokensResult tokens = agent.authenticateInternal();
       assertAccessToken(tokens.getTokens().getAccessToken(), "access_initial", 0);
@@ -499,6 +465,108 @@ class OAuth2AgentTest {
           .completesExceptionallyWithin(Duration.ofSeconds(10))
           .withThrowableOfType(ExecutionException.class)
           .withCauseInstanceOf(OAuth2Agent.MustFetchNewTokensException.class);
+    }
+  }
+
+  @Test
+  void testSsl(@TempDir Path tempDir) {
+    Path dest = Paths.get(tempDir.toString(), "mockserver.p12");
+    CryptoUtils.copyMockserverKeystore(dest);
+    try (TestEnvironment env =
+            TestEnvironment.builder()
+                .ssl(true)
+                .httpClientType(HttpClientType.APACHE)
+                .sslTrustStorePath(dest)
+                .sslTrustStorePassword("s3cr3t")
+                .sslProtocols(List.of("TLSv1.3", "TLSv1.2"))
+                .sslCipherSuites(
+                    List.of(
+                        "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
+                        "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
+                        "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
+                        "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"))
+                .build();
+        OAuth2Agent agent = env.newAgent()) {
+      assertThatCode(agent::authenticate).doesNotThrowAnyException();
+    }
+  }
+
+  @Test
+  void testSslTrustAll() {
+    try (TestEnvironment env =
+            TestEnvironment.builder()
+                .ssl(true)
+                .httpClientType(HttpClientType.APACHE)
+                .sslTrustAll(true)
+                .build();
+        OAuth2Agent agent = env.newAgent()) {
+      assertThatCode(agent::authenticate).doesNotThrowAnyException();
+    }
+  }
+
+  @Test
+  void testProxy() {
+    try (ClientAndServer proxyServer = ClientAndServer.startClientAndServer();
+        TestEnvironment env =
+            TestEnvironment.builder()
+                .httpClientType(HttpClientType.APACHE)
+                .proxyHost("localhost")
+                .proxyPort(proxyServer.getLocalPort())
+                .build()) {
+
+      proxyServer
+          .when(request())
+          .forward(
+              HttpForward.forward()
+                  .withHost("localhost")
+                  .withPort(env.getServerRootUrl().getPort())
+                  .withScheme(HttpForward.Scheme.HTTP));
+
+      try (OAuth2Agent agent = env.newAgent()) {
+        TokensResult currentTokens = agent.authenticateInternal();
+        assertTokensResult(currentTokens, "access_initial", null);
+      }
+
+      proxyServer.verify(request().withMethod("POST"), atLeast(1));
+    }
+  }
+
+  @Test
+  void testProxyAuthentication() {
+    try (ClientAndServer proxyServer = ClientAndServer.startClientAndServer();
+        TestEnvironment env =
+            TestEnvironment.builder()
+                .httpClientType(HttpClientType.APACHE)
+                .proxyHost("localhost")
+                .proxyPort(proxyServer.getLocalPort())
+                .proxyUsername("testuser")
+                .proxyPassword("testpass")
+                .build()) {
+
+      String authHeader = CryptoUtils.encodeBasicHeader("testuser", "testpass");
+
+      proxyServer
+          .when(request().withHeader("Proxy-Authorization", authHeader))
+          .forward(
+              HttpForward.forward()
+                  .withHost("localhost")
+                  .withPort(env.getServerRootUrl().getPort())
+                  .withScheme(HttpForward.Scheme.HTTP));
+
+      proxyServer
+          .when(request())
+          .respond(
+              response()
+                  .withStatusCode(407)
+                  .withHeader("Proxy-Authenticate", "Basic realm=\"proxy\""));
+
+      try (OAuth2Agent agent = env.newAgent()) {
+        TokensResult currentTokens = agent.authenticateInternal();
+        assertTokensResult(currentTokens, "access_initial", null);
+      }
+
+      proxyServer.verify(
+          request().withMethod("POST").withHeader("Proxy-Authorization", authHeader), atLeast(1));
     }
   }
 

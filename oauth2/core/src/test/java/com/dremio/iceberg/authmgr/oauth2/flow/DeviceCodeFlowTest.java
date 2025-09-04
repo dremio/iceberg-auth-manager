@@ -20,25 +20,20 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.dremio.iceberg.authmgr.oauth2.config.DeviceCodeConfig;
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
+import com.dremio.iceberg.authmgr.oauth2.test.junit.EnumLike;
 import com.nimbusds.oauth2.sdk.GrantType;
 import com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod;
 import java.time.Duration;
 import java.util.concurrent.ExecutionException;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
+import org.junitpioneer.jupiter.cartesian.CartesianTest;
+import org.junitpioneer.jupiter.cartesian.CartesianTest.Values;
 
 class DeviceCodeFlowTest {
 
-  @ParameterizedTest
-  @CsvSource({
-    "client_secret_basic , true",
-    "client_secret_basic , false",
-    "client_secret_post  , true",
-    "client_secret_post  , false",
-    "none                , true",
-    "none                , false",
-  })
-  void fetchNewTokens(ClientAuthenticationMethod authenticationMethod, boolean returnRefreshTokens)
+  @CartesianTest
+  void fetchNewTokens(
+      @EnumLike ClientAuthenticationMethod authenticationMethod,
+      @Values(booleans = {true, false}) boolean returnRefreshTokens)
       throws ExecutionException, InterruptedException {
     try (TestEnvironment env =
             TestEnvironment.builder()

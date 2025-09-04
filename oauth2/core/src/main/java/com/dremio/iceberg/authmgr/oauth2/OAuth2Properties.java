@@ -555,19 +555,163 @@ public final class OAuth2Properties {
     public static final String SESSION_CACHE_TIMEOUT = System.PREFIX + "session-cache-timeout";
 
     public static final String DEFAULT_SESSION_CACHE_TIMEOUT = "PT1H";
+  }
+
+  /** Configuration properties for HTTP communication. */
+  public static final class Http {
+
+    public static final String PREFIX = OAuth2Properties.PREFIX + "http.";
 
     /**
      * The type of HTTP client to use for making HTTP requests to the OAuth2 server. Valid values
      * are:
      *
      * <ul>
-     *   <li>{@link HttpClientType#DEFAULT default}: uses the built-in URLConnection-based client
-     *       provided by the underlying OAuth2 library.
+     *   <li>{@link HttpClientType#DEFAULT}: uses the built-in URLConnection-based client provided
+     *       by the underlying OAuth2 library.
+     *   <li>{@link HttpClientType#APACHE}: uses the Apache HttpClient library, provided by
+     *       Iceberg's runtime.
      * </ul>
      *
      * <p>Optional, defaults to {@code default}.
      */
-    public static final String HTTP_CLIENT_TYPE = System.PREFIX + "http-client.type";
+    public static final String CLIENT_TYPE = Http.PREFIX + "client-type";
+
+    /**
+     * The read timeout for HTTP requests. Optional, defaults to {@value #DEFAULT_READ_TIMEOUT}.
+     * Must be a valid <a href="https://en.wikipedia.org/wiki/ISO_8601#Durations">ISO-8601
+     * duration</a>.
+     *
+     * <p>This setting is ignored when the {@linkplain #CLIENT_TYPE client type} is set to {@code
+     * default}.
+     */
+    public static final String READ_TIMEOUT = Http.PREFIX + "read-timeout";
+
+    public static final String DEFAULT_READ_TIMEOUT = "PT30S";
+
+    /**
+     * The connection timeout for HTTP requests. Optional, defaults to {@value
+     * #DEFAULT_CONNECT_TIMEOUT}. Must be a valid <a
+     * href="https://en.wikipedia.org/wiki/ISO_8601#Durations">ISO-8601 duration</a>.
+     *
+     * <p>This setting is ignored when the {@linkplain #CLIENT_TYPE client type} is set to {@code
+     * default}.
+     */
+    public static final String CONNECT_TIMEOUT = Http.PREFIX + "connect-timeout";
+
+    public static final String DEFAULT_CONNECT_TIMEOUT = "PT10S";
+
+    /**
+     * HTTP headers to include in each HTTP request. This is a prefix property, and multiple values
+     * can be set, each with a different key and value.
+     */
+    public static final String HEADERS_PREFIX = Http.PREFIX + "headers.";
+
+    /**
+     * Whether to enable compression for HTTP requests. Optional, defaults to {@code true}.
+     *
+     * <p>This setting is ignored when the {@linkplain #CLIENT_TYPE client type} is set to {@code
+     * default}.
+     */
+    public static final String COMPRESSION_ENABLED = Http.PREFIX + "compression.enabled";
+
+    /**
+     * A comma-separated list of SSL protocols to use for HTTPS requests. Optional, defaults to the
+     * system protocols.
+     *
+     * <p>This setting is ignored when the {@linkplain #CLIENT_TYPE client type} is set to {@code
+     * default}.
+     */
+    public static final String SSL_PROTOCOLS = Http.PREFIX + "ssl.protocols";
+
+    /**
+     * A comma-separated list of SSL cipher suites to use for HTTPS requests. Optional, defaults to
+     * the system cipher suites.
+     *
+     * <p>This setting is ignored when the {@linkplain #CLIENT_TYPE client type} is set to {@code
+     * default}.
+     */
+    public static final String SSL_CIPHER_SUITES = Http.PREFIX + "ssl.cipher-suites";
+
+    /**
+     * Whether to enable SSL hostname verification for HTTPS requests.
+     *
+     * <p>WARNING: Disabling hostname verification is a security risk and should only be used for
+     * testing purposes.
+     *
+     * <p>Optional, defaults to {@code true}.
+     *
+     * <p>This setting is ignored when the {@linkplain #CLIENT_TYPE client type} is set to {@code
+     * default}.
+     */
+    public static final String SSL_HOSTNAME_VERIFICATION_ENABLED =
+        Http.PREFIX + "ssl.hostname-verification.enabled";
+
+    /**
+     * Whether to trust all SSL certificates for HTTPS requests.
+     *
+     * <p>WARNING: Trusting all SSL certificates is a security risk and should only be used for
+     * testing purposes.
+     *
+     * <p>Optional, defaults to {@code false}.
+     *
+     * <p>This setting is ignored when the {@linkplain #CLIENT_TYPE client type} is set to {@code
+     * default}.
+     */
+    public static final String SSL_TRUST_ALL = Http.PREFIX + "ssl.trust-all";
+
+    /**
+     * Path to the trust store to use for HTTPS requests. Optional, defaults to the system trust
+     * store.
+     *
+     * <p>This setting is ignored when the {@linkplain #CLIENT_TYPE client type} is set to {@code
+     * default}.
+     */
+    public static final String SSL_TRUSTSTORE_PATH = Http.PREFIX + "ssl.trust-store.path";
+
+    /**
+     * Password for the trust store to use for HTTPS requests. Optional, defaults to no password.
+     *
+     * <p>This setting is ignored when the {@linkplain #CLIENT_TYPE client type} is set to {@code
+     * default}, or if {@link #SSL_TRUSTSTORE_PATH} is not set.
+     */
+    public static final String SSL_TRUSTSTORE_PASSWORD = Http.PREFIX + "ssl.trust-store.password";
+
+    /**
+     * Proxy host to use for HTTP requests. Optional, defaults to no proxy. If set, the proxy port
+     * must also be set.
+     *
+     * <p>This setting is ignored when the {@linkplain #CLIENT_TYPE client type} is set to {@code
+     * default}.
+     */
+    public static final String PROXY_HOST = Http.PREFIX + "proxy.host";
+
+    /**
+     * Proxy port to use for HTTP requests. Optional, defaults to no proxy. If set, the proxy host
+     * must also be set.
+     *
+     * <p>This setting is ignored when the {@linkplain #CLIENT_TYPE client type} is set to {@code
+     * default}.
+     */
+    public static final String PROXY_PORT = Http.PREFIX + "proxy.port";
+
+    /**
+     * Proxy username to use for HTTP requests. Optional, defaults to no authentication. If set, the
+     * proxy password must also be set.
+     *
+     * <p>This setting is ignored when the {@linkplain #CLIENT_TYPE client type} is set to {@code
+     * default}.
+     */
+    public static final String PROXY_USERNAME = Http.PREFIX + "proxy.username";
+
+    /**
+     * Proxy password to use for HTTP requests. Optional, defaults to no authentication. If set, the
+     * proxy username must also be set.
+     *
+     * <p>This setting is ignored when the {@linkplain #CLIENT_TYPE client type} is set to {@code
+     * default}.
+     */
+    public static final String PROXY_PASSWORD = Http.PREFIX + "proxy.password";
   }
 
   private OAuth2Properties() {

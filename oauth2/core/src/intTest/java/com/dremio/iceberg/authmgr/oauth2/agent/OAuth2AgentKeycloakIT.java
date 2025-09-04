@@ -26,11 +26,13 @@ import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.Basic;
 import com.dremio.iceberg.authmgr.oauth2.config.ClientAssertionConfig;
 import com.dremio.iceberg.authmgr.oauth2.flow.OAuth2Exception;
 import com.dremio.iceberg.authmgr.oauth2.flow.TokensResult;
+import com.dremio.iceberg.authmgr.oauth2.http.HttpClientType;
+import com.dremio.iceberg.authmgr.oauth2.test.CryptoUtils;
 import com.dremio.iceberg.authmgr.oauth2.test.ImmutableTestEnvironment.Builder;
 import com.dremio.iceberg.authmgr.oauth2.test.TestConstants;
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
-import com.dremio.iceberg.authmgr.oauth2.test.TestPemUtils;
 import com.dremio.iceberg.authmgr.oauth2.test.container.KeycloakExtension;
+import com.dremio.iceberg.authmgr.oauth2.test.junit.EnumLike;
 import com.dremio.iceberg.authmgr.oauth2.test.user.UserBehavior;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jwt.JWT;
@@ -54,9 +56,9 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junitpioneer.jupiter.cartesian.CartesianTest;
+import org.junitpioneer.jupiter.cartesian.CartesianTest.Enum;
+import org.junitpioneer.jupiter.cartesian.CartesianTest.Values;
 
 @ExtendWith(KeycloakExtension.class)
 @ExtendWith(SoftAssertionsExtension.class)
@@ -69,20 +71,19 @@ public class OAuth2AgentKeycloakIT {
   @BeforeAll
   static void copyPrivateKeyFile(@TempDir Path tempDir) {
     privateKeyPath = Paths.get(tempDir.toString(), "key.pem");
-    TestPemUtils.copyPrivateKey(privateKeyPath);
+    CryptoUtils.copyPrivateKey(privateKeyPath);
   }
 
-  @ParameterizedTest
-  @ValueSource(
-      strings = {
-        "client_credentials",
-        "password",
-        "authorization_code",
-        "urn:ietf:params:oauth:grant-type:device_code",
-      })
-  void clientSecretBasic(GrantType initialGrantType, Builder envBuilder) throws Exception {
+  @CartesianTest
+  void clientSecretBasic(
+      @Enum HttpClientType httpClientType,
+      @EnumLike(excludes = "urn:ietf:params:oauth:grant-type:token-exchange")
+          GrantType initialGrantType,
+      Builder envBuilder)
+      throws Exception {
     try (TestEnvironment env =
             envBuilder
+                .httpClientType(httpClientType)
                 .grantType(initialGrantType)
                 .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
                 .build();
@@ -92,17 +93,16 @@ public class OAuth2AgentKeycloakIT {
     }
   }
 
-  @ParameterizedTest
-  @ValueSource(
-      strings = {
-        "client_credentials",
-        "password",
-        "authorization_code",
-        "urn:ietf:params:oauth:grant-type:device_code",
-      })
-  void clientSecretPost(GrantType initialGrantType, Builder envBuilder) throws Exception {
+  @CartesianTest
+  void clientSecretPost(
+      @Enum HttpClientType httpClientType,
+      @EnumLike(excludes = "urn:ietf:params:oauth:grant-type:token-exchange")
+          GrantType initialGrantType,
+      Builder envBuilder)
+      throws Exception {
     try (TestEnvironment env =
             envBuilder
+                .httpClientType(httpClientType)
                 .grantType(initialGrantType)
                 .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_POST)
                 .build();
@@ -112,16 +112,17 @@ public class OAuth2AgentKeycloakIT {
     }
   }
 
-  @ParameterizedTest
-  @ValueSource(
-      strings = {
-        "password",
-        "authorization_code",
-        "urn:ietf:params:oauth:grant-type:device_code",
-      })
-  void publicClient(GrantType initialGrantType, Builder envBuilder) throws Exception {
+  @CartesianTest
+  void publicClient(
+      @Enum HttpClientType httpClientType,
+      @EnumLike(
+              excludes = {"client_credentials", "urn:ietf:params:oauth:grant-type:token-exchange"})
+          GrantType initialGrantType,
+      Builder envBuilder)
+      throws Exception {
     try (TestEnvironment env =
             envBuilder
+                .httpClientType(httpClientType)
                 .grantType(initialGrantType)
                 .clientAuthenticationMethod(ClientAuthenticationMethod.NONE)
                 .discoveryEnabled(false) // also test discovery disabled
@@ -133,17 +134,16 @@ public class OAuth2AgentKeycloakIT {
     }
   }
 
-  @ParameterizedTest
-  @ValueSource(
-      strings = {
-        "client_credentials",
-        "password",
-        "authorization_code",
-        "urn:ietf:params:oauth:grant-type:device_code",
-      })
-  void clientSecretJwt(GrantType initialGrantType, Builder envBuilder) throws Exception {
+  @CartesianTest
+  void clientSecretJwt(
+      @Enum HttpClientType httpClientType,
+      @EnumLike(excludes = "urn:ietf:params:oauth:grant-type:token-exchange")
+          GrantType initialGrantType,
+      Builder envBuilder)
+      throws Exception {
     try (TestEnvironment env =
             envBuilder
+                .httpClientType(httpClientType)
                 .grantType(initialGrantType)
                 .clientId(TestConstants.CLIENT_ID3)
                 .clientSecret(TestConstants.CLIENT_SECRET3)
@@ -155,17 +155,16 @@ public class OAuth2AgentKeycloakIT {
     }
   }
 
-  @ParameterizedTest
-  @ValueSource(
-      strings = {
-        "client_credentials",
-        "password",
-        "authorization_code",
-        "urn:ietf:params:oauth:grant-type:device_code",
-      })
-  void privateKeyJwt(GrantType initialGrantType, Builder envBuilder) throws Exception {
+  @CartesianTest
+  void privateKeyJwt(
+      @Enum HttpClientType httpClientType,
+      @EnumLike(excludes = "urn:ietf:params:oauth:grant-type:token-exchange")
+          GrantType initialGrantType,
+      Builder envBuilder)
+      throws Exception {
     try (TestEnvironment env =
             envBuilder
+                .httpClientType(httpClientType)
                 .grantType(initialGrantType)
                 .clientId(TestConstants.CLIENT_ID4)
                 .clientAuthenticationMethod(ClientAuthenticationMethod.PRIVATE_KEY_JWT)
@@ -181,9 +180,12 @@ public class OAuth2AgentKeycloakIT {
     }
   }
 
-  @ParameterizedTest
-  @CsvSource({"false, S256", "true, S256", "true, plain"})
-  void pkce(boolean enabled, CodeChallengeMethod method, Builder envBuilder) throws Exception {
+  @CartesianTest
+  void pkce(
+      @Values(booleans = {true, false}) boolean enabled,
+      @EnumLike CodeChallengeMethod method,
+      Builder envBuilder)
+      throws Exception {
     try (TestEnvironment env =
             envBuilder
                 .grantType(AUTHORIZATION_CODE)
@@ -200,15 +202,12 @@ public class OAuth2AgentKeycloakIT {
    * and no actor token. The agent swaps its token for another one, roughly equivalent. No refresh
    * tokens are present.
    */
-  @ParameterizedTest
-  @ValueSource(
-      strings = {
-        "client_credentials",
-        "password",
-        "authorization_code",
-        "urn:ietf:params:oauth:grant-type:device_code"
-      })
-  void impersonation1(GrantType subjectGrantType, Builder envBuilder) throws Exception {
+  @CartesianTest
+  void impersonation1(
+      @EnumLike(excludes = "urn:ietf:params:oauth:grant-type:token-exchange")
+          GrantType subjectGrantType,
+      Builder envBuilder)
+      throws Exception {
     try (TestEnvironment env =
             envBuilder
                 .grantType(TOKEN_EXCHANGE)
@@ -226,10 +225,13 @@ public class OAuth2AgentKeycloakIT {
    * tokens are present, which is why the client credentials grant cannot be used for the subject
    * token.
    */
-  @ParameterizedTest
-  @ValueSource(
-      strings = {"password", "authorization_code", "urn:ietf:params:oauth:grant-type:device_code"})
-  void impersonation2(GrantType subjectGrantType, Builder envBuilder) throws Exception {
+  @CartesianTest
+  void impersonation2(
+      @EnumLike(
+              excludes = {"client_credentials", "urn:ietf:params:oauth:grant-type:token-exchange"})
+          GrantType subjectGrantType,
+      Builder envBuilder)
+      throws Exception {
     try (TestEnvironment env =
             envBuilder
                 .grantType(TOKEN_EXCHANGE)
@@ -285,15 +287,12 @@ public class OAuth2AgentKeycloakIT {
    * credentials grant. Refresh tokens are requested, except for the client credentials grant where
    * they are not supported.
    */
-  @ParameterizedTest
-  @ValueSource(
-      strings = {
-        "client_credentials",
-        "password",
-        "authorization_code",
-        "urn:ietf:params:oauth:grant-type:device_code"
-      })
-  void delegation3(GrantType subjectGrantType, Builder envBuilder) throws Exception {
+  @CartesianTest
+  void delegation3(
+      @EnumLike(excludes = "urn:ietf:params:oauth:grant-type:token-exchange")
+          GrantType subjectGrantType,
+      Builder envBuilder)
+      throws Exception {
     boolean expectRefreshToken = subjectGrantType != GrantType.CLIENT_CREDENTIALS;
     try (TestEnvironment env =
             envBuilder
@@ -316,15 +315,12 @@ public class OAuth2AgentKeycloakIT {
    * Refresh tokens are requested except for the client credentials grant where they are not
    * supported.
    */
-  @ParameterizedTest
-  @ValueSource(
-      strings = {
-        "client_credentials",
-        "password",
-        "authorization_code",
-        "urn:ietf:params:oauth:grant-type:device_code"
-      })
-  void delegation4(GrantType subjectGrantType, Builder envBuilder) throws Exception {
+  @CartesianTest
+  void delegation4(
+      @EnumLike(excludes = "urn:ietf:params:oauth:grant-type:token-exchange")
+          GrantType subjectGrantType,
+      Builder envBuilder)
+      throws Exception {
     boolean expectRefreshToken = subjectGrantType != GrantType.CLIENT_CREDENTIALS;
     try (TestEnvironment env =
             envBuilder

@@ -15,8 +15,6 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.test.spark;
 
-import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.ACCESS_TOKEN_LIFESPAN;
-
 import com.dremio.iceberg.authmgr.oauth2.test.container.PolarisContainer;
 import com.google.common.collect.ImmutableMap;
 import java.nio.file.Path;
@@ -34,9 +32,6 @@ public class SparkPolarisS3IT extends SparkPolarisS3ITBase {
         new PolarisContainer()
             .withEnv("AWS_REGION", "us-west-2")
             .withEnv("polaris.features.\"SKIP_CREDENTIAL_SUBSCOPING_INDIRECTION\"", "true")
-            .withEnv(
-                "polaris-authentication.token-broker.max-token-generation",
-                ACCESS_TOKEN_LIFESPAN.toString())
             .withNetwork(network));
   }
 

@@ -15,8 +15,6 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.http;
 
-import com.dremio.iceberg.authmgr.oauth2.OAuth2Config;
-import com.google.errorprone.annotations.MustBeClosed;
 import com.nimbusds.oauth2.sdk.http.HTTPRequest;
 import com.nimbusds.oauth2.sdk.http.HTTPRequestSender;
 import com.nimbusds.oauth2.sdk.http.HTTPResponse;
@@ -34,7 +32,7 @@ public interface HttpClient extends HTTPRequestSender, AutoCloseable {
    * Nimbus library.
    *
    * <p>This sender is based on URLConnection and does not support advanced features like connection
-   * pooling or custom timeouts.
+   * pooling, SSL, proxying, or custom timeouts.
    */
   HttpClient DEFAULT =
       new HttpClient() {
@@ -47,20 +45,6 @@ public interface HttpClient extends HTTPRequestSender, AutoCloseable {
         @Override
         public void close() {}
       };
-
-  /** Creates an HTTP client based on the provided OAuth2 configuration. */
-  @MustBeClosed
-  static HttpClient create(OAuth2Config config) {
-    HttpClientType httpClientType = config.getSystemConfig().getHttpClientType();
-    switch (httpClientType) {
-      case DEFAULT:
-        return DEFAULT;
-      case APACHE:
-        throw new UnsupportedOperationException("Apache HttpClient not implemented yet");
-      default:
-        throw new IllegalArgumentException("Unsupported HTTP client type: " + httpClientType);
-    }
-  }
 
   @Override
   void close();

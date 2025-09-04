@@ -24,6 +24,7 @@ import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.AuthorizationCode;
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.Basic;
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.ClientAssertion;
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.DeviceCode;
+import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.Http;
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.ResourceOwner;
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.System;
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.TokenExchange;
@@ -66,7 +67,7 @@ class OAuth2ConfigTest {
   /**
    * Tests that two {@link OAuth2Config} instances created from the same properties are equal.
    *
-   * <p>Only the system config should be ignored for equality.
+   * <p>Only the system and http configs should be ignored for equality.
    */
   @Test
   void testEqualsHashCode() {
@@ -116,16 +117,42 @@ class OAuth2ConfigTest {
             .put(TokenExchange.RESOURCE, "https://example.com/resource")
             .put(TokenExchange.AUDIENCE, "audience")
             .put(System.AGENT_NAME, "agent-name1")
-            .put(System.HTTP_CLIENT_TYPE, "default")
             .put(System.SESSION_CACHE_TIMEOUT, "PT1H")
+            .put(Http.READ_TIMEOUT, "PT1M")
+            .put(Http.CONNECT_TIMEOUT, "PT1M")
+            .put(Http.HEADERS_PREFIX + "custom", "value1")
+            .put(Http.COMPRESSION_ENABLED, "true")
+            .put(Http.SSL_PROTOCOLS, "TLSv1.2")
+            .put(Http.SSL_CIPHER_SUITES, "TLS_AES_256_GCM_SHA384")
+            .put(Http.SSL_HOSTNAME_VERIFICATION_ENABLED, "true")
+            .put(Http.SSL_TRUST_ALL, "false")
+            .put(Http.SSL_TRUSTSTORE_PATH, "/path/to/truststore")
+            .put(Http.SSL_TRUSTSTORE_PASSWORD, "truststore-password")
+            .put(Http.PROXY_HOST, "proxy.example.com")
+            .put(Http.PROXY_PORT, "8080")
+            .put(Http.PROXY_USERNAME, "user")
+            .put(Http.PROXY_PASSWORD, "pass")
             .build();
     Map<String, String> properties2 =
         ImmutableMap.<String, String>builder()
             .putAll(properties1)
-            // system settings should not influence config equality
+            // system and http settings should not influence config equality
             .put(System.AGENT_NAME, "agent-name2")
             .put(System.SESSION_CACHE_TIMEOUT, "PT2H")
-            .put(System.HTTP_CLIENT_TYPE, "apache")
+            .put(Http.READ_TIMEOUT, "PT2M")
+            .put(Http.CONNECT_TIMEOUT, "PT2M")
+            .put(Http.HEADERS_PREFIX + "custom", "value2")
+            .put(Http.COMPRESSION_ENABLED, "false")
+            .put(Http.SSL_PROTOCOLS, "TLSv1.3")
+            .put(Http.SSL_CIPHER_SUITES, "TLS_AES_128_GCM_SHA256")
+            .put(Http.SSL_HOSTNAME_VERIFICATION_ENABLED, "false")
+            .put(Http.SSL_TRUST_ALL, "true")
+            .put(Http.SSL_TRUSTSTORE_PATH, "/path/to/truststore2")
+            .put(Http.SSL_TRUSTSTORE_PASSWORD, "truststore-password2")
+            .put(Http.PROXY_HOST, "proxy2.example.com")
+            .put(Http.PROXY_PORT, "8081")
+            .put(Http.PROXY_USERNAME, "user2")
+            .put(Http.PROXY_PASSWORD, "pass2")
             .buildKeepingLast();
     OAuth2Config config1 = OAuth2Config.builder().from(properties1).build();
     OAuth2Config config2 = OAuth2Config.builder().from(properties2).build();

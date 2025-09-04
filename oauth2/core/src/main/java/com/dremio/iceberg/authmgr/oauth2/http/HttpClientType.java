@@ -15,19 +15,32 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.http;
 
+import com.dremio.iceberg.authmgr.oauth2.config.HttpConfig;
+import com.google.errorprone.annotations.MustBeClosed;
+
 public enum HttpClientType {
-  DEFAULT("default"),
-  APACHE("apache");
+  DEFAULT {
+    @Override
+    public HttpClient newHttpClient(HttpConfig config) {
+      return HttpClient.DEFAULT;
+    }
+  },
 
-  private final String configName;
+  APACHE {
+    @Override
+    public HttpClient newHttpClient(HttpConfig config) {
+      return new ApacheHttpClient(config);
+    }
+  },
+  ;
 
-  HttpClientType(String configName) {
-    this.configName = configName;
-  }
+  /** Creates an HTTP client based on the provided configuration. */
+  @MustBeClosed
+  public abstract HttpClient newHttpClient(HttpConfig config);
 
   public static HttpClientType fromString(String value) {
     for (HttpClientType type : values()) {
-      if (type.name().equalsIgnoreCase(value) || type.configName.equalsIgnoreCase(value)) {
+      if (type.name().equalsIgnoreCase(value)) {
         return type;
       }
     }

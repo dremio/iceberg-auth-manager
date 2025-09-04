@@ -49,7 +49,8 @@ dependencies {
   // Note: iceberg-core will be provided by the iceberg-flink-runtime jar,
   // with shaded dependencies; it should not leak into this project unshaded.
 
-  intTestBase(project(":authmgr-oauth2-runtime"))
+  // Use the shaded JAR for compilation to match runtime behavior
+  intTestBase(project(":authmgr-oauth2-runtime", "shadowRuntimeElements"))
 
   intTestBase(testFixtures(project(":authmgr-oauth2-core")) as ModuleDependency) {
     exclude(group = "org.apache.iceberg")

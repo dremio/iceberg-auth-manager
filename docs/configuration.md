@@ -359,11 +359,106 @@ The session cache timeout. Cached sessions will become eligible for eviction aft
 
 This value is used for housekeeping; it does not mean that cached sessions will stop working after this time, but that the session cache will evict the session after this time of inactivity. If the context is used again, a new session will be created and cached.
 
-### `rest.auth.oauth2.system.http-client.type`
+## Http Settings
+
+Configuration properties for HTTP communication.
+
+### `rest.auth.oauth2.http.client-type`
 
 The type of HTTP client to use for making HTTP requests to the OAuth2 server. Valid values are:
 
-- default (`default`): uses the built-in URLConnection-based client provided by the underlying OAuth2 library.
+- `default`: uses the built-in URLConnection-based client provided by the underlying OAuth2 library.
+- `apache`: uses the Apache HttpClient library, provided by Iceberg's runtime.
 
 Optional, defaults to `default`.
+
+### `rest.auth.oauth2.http.read-timeout`
+
+The read timeout for HTTP requests. Optional, defaults to `PT30S`. Must be a valid [ISO-8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations).
+
+This setting is ignored when the client type (`rest.auth.oauth2.http.client-type`) is set to `default`.
+
+### `rest.auth.oauth2.http.connect-timeout`
+
+The connection timeout for HTTP requests. Optional, defaults to `PT10S`. Must be a valid [ISO-8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations).
+
+This setting is ignored when the client type (`rest.auth.oauth2.http.client-type`) is set to `default`.
+
+### `rest.auth.oauth2.http.headers.`
+
+HTTP headers to include in each HTTP request. This is a prefix property, and multiple values can be set, each with a different key and value.
+
+### `rest.auth.oauth2.http.compression.enabled`
+
+Whether to enable compression for HTTP requests. Optional, defaults to `true`.
+
+This setting is ignored when the client type (`rest.auth.oauth2.http.client-type`) is set to `default`.
+
+### `rest.auth.oauth2.http.ssl.protocols`
+
+A comma-separated list of SSL protocols to use for HTTPS requests. Optional, defaults to the system protocols.
+
+This setting is ignored when the client type (`rest.auth.oauth2.http.client-type`) is set to `default`.
+
+### `rest.auth.oauth2.http.ssl.cipher-suites`
+
+A comma-separated list of SSL cipher suites to use for HTTPS requests. Optional, defaults to the system cipher suites.
+
+This setting is ignored when the client type (`rest.auth.oauth2.http.client-type`) is set to `default`.
+
+### `rest.auth.oauth2.http.ssl.hostname-verification.enabled`
+
+Whether to enable SSL hostname verification for HTTPS requests.
+
+WARNING: Disabling hostname verification is a security risk and should only be used for testing purposes.
+
+Optional, defaults to `true`.
+
+This setting is ignored when the client type (`rest.auth.oauth2.http.client-type`) is set to `default`.
+
+### `rest.auth.oauth2.http.ssl.trust-all`
+
+Whether to trust all SSL certificates for HTTPS requests.
+
+WARNING: Trusting all SSL certificates is a security risk and should only be used for testing purposes.
+
+Optional, defaults to `false`.
+
+This setting is ignored when the client type (`rest.auth.oauth2.http.client-type`) is set to `default`.
+
+### `rest.auth.oauth2.http.ssl.trust-store.path`
+
+Path to the trust store to use for HTTPS requests. Optional, defaults to the system trust store.
+
+This setting is ignored when the client type (`rest.auth.oauth2.http.client-type`) is set to `default`.
+
+### `rest.auth.oauth2.http.ssl.trust-store.password`
+
+Password for the trust store to use for HTTPS requests. Optional, defaults to no password.
+
+This setting is ignored when the client type (`rest.auth.oauth2.http.client-type`) is set to `default`, or if `rest.auth.oauth2.http.ssl.trust-store.path` is not set.
+
+### `rest.auth.oauth2.http.proxy.host`
+
+Proxy host to use for HTTP requests. Optional, defaults to no proxy. If set, the proxy port must also be set.
+
+This setting is ignored when the client type (`rest.auth.oauth2.http.client-type`) is set to `default`.
+
+### `rest.auth.oauth2.http.proxy.port`
+
+Proxy port to use for HTTP requests. Optional, defaults to no proxy. If set, the proxy host must also be set.
+
+This setting is ignored when the client type (`rest.auth.oauth2.http.client-type`) is set to `default`.
+
+### `rest.auth.oauth2.http.proxy.username`
+
+Proxy username to use for HTTP requests. Optional, defaults to no authentication. If set, the proxy password must also be set.
+
+This setting is ignored when the client type (`rest.auth.oauth2.http.client-type`) is set to `default`.
+
+### `rest.auth.oauth2.http.proxy.password`
+
+Proxy password to use for HTTP requests. Optional, defaults to no authentication. If set, the proxy username must also be set.
+
+This setting is ignored when the client type (`rest.auth.oauth2.http.client-type`) is set to `default`.
 

@@ -28,9 +28,11 @@ public class UnitTestHttpServer implements HttpServer {
 
   private static final AtomicInteger COUNTER = new AtomicInteger(1);
 
+  private final boolean ssl;
   private final ClientAndServer clientAndServer;
 
-  public UnitTestHttpServer() {
+  public UnitTestHttpServer(boolean ssl) {
+    this.ssl = ssl;
     Configuration configuration = Configuration.configuration();
     String outputDir = System.getProperty("authmgr.test.mockserver.memoryUsageCsvDirectory");
     if (outputDir != null) {
@@ -52,7 +54,7 @@ public class UnitTestHttpServer implements HttpServer {
 
   @Override
   public URI getRootUrl() {
-    return URI.create("http://localhost:" + clientAndServer.getLocalPort());
+    return URI.create((ssl ? "https" : "http") + "://localhost:" + clientAndServer.getLocalPort());
   }
 
   @Override

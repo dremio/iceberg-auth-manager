@@ -68,9 +68,8 @@ public abstract class AbstractTokenEndpointExpectation extends AbstractExpectati
           new Header(
               "Authorization",
               String.format(
-                  "Basic (%s|%s)",
-                  TestConstants.CLIENT_CREDENTIALS1_BASE_64,
-                  TestConstants.CLIENT_CREDENTIALS2_BASE_64)));
+                  "(%s|%s)",
+                  TestConstants.CLIENT1_AUTH_HEADER, TestConstants.CLIENT2_AUTH_HEADER)));
     }
     return builder;
   }

@@ -29,20 +29,16 @@ public abstract class SparkNessieS3ITBase extends SparkS3ITBase {
 
   @Override
   protected CompletableFuture<Void> startAllContainers(Network network) {
-    return CompletableFuture.allOf(
-        super.startAllContainers(network),
-        createNessieContainer(network)
-            .thenCompose(
-                container -> {
-                  nessie = container;
-                  return CompletableFuture.runAsync(container::start);
-                })
-            .thenCompose(v -> fetchNewToken()));
+    return super.startAllContainers(network)
+        .thenCompose(v -> createNessieContainer(network))
+        .thenCompose(
+            container -> {
+              nessie = container;
+              return CompletableFuture.runAsync(container::start);
+            });
   }
 
   protected abstract CompletableFuture<NessieContainer> createNessieContainer(Network network);
-
-  protected abstract CompletableFuture<String> fetchNewToken();
 
   @Override
   protected URI catalogApiEndpoint() {

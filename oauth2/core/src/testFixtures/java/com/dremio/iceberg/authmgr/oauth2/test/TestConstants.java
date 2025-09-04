@@ -24,10 +24,8 @@ import com.nimbusds.oauth2.sdk.id.ClientID;
 import com.nimbusds.oauth2.sdk.token.TokenTypeURI;
 import com.nimbusds.oauth2.sdk.token.TypelessAccessToken;
 import java.net.URI;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Base64;
 import java.util.Map;
 import java.util.UUID;
 import org.apache.iceberg.catalog.SessionCatalog;
@@ -42,7 +40,8 @@ public class TestConstants {
 
   public static final Secret CLIENT_SECRET1 = new Secret("s3cr3t");
   public static final Secret CLIENT_SECRET2 = new Secret("sEcrEt");
-  public static final Secret CLIENT_SECRET3 = new Secret(Strings.repeat("S3CR3T", 10));
+  public static final Secret CLIENT_SECRET3 =
+      new Secret(Strings.repeat("S3CR3T", 10)); // for client secret JWT
 
   public static final String USERNAME = "Alice";
   public static final Secret PASSWORD = new Secret("s3cr3t");
@@ -51,17 +50,11 @@ public class TestConstants {
   public static final Scope SCOPE2 = new Scope("session");
   public static final Scope SCOPE3 = new Scope("table");
 
-  public static final String CLIENT_CREDENTIALS1_BASE_64 =
-      Base64.getEncoder()
-          .encodeToString(
-              (CLIENT_ID1.getValue() + ":" + CLIENT_SECRET1.getValue())
-                  .getBytes(StandardCharsets.UTF_8));
+  public static final String CLIENT1_AUTH_HEADER =
+      CryptoUtils.encodeBasicHeader(CLIENT_ID1.getValue(), CLIENT_SECRET1.getValue());
 
-  public static final String CLIENT_CREDENTIALS2_BASE_64 =
-      Base64.getEncoder()
-          .encodeToString(
-              (CLIENT_ID2.getValue() + ":" + CLIENT_SECRET2.getValue())
-                  .getBytes(StandardCharsets.UTF_8));
+  public static final String CLIENT2_AUTH_HEADER =
+      CryptoUtils.encodeBasicHeader(CLIENT_ID2.getValue(), CLIENT_SECRET2.getValue());
 
   public static final Instant NOW = Instant.parse("2025-01-01T00:00:00Z");
 
