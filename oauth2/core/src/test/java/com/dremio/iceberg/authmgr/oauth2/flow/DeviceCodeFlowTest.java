@@ -18,12 +18,10 @@ package com.dremio.iceberg.authmgr.oauth2.flow;
 import static com.dremio.iceberg.authmgr.oauth2.test.TokenAssertions.assertTokensResult;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.dremio.iceberg.authmgr.oauth2.config.DeviceCodeConfig;
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
 import com.dremio.iceberg.authmgr.oauth2.test.junit.EnumLike;
 import com.nimbusds.oauth2.sdk.GrantType;
 import com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod;
-import java.time.Duration;
 import java.util.concurrent.ExecutionException;
 import org.junitpioneer.jupiter.cartesian.CartesianTest;
 import org.junitpioneer.jupiter.cartesian.CartesianTest.Values;
@@ -39,12 +37,6 @@ class DeviceCodeFlowTest {
             TestEnvironment.builder()
                 .grantType(GrantType.DEVICE_CODE)
                 .clientAuthenticationMethod(authenticationMethod)
-                .deviceCodeConfig(
-                    DeviceCodeConfig.builder()
-                        .minPollInterval(Duration.ofMillis(10))
-                        .pollInterval(Duration.ofMillis(10))
-                        .ignoreServerPollInterval(true)
-                        .build())
                 .returnRefreshTokens(returnRefreshTokens)
                 .build();
         FlowFactory flowFactory = env.newFlowFactory()) {

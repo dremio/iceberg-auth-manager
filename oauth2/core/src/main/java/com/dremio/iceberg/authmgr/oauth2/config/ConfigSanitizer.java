@@ -15,7 +15,8 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.config;
 
-import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties;
+import static com.dremio.iceberg.authmgr.oauth2.OAuth2Config.PREFIX;
+
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -29,12 +30,12 @@ public final class ConfigSanitizer {
 
   public static final Set<String> TABLE_DENY_LIST =
       Set.of(
-          OAuth2Properties.Basic.CLIENT_ID,
-          OAuth2Properties.Basic.CLIENT_SECRET,
-          OAuth2Properties.ResourceOwner.USERNAME,
-          OAuth2Properties.ResourceOwner.PASSWORD,
-          OAuth2Properties.ClientAssertion.ALGORITHM,
-          OAuth2Properties.ClientAssertion.PRIVATE_KEY);
+          PREFIX + '.' + BasicConfig.CLIENT_ID,
+          PREFIX + '.' + BasicConfig.CLIENT_SECRET,
+          ResourceOwnerConfig.PREFIX + '.' + ResourceOwnerConfig.USERNAME,
+          ResourceOwnerConfig.PREFIX + '.' + ResourceOwnerConfig.PASSWORD,
+          ClientAssertionConfig.PREFIX + '.' + ClientAssertionConfig.ALGORITHM,
+          ClientAssertionConfig.PREFIX + '.' + ClientAssertionConfig.PRIVATE_KEY);
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ConfigSanitizer.class);
 
@@ -76,10 +77,10 @@ public final class ConfigSanitizer {
       if (denyList.contains(key)) {
         logConsumer.accept(message, key);
         iterator.remove();
-      } else if (key.startsWith(OAuth2Properties.System.PREFIX)) {
+      } else if (key.startsWith(SystemConfig.PREFIX)) {
         logConsumer.accept(message, key);
         iterator.remove();
-      } else if (key.startsWith(OAuth2Properties.Http.PREFIX)) {
+      } else if (key.startsWith(HttpConfig.PREFIX)) {
         logConsumer.accept(message, key);
         iterator.remove();
       }

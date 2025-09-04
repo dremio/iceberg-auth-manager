@@ -15,48 +15,53 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.config;
 
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.DeviceCode.ENDPOINT;
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.DeviceCode.POLL_INTERVAL;
-
-import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties;
-import com.dremio.iceberg.authmgr.oauth2.config.option.ConfigOption;
-import com.dremio.iceberg.authmgr.oauth2.config.option.ConfigOptions;
+import com.dremio.iceberg.authmgr.oauth2.OAuth2Config;
 import com.dremio.iceberg.authmgr.oauth2.config.validator.ConfigValidator;
-import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
-import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import com.nimbusds.oauth2.sdk.GrantType;
+import io.smallrye.config.WithDefault;
+import io.smallrye.config.WithName;
 import java.net.URI;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
-import org.immutables.value.Value;
 
-@AuthManagerImmutable
+/**
+ * Configuration properties for the <a href="https://datatracker.ietf.org/doc/html/rfc8628">Device
+ * Authorization Grant</a> flow.
+ *
+ * <p>This flow is used to obtain an access token for devices that do not have a browser or limited
+ * input capabilities. The user is prompted to visit a URL on another device and enter a code to
+ * authorize the device.
+ */
 public interface DeviceCodeConfig {
 
-  DeviceCodeConfig DEFAULT = builder().build();
+  String GROUP_NAME = "device-code";
+  String PREFIX = OAuth2Config.PREFIX + '.' + GROUP_NAME;
+
+  String ENDPOINT = "endpoint";
+  String POLL_INTERVAL = "poll-interval";
+
+  String DEFAULT_POLL_INTERVAL = "PT5S";
 
   /**
-   * The OAuth2 device authorization endpoint. Either this or {@link BasicConfig#getIssuerUrl()}
-   * must be set, if the grant type is {@link GrantType#DEVICE_CODE}. This is the endpoint where the
-   * device authorization request will be sent to.
+   * URL of the OAuth2 device authorization endpoint. For Keycloak, this is typically {@code
+   * http://<keycloak-server>/realms/<realm-name>/protocol/openid-connect/auth/device}.
    *
-   * @see OAuth2Properties.DeviceCode#ENDPOINT
+   * <p>If using the "Device Code" grant type, either this property or {@link
+   * BasicConfig#ISSUER_URL} must be set.
    */
+  @WithName(ENDPOINT)
   Optional<URI> getDeviceAuthorizationEndpoint();
 
   /**
-   * How often to poll the token endpoint. Defaults to {@link
-   * OAuth2Properties.DeviceCode#DEFAULT_POLL_INTERVAL}. Only relevant when using the {@link
-   * GrantType#DEVICE_CODE} grant type.
-   *
-   * @see OAuth2Properties.DeviceCode#POLL_INTERVAL
+   * Defines how often the agent should poll the OAuth2 server for the device code flow to complete.
+   * This is only used if the grant type to use is {@link GrantType#DEVICE_CODE}. Optional, defaults
+   * to {@value #DEFAULT_POLL_INTERVAL}.
    */
-  @Value.Default
-  default Duration getPollInterval() {
-    return ConfigConstants.DEVICE_CODE_DEFAULT_POLL_INTERVAL;
-  }
+  @WithName(POLL_INTERVAL)
+  @WithDefault(DEFAULT_POLL_INTERVAL)
+  Duration getPollInterval();
 
   /**
    * The minimum poll interval for the device code flow. The device code flow requires a minimum
@@ -66,10 +71,9 @@ public interface DeviceCodeConfig {
    *
    * @hidden
    */
-  @Value.Default
-  default Duration getMinPollInterval() {
-    return ConfigConstants.DEVICE_CODE_MIN_POLL_INTERVAL;
-  }
+  @WithName("min-poll-interval")
+  @WithDefault(DEFAULT_POLL_INTERVAL) // mandated by the specs
+  Duration getMinPollInterval();
 
   /**
    * Whether to ignore the server-specified poll interval and always use the configured poll
@@ -79,76 +83,34 @@ public interface DeviceCodeConfig {
    *
    * @hidden
    */
-  @Value.Default
-  default boolean ignoreServerPollInterval() {
-    return false;
-  }
+  @WithName("ignore-server-poll-interval")
+  @WithDefault("false")
+  boolean ignoreServerPollInterval();
 
-  @Value.Check
   default void validate() {
     ConfigValidator validator = new ConfigValidator();
     if (getDeviceAuthorizationEndpoint().isPresent()) {
       validator.checkEndpoint(
           getDeviceAuthorizationEndpoint().get(),
-          ENDPOINT,
+          PREFIX + '.' + ENDPOINT,
           "device code flow: device authorization endpoint");
     }
     validator.check(
         getPollInterval().compareTo(getMinPollInterval()) >= 0,
-        POLL_INTERVAL,
+        PREFIX + '.' + POLL_INTERVAL,
         "device code flow: poll interval must be greater than or equal to %s",
         getMinPollInterval());
     validator.validate();
   }
 
-  /** Merges the given properties into this {@link DeviceCodeConfig} and returns the result. */
-  default DeviceCodeConfig merge(Map<String, String> properties) {
-    Objects.requireNonNull(properties, "properties must not be null");
-    DeviceCodeConfig.Builder builder = builder();
-    builder.deviceAuthorizationEndpointOption().set(properties, getDeviceAuthorizationEndpoint());
-    builder.pollIntervalOption().set(properties, getPollInterval());
-    builder.minPollInterval(getMinPollInterval());
-    builder.ignoreServerPollInterval(ignoreServerPollInterval());
-    return builder.build();
-  }
-
-  static Builder builder() {
-    return ImmutableDeviceCodeConfig.builder();
-  }
-
-  interface Builder {
-
-    @CanIgnoreReturnValue
-    Builder from(DeviceCodeConfig config);
-
-    @CanIgnoreReturnValue
-    default Builder from(Map<String, String> properties) {
-      Objects.requireNonNull(properties, "properties must not be null");
-      deviceAuthorizationEndpointOption().set(properties);
-      pollIntervalOption().set(properties);
-      return this;
-    }
-
-    @CanIgnoreReturnValue
-    Builder deviceAuthorizationEndpoint(URI deviceAuthorizationEndpoint);
-
-    @CanIgnoreReturnValue
-    Builder pollInterval(Duration pollInterval);
-
-    @CanIgnoreReturnValue
-    Builder minPollInterval(Duration minPollInterval);
-
-    @CanIgnoreReturnValue
-    Builder ignoreServerPollInterval(boolean ignoreServerPollInterval);
-
-    DeviceCodeConfig build();
-
-    private ConfigOption<URI> deviceAuthorizationEndpointOption() {
-      return ConfigOptions.simple(ENDPOINT, this::deviceAuthorizationEndpoint, URI::create);
-    }
-
-    private ConfigOption<Duration> pollIntervalOption() {
-      return ConfigOptions.simple(POLL_INTERVAL, this::pollInterval, Duration::parse);
-    }
+  default Map<String, String> asMap() {
+    Map<String, String> properties = new HashMap<>();
+    getDeviceAuthorizationEndpoint()
+        .ifPresent(u -> properties.put(PREFIX + '.' + ENDPOINT, u.toString()));
+    properties.put(PREFIX + '.' + POLL_INTERVAL, getPollInterval().toString());
+    properties.put(PREFIX + '.' + "min-poll-interval", getMinPollInterval().toString());
+    properties.put(
+        PREFIX + '.' + "ignore-server-poll-interval", String.valueOf(ignoreServerPollInterval()));
+    return Map.copyOf(properties);
   }
 }

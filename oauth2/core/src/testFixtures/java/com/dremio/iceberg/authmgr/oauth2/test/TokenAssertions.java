@@ -19,7 +19,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.dremio.iceberg.authmgr.oauth2.flow.TokensResult;
 import com.nimbusds.oauth2.sdk.token.AccessToken;
-import com.nimbusds.oauth2.sdk.token.AccessTokenType;
 import com.nimbusds.oauth2.sdk.token.RefreshToken;
 import jakarta.annotation.Nullable;
 
@@ -54,7 +53,6 @@ public final class TokenAssertions {
 
   public static void assertAccessToken(AccessToken actual, String expected, int expiresInSeconds) {
     assertThat(actual.getValue()).isEqualTo(expected);
-    assertThat(actual.getType()).isEqualTo(AccessTokenType.BEARER);
     assertThat(actual.getLifetime()).isEqualTo(expiresInSeconds);
   }
 

@@ -77,12 +77,12 @@ public final class OAuth2Agent implements Closeable {
   private volatile Instant lastWarn;
 
   @SuppressWarnings("FutureReturnValueIgnored")
-  public OAuth2Agent(OAuth2Config config, ScheduledExecutorService executor) {
+  public OAuth2Agent(OAuth2Config config, OAuth2AgentRuntime runtime) {
     this.config = config;
-    this.executor = executor;
-    this.flowFactory = FlowFactory.create(config, executor);
+    this.executor = runtime.getExecutor();
+    this.flowFactory = FlowFactory.create(config, runtime);
     name = config.getSystemConfig().getAgentName();
-    clock = config.getSystemConfig().getClock();
+    clock = runtime.getClock();
     lastAccess = clock.instant();
     if (config.getBasicConfig().getToken().isPresent()) {
       var currentTokens = TokensResult.of(config.getBasicConfig().getToken().get());

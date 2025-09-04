@@ -15,132 +15,62 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.config;
 
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.System.AGENT_NAME;
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.System.DEFAULT_AGENT_NAME;
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.System.SESSION_CACHE_TIMEOUT;
-
-import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties;
-import com.dremio.iceberg.authmgr.oauth2.config.option.ConfigOption;
-import com.dremio.iceberg.authmgr.oauth2.config.option.ConfigOptions;
+import com.dremio.iceberg.authmgr.oauth2.OAuth2Config;
 import com.dremio.iceberg.authmgr.oauth2.config.validator.ConfigValidator;
-import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
-import com.google.errorprone.annotations.CanIgnoreReturnValue;
-import java.io.PrintStream;
-import java.time.Clock;
+import io.smallrye.config.WithDefault;
+import io.smallrye.config.WithName;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
-import org.immutables.value.Value;
 
-@AuthManagerImmutable
+/**
+ * Configuration properties for the whole system.
+ *
+ * <p>These properties are used to configure properties such as the session cache timeout.
+ */
 public interface SystemConfig {
 
-  SystemConfig DEFAULT = builder().build();
+  String GROUP_NAME = "system";
+  String PREFIX = OAuth2Config.PREFIX + '.' + GROUP_NAME;
+
+  String AGENT_NAME = "agent-name";
+  String SESSION_CACHE_TIMEOUT = "session-cache-timeout";
+
+  String DEFAULT_AGENT_NAME = "iceberg-auth-manager";
+  String DEFAULT_SESSION_CACHE_TIMEOUT = "PT1H";
 
   /**
-   * The distinctive name of the OAuth2 agent. Defaults to {@value
-   * OAuth2Properties.System#DEFAULT_AGENT_NAME}. This name is printed in all log messages and user
-   * prompts.
-   *
-   * @see OAuth2Properties.System#AGENT_NAME
+   * The distinctive name of the OAuth2 agent. Defaults to {@value #DEFAULT_AGENT_NAME}. This name
+   * is printed in all log messages and user prompts.
    */
-  @Value.Default
-  default String getAgentName() {
-    return DEFAULT_AGENT_NAME;
-  }
+  @WithName(AGENT_NAME)
+  @WithDefault(DEFAULT_AGENT_NAME)
+  String getAgentName();
 
   /**
-   * The timeout for cached authentication sessions.
+   * The session cache timeout. Cached sessions will become eligible for eviction after this
+   * duration of inactivity. Defaults to {@value #DEFAULT_SESSION_CACHE_TIMEOUT}. Must be a valid <a
+   * href="https://en.wikipedia.org/wiki/ISO_8601#Durations">ISO-8601 duration</a>.
    *
-   * @see OAuth2Properties.System#SESSION_CACHE_TIMEOUT
+   * <p>This value is used for housekeeping; it does not mean that cached sessions will stop working
+   * after this time, but that the session cache will evict the session after this time of
+   * inactivity. If the context is used again, a new session will be created and cached.
    */
-  @Value.Default
-  default Duration getSessionCacheTimeout() {
-    return ConfigConstants.DEFAULT_SESSION_CACHE_TIMEOUT;
-  }
+  @WithName(SESSION_CACHE_TIMEOUT)
+  @WithDefault(DEFAULT_SESSION_CACHE_TIMEOUT)
+  Duration getSessionCacheTimeout();
 
-  /**
-   * The clock to use for time-based operations. Defaults to the system clock.
-   *
-   * <p>This setting is not exposed as a configuration option and is intended for testing purposes.
-   *
-   * @hidden
-   */
-  @Value.Default
-  @Value.Auxiliary
-  default Clock getClock() {
-    return Clock.systemUTC();
-  }
-
-  /**
-   * The {@link PrintStream} to use for console output. Defaults to {@link System#out}.
-   *
-   * <p>This setting is not exposed as a configuration option and is intended for testing purposes.
-   *
-   * @hidden
-   */
-  @Value.Default
-  @Value.Auxiliary
-  default PrintStream getConsole() {
-    return System.out;
-  }
-
-  @Value.Check
   default void validate() {
     ConfigValidator validator = new ConfigValidator();
-    validator.check(!getAgentName().isBlank(), AGENT_NAME, "agent name must not be blank");
+    validator.check(
+        !getAgentName().isBlank(), PREFIX + '.' + AGENT_NAME, "agent name must not be blank");
     validator.validate();
   }
 
-  /** Merges the given properties into this {@link SystemConfig} and returns the result. */
-  default SystemConfig merge(Map<String, String> properties) {
-    Objects.requireNonNull(properties, "properties must not be null");
-    SystemConfig.Builder builder = builder();
-    builder.agentNameOption().set(properties, getAgentName());
-    builder.sessionCacheTimeoutOption().set(properties, getSessionCacheTimeout());
-    builder.clock(getClock());
-    builder.console(getConsole());
-    return builder.build();
-  }
-
-  static Builder builder() {
-    return ImmutableSystemConfig.builder();
-  }
-
-  interface Builder {
-
-    @CanIgnoreReturnValue
-    Builder from(SystemConfig config);
-
-    @CanIgnoreReturnValue
-    default Builder from(Map<String, String> properties) {
-      Objects.requireNonNull(properties, "properties must not be null");
-      agentNameOption().set(properties);
-      sessionCacheTimeoutOption().set(properties);
-      return this;
-    }
-
-    @CanIgnoreReturnValue
-    Builder agentName(String agentName);
-
-    @CanIgnoreReturnValue
-    Builder clock(Clock clock);
-
-    @CanIgnoreReturnValue
-    Builder console(PrintStream console);
-
-    @CanIgnoreReturnValue
-    Builder sessionCacheTimeout(Duration sessionCacheTimeout);
-
-    SystemConfig build();
-
-    private ConfigOption<String> agentNameOption() {
-      return ConfigOptions.simple(AGENT_NAME, this::agentName);
-    }
-
-    private ConfigOption<Duration> sessionCacheTimeoutOption() {
-      return ConfigOptions.simple(
-          SESSION_CACHE_TIMEOUT, this::sessionCacheTimeout, Duration::parse);
-    }
+  default Map<String, String> asMap() {
+    Map<String, String> properties = new HashMap<>();
+    properties.put(PREFIX + '.' + AGENT_NAME, getAgentName());
+    properties.put(PREFIX + '.' + SESSION_CACHE_TIMEOUT, getSessionCacheTimeout().toString());
+    return Map.copyOf(properties);
   }
 }

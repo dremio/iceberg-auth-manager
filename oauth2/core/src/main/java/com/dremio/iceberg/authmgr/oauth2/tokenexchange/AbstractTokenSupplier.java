@@ -15,21 +15,23 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.tokenexchange;
 
+import static com.dremio.iceberg.authmgr.oauth2.config.ConfigUtils.prefixedMap;
+
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Config;
-import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties;
 import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2Agent;
+import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2AgentRuntime;
+import com.dremio.iceberg.authmgr.oauth2.config.SystemConfig;
 import com.nimbusds.oauth2.sdk.GrantType;
 import com.nimbusds.oauth2.sdk.token.AccessToken;
 import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
-import com.nimbusds.oauth2.sdk.token.Token;
 import com.nimbusds.oauth2.sdk.token.TokenTypeURI;
+import com.nimbusds.oauth2.sdk.token.TypelessAccessToken;
 import jakarta.annotation.Nullable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.ScheduledExecutorService;
 import org.immutables.value.Value;
 
 public abstract class AbstractTokenSupplier implements AutoCloseable {
@@ -46,12 +48,10 @@ public abstract class AbstractTokenSupplier implements AutoCloseable {
     if (getTokenAgent() != null) {
       return getTokenAgent().authenticateAsync();
     }
-    if (getToken().isPresent()) {
-      Token token = getToken().get();
+    if (getStaticToken().isPresent()) {
+      TypelessAccessToken token = getStaticToken().get();
       BearerAccessToken accessToken =
-          token instanceof BearerAccessToken
-              ? (BearerAccessToken) token
-              : new BearerAccessToken(token.getValue(), 0, null, getTokenType());
+          new BearerAccessToken(token.getValue(), 0, null, getStaticTokenType());
       return CompletableFuture.completedFuture(accessToken);
     } else {
       return CompletableFuture.completedFuture(null);
@@ -73,17 +73,18 @@ public abstract class AbstractTokenSupplier implements AutoCloseable {
   @Nullable
   protected OAuth2Agent getTokenAgent() {
     if (!getMainConfig().getBasicConfig().getGrantType().equals(GrantType.TOKEN_EXCHANGE)
-        || getToken().isPresent()
-        || getTokenAgentProperties().isEmpty()) {
+        || getStaticToken().isPresent()
+        || getTokenAgentConfig().isEmpty()) {
       return null;
     }
-    Map<String, String> tokenAgentProperties = getTokenAgentProperties();
-    if (!tokenAgentProperties.containsKey(OAuth2Properties.System.AGENT_NAME)) {
+    Map<String, String> tokenAgentProperties = getTokenAgentConfig();
+    if (!tokenAgentProperties.containsKey(SystemConfig.PREFIX + '.' + SystemConfig.AGENT_NAME)) {
       tokenAgentProperties = new HashMap<>(tokenAgentProperties);
-      tokenAgentProperties.put(OAuth2Properties.System.AGENT_NAME, getDefaultAgentName());
+      tokenAgentProperties.put(
+          SystemConfig.PREFIX + '.' + SystemConfig.AGENT_NAME, getDefaultAgentName());
     }
     OAuth2Config tokenAgentConfig = getMainConfig().merge(tokenAgentProperties);
-    return new OAuth2Agent(tokenAgentConfig, getExecutor());
+    return new OAuth2Agent(tokenAgentConfig, getRuntime());
   }
 
   @Override
@@ -93,16 +94,24 @@ public abstract class AbstractTokenSupplier implements AutoCloseable {
     }
   }
 
+  @Value.Derived
+  protected Map<String, String> getTokenAgentConfig() {
+    return prefixedMap(getDynamicTokenConfig(), OAuth2Config.PREFIX);
+  }
+
   protected abstract OAuth2Config getMainConfig();
 
-  protected abstract ScheduledExecutorService getExecutor();
-
-  protected abstract Optional<Token> getToken();
-
-  protected abstract TokenTypeURI getTokenType();
+  protected abstract OAuth2AgentRuntime getRuntime();
 
   @Value.Derived
-  protected abstract Map<String, String> getTokenAgentProperties();
+  protected abstract Optional<TypelessAccessToken> getStaticToken();
 
+  @Value.Derived
+  protected abstract TokenTypeURI getStaticTokenType();
+
+  @Value.Derived
+  protected abstract Map<String, String> getDynamicTokenConfig();
+
+  @Value.Derived
   protected abstract String getDefaultAgentName();
 }

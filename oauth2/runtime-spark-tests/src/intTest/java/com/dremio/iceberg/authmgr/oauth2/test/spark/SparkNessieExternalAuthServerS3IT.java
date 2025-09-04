@@ -17,7 +17,7 @@ package com.dremio.iceberg.authmgr.oauth2.test.spark;
 
 import static com.dremio.iceberg.authmgr.oauth2.test.spark.RemoteAuthServerSupport.OAUTH2_AGENT_CONFIG_ENV;
 
-import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties;
+import com.dremio.iceberg.authmgr.oauth2.config.BasicConfig;
 import com.dremio.iceberg.authmgr.oauth2.test.TestConstants;
 import com.dremio.iceberg.authmgr.oauth2.test.container.NessieContainer;
 import com.google.common.collect.ImmutableMap;
@@ -61,8 +61,11 @@ public class SparkNessieExternalAuthServerS3IT extends SparkNessieS3ITBase {
             .withEnv("nessie-catalog-secrets.s3-access-key.secret", "fake")
             .withEnv("nessie.server.authentication.enabled", "true")
             .withEnv(
-                "quarkus.oidc.auth-server-url", agentConfig.get(OAuth2Properties.Basic.ISSUER_URL))
-            .withEnv("quarkus.oidc.client-id", agentConfig.get(OAuth2Properties.Basic.CLIENT_ID))
+                "quarkus.oidc.auth-server-url",
+                agentConfig.get(BasicConfig.PREFIX + '.' + BasicConfig.ISSUER_URL))
+            .withEnv(
+                "quarkus.oidc.client-id",
+                agentConfig.get(BasicConfig.PREFIX + '.' + BasicConfig.CLIENT_ID))
             .withNetwork(network));
   }
 

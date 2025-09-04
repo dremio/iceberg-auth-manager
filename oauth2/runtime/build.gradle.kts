@@ -67,6 +67,9 @@ tasks.shadowJar {
   relocate("com.nimbusds", "com.dremio.iceberg.authmgr.shaded.com.nimbusds")
   relocate("net.minidev", "com.dremio.iceberg.authmgr.shaded.net.minidev")
   relocate("org.objectweb.asm", "com.dremio.iceberg.authmgr.shaded.org.objectweb.asm")
+  relocate("io.smallrye", "com.dremio.iceberg.authmgr.shaded.io.smallrye")
+  relocate("org.eclipse.microprofile", "com.dremio.iceberg.authmgr.shaded.org.eclipse.microprofile")
+  relocate("org.jboss", "com.dremio.iceberg.authmgr.shaded.org.jboss")
   // relocate to same packages as in Iceberg runtime jars
   relocate("com.fasterxml.jackson", "org.apache.iceberg.shaded.com.fasterxml.jackson")
   relocate("com.github.benmanes", "org.apache.iceberg.shaded.com.github.benmanes")
@@ -75,7 +78,8 @@ tasks.shadowJar {
   exclude("META-INF/**/module-info.class")
   exclude("META-INF/proguard/**")
   exclude("iso3166_*.properties")
-  minimize()
+  // exclude smallrye-config from minimizing since it has generated code
+  minimize { exclude(dependency("io.smallrye.config:smallrye-config")) }
 }
 
 // Configure the source jar to copy from the core project's source jar

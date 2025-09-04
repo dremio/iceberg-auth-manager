@@ -51,7 +51,7 @@ public class OAuth2Manager extends RefreshingAuthManager {
 
   @Override
   public AuthSession initSession(RESTClient initClient, Map<String, String> initProperties) {
-    OAuth2Config initConfig = OAuth2Config.builder().from(initProperties).build();
+    OAuth2Config initConfig = OAuth2Config.from(initProperties);
     initialize(initConfig);
     return initSession = new OAuth2Session(initConfig, refreshExecutor());
   }
@@ -59,7 +59,7 @@ public class OAuth2Manager extends RefreshingAuthManager {
   @Override
   public AuthSession catalogSession(
       RESTClient sharedClient, Map<String, String> catalogProperties) {
-    OAuth2Config catalogConfig = OAuth2Config.builder().from(catalogProperties).build();
+    OAuth2Config catalogConfig = OAuth2Config.from(catalogProperties);
     initialize(catalogConfig);
     OAuth2Session catalogSession;
     if (initSession != null && catalogConfig.equals(initSession.getConfig())) {
@@ -90,9 +90,9 @@ public class OAuth2Manager extends RefreshingAuthManager {
     return maybeCacheSession(parent, tableProperties);
   }
 
-  private AuthSession maybeCacheSession(AuthSession parent, Map<String, String> tableProperties) {
+  private AuthSession maybeCacheSession(AuthSession parent, Map<String, String> childProperties) {
     OAuth2Config parentConfig = ((OAuth2Session) parent).getConfig();
-    OAuth2Config childConfig = parentConfig.merge(tableProperties);
+    OAuth2Config childConfig = parentConfig.merge(childProperties);
     return childConfig.equals(parentConfig)
         ? parent
         : sessionCache.cachedSession(
@@ -103,7 +103,7 @@ public class OAuth2Manager extends RefreshingAuthManager {
   public AuthSession tableSession(RESTClient sharedClient, Map<String, String> properties) {
     // Do NOT sanitize table properties, as they may contain credentials coming from the
     // catalog properties.
-    OAuth2Config config = OAuth2Config.builder().from(properties).build();
+    OAuth2Config config = OAuth2Config.from(properties);
     initialize(config);
     return sessionCache.cachedSession(config, k -> new OAuth2Session(config, refreshExecutor()));
   }

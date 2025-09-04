@@ -53,7 +53,6 @@ import com.nimbusds.oauth2.sdk.token.TypelessAccessToken;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RejectedExecutionException;
@@ -455,7 +454,7 @@ class OAuth2AgentTest {
     try (TestEnvironment env =
             TestEnvironment.builder()
                 .httpClientType(httpClientType)
-                .token(new BearerAccessToken("access_initial"))
+                .token(new TypelessAccessToken("access_initial"))
                 .build();
         OAuth2Agent agent = env.newAgent()) {
       TokensResult tokens = agent.authenticateInternal();
@@ -478,13 +477,12 @@ class OAuth2AgentTest {
                 .httpClientType(HttpClientType.APACHE)
                 .sslTrustStorePath(dest)
                 .sslTrustStorePassword("s3cr3t")
-                .sslProtocols(List.of("TLSv1.3", "TLSv1.2"))
+                .sslProtocols("TLSv1.3,TLSv1.2")
                 .sslCipherSuites(
-                    List.of(
-                        "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
-                        "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
-                        "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
-                        "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"))
+                    "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,"
+                        + "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,"
+                        + "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,"
+                        + "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384")
                 .build();
         OAuth2Agent agent = env.newAgent()) {
       assertThatCode(agent::authenticate).doesNotThrowAnyException();

@@ -15,261 +15,202 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.config;
 
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.TokenExchange.ACTOR_CONFIG_PREFIX;
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.TokenExchange.ACTOR_TOKEN;
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.TokenExchange.ACTOR_TOKEN_TYPE;
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.TokenExchange.AUDIENCE;
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.TokenExchange.REQUESTED_TOKEN_TYPE;
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.TokenExchange.RESOURCE;
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.TokenExchange.SUBJECT_CONFIG_PREFIX;
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.TokenExchange.SUBJECT_TOKEN;
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.TokenExchange.SUBJECT_TOKEN_TYPE;
-
-import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties;
-import com.dremio.iceberg.authmgr.oauth2.config.option.ConfigOption;
-import com.dremio.iceberg.authmgr.oauth2.config.option.ConfigOptions;
+import com.dremio.iceberg.authmgr.oauth2.OAuth2Config;
 import com.dremio.iceberg.authmgr.oauth2.config.validator.ConfigValidator;
-import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
-import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import com.nimbusds.oauth2.sdk.id.Audience;
-import com.nimbusds.oauth2.sdk.token.Token;
 import com.nimbusds.oauth2.sdk.token.TokenTypeURI;
 import com.nimbusds.oauth2.sdk.token.TypelessAccessToken;
+import io.smallrye.config.WithDefault;
+import io.smallrye.config.WithName;
 import java.net.URI;
-import java.util.List;
+import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
-import org.immutables.value.Value;
 
-/** Configuration for OAuth2 token exchange. */
-@AuthManagerImmutable
+/**
+ * Configuration properties for the <a href="https://datatracker.ietf.org/doc/html/rfc8693">Token
+ * Exchange</a> flow.
+ *
+ * <p>This flow allows a client to exchange one token for another, typically to obtain a token that
+ * is more suitable for the target resource or service.
+ *
+ * <p>See the <a href="./token-exchange.md">Token Exchange</a> section for more details.
+ */
 public interface TokenExchangeConfig {
 
-  TokenExchangeConfig DEFAULT = builder().build();
+  String GROUP_NAME = "token-exchange";
+  String PREFIX = OAuth2Config.PREFIX + '.' + GROUP_NAME;
+
+  String SUBJECT_TOKEN = "subject-token";
+  String SUBJECT_TOKEN_TYPE = "subject-token-type";
+  String ACTOR_TOKEN = "actor-token";
+  String ACTOR_TOKEN_TYPE = "actor-token-type";
+  String REQUESTED_TOKEN_TYPE = "requested-token-type";
+  String RESOURCE = "resource";
+  String AUDIENCE = "audience";
+
+  String DEFAULT_TOKEN_TYPE = "urn:ietf:params:oauth:token-type:access_token";
 
   /**
    * The subject token to exchange.
    *
    * <p>If this value is present, the subject token will be used as-is. If this value is not
    * present, the subject token will be dynamically fetched using the configuration provided under
-   * {@link #getSubjectTokenConfig()}.
-   *
-   * @see OAuth2Properties.TokenExchange#SUBJECT_TOKEN
+   * the {@value #SUBJECT_TOKEN} prefix.
    */
-  Optional<Token> getSubjectToken();
+  @WithName(SUBJECT_TOKEN)
+  Optional<TypelessAccessToken> getSubjectToken();
 
   /**
-   * The type of the subject token. Must be a valid URN. The default is {@link
-   * TokenTypeURI#ACCESS_TOKEN}.
+   * The type of the subject token. Must be a valid URN. The default is {@code
+   * urn:ietf:params:oauth:token-type:access_token}.
    *
    * <p>If the agent is configured to dynamically fetch the subject token, this property is ignored
    * since only access tokens can be dynamically fetched.
    *
-   * @see OAuth2Properties.TokenExchange#SUBJECT_TOKEN_TYPE
+   * @see TokenExchangeConfig#SUBJECT_TOKEN_TYPE
    */
-  @Value.Default
-  default TokenTypeURI getSubjectTokenType() {
-    return TokenTypeURI.ACCESS_TOKEN;
-  }
+  @WithName(SUBJECT_TOKEN_TYPE)
+  @WithDefault(DEFAULT_TOKEN_TYPE)
+  TokenTypeURI getSubjectTokenType();
 
   /**
    * The actor token to exchange.
    *
    * <p>If this value is present, the actor token will be used as-is. If this value is not present,
-   * the actor token will be dynamically fetched using the configuration provided under {@link
-   * #getActorTokenConfig()}. If no configuration is provided, no actor token will be used.
-   *
-   * @see OAuth2Properties.TokenExchange#ACTOR_TOKEN
+   * the actor token will be dynamically fetched using the configuration provided under the {@value
+   * #ACTOR_TOKEN} prefix. If no configuration is provided, no actor token will be used.
    */
-  Optional<Token> getActorToken();
+  @WithName(ACTOR_TOKEN)
+  Optional<TypelessAccessToken> getActorToken();
 
   /**
-   * The type of the actor token. Must be a valid URN. The default is {@link
-   * TokenTypeURI#ACCESS_TOKEN}.
+   * The type of the actor token. Must be a valid URN. The default is {@code
+   * urn:ietf:params:oauth:token-type:access_token}.
    *
    * <p>If the agent is configured to dynamically fetch the actor token, this property is ignored
    * since only access tokens can be dynamically fetched.
    *
-   * @see OAuth2Properties.TokenExchange#ACTOR_TOKEN_TYPE
+   * @see TokenExchangeConfig#ACTOR_TOKEN_TYPE
    */
-  @Value.Default
-  default TokenTypeURI getActorTokenType() {
-    return TokenTypeURI.ACCESS_TOKEN;
-  }
+  @WithName(ACTOR_TOKEN_TYPE)
+  @WithDefault(DEFAULT_TOKEN_TYPE)
+  TokenTypeURI getActorTokenType();
 
   /**
-   * The type of the requested security token. The default is {@code
+   * The type of the requested security token. Must be a valid URN. The default is {@code
    * urn:ietf:params:oauth:token-type:access_token}.
-   *
-   * @see OAuth2Properties.TokenExchange#REQUESTED_TOKEN_TYPE
    */
-  @Value.Default
-  default TokenTypeURI getRequestedTokenType() {
-    return TokenTypeURI.ACCESS_TOKEN;
-  }
+  @WithName(REQUESTED_TOKEN_TYPE)
+  @WithDefault(DEFAULT_TOKEN_TYPE)
+  TokenTypeURI getRequestedTokenType();
 
   /**
-   * A URI that indicates the target service or resource where the client intends to use the
-   * requested security token.
+   * The configuration to use for fetching the subject token. Required if {@value #SUBJECT_TOKEN} is
+   * not set.
    *
-   * @see OAuth2Properties.TokenExchange#RESOURCE
-   */
-  List<URI> getResources();
-
-  /**
-   * The logical names of the target service where the client intends to use the requested security
-   * token. This serves a purpose similar to the resource parameter but with the client providing a
-   * logical name for the target service.
+   * <p>This is a prefix property; any property that can be set under the {@value
+   * OAuth2Config#PREFIX} prefix can also be set under this prefix.
    *
-   * @see OAuth2Properties.TokenExchange#AUDIENCE
-   */
-  List<Audience> getAudiences();
-
-  /**
-   * The configuration to use for fetching the subject token. Required if {@link #getSubjectToken()}
-   * is not set.
+   * <p>The effective subject token fetch configuration will be the result of merging the
+   * subject-specific configuration with the main configuration.
    *
-   * <p>Note: validation of this configuration is done lazily, when the token is actually fetched.
+   * <p>Example:
+   *
+   * <pre>{@code
+   * rest.auth.oauth2.grant-type=token_exchange
+   * rest.auth.oauth2.token-endpoint=https://main-token-endpoint.com/token
+   * rest.auth.oauth2.client-id=main-client-id
+   * rest.auth.oauth2.client-secret=main-client-secret
+   * rest.auth.oauth2.token-exchange.subject-token.grant-type=client_credentials
+   * rest.auth.oauth2.token-exchange.subject-token.client-id=subject-client-id
+   * rest.auth.oauth2.token-exchange.subject-token.client-secret=subject-client-secret
+   * }</pre>
+   *
+   * The above configuration will result in a token exchange where the subject token is obtained
+   * using the client credentials grant type, with specific client ID and secret, but sharing the
+   * token endpoint, client authentication method and other settings with the main agent.
    */
+  @WithName(SUBJECT_TOKEN)
   Map<String, String> getSubjectTokenConfig();
 
   /**
-   * The configuration to use for fetching the actor token. Required if {@link #getActorToken()} is
-   * not set but an actor token is required.
+   * The configuration to use for fetching the actor token. Optional; required only if {@value
+   * #ACTOR_TOKEN} is not set but an actor token is required.
    *
-   * <p>Note: validation of this configuration is done lazily, when the token is actually fetched.
+   * <p>This is a prefix property; any property that can be set under the {@value
+   * OAuth2Config#PREFIX} prefix can also be set under this prefix.
+   *
+   * <p>The effective actor token fetch configuration will be the result of merging the
+   * actor-specific configuration with the main configuration.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * rest.auth.oauth2.grant-type=token_exchange
+   * rest.auth.oauth2.token-endpoint=https://main-token-endpoint.com/token
+   * rest.auth.oauth2.client-id=main-client-id
+   * rest.auth.oauth2.client-secret=main-client-secret
+   * rest.auth.oauth2.token-exchange.actor-token.grant-type=client_credentials
+   * rest.auth.oauth2.token-exchange.actor-token.client-id=actor-client-id
+   * rest.auth.oauth2.token-exchange.actor-token.client-secret=actor-client-secret
+   * }</pre>
+   *
+   * The above configuration will result in a token exchange where the actor token is obtained using
+   * the client credentials grant type, with specific client ID and secret, but sharing the token
+   * endpoint, client authentication method and other settings with the main agent.
    */
+  @WithName(ACTOR_TOKEN)
   Map<String, String> getActorTokenConfig();
 
-  @Value.Check
+  /**
+   * A URI that indicates the target service or resource where the client intends to use the
+   * requested security token. Optional.
+   */
+  @WithName(RESOURCE)
+  Optional<URI> getResource();
+
+  /**
+   * The logical name of the target service where the client intends to use the requested security
+   * token. This serves a purpose similar to the resource parameter but with the client providing a
+   * logical name for the target service. Optional.
+   */
+  @WithName(AUDIENCE)
+  Optional<Audience> getAudience();
+
   default void validate() {
     ConfigValidator validator = new ConfigValidator();
     if (getSubjectToken().isEmpty()) {
       validator.check(
           getSubjectTokenType().equals(TokenTypeURI.ACCESS_TOKEN),
-          SUBJECT_TOKEN_TYPE,
+          PREFIX + '.' + SUBJECT_TOKEN_TYPE,
           "subject token type must be %s when using dynamic subject token",
           TokenTypeURI.ACCESS_TOKEN);
     }
     if (getActorToken().isEmpty()) {
       validator.check(
           getActorTokenType().equals(TokenTypeURI.ACCESS_TOKEN),
-          ACTOR_TOKEN_TYPE,
+          PREFIX + '.' + ACTOR_TOKEN_TYPE,
           "actor token type must be %s when using dynamic actor token",
           TokenTypeURI.ACCESS_TOKEN);
     }
     validator.validate();
   }
 
-  /** Merges the given properties into this {@link TokenExchangeConfig} and returns the result. */
-  default TokenExchangeConfig merge(Map<String, String> properties) {
-    Objects.requireNonNull(properties, "properties must not be null");
-    TokenExchangeConfig.Builder builder = builder();
-    builder.resourcesOption().set(properties, getResources());
-    builder.audiencesOption().set(properties, getAudiences());
-    builder.subjectTokenOption().set(properties, getSubjectToken());
-    builder.actorTokenOption().set(properties, getActorToken());
-    builder.subjectTokenTypeOption().set(properties, getSubjectTokenType());
-    builder.actorTokenTypeOption().set(properties, getActorTokenType());
-    builder.subjectTokenConfigOption().set(properties, getSubjectTokenConfig());
-    builder.actorTokenConfigOption().set(properties, getActorTokenConfig());
-    builder.requestedTokenTypeOption().set(properties, getRequestedTokenType());
-    return builder.build();
-  }
-
-  static Builder builder() {
-    return ImmutableTokenExchangeConfig.builder();
-  }
-
-  interface Builder {
-
-    @CanIgnoreReturnValue
-    Builder from(TokenExchangeConfig config);
-
-    @CanIgnoreReturnValue
-    default Builder from(Map<String, String> properties) {
-      Objects.requireNonNull(properties, "properties must not be null");
-      resourcesOption().set(properties);
-      audiencesOption().set(properties);
-      subjectTokenOption().set(properties);
-      actorTokenOption().set(properties);
-      subjectTokenTypeOption().set(properties);
-      actorTokenTypeOption().set(properties);
-      subjectTokenConfigOption().set(properties);
-      actorTokenConfigOption().set(properties);
-      requestedTokenTypeOption().set(properties);
-      return this;
-    }
-
-    @CanIgnoreReturnValue
-    Builder requestedTokenType(TokenTypeURI tokenType);
-
-    @CanIgnoreReturnValue
-    Builder resources(Iterable<? extends URI> resources);
-
-    @CanIgnoreReturnValue
-    Builder audiences(Iterable<? extends Audience> audiences);
-
-    @CanIgnoreReturnValue
-    Builder subjectToken(Token token);
-
-    @CanIgnoreReturnValue
-    Builder actorToken(Token token);
-
-    @CanIgnoreReturnValue
-    Builder subjectTokenType(TokenTypeURI tokenType);
-
-    @CanIgnoreReturnValue
-    Builder actorTokenType(TokenTypeURI tokenType);
-
-    @CanIgnoreReturnValue
-    Builder subjectTokenConfig(Map<String, ? extends String> config);
-
-    @CanIgnoreReturnValue
-    Builder actorTokenConfig(Map<String, ? extends String> config);
-
-    TokenExchangeConfig build();
-
-    private ConfigOption<List<URI>> resourcesOption() {
-      return ConfigOptions.simple(RESOURCE, this::resources, ConfigUtils::parseUriList);
-    }
-
-    private ConfigOption<List<Audience>> audiencesOption() {
-      return ConfigOptions.simple(AUDIENCE, this::audiences, ConfigUtils::parseAudienceList);
-    }
-
-    private ConfigOption<Token> subjectTokenOption() {
-      return ConfigOptions.simple(SUBJECT_TOKEN, this::subjectToken, TypelessAccessToken::new);
-    }
-
-    private ConfigOption<Token> actorTokenOption() {
-      return ConfigOptions.simple(ACTOR_TOKEN, this::actorToken, TypelessAccessToken::new);
-    }
-
-    private ConfigOption<TokenTypeURI> subjectTokenTypeOption() {
-      return ConfigOptions.simple(
-          SUBJECT_TOKEN_TYPE, this::subjectTokenType, ConfigUtils::parseTokenTypeURI);
-    }
-
-    private ConfigOption<TokenTypeURI> actorTokenTypeOption() {
-      return ConfigOptions.simple(
-          ACTOR_TOKEN_TYPE, this::actorTokenType, ConfigUtils::parseTokenTypeURI);
-    }
-
-    private ConfigOption<Map<String, String>> subjectTokenConfigOption() {
-      return ConfigOptions.prefixMap(
-          SUBJECT_CONFIG_PREFIX, OAuth2Properties.PREFIX, this::subjectTokenConfig);
-    }
-
-    private ConfigOption<Map<String, String>> actorTokenConfigOption() {
-      return ConfigOptions.prefixMap(
-          ACTOR_CONFIG_PREFIX, OAuth2Properties.PREFIX, this::actorTokenConfig);
-    }
-
-    private ConfigOption<TokenTypeURI> requestedTokenTypeOption() {
-      return ConfigOptions.simple(
-          REQUESTED_TOKEN_TYPE, this::requestedTokenType, ConfigUtils::parseTokenTypeURI);
-    }
+  default Map<String, String> asMap() {
+    Map<String, String> properties = new HashMap<>();
+    getSubjectToken().ifPresent(t -> properties.put(PREFIX + '.' + SUBJECT_TOKEN, t.getValue()));
+    getActorToken().ifPresent(t -> properties.put(PREFIX + '.' + ACTOR_TOKEN, t.getValue()));
+    properties.put(PREFIX + '.' + SUBJECT_TOKEN_TYPE, getSubjectTokenType().getURI().toString());
+    properties.put(PREFIX + '.' + ACTOR_TOKEN_TYPE, getActorTokenType().getURI().toString());
+    properties.put(
+        PREFIX + '.' + REQUESTED_TOKEN_TYPE, getRequestedTokenType().getURI().toString());
+    getResource().ifPresent(r -> properties.put(PREFIX + '.' + RESOURCE, r.toString()));
+    getAudience().ifPresent(a -> properties.put(PREFIX + '.' + AUDIENCE, a.getValue()));
+    getSubjectTokenConfig()
+        .forEach((k, v) -> properties.put(PREFIX + '.' + SUBJECT_TOKEN + '.' + k, v));
+    getActorTokenConfig()
+        .forEach((k, v) -> properties.put(PREFIX + '.' + ACTOR_TOKEN + '.' + k, v));
+    return Map.copyOf(properties);
   }
 }

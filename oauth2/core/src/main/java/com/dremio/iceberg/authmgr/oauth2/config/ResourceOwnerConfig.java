@@ -15,78 +15,50 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.config;
 
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.ResourceOwner.PASSWORD;
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.ResourceOwner.USERNAME;
-
-import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties;
-import com.dremio.iceberg.authmgr.oauth2.config.option.ConfigOption;
-import com.dremio.iceberg.authmgr.oauth2.config.option.ConfigOptions;
-import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
-import com.google.errorprone.annotations.CanIgnoreReturnValue;
+import com.dremio.iceberg.authmgr.oauth2.OAuth2Config;
 import com.nimbusds.oauth2.sdk.GrantType;
 import com.nimbusds.oauth2.sdk.auth.Secret;
+import io.smallrye.config.WithName;
+import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 
-@AuthManagerImmutable
+/**
+ * Configuration properties for the <a
+ * href="https://datatracker.ietf.org/doc/html/rfc6749#section-4.3">Resource Owner Password
+ * Credentials Grant</a> flow.
+ *
+ * <p>Note: according to the <a
+ * href="https://datatracker.ietf.org/doc/html/draft-ietf-oauth-security-topics#section-2.4">OAuth
+ * 2.0 Security Best Current Practice, section 2.4</a> this flow should NOT be used anymore because
+ * it "insecurely exposes the credentials of the resource owner to the client".
+ */
 public interface ResourceOwnerConfig {
 
-  ResourceOwnerConfig DEFAULT = builder().build();
+  String GROUP_NAME = "resource-owner";
+  String PREFIX = OAuth2Config.PREFIX + '.' + GROUP_NAME;
+
+  String USERNAME = "username";
+  String PASSWORD = "password";
 
   /**
-   * The OAuth2 username. Only relevant for {@link GrantType#PASSWORD} grant type.
-   *
-   * @see OAuth2Properties.ResourceOwner#USERNAME
+   * Username to use when authenticating against the OAuth2 server. Required if using OAuth2
+   * authentication and {@link GrantType#PASSWORD} grant type, ignored otherwise.
    */
+  @WithName(USERNAME)
   Optional<String> getUsername();
 
   /**
-   * The OAuth2 password supplier. Only relevant for {@link GrantType#PASSWORD} grant type. Must be
-   * set if a password is required.
+   * Password to use when authenticating against the OAuth2 server. Required if using OAuth2
+   * authentication and the {@link GrantType#PASSWORD} grant type, ignored otherwise.
    */
+  @WithName(PASSWORD)
   Optional<Secret> getPassword();
 
-  /** Merges the given properties into this {@link ResourceOwnerConfig} and returns the result. */
-  default ResourceOwnerConfig merge(Map<String, String> properties) {
-    Objects.requireNonNull(properties, "properties must not be null");
-    ResourceOwnerConfig.Builder builder = builder();
-    builder.usernameOption().set(properties, getUsername());
-    builder.passwordOption().set(properties, getPassword());
-    return builder.build();
-  }
-
-  static Builder builder() {
-    return ImmutableResourceOwnerConfig.builder();
-  }
-
-  interface Builder {
-
-    @CanIgnoreReturnValue
-    Builder from(ResourceOwnerConfig config);
-
-    @CanIgnoreReturnValue
-    default Builder from(Map<String, String> properties) {
-      Objects.requireNonNull(properties, "properties must not be null");
-      usernameOption().set(properties);
-      passwordOption().set(properties);
-      return this;
-    }
-
-    @CanIgnoreReturnValue
-    Builder username(String username);
-
-    @CanIgnoreReturnValue
-    Builder password(Secret password);
-
-    ResourceOwnerConfig build();
-
-    private ConfigOption<String> usernameOption() {
-      return ConfigOptions.simple(USERNAME, this::username);
-    }
-
-    private ConfigOption<Secret> passwordOption() {
-      return ConfigOptions.simple(PASSWORD, this::password, Secret::new);
-    }
+  default Map<String, String> asMap() {
+    Map<String, String> properties = new HashMap<>();
+    getUsername().ifPresent(u -> properties.put(PREFIX + '.' + USERNAME, u));
+    getPassword().ifPresent(p -> properties.put(PREFIX + '.' + PASSWORD, p.getValue()));
+    return Map.copyOf(properties);
   }
 }

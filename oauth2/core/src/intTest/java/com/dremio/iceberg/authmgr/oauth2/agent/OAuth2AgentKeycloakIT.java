@@ -21,8 +21,7 @@ import static com.nimbusds.oauth2.sdk.GrantType.PASSWORD;
 import static com.nimbusds.oauth2.sdk.GrantType.TOKEN_EXCHANGE;
 import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
-import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties;
-import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.Basic;
+import com.dremio.iceberg.authmgr.oauth2.config.BasicConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.ClientAssertionConfig;
 import com.dremio.iceberg.authmgr.oauth2.flow.OAuth2Exception;
 import com.dremio.iceberg.authmgr.oauth2.flow.TokensResult;
@@ -168,11 +167,8 @@ public class OAuth2AgentKeycloakIT {
                 .grantType(initialGrantType)
                 .clientId(TestConstants.CLIENT_ID4)
                 .clientAuthenticationMethod(ClientAuthenticationMethod.PRIVATE_KEY_JWT)
-                .clientAssertionConfig(
-                    ClientAssertionConfig.builder()
-                        .algorithm(JWSAlgorithm.RS256)
-                        .privateKey(privateKeyPath)
-                        .build())
+                .jwsAlgorithm(JWSAlgorithm.RS256)
+                .privateKey(privateKeyPath)
                 .build();
         OAuth2Agent agent = env.newAgent()) {
       assertAgent(
@@ -327,39 +323,36 @@ public class OAuth2AgentKeycloakIT {
                 .grantType(TOKEN_EXCHANGE)
                 .clientId(TestConstants.CLIENT_ID4)
                 .clientAuthenticationMethod(ClientAuthenticationMethod.PRIVATE_KEY_JWT)
-                .clientAssertionConfig(
-                    ClientAssertionConfig.builder()
-                        .algorithm(JWSAlgorithm.RS256)
-                        .privateKey(privateKeyPath)
-                        .build())
+                .jwsAlgorithm(JWSAlgorithm.RS256)
+                .privateKey(privateKeyPath)
                 .requestedTokenType(
                     expectRefreshToken ? TokenTypeURI.REFRESH_TOKEN : TokenTypeURI.ACCESS_TOKEN)
                 .subjectGrantType(subjectGrantType) // triggers a user emulator if necessary
                 .subjectTokenConfig(
                     Map.of(
-                        Basic.GRANT_TYPE,
+                        BasicConfig.GRANT_TYPE,
                         subjectGrantType.getValue(),
-                        Basic.SCOPE,
+                        BasicConfig.SCOPE,
                         TestConstants.SCOPE1.toString(),
-                        Basic.CLIENT_ID,
+                        BasicConfig.CLIENT_ID,
                         TestConstants.CLIENT_ID4.getValue(),
-                        Basic.CLIENT_AUTH,
+                        BasicConfig.CLIENT_AUTH,
                         ClientAuthenticationMethod.PRIVATE_KEY_JWT.getValue(),
-                        OAuth2Properties.ClientAssertion.PRIVATE_KEY,
+                        ClientAssertionConfig.GROUP_NAME + "." + ClientAssertionConfig.PRIVATE_KEY,
                         privateKeyPath.toString(),
-                        OAuth2Properties.ClientAssertion.ALGORITHM,
+                        ClientAssertionConfig.GROUP_NAME + "." + ClientAssertionConfig.ALGORITHM,
                         JWSAlgorithm.RS256.getName()))
                 .actorTokenConfig(
                     Map.of(
-                        Basic.GRANT_TYPE,
+                        BasicConfig.GRANT_TYPE,
                         GrantType.CLIENT_CREDENTIALS.getValue(),
-                        Basic.SCOPE,
+                        BasicConfig.SCOPE,
                         TestConstants.SCOPE1.toString(),
-                        Basic.CLIENT_ID,
+                        BasicConfig.CLIENT_ID,
                         TestConstants.CLIENT_ID1.getValue(),
-                        Basic.CLIENT_SECRET,
+                        BasicConfig.CLIENT_SECRET,
                         TestConstants.CLIENT_SECRET1.getValue(),
-                        Basic.CLIENT_AUTH,
+                        BasicConfig.CLIENT_AUTH,
                         ClientAuthenticationMethod.CLIENT_SECRET_BASIC.getValue()))
                 .build();
         OAuth2Agent agent = env.newAgent()) {

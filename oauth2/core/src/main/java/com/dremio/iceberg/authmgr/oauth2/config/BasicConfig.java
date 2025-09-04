@@ -15,57 +15,44 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.config;
 
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.Basic.CLIENT_AUTH;
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.Basic.CLIENT_ID;
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.Basic.CLIENT_SECRET;
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.Basic.EXTRA_PARAMS_PREFIX;
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.Basic.GRANT_TYPE;
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.Basic.ISSUER_URL;
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.Basic.SCOPE;
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.Basic.TIMEOUT;
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.Basic.TOKEN;
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.Basic.TOKEN_ENDPOINT;
-
-import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties;
-import com.dremio.iceberg.authmgr.oauth2.config.option.ConfigOption;
-import com.dremio.iceberg.authmgr.oauth2.config.option.ConfigOptions;
+import com.dremio.iceberg.authmgr.oauth2.OAuth2Config;
 import com.dremio.iceberg.authmgr.oauth2.config.validator.ConfigValidator;
-import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
-import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import com.nimbusds.oauth2.sdk.GrantType;
 import com.nimbusds.oauth2.sdk.Scope;
 import com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod;
 import com.nimbusds.oauth2.sdk.auth.Secret;
 import com.nimbusds.oauth2.sdk.id.ClientID;
-import com.nimbusds.oauth2.sdk.token.AccessToken;
-import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
+import com.nimbusds.oauth2.sdk.token.TypelessAccessToken;
+import io.smallrye.config.WithDefault;
+import io.smallrye.config.WithName;
 import java.net.URI;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import org.immutables.value.Value;
 
-@AuthManagerImmutable
+/**
+ * Basic OAuth2 properties. These properties are used to configure the basic OAuth2 options such as
+ * the issuer URL, token endpoint, client ID, and client secret.
+ */
 public interface BasicConfig {
 
-  List<GrantType> SUPPORTED_INITIAL_GRANT_TYPES =
-      List.of(
-          GrantType.CLIENT_CREDENTIALS,
-          GrantType.PASSWORD,
-          GrantType.AUTHORIZATION_CODE,
-          GrantType.DEVICE_CODE,
-          GrantType.TOKEN_EXCHANGE);
+  String PREFIX = OAuth2Config.PREFIX;
 
-  List<ClientAuthenticationMethod> SUPPORTED_CLIENT_AUTH_METHODS =
-      List.of(
-          ClientAuthenticationMethod.NONE,
-          ClientAuthenticationMethod.CLIENT_SECRET_BASIC,
-          ClientAuthenticationMethod.CLIENT_SECRET_POST,
-          ClientAuthenticationMethod.CLIENT_SECRET_JWT,
-          ClientAuthenticationMethod.PRIVATE_KEY_JWT);
+  String TOKEN = "token";
+  String ISSUER_URL = "issuer-url";
+  String TOKEN_ENDPOINT = "token-endpoint";
+  String GRANT_TYPE = "grant-type";
+  String CLIENT_ID = "client-id";
+  String CLIENT_AUTH = "client-auth";
+  String CLIENT_SECRET = "client-secret";
+  String SCOPE = "scope";
+  String EXTRA_PARAMS = "extra-params";
+  String TIMEOUT = "timeout";
+
+  String DEFAULT_TIMEOUT = "PT5M";
 
   /**
    * The initial access token to use. Optional. If this is set, the agent will not attempt to fetch
@@ -78,13 +65,14 @@ public interface BasicConfig {
    * <p>When this option is set, the token is not validated by the agent, and it's not always
    * possible to refresh it. It's recommended to use this option only for testing purposes, or if
    * you know that the token is valid and will not expire too soon.
-   *
-   * @see OAuth2Properties.Basic#TOKEN
    */
-  Optional<AccessToken> getToken();
+  @WithName(TOKEN)
+  Optional<TypelessAccessToken> getToken();
 
   /**
-   * The root URL of the Authorization server, which will be used for discovering supported
+   * OAuth2 issuer URL.
+   *
+   * <p>The root URL of the Authorization server, which will be used for discovering supported
    * endpoints and their locations. For Keycloak, this is typically the realm URL: {@code
    * https://<keycloak-server>/realms/<realm-name>}.
    *
@@ -92,93 +80,123 @@ public interface BasicConfig {
    * .well-known/openid-configuration} and {@code .well-known/oauth-authorization-server}. The full
    * metadata discovery URL will be constructed by appending these paths to the issuer URL.
    *
-   * <p>Either this property or {@link #getTokenEndpoint()} must be set.
+   * <p>Either this property or {@link #TOKEN_ENDPOINT} must be set.
    *
    * @see <a
    *     href="https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderMetadata">OpenID
    *     Connect Discovery 1.0</a>
    * @see <a href="https://tools.ietf.org/html/rfc8414#section-5">RFC 8414 Section 5</a>
-   * @see OAuth2Properties.Basic#ISSUER_URL
    */
+  @WithName(ISSUER_URL)
   Optional<URI> getIssuerUrl();
 
   /**
-   * The OAuth2 token endpoint. Either this or {@link #getIssuerUrl()} must be set.
+   * URL of the OAuth2 token endpoint. For Keycloak, this is typically {@code
+   * https://<keycloak-server>/realms/<realm-name>/protocol/openid-connect/token}.
    *
-   * <p>This URI may be relative, in which case it is assumed to be relative to the HTTP client's
-   * base URI. In this case, the URI must not start with a slash.
-   *
-   * @see OAuth2Properties.Basic#TOKEN_ENDPOINT
+   * <p>Either this property or {@link #ISSUER_URL} must be set. In case it is not set, the token
+   * endpoint will be discovered from the {@link #ISSUER_URL issuer URL}, using the OpenID Connect
+   * Discovery metadata published by the issuer.
    */
+  @WithName(TOKEN_ENDPOINT)
   Optional<URI> getTokenEndpoint();
 
   /**
-   * The OAuth2 grant type. Defaults to {@link GrantType#CLIENT_CREDENTIALS}.
+   * The grant type to use when authenticating against the OAuth2 server. Valid values are:
    *
-   * @see OAuth2Properties.Basic#GRANT_TYPE
+   * <ul>
+   *   <li>{@link GrantType#CLIENT_CREDENTIALS client_credentials}
+   *   <li>{@link GrantType#PASSWORD password}
+   *   <li>{@link GrantType#AUTHORIZATION_CODE authorization_code}
+   *   <li>{@link GrantType#DEVICE_CODE urn:ietf:params:oauth:grant-type:device_code}
+   *   <li>{@link GrantType#TOKEN_EXCHANGE urn:ietf:params:oauth:grant-type:token-exchange}
+   * </ul>
+   *
+   * Optional, defaults to {@code client_credentials}.
    */
-  @Value.Default
-  default GrantType getGrantType() {
-    return GrantType.CLIENT_CREDENTIALS;
-  }
+  @WithName(GRANT_TYPE)
+  @WithDefault("client_credentials")
+  GrantType getGrantType();
 
   /**
-   * The OAuth2 client ID. Must be set, unless a {@linkplain #getToken() static token} is provided.
-   *
-   * @see OAuth2Properties.Basic#CLIENT_ID
+   * Client ID to use when authenticating against the OAuth2 server. Required, unless a {@linkplain
+   * #TOKEN static token} is provided.
    */
+  @WithName(CLIENT_ID)
   Optional<ClientID> getClientId();
 
   /**
-   * The OAuth2 client authentication method. Defaults to {@link
-   * ClientAuthenticationMethod#CLIENT_SECRET_BASIC}.
+   * The OAuth2 client authentication method to use. Valid values are:
    *
-   * @see OAuth2Properties.Basic#CLIENT_AUTH
+   * <ul>
+   *   <li>{@link ClientAuthenticationMethod#NONE none}: the client does not authenticate itself at
+   *       the token endpoint, because it is a public client with no client secret or other
+   *       authentication mechanism.
+   *   <li>{@link ClientAuthenticationMethod#CLIENT_SECRET_BASIC client_secret_basic}: client secret
+   *       is sent in the HTTP Basic Authorization header.
+   *   <li>{@link ClientAuthenticationMethod#CLIENT_SECRET_POST client_secret_post}: client secret
+   *       is sent in the request body as a form parameter.
+   *   <li>{@link ClientAuthenticationMethod#CLIENT_SECRET_JWT client_secret_jwt}: client secret is
+   *       used to sign a JWT token.
+   *   <li>{@link ClientAuthenticationMethod#PRIVATE_KEY_JWT private_key_jwt}: client authenticates
+   *       with a JWT assertion signed with a private key.
+   * </ul>
+   *
+   * The default is {@code client_secret_basic}.
    */
-  @Value.Default
-  default ClientAuthenticationMethod getClientAuthenticationMethod() {
-    return ClientAuthenticationMethod.CLIENT_SECRET_BASIC;
-  }
-
-  /** Returns true if the client is a public client, i.e. it does not use client authentication. */
-  @Value.Derived
-  default boolean isPublicClient() {
-    return getClientAuthenticationMethod().equals(ClientAuthenticationMethod.NONE);
-  }
+  @WithName(CLIENT_AUTH)
+  @WithDefault("client_secret_basic")
+  ClientAuthenticationMethod getClientAuthenticationMethod();
 
   /**
-   * The OAuth2 client secret. Must be set if the client is private (confidential) and client
-   * authentication is done using a client secret.
-   *
-   * @see OAuth2Properties.Basic#CLIENT_SECRET
+   * Client secret to use when authenticating against the OAuth2 server. Required if the client is
+   * private and is authenticated using the standard "client-secret" methods. If other
+   * authentication methods are used (e.g. {@code private_key_jwt}), this property is ignored.
    */
+  @WithName(CLIENT_SECRET)
   Optional<Secret> getClientSecret();
 
   /**
-   * The OAuth2 {@link Scope}. Optional.
+   * Space-separated list of scopes to include in each request to the OAuth2 server. Optional,
+   * defaults to empty (no scopes).
    *
-   * @see OAuth2Properties.Basic#SCOPE
+   * <p>The scope names will not be validated by the OAuth2 agent; make sure they are valid
+   * according to <a href="https://datatracker.ietf.org/doc/html/rfc6749#section-3.3">RFC 6749
+   * Section 3.3</a>.
    */
+  @WithName(SCOPE)
   Optional<Scope> getScope();
 
   /**
-   * Additional parameters to be included in the request. This is useful for custom parameters that
-   * are not covered by the standard OAuth2.0 specification.
+   * Extra parameters to include in each request to the token and device authorization endpoints.
+   * This is useful for custom parameters that are not covered by the standard OAuth2.0
+   * specification. Optional, defaults to empty.
    *
-   * @see OAuth2Properties.Basic#EXTRA_PARAMS_PREFIX
+   * <p>This is a prefix property, and multiple values can be set, each with a different key and
+   * value. The values must NOT be URL-encoded. Example:
+   *
+   * <pre>{@code
+   * rest.auth.oauth2.extra-params.custom_param1=custom_value1"
+   * rest.auth.oauth2.extra-params.custom_param2=custom_value2"
+   * }</pre>
+   *
+   * For example, Auth0 requires the {@code audience} parameter to be set to the API identifier.
+   * This can be done by setting the following configuration:
+   *
+   * <pre>{@code
+   * rest.auth.oauth2.extra-params.audience=https://iceberg-rest-catalog/api
+   * }</pre>
    */
+  @WithName(EXTRA_PARAMS)
   Map<String, String> getExtraRequestParameters();
 
   /**
-   * Defines how long the agent should wait for tokens to be acquired. Defaults to {@link
-   * OAuth2Properties.Basic#DEFAULT_TIMEOUT}.
-   *
-   * @see OAuth2Properties.Basic#TIMEOUT
+   * Defines how long the agent should wait for tokens to be acquired. Optional, defaults to {@value
+   * #DEFAULT_TIMEOUT}.
    */
-  @Value.Default
-  default Duration getTimeout() {
-    return ConfigConstants.DEFAULT_TIMEOUT;
-  }
+  @WithName(TIMEOUT)
+  @WithDefault(DEFAULT_TIMEOUT)
+  Duration getTimeout();
 
   /**
    * The minimum allowed value for {@link #getTimeout()}. Defaults to 30 seconds.
@@ -187,64 +205,64 @@ public interface BasicConfig {
    *
    * @hidden
    */
-  @Value.Default
-  default Duration getMinTimeout() {
-    return ConfigConstants.MIN_TIMEOUT;
-  }
+  @WithName("min-timeout")
+  @WithDefault("PT30S")
+  Duration getMinTimeout();
 
-  @Value.Check
   default BasicConfig validate() {
     ConfigValidator validator = new ConfigValidator();
     BasicConfig basicConfig = this;
     validator.check(
         getIssuerUrl().isPresent() || getTokenEndpoint().isPresent(),
-        List.of(ISSUER_URL, TOKEN_ENDPOINT),
+        List.of(PREFIX + '.' + "issuer-url", PREFIX + '.' + TOKEN_ENDPOINT),
         "either issuer URL or token endpoint must be set");
     if (getIssuerUrl().isPresent()) {
-      validator.checkEndpoint(getIssuerUrl().get(), ISSUER_URL, "Issuer URL");
+      validator.checkEndpoint(getIssuerUrl().get(), PREFIX + '.' + "issuer-url", "Issuer URL");
     }
     if (getTokenEndpoint().isPresent()) {
-      validator.checkEndpoint(getTokenEndpoint().get(), TOKEN_ENDPOINT, "Token endpoint");
+      validator.checkEndpoint(
+          getTokenEndpoint().get(), PREFIX + '.' + TOKEN_ENDPOINT, "Token endpoint");
     }
     validator.check(
-        SUPPORTED_INITIAL_GRANT_TYPES.contains(getGrantType()),
-        GRANT_TYPE,
+        ConfigUtils.SUPPORTED_INITIAL_GRANT_TYPES.contains(getGrantType()),
+        PREFIX + '.' + GRANT_TYPE,
         "grant type must be one of: %s",
-        SUPPORTED_INITIAL_GRANT_TYPES.stream()
+        ConfigUtils.SUPPORTED_INITIAL_GRANT_TYPES.stream()
             .map(GrantType::getValue)
             .collect(Collectors.joining("', '", "'", "'")));
     validator.check(
-        SUPPORTED_CLIENT_AUTH_METHODS.contains(getClientAuthenticationMethod()),
-        CLIENT_AUTH,
+        ConfigUtils.SUPPORTED_CLIENT_AUTH_METHODS.contains(getClientAuthenticationMethod()),
+        PREFIX + '.' + CLIENT_AUTH,
         "client authentication method must be one of: %s",
-        SUPPORTED_CLIENT_AUTH_METHODS.stream()
+        ConfigUtils.SUPPORTED_CLIENT_AUTH_METHODS.stream()
             .map(ClientAuthenticationMethod::getValue)
             .collect(Collectors.joining("', '", "'", "'")));
     // Only validate client ID and client secret if a token is not provided
     if (getToken().isEmpty()) {
-      validator.check(getClientId().isPresent(), CLIENT_ID, "client ID must not be empty");
+      validator.check(
+          getClientId().isPresent(), PREFIX + '.' + CLIENT_ID, "client ID must not be empty");
       if (ConfigUtils.requiresClientSecret(getClientAuthenticationMethod())) {
         validator.check(
             getClientSecret().isPresent(),
-            List.of(CLIENT_AUTH, CLIENT_SECRET),
+            List.of(PREFIX + '.' + CLIENT_AUTH, PREFIX + '.' + CLIENT_SECRET),
             "client secret must not be empty when client authentication is '%s'",
             getClientAuthenticationMethod().getValue());
       } else if (getClientAuthenticationMethod()
           .equals(ClientAuthenticationMethod.PRIVATE_KEY_JWT)) {
         validator.check(
             getClientSecret().isEmpty(),
-            List.of(CLIENT_AUTH, CLIENT_SECRET),
+            List.of(PREFIX + '.' + CLIENT_AUTH, PREFIX + '.' + CLIENT_SECRET),
             "client secret must not be set when client authentication is '%s'",
             getClientAuthenticationMethod().getValue());
       } else if (getClientAuthenticationMethod().equals(ClientAuthenticationMethod.NONE)) {
         validator.check(
             getClientSecret().isEmpty(),
-            List.of(CLIENT_AUTH, CLIENT_SECRET),
+            List.of(PREFIX + '.' + CLIENT_AUTH, PREFIX + '.' + CLIENT_SECRET),
             "client secret must not be set when client authentication is '%s'",
             ClientAuthenticationMethod.NONE.getValue());
         validator.check(
             !getGrantType().equals(GrantType.CLIENT_CREDENTIALS),
-            List.of(CLIENT_AUTH, GRANT_TYPE),
+            List.of(PREFIX + '.' + CLIENT_AUTH, PREFIX + '.' + GRANT_TYPE),
             "grant type must not be '%s' when client authentication is '%s'",
             GrantType.CLIENT_CREDENTIALS.getValue(),
             ClientAuthenticationMethod.NONE.getValue());
@@ -252,130 +270,27 @@ public interface BasicConfig {
     }
     validator.check(
         getTimeout().compareTo(getMinTimeout()) >= 0,
-        TIMEOUT,
+        PREFIX + '.' + TIMEOUT,
         "timeout must be greater than or equal to %s",
         getMinTimeout());
     validator.validate();
     return basicConfig;
   }
 
-  /** Merges the given properties into this {@link BasicConfig} and returns the result. */
-  default BasicConfig merge(Map<String, String> properties) {
-    Objects.requireNonNull(properties, "properties must not be null");
-    BasicConfig.Builder builder = builder();
-    builder.tokenOption().set(properties, getToken());
-    builder.clientIdOption().set(properties, getClientId());
-    builder.clientAuthenticationOption().set(properties, getClientAuthenticationMethod());
-    builder.clientSecretOption().set(properties, getClientSecret());
-    builder.issuerUrlOption().set(properties, getIssuerUrl());
-    builder.tokenEndpointOption().set(properties, getTokenEndpoint());
-    builder.grantTypeOption().set(properties, getGrantType());
-    builder.scopeOption().set(properties, getScope());
-    builder.extraRequestParametersOption().set(properties, getExtraRequestParameters());
-    builder.timeoutOption().set(properties, getTimeout());
-    builder.minTimeout(getMinTimeout());
-    return builder.build();
-  }
-
-  static Builder builder() {
-    return ImmutableBasicConfig.builder();
-  }
-
-  interface Builder {
-
-    @CanIgnoreReturnValue
-    Builder from(BasicConfig config);
-
-    @CanIgnoreReturnValue
-    default Builder from(Map<String, String> properties) {
-      Objects.requireNonNull(properties, "properties must not be null");
-      tokenOption().set(properties);
-      clientIdOption().set(properties);
-      clientAuthenticationOption().set(properties);
-      clientSecretOption().set(properties);
-      issuerUrlOption().set(properties);
-      tokenEndpointOption().set(properties);
-      grantTypeOption().set(properties);
-      scopeOption().set(properties);
-      extraRequestParametersOption().set(properties);
-      timeoutOption().set(properties);
-      return this;
-    }
-
-    @CanIgnoreReturnValue
-    Builder token(AccessToken token);
-
-    @CanIgnoreReturnValue
-    Builder issuerUrl(URI issuerUrl);
-
-    @CanIgnoreReturnValue
-    Builder tokenEndpoint(URI tokenEndpoint);
-
-    @CanIgnoreReturnValue
-    Builder grantType(GrantType grantType);
-
-    @CanIgnoreReturnValue
-    Builder clientId(ClientID clientId);
-
-    @CanIgnoreReturnValue
-    Builder clientAuthenticationMethod(ClientAuthenticationMethod clientAuthenticationMethod);
-
-    @CanIgnoreReturnValue
-    Builder clientSecret(Secret clientSecret);
-
-    @CanIgnoreReturnValue
-    Builder scope(Scope scope);
-
-    @CanIgnoreReturnValue
-    Builder extraRequestParameters(Map<String, ? extends String> extraRequestParameters);
-
-    @CanIgnoreReturnValue
-    Builder timeout(Duration timeout);
-
-    @CanIgnoreReturnValue
-    Builder minTimeout(Duration minTimeout);
-
-    BasicConfig build();
-
-    private ConfigOption<AccessToken> tokenOption() {
-      return ConfigOptions.simple(TOKEN, this::token, BearerAccessToken::new);
-    }
-
-    private ConfigOption<ClientID> clientIdOption() {
-      return ConfigOptions.simple(CLIENT_ID, this::clientId, ClientID::new);
-    }
-
-    private ConfigOption<ClientAuthenticationMethod> clientAuthenticationOption() {
-      return ConfigOptions.simple(
-          CLIENT_AUTH, this::clientAuthenticationMethod, ClientAuthenticationMethod::parse);
-    }
-
-    private ConfigOption<Secret> clientSecretOption() {
-      return ConfigOptions.simple(CLIENT_SECRET, this::clientSecret, Secret::new);
-    }
-
-    private ConfigOption<URI> issuerUrlOption() {
-      return ConfigOptions.simple(ISSUER_URL, this::issuerUrl, URI::create);
-    }
-
-    private ConfigOption<URI> tokenEndpointOption() {
-      return ConfigOptions.simple(TOKEN_ENDPOINT, this::tokenEndpoint, URI::create);
-    }
-
-    private ConfigOption<GrantType> grantTypeOption() {
-      return ConfigOptions.simple(GRANT_TYPE, this::grantType, ConfigUtils::parseGrantType);
-    }
-
-    private ConfigOption<Scope> scopeOption() {
-      return ConfigOptions.simple(SCOPE, this::scope, Scope::parse);
-    }
-
-    private ConfigOption<Map<String, String>> extraRequestParametersOption() {
-      return ConfigOptions.prefixMap(EXTRA_PARAMS_PREFIX, this::extraRequestParameters);
-    }
-
-    private ConfigOption<Duration> timeoutOption() {
-      return ConfigOptions.simple(TIMEOUT, this::timeout, Duration::parse);
-    }
+  default Map<String, String> asMap() {
+    Map<String, String> properties = new HashMap<>();
+    getToken().ifPresent(t -> properties.put(PREFIX + '.' + "token", t.getValue()));
+    getIssuerUrl().ifPresent(u -> properties.put(PREFIX + '.' + "issuer-url", u.toString()));
+    getTokenEndpoint().ifPresent(u -> properties.put(PREFIX + '.' + TOKEN_ENDPOINT, u.toString()));
+    properties.put(PREFIX + '.' + GRANT_TYPE, getGrantType().getValue());
+    properties.put(PREFIX + '.' + CLIENT_AUTH, getClientAuthenticationMethod().getValue());
+    getClientId().ifPresent(i -> properties.put(PREFIX + '.' + CLIENT_ID, i.getValue()));
+    getClientSecret().ifPresent(s -> properties.put(PREFIX + '.' + CLIENT_SECRET, s.getValue()));
+    getScope().ifPresent(s -> properties.put(PREFIX + '.' + SCOPE, s.toString()));
+    getExtraRequestParameters()
+        .forEach((k, v) -> properties.put(PREFIX + '.' + EXTRA_PARAMS + '.' + k, v));
+    properties.put(PREFIX + '.' + TIMEOUT, getTimeout().toString());
+    properties.put(PREFIX + '.' + "min-timeout", getMinTimeout().toString());
+    return Map.copyOf(properties);
   }
 }

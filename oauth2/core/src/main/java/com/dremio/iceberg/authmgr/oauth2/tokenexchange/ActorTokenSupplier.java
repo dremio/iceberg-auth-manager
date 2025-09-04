@@ -16,19 +16,19 @@
 package com.dremio.iceberg.authmgr.oauth2.tokenexchange;
 
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Config;
+import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2AgentRuntime;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
-import com.nimbusds.oauth2.sdk.token.Token;
 import com.nimbusds.oauth2.sdk.token.TokenTypeURI;
+import com.nimbusds.oauth2.sdk.token.TypelessAccessToken;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ScheduledExecutorService;
 
 /** A component that centralizes the logic for supplying the actor token for token exchanges. */
 @AuthManagerImmutable
 public abstract class ActorTokenSupplier extends AbstractTokenSupplier {
 
-  public static ActorTokenSupplier create(OAuth2Config config, ScheduledExecutorService executor) {
-    return ImmutableActorTokenSupplier.builder().mainConfig(config).executor(executor).build();
+  public static ActorTokenSupplier create(OAuth2Config config, OAuth2AgentRuntime runtime) {
+    return ImmutableActorTokenSupplier.builder().mainConfig(config).runtime(runtime).build();
   }
 
   @Override
@@ -40,17 +40,17 @@ public abstract class ActorTokenSupplier extends AbstractTokenSupplier {
   }
 
   @Override
-  protected Optional<Token> getToken() {
+  protected Optional<TypelessAccessToken> getStaticToken() {
     return getMainConfig().getTokenExchangeConfig().getActorToken();
   }
 
   @Override
-  protected TokenTypeURI getTokenType() {
+  protected TokenTypeURI getStaticTokenType() {
     return getMainConfig().getTokenExchangeConfig().getActorTokenType();
   }
 
   @Override
-  protected Map<String, String> getTokenAgentProperties() {
+  protected Map<String, String> getDynamicTokenConfig() {
     return getMainConfig().getTokenExchangeConfig().getActorTokenConfig();
   }
 

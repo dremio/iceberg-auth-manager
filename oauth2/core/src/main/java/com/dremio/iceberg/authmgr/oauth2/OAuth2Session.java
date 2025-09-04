@@ -16,6 +16,7 @@
 package com.dremio.iceberg.authmgr.oauth2;
 
 import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2Agent;
+import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2AgentRuntime;
 import com.nimbusds.oauth2.sdk.token.AccessToken;
 import java.util.concurrent.ScheduledExecutorService;
 import org.apache.iceberg.rest.HTTPHeaders;
@@ -29,7 +30,7 @@ public class OAuth2Session implements AuthSession {
   private final OAuth2Agent agent;
 
   public OAuth2Session(OAuth2Config config, ScheduledExecutorService executor) {
-    this.agent = new OAuth2Agent(config, executor);
+    this.agent = new OAuth2Agent(config, OAuth2AgentRuntime.of(executor));
   }
 
   private OAuth2Session(OAuth2Session toCopy) {

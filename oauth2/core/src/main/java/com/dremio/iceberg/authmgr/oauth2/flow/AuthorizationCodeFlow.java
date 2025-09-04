@@ -77,7 +77,7 @@ abstract class AuthorizationCodeFlow extends AbstractFlow {
 
   @Value.Derived
   String getMsgPrefix() {
-    return AbstractFlow.getMsgPrefix(getConfig().getSystemConfig().getAgentName());
+    return AbstractFlow.getMsgPrefix(getAgentName());
   }
 
   @Value.Lazy
@@ -92,7 +92,7 @@ abstract class AuthorizationCodeFlow extends AbstractFlow {
 
   @Value.Derived
   String getBindHost() {
-    return getConfig().getAuthorizationCodeConfig().getCallbackBindHost();
+    return getConfig().getAuthorizationCodeConfig().getCallbackBindHost().orElse("localhost");
   }
 
   @Value.Derived
@@ -105,7 +105,7 @@ abstract class AuthorizationCodeFlow extends AbstractFlow {
     return getConfig()
         .getAuthorizationCodeConfig()
         .getCallbackContextPath()
-        .orElseGet(() -> AbstractFlow.getContextPath(getConfig().getSystemConfig().getAgentName()));
+        .orElseGet(() -> AbstractFlow.getContextPath(getAgentName()));
   }
 
   /**
@@ -179,7 +179,7 @@ abstract class AuthorizationCodeFlow extends AbstractFlow {
             .thenApply(this::extractAuthorizationCode)
             .thenCompose(this::fetchNewTokens)
             .whenComplete((tokens, error) -> log(error));
-    future.whenCompleteAsync((tokens, error) -> stopServer(), getExecutor());
+    future.whenCompleteAsync((tokens, error) -> stopServer(), getRuntime().getExecutor());
     return future;
   }
 
@@ -207,7 +207,7 @@ abstract class AuthorizationCodeFlow extends AbstractFlow {
         "[{}] Authorization Code Flow: started, redirect URI: {}",
         getAgentName(),
         getResolvedRedirectUri());
-    PrintStream console = getConfig().getSystemConfig().getConsole();
+    PrintStream console = getRuntime().getConsole();
     synchronized (console) {
       console.println();
       console.println(getMsgPrefix() + OAUTH2_AGENT_TITLE);

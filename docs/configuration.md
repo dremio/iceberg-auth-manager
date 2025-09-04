@@ -15,11 +15,30 @@ limitations under the License.
 -->
 # Dremio AuthManager for Apache Iceberg - Configuration
 
+> [!WARNING]
+> This page is automatically generated from the code. Do not edit it manually.
+> To update this page, run: `./gradlew generateDocs`.
+
 ## Overview
 
-Dremio AuthManager for Apache Iceberg is highly configurable. The configuration is done via
-properties passed to the `OAuthManager` class at runtime. The properties are specified when
-initializing the catalog.
+Dremio AuthManager for Apache Iceberg is highly configurable. The configuration is handled by
+SmallRye Config, which supports a variety of configuration sources, including environment variables,
+system properties, and configuration files.
+
+By default, Dremio AuthManager loads its configuration from the catalog session properties, but it
+can also load configuration from other sources, in the following order:
+
+1. System properties (JVM options passed with `-D` arguments)
+2. Environment variables
+3. Catalog session properties (passed to the `OAuthManager` class at runtime by the `RESTCatalog`
+   client)
+
+Environment variables follow the naming conventions used by SmallRye Config; for example, the
+property `rest.auth.oauth2.token-endpoint` can be set as `REST_AUTH_OAUTH2_TOKEN_ENDPOINT`, and so
+on. See [SmallRye Config Environment
+Variables](https://smallrye.io/smallrye-config/Main/config/environment-variables/) for more details.
+
+### Enabling the AuthManager
 
 To enable the Dremio AuthManager for Apache Iceberg, you need to set the `rest.auth.type` property
 to `com.dremio.iceberg.authmgr.oauth2.OAuth2Manager` in your catalog configuration:
@@ -28,11 +47,24 @@ to `com.dremio.iceberg.authmgr.oauth2.OAuth2Manager` in your catalog configurati
 rest.auth.type=com.dremio.iceberg.authmgr.oauth2.OAuth2Manager
 ```
 
-Other properties are listed below.
+Note: this property _must_ be set in the catalog properties. Setting it as a system property or
+environment variable will have no effect.
 
-> [!WARNING]
-> This page is automatically generated from the code. Do not edit it manually.
-> To update this page, run: `./gradlew generateDocs`.
+### Support for Local Configuration Files
+
+Dremio AuthManager also supports loading configuration from local configuration files. This is
+useful when you want to keep your credentials and other sensitive information out of your codebase.
+
+To enable this feature, you need to set the `smallrye.config.locations` property to the path of your
+configuration file. See [SmallRye Config
+Locations](https://smallrye.io/smallrye-config/main/config-sources/locations/) for more details.
+
+Note: the `smallrye.config.locations` property must be set as a system property or environment
+variable; it will be ignored if set in the catalog properties.
+
+If you need to load configuration from multiple files, you can specify a comma-separated list of
+paths.
+
 
 ## Basic Settings
 
@@ -100,9 +132,9 @@ Space-separated list of scopes to include in each request to the OAuth2 server. 
 
 The scope names will not be validated by the OAuth2 agent; make sure they are valid according to [RFC 6749 Section 3.3](https://datatracker.ietf.org/doc/html/rfc6749#section-3.3).
 
-### `rest.auth.oauth2.extra-params.`
+### `rest.auth.oauth2.extra-params.*`
 
-Extra parameters to include in each request to the token endpoint. This is useful for custom parameters that are not covered by the standard OAuth2.0 specification. Optional, defaults to empty.
+Extra parameters to include in each request to the token and device authorization endpoints. This is useful for custom parameters that are not covered by the standard OAuth2.0 specification. Optional, defaults to empty.
 
 This is a prefix property, and multiple values can be set, each with a different key and value. The values must NOT be URL-encoded. Example:
 
@@ -120,42 +152,6 @@ rest.auth.oauth2.extra-params.audience=https://iceberg-rest-catalog/api
 ### `rest.auth.oauth2.timeout`
 
 Defines how long the agent should wait for tokens to be acquired. Optional, defaults to `PT5M`.
-
-## Client Assertion Settings
-
-Configuration properties for JWT client assertion as specified in [JSON Web Token (JWT) Profile for OAuth 2.0 Client Authentication and Authorization Grants](https://datatracker.ietf.org/doc/html/rfc7523).
-
-These properties allow the client to authenticate using the `client_secret_jwt` or `private_key_jwt` authentication methods.
-
-### `rest.auth.oauth2.client-assertion.jwt.issuer`
-
-The issuer of the client assertion JWT. Optional. The default is the client ID.
-
-### `rest.auth.oauth2.client-assertion.jwt.subject`
-
-The subject of the client assertion JWT. Optional. The default is the client ID.
-
-### `rest.auth.oauth2.client-assertion.jwt.audience`
-
-The audience of the client assertion JWT. Optional. The default is the token endpoint.
-
-### `rest.auth.oauth2.client-assertion.jwt.token-lifespan`
-
-The expiration time of the client assertion JWT. Optional. The default is 5 minutes.
-
-### `rest.auth.oauth2.client-assertion.jwt.algorithm`
-
-The signing algorithm to use for the client assertion JWT. Optional. The default is `HS512` if the authentication method is `client_secret_jwt`, or `RS512` if the authentication method is `private_key_jwt`.
-
-Algorithm names must match the "alg" Param Value as described in [RFC 7518 Section 3.1](https://datatracker.ietf.org/doc/html/rfc7518#section-3.1).
-
-### `rest.auth.oauth2.client-assertion.jwt.private-key`
-
-The path on the local filesystem to the private key to use for signing the client assertion JWT. Required if the authentication method is `private_key_jwt`. The file must be in PEM format; it may contain a private key, or a private key and a certificate chain. Only the private key is used.
-
-### `rest.auth.oauth2.client-assertion.jwt.extra-claims.`
-
-Extra claims to include in the client assertion JWT. This is a prefix property, and multiple values can be set, each with a different key and value.
 
 ## Token Refresh Settings
 
@@ -265,35 +261,39 @@ Configuration properties for the [Token Exchange](https://datatracker.ietf.org/d
 
 This flow allows a client to exchange one token for another, typically to obtain a token that is more suitable for the target resource or service.
 
+See the [Token Exchange](./token-exchange.md) section for more details.
+
 ### `rest.auth.oauth2.token-exchange.subject-token`
 
-For token exchanges only. The subject token to exchange.
+The subject token to exchange.
 
-If this value is present, the subject token will be used as-is. If this value is not present, the subject token will be dynamically fetched using the configuration provided under the `rest.auth.oauth2.token-exchange.subject-token.` prefix.
+If this value is present, the subject token will be used as-is. If this value is not present, the subject token will be dynamically fetched using the configuration provided under the `rest.auth.oauth2.token-exchange.subject-token` prefix.
 
 ### `rest.auth.oauth2.token-exchange.subject-token-type`
 
-For token exchanges only. The type of the subject token. Must be a valid URN. The default is `urn:ietf:params:oauth:token-type:access_token`.
+The type of the subject token. Must be a valid URN. The default is `urn:ietf:params:oauth:token-type:access_token`.
+
+If the agent is configured to dynamically fetch the subject token, this property is ignored since only access tokens can be dynamically fetched.
 
 ### `rest.auth.oauth2.token-exchange.actor-token`
 
-For token exchanges only. The actor token to exchange.
+The actor token to exchange.
 
-If this value is present, the actor token will be used as-is. If this value is not present, the actor token will be dynamically fetched using the configuration provided under the `rest.auth.oauth2.token-exchange.actor-token.` prefix. If no configuration is provided, no actor token will be used.
+If this value is present, the actor token will be used as-is. If this value is not present, the actor token will be dynamically fetched using the configuration provided under the `rest.auth.oauth2.token-exchange.actor-token` prefix. If no configuration is provided, no actor token will be used.
 
 ### `rest.auth.oauth2.token-exchange.actor-token-type`
 
-For token exchanges only. The type of the actor token. Must be a valid URN. The default is `urn:ietf:params:oauth:token-type:access_token`.
+The type of the actor token. Must be a valid URN. The default is `urn:ietf:params:oauth:token-type:access_token`.
 
 If the agent is configured to dynamically fetch the actor token, this property is ignored since only access tokens can be dynamically fetched.
 
 ### `rest.auth.oauth2.token-exchange.requested-token-type`
 
-For token exchanges only. The type of the requested security token. Must be a valid URN. The default is `urn:ietf:params:oauth:token-type:access_token`.
+The type of the requested security token. Must be a valid URN. The default is `urn:ietf:params:oauth:token-type:access_token`.
 
-### `rest.auth.oauth2.token-exchange.subject-token.`
+### `rest.auth.oauth2.token-exchange.subject-token.*`
 
-For token exchanges only. The configuration to use for fetching the subject token. Required if `rest.auth.oauth2.token-exchange.subject-token` is not set.
+The configuration to use for fetching the subject token. Required if `rest.auth.oauth2.token-exchange.subject-token` is not set.
 
 This is a prefix property; any property that can be set under the `rest.auth.oauth2.` prefix can also be set under this prefix.
 
@@ -313,9 +313,9 @@ rest.auth.oauth2.token-exchange.subject-token.client-secret=subject-client-secre
 
 The above configuration will result in a token exchange where the subject token is obtained using the client credentials grant type, with specific client ID and secret, but sharing the token endpoint, client authentication method and other settings with the main agent.
 
-### `rest.auth.oauth2.token-exchange.actor-token.`
+### `rest.auth.oauth2.token-exchange.actor-token.*`
 
-For token exchanges only. The configuration to use for fetching the actor token. Optional; required only if `rest.auth.oauth2.token-exchange.actor-token` is not set but an actor token is required.
+The configuration to use for fetching the actor token. Optional; required only if `rest.auth.oauth2.token-exchange.actor-token` is not set but an actor token is required.
 
 This is a prefix property; any property that can be set under the `rest.auth.oauth2.` prefix can also be set under this prefix.
 
@@ -337,17 +337,53 @@ The above configuration will result in a token exchange where the actor token is
 
 ### `rest.auth.oauth2.token-exchange.resource`
 
-For token exchanges only. A space-separatee list of URIs that indicate the target service(s) or resource(s) where the client intends to use the requested security token. Optional.
+A URI that indicates the target service or resource where the client intends to use the requested security token. Optional.
 
 ### `rest.auth.oauth2.token-exchange.audience`
 
-For token exchanges only. A space-separated list of logical names of the target service(s) where the client intends to use the requested security token. This serves a purpose similar to the resource parameter but with the client providing a logical name for the target service.
+The logical name of the target service where the client intends to use the requested security token. This serves a purpose similar to the resource parameter but with the client providing a logical name for the target service. Optional.
+
+## Client Assertion Settings
+
+Configuration properties for JWT client assertion as specified in [JSON Web Token (JWT) Profile for OAuth 2.0 Client Authentication and Authorization Grants](https://datatracker.ietf.org/doc/html/rfc7523).
+
+These properties allow the client to authenticate using the `client_secret_jwt` or `private_key_jwt` authentication methods.
+
+### `rest.auth.oauth2.client-assertion.jwt.issuer`
+
+The issuer of the client assertion JWT. Optional. The default is the client ID.
+
+### `rest.auth.oauth2.client-assertion.jwt.subject`
+
+The subject of the client assertion JWT. Optional. The default is the client ID.
+
+### `rest.auth.oauth2.client-assertion.jwt.audience`
+
+The audience of the client assertion JWT. Optional. The default is the token endpoint.
+
+### `rest.auth.oauth2.client-assertion.jwt.token-lifespan`
+
+The expiration time of the client assertion JWT. Optional. The default is 5 minutes.
+
+### `rest.auth.oauth2.client-assertion.jwt.algorithm`
+
+The signing algorithm to use for the client assertion JWT. Optional. The default is `HS512` if the authentication method is `client_secret_jwt`, or `RS512` if the authentication method is `private_key_jwt`.
+
+Algorithm names must match the "alg" Param Value as described in [RFC 7518 Section 3.1](https://datatracker.ietf.org/doc/html/rfc7518#section-3.1).
+
+### `rest.auth.oauth2.client-assertion.jwt.private-key`
+
+The path on the local filesystem to the private key to use for signing the client assertion JWT. Required if the authentication method is `private_key_jwt`. The file must be in PEM format; it may contain a private key, or a private key and a certificate chain. Only the private key is used.
+
+### `rest.auth.oauth2.client-assertion.jwt.extra-claims.*`
+
+Extra claims to include in the client assertion JWT. This is a prefix property, and multiple values can be set, each with a different key and value.
 
 ## System Settings
 
 Configuration properties for the whole system.
 
-These properties are used to configure properties such as the session cache timeout and the HTTP client type.
+These properties are used to configure properties such as the session cache timeout.
 
 ### `rest.auth.oauth2.system.agent-name`
 
@@ -384,9 +420,11 @@ The connection timeout for HTTP requests. Optional, defaults to `PT10S`. Must be
 
 This setting is ignored when the client type (`rest.auth.oauth2.http.client-type`) is set to `default`.
 
-### `rest.auth.oauth2.http.headers.`
+### `rest.auth.oauth2.http.headers.*`
 
 HTTP headers to include in each HTTP request. This is a prefix property, and multiple values can be set, each with a different key and value.
+
+This setting is ignored when the client type (`rest.auth.oauth2.http.client-type`) is set to `default`.
 
 ### `rest.auth.oauth2.http.compression.enabled`
 

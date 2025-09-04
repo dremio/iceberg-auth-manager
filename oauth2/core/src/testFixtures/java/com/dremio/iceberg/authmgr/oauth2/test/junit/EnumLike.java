@@ -15,7 +15,6 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.test.junit;
 
-import com.dremio.iceberg.authmgr.oauth2.config.BasicConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.ConfigUtils;
 import com.nimbusds.oauth2.sdk.GrantType;
 import com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod;
@@ -71,9 +70,9 @@ class EnumLikeMethodArgumentsProvider implements CartesianParameterArgumentsProv
   private Stream<Object> enumLikeConstants(Parameter parameter) {
     Class<?> type = parameter.getType();
     if (type.equals(GrantType.class)) {
-      return BasicConfig.SUPPORTED_INITIAL_GRANT_TYPES.stream().map(Object.class::cast);
+      return ConfigUtils.SUPPORTED_INITIAL_GRANT_TYPES.stream().map(Object.class::cast);
     } else if (type.equals(ClientAuthenticationMethod.class)) {
-      return BasicConfig.SUPPORTED_CLIENT_AUTH_METHODS.stream()
+      return ConfigUtils.SUPPORTED_CLIENT_AUTH_METHODS.stream()
           // In unit tests, we don't support (yet) JWS-based authentication methods
           .filter(method -> !ConfigUtils.requiresJwsAlgorithm(method))
           .map(Object.class::cast);

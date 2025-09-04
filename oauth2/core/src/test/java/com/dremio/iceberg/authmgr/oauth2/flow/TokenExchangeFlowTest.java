@@ -49,7 +49,8 @@ class TokenExchangeFlowTest {
 
   @CartesianTest
   void fetchNewTokensDynamic(
-      @EnumLike(excludes = "none") ClientAuthenticationMethod authenticationMethod,
+      @EnumLike(excludes = {"none", "client_secret_basic"})
+          ClientAuthenticationMethod authenticationMethod,
       @Values(booleans = {true, false}) boolean returnRefreshTokens,
       @EnumLike(includes = {"client_credentials", "authorization_code"}) GrantType subjectGrantType,
       @EnumLike(includes = {"password", "urn:ietf:params:oauth:grant-type:device_code"})

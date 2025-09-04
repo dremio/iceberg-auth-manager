@@ -24,7 +24,7 @@ import com.nimbusds.oauth2.sdk.TokenRequest;
 import com.nimbusds.oauth2.sdk.token.AccessToken;
 import com.nimbusds.oauth2.sdk.token.TokenTypeURI;
 import com.nimbusds.oauth2.sdk.tokenexchange.TokenExchangeGrant;
-import java.net.URI;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletionStage;
 
@@ -70,9 +70,7 @@ abstract class TokenExchangeFlow extends AbstractFlow {
   TokenRequest.Builder newTokenRequestBuilder(AuthorizationGrant grant) {
     TokenRequest.Builder builder = super.newTokenRequestBuilder(grant);
     TokenExchangeConfig tokenExchangeConfig = getConfig().getTokenExchangeConfig();
-    if (!tokenExchangeConfig.getResources().isEmpty()) {
-      builder.resources(tokenExchangeConfig.getResources().toArray(new URI[0]));
-    }
+    tokenExchangeConfig.getResource().ifPresent(builder::resources);
     return builder;
   }
 
@@ -90,6 +88,6 @@ abstract class TokenExchangeFlow extends AbstractFlow {
                 ? TokenTypeURI.ACCESS_TOKEN
                 : actorToken.getIssuedTokenType(),
         tokenExchangeConfig.getRequestedTokenType(),
-        tokenExchangeConfig.getAudiences());
+        tokenExchangeConfig.getAudience().map(List::of).orElse(List.of()));
   }
 }

@@ -15,13 +15,14 @@
  */
 package com.dremio.iceberg.authmgr.oauth2;
 
+import static com.dremio.iceberg.authmgr.oauth2.OAuth2Config.PREFIX;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.type;
 import static org.mockito.Mockito.never;
 
-import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.Basic;
-import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.TokenExchange;
 import com.dremio.iceberg.authmgr.oauth2.cache.AuthSessionCache;
+import com.dremio.iceberg.authmgr.oauth2.config.BasicConfig;
+import com.dremio.iceberg.authmgr.oauth2.config.TokenExchangeConfig;
 import com.dremio.iceberg.authmgr.oauth2.test.TestConstants;
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
 import com.github.benmanes.caffeine.cache.Cache;
@@ -72,15 +73,15 @@ class OAuth2ManagerTest {
           OAuth2Manager manager = new OAuth2Manager("test")) {
         Map<String, String> properties =
             Map.of(
-                Basic.TOKEN_ENDPOINT,
+                PREFIX + '.' + BasicConfig.TOKEN_ENDPOINT,
                 env.getTokenEndpoint().toString(),
-                Basic.CLIENT_ID,
+                PREFIX + '.' + BasicConfig.CLIENT_ID,
                 TestConstants.CLIENT_ID1.getValue(),
-                Basic.CLIENT_SECRET,
+                PREFIX + '.' + BasicConfig.CLIENT_SECRET,
                 TestConstants.CLIENT_SECRET1.getValue(),
-                Basic.SCOPE,
+                PREFIX + '.' + BasicConfig.SCOPE,
                 TestConstants.SCOPE1.toString(),
-                Basic.EXTRA_PARAMS_PREFIX + "extra1",
+                PREFIX + '.' + BasicConfig.EXTRA_PARAMS + ".extra1",
                 "value1");
         try (HTTPClient client = env.newIcebergRestClientBuilder(Map.of()).build();
             AuthSession session = manager.catalogSession(client, properties)) {
@@ -97,15 +98,15 @@ class OAuth2ManagerTest {
           OAuth2Manager manager = new OAuth2Manager("test")) {
         Map<String, String> properties =
             Map.of(
-                Basic.TOKEN_ENDPOINT,
+                PREFIX + '.' + BasicConfig.TOKEN_ENDPOINT,
                 env.getTokenEndpoint().toString(),
-                Basic.CLIENT_ID,
+                PREFIX + '.' + BasicConfig.CLIENT_ID,
                 TestConstants.CLIENT_ID1.getValue(),
-                Basic.CLIENT_SECRET,
+                PREFIX + '.' + BasicConfig.CLIENT_SECRET,
                 TestConstants.CLIENT_SECRET1.getValue(),
-                Basic.SCOPE,
+                PREFIX + '.' + BasicConfig.SCOPE,
                 TestConstants.SCOPE1.toString(),
-                Basic.EXTRA_PARAMS_PREFIX + "extra1",
+                PREFIX + '.' + BasicConfig.EXTRA_PARAMS + ".extra1",
                 "value1");
         try (HTTPClient httpClient = env.newIcebergRestClientBuilder(Map.of()).build();
             AuthSession session = manager.initSession(httpClient, properties)) {
@@ -128,13 +129,13 @@ class OAuth2ManagerTest {
           OAuth2Manager manager = new OAuth2Manager("test")) {
         Map<String, String> properties =
             Map.of(
-                Basic.TOKEN_ENDPOINT,
+                PREFIX + '.' + BasicConfig.TOKEN_ENDPOINT,
                 env.getTokenEndpoint().toString(),
-                Basic.CLIENT_ID,
+                PREFIX + '.' + BasicConfig.CLIENT_ID,
                 TestConstants.CLIENT_ID1.getValue(),
-                Basic.CLIENT_SECRET,
+                PREFIX + '.' + BasicConfig.CLIENT_SECRET,
                 TestConstants.CLIENT_SECRET1.getValue(),
-                Basic.SCOPE,
+                PREFIX + '.' + BasicConfig.SCOPE,
                 TestConstants.SCOPE1.toString());
         SessionCatalog.SessionContext context = SessionCatalog.SessionContext.createEmpty();
         try (HTTPClient client = env.newIcebergRestClientBuilder(Map.of()).build();
@@ -151,20 +152,20 @@ class OAuth2ManagerTest {
           OAuth2Manager manager = new OAuth2Manager("test")) {
         Map<String, String> properties =
             Map.of(
-                Basic.TOKEN_ENDPOINT,
+                PREFIX + '.' + BasicConfig.TOKEN_ENDPOINT,
                 env.getTokenEndpoint().toString(),
-                Basic.CLIENT_ID,
+                PREFIX + '.' + BasicConfig.CLIENT_ID,
                 TestConstants.CLIENT_ID1.getValue(),
-                Basic.CLIENT_SECRET,
+                PREFIX + '.' + BasicConfig.CLIENT_SECRET,
                 TestConstants.CLIENT_SECRET1.getValue(),
-                Basic.SCOPE,
+                PREFIX + '.' + BasicConfig.SCOPE,
                 TestConstants.SCOPE1.toString());
         SessionCatalog.SessionContext context =
             new SessionCatalog.SessionContext(
                 "test",
                 "test",
                 properties,
-                Map.of(OAuth2Properties.Basic.SCOPE, TestConstants.SCOPE1.toString()));
+                Map.of(PREFIX + '.' + BasicConfig.SCOPE, TestConstants.SCOPE1.toString()));
         try (HTTPClient client = env.newIcebergRestClientBuilder(Map.of()).build();
             AuthSession catalogSession = manager.catalogSession(client, properties);
             AuthSession contextualSession = manager.contextualSession(context, catalogSession)) {
@@ -179,29 +180,29 @@ class OAuth2ManagerTest {
           OAuth2Manager manager = new OAuth2Manager("test")) {
         Map<String, String> catalogProperties =
             Map.of(
-                Basic.TOKEN_ENDPOINT,
+                PREFIX + '.' + BasicConfig.TOKEN_ENDPOINT,
                 env.getTokenEndpoint().toString(),
-                Basic.CLIENT_ID,
+                PREFIX + '.' + BasicConfig.CLIENT_ID,
                 TestConstants.CLIENT_ID1.getValue(),
-                Basic.CLIENT_SECRET,
+                PREFIX + '.' + BasicConfig.CLIENT_SECRET,
                 TestConstants.CLIENT_SECRET1.getValue(),
-                Basic.SCOPE,
+                PREFIX + '.' + BasicConfig.SCOPE,
                 TestConstants.SCOPE1.toString(),
-                Basic.EXTRA_PARAMS_PREFIX + "extra1",
+                PREFIX + '.' + BasicConfig.EXTRA_PARAMS + ".extra1",
                 "value1");
         SessionContext context =
             new SessionContext(
                 "test",
                 "test",
                 Map.of(
-                    Basic.CLIENT_ID,
+                    PREFIX + '.' + BasicConfig.CLIENT_ID,
                     TestConstants.CLIENT_ID2.getValue(),
-                    Basic.CLIENT_SECRET,
+                    PREFIX + '.' + BasicConfig.CLIENT_SECRET,
                     TestConstants.CLIENT_SECRET2.getValue()),
                 Map.of(
-                    Basic.SCOPE,
+                    PREFIX + '.' + BasicConfig.SCOPE,
                     TestConstants.SCOPE2.toString(),
-                    Basic.EXTRA_PARAMS_PREFIX + "extra2",
+                    PREFIX + '.' + BasicConfig.EXTRA_PARAMS + ".extra2",
                     "value2"));
         try (HTTPClient client = env.newIcebergRestClientBuilder(Map.of()).build();
             AuthSession catalogSession = manager.catalogSession(client, catalogProperties);
@@ -220,31 +221,31 @@ class OAuth2ManagerTest {
           OAuth2Manager manager = new OAuth2Manager("test")) {
         Map<String, String> catalogProperties =
             Map.of(
-                Basic.TOKEN_ENDPOINT,
+                PREFIX + '.' + BasicConfig.TOKEN_ENDPOINT,
                 env.getTokenEndpoint().toString(),
-                Basic.CLIENT_ID,
+                PREFIX + '.' + BasicConfig.CLIENT_ID,
                 TestConstants.CLIENT_ID1.getValue(),
-                Basic.CLIENT_SECRET,
+                PREFIX + '.' + BasicConfig.CLIENT_SECRET,
                 TestConstants.CLIENT_SECRET1.getValue(),
-                Basic.SCOPE,
+                PREFIX + '.' + BasicConfig.SCOPE,
                 TestConstants.SCOPE1.toString());
         SessionContext context =
             new SessionContext(
                 "test",
                 "test",
                 Map.of(
-                    Basic.CLIENT_ID,
+                    PREFIX + '.' + BasicConfig.CLIENT_ID,
                     TestConstants.CLIENT_ID2.getValue(),
-                    Basic.CLIENT_SECRET,
+                    PREFIX + '.' + BasicConfig.CLIENT_SECRET,
                     TestConstants.CLIENT_SECRET2.getValue(),
-                    TokenExchange.SUBJECT_TOKEN,
+                    TokenExchangeConfig.PREFIX + '.' + TokenExchangeConfig.SUBJECT_TOKEN,
                     TestConstants.SUBJECT_TOKEN.getValue(),
-                    TokenExchange.ACTOR_TOKEN,
+                    TokenExchangeConfig.PREFIX + '.' + TokenExchangeConfig.ACTOR_TOKEN,
                     TestConstants.ACTOR_TOKEN.getValue()),
                 Map.of(
-                    Basic.GRANT_TYPE,
+                    PREFIX + '.' + BasicConfig.GRANT_TYPE,
                     GrantType.TOKEN_EXCHANGE.getValue(),
-                    Basic.SCOPE,
+                    PREFIX + '.' + BasicConfig.SCOPE,
                     TestConstants.SCOPE2.toString()));
         try (HTTPClient client = env.newIcebergRestClientBuilder(Map.of()).build();
             AuthSession catalogSession = manager.catalogSession(client, catalogProperties);
@@ -263,13 +264,13 @@ class OAuth2ManagerTest {
           OAuth2Manager manager = new OAuth2Manager("test")) {
         Map<String, String> catalogProperties =
             Map.of(
-                Basic.TOKEN_ENDPOINT,
+                PREFIX + '.' + BasicConfig.TOKEN_ENDPOINT,
                 env.getTokenEndpoint().toString(),
-                Basic.CLIENT_ID,
+                PREFIX + '.' + BasicConfig.CLIENT_ID,
                 TestConstants.CLIENT_ID1.getValue(),
-                Basic.CLIENT_SECRET,
+                PREFIX + '.' + BasicConfig.CLIENT_SECRET,
                 TestConstants.CLIENT_SECRET1.getValue(),
-                Basic.SCOPE,
+                PREFIX + '.' + BasicConfig.SCOPE,
                 TestConstants.SCOPE1.toString());
         Map<String, String> tableProperties = Map.of();
         try (HTTPClient client = env.newIcebergRestClientBuilder(Map.of()).build();
@@ -287,15 +288,16 @@ class OAuth2ManagerTest {
           OAuth2Manager manager = new OAuth2Manager("test")) {
         Map<String, String> catalogProperties =
             Map.of(
-                Basic.TOKEN_ENDPOINT,
+                PREFIX + '.' + BasicConfig.TOKEN_ENDPOINT,
                 env.getTokenEndpoint().toString(),
-                Basic.CLIENT_ID,
+                PREFIX + '.' + BasicConfig.CLIENT_ID,
                 TestConstants.CLIENT_ID1.getValue(),
-                Basic.CLIENT_SECRET,
+                PREFIX + '.' + BasicConfig.CLIENT_SECRET,
                 TestConstants.CLIENT_SECRET1.getValue(),
-                Basic.SCOPE,
+                PREFIX + '.' + BasicConfig.SCOPE,
                 TestConstants.SCOPE1.toString());
-        Map<String, String> tableProperties = Map.of(Basic.SCOPE, TestConstants.SCOPE1.toString());
+        Map<String, String> tableProperties =
+            Map.of(PREFIX + '.' + BasicConfig.SCOPE, TestConstants.SCOPE1.toString());
         try (HTTPClient client = env.newIcebergRestClientBuilder(Map.of()).build();
             AuthSession catalogSession = manager.catalogSession(client, catalogProperties);
             AuthSession tableSession =
@@ -311,21 +313,21 @@ class OAuth2ManagerTest {
           OAuth2Manager manager = new OAuth2Manager("test")) {
         Map<String, String> catalogProperties =
             Map.of(
-                Basic.TOKEN_ENDPOINT,
+                PREFIX + '.' + BasicConfig.TOKEN_ENDPOINT,
                 env.getTokenEndpoint().toString(),
-                Basic.CLIENT_ID,
+                PREFIX + '.' + BasicConfig.CLIENT_ID,
                 TestConstants.CLIENT_ID1.getValue(),
-                Basic.CLIENT_SECRET,
+                PREFIX + '.' + BasicConfig.CLIENT_SECRET,
                 TestConstants.CLIENT_SECRET1.getValue(),
-                Basic.SCOPE,
+                PREFIX + '.' + BasicConfig.SCOPE,
                 TestConstants.SCOPE1.toString(),
-                Basic.EXTRA_PARAMS_PREFIX + "extra1",
+                PREFIX + '.' + BasicConfig.EXTRA_PARAMS + ".extra1",
                 "value1");
         Map<String, String> tableProperties =
             Map.of(
-                Basic.SCOPE,
+                PREFIX + '.' + BasicConfig.SCOPE,
                 TestConstants.SCOPE2.toString(),
-                Basic.EXTRA_PARAMS_PREFIX + "extra2",
+                PREFIX + '.' + BasicConfig.EXTRA_PARAMS + ".extra2",
                 "value2");
         try (HTTPClient client = env.newIcebergRestClientBuilder(Map.of()).build();
             AuthSession catalogSession = manager.catalogSession(client, catalogProperties);
@@ -345,21 +347,21 @@ class OAuth2ManagerTest {
           OAuth2Manager manager = new OAuth2Manager("test")) {
         Map<String, String> catalogProperties =
             Map.of(
-                Basic.TOKEN_ENDPOINT,
+                PREFIX + '.' + BasicConfig.TOKEN_ENDPOINT,
                 env.getTokenEndpoint().toString(),
-                Basic.CLIENT_ID,
+                PREFIX + '.' + BasicConfig.CLIENT_ID,
                 TestConstants.CLIENT_ID1.getValue(),
-                Basic.CLIENT_SECRET,
+                PREFIX + '.' + BasicConfig.CLIENT_SECRET,
                 TestConstants.CLIENT_SECRET1.getValue());
         Map<String, String> tableProperties =
             Map.of(
-                Basic.SCOPE,
+                PREFIX + '.' + BasicConfig.SCOPE,
                 TestConstants.SCOPE2.toString(),
-                Basic.GRANT_TYPE,
+                PREFIX + '.' + BasicConfig.GRANT_TYPE,
                 GrantType.TOKEN_EXCHANGE.getValue(),
-                TokenExchange.SUBJECT_TOKEN,
+                TokenExchangeConfig.PREFIX + '.' + TokenExchangeConfig.SUBJECT_TOKEN,
                 TestConstants.SUBJECT_TOKEN.getValue(),
-                TokenExchange.ACTOR_TOKEN,
+                TokenExchangeConfig.PREFIX + '.' + TokenExchangeConfig.ACTOR_TOKEN,
                 TestConstants.ACTOR_TOKEN.getValue());
         try (HTTPClient client = env.newIcebergRestClientBuilder(Map.of()).build();
             AuthSession catalogSession = manager.catalogSession(client, catalogProperties);
@@ -380,15 +382,15 @@ class OAuth2ManagerTest {
           OAuth2Manager manager = new OAuth2Manager("test")) {
         Map<String, String> tableProperties =
             Map.of(
-                Basic.TOKEN_ENDPOINT,
+                PREFIX + '.' + BasicConfig.TOKEN_ENDPOINT,
                 env.getTokenEndpoint().toString(),
-                Basic.CLIENT_ID,
+                PREFIX + '.' + BasicConfig.CLIENT_ID,
                 TestConstants.CLIENT_ID1.getValue(),
-                Basic.CLIENT_SECRET,
+                PREFIX + '.' + BasicConfig.CLIENT_SECRET,
                 TestConstants.CLIENT_SECRET1.getValue(),
-                Basic.SCOPE,
+                PREFIX + '.' + BasicConfig.SCOPE,
                 TestConstants.SCOPE1.toString(),
-                Basic.EXTRA_PARAMS_PREFIX + "extra1",
+                PREFIX + '.' + BasicConfig.EXTRA_PARAMS + ".extra1",
                 "value1");
         try (HTTPClient client = env.newIcebergRestClientBuilder(Map.of()).build();
             AuthSession tableSession1 = manager.tableSession(client, tableProperties);
@@ -430,13 +432,13 @@ class OAuth2ManagerTest {
 
         Map<String, String> catalogProperties =
             Map.of(
-                Basic.TOKEN_ENDPOINT,
+                PREFIX + '.' + BasicConfig.TOKEN_ENDPOINT,
                 env.getTokenEndpoint().toString(),
-                Basic.CLIENT_ID,
+                PREFIX + '.' + BasicConfig.CLIENT_ID,
                 TestConstants.CLIENT_ID1.getValue(),
-                Basic.CLIENT_SECRET,
+                PREFIX + '.' + BasicConfig.CLIENT_SECRET,
                 TestConstants.CLIENT_SECRET1.getValue(),
-                Basic.SCOPE,
+                PREFIX + '.' + BasicConfig.SCOPE,
                 TestConstants.SCOPE1.toString());
 
         SessionContext context =
@@ -444,13 +446,14 @@ class OAuth2ManagerTest {
                 "test",
                 "test",
                 Map.of(
-                    Basic.CLIENT_ID,
+                    PREFIX + '.' + BasicConfig.CLIENT_ID,
                     TestConstants.CLIENT_ID2.getValue(),
-                    Basic.CLIENT_SECRET,
+                    PREFIX + '.' + BasicConfig.CLIENT_SECRET,
                     TestConstants.CLIENT_SECRET2.getValue()),
-                Map.of(Basic.SCOPE, TestConstants.SCOPE2.toString()));
+                Map.of(PREFIX + '.' + BasicConfig.SCOPE, TestConstants.SCOPE2.toString()));
 
-        Map<String, String> tableProperties = Map.of(Basic.SCOPE, TestConstants.SCOPE2.toString());
+        Map<String, String> tableProperties =
+            Map.of(PREFIX + '.' + BasicConfig.SCOPE, TestConstants.SCOPE2.toString());
 
         try (HTTPClient client = env.newIcebergRestClientBuilder(Map.of()).build();
             AuthSession initSession = Mockito.spy(manager.initSession(client, catalogProperties));
@@ -541,7 +544,8 @@ class OAuth2ManagerTest {
     void testCatalogAndTableProperties() throws IOException {
       try (TestEnvironment env =
               TestEnvironment.builder()
-                  .tableProperties(Map.of(Basic.SCOPE, TestConstants.SCOPE2.toString()))
+                  .tableProperties(
+                      Map.of(PREFIX + '.' + BasicConfig.SCOPE, TestConstants.SCOPE2.toString()))
                   .build();
           RESTCatalog catalog = env.newCatalog()) {
         Table table = catalog.loadTable(TestConstants.TABLE_IDENTIFIER);
@@ -578,7 +582,8 @@ class OAuth2ManagerTest {
       try (TestEnvironment env =
               TestEnvironment.builder()
                   .sessionContext(TestConstants.SESSION_CONTEXT)
-                  .tableProperties(Map.of(Basic.SCOPE, TestConstants.SCOPE3.toString()))
+                  .tableProperties(
+                      Map.of(PREFIX + '.' + BasicConfig.SCOPE, TestConstants.SCOPE3.toString()))
                   .build();
           RESTCatalog catalog = env.newCatalog()) {
         Table table = catalog.loadTable(TestConstants.TABLE_IDENTIFIER);

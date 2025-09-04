@@ -15,10 +15,10 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.config;
 
+import static com.dremio.iceberg.authmgr.oauth2.OAuth2Config.PREFIX;
 import static java.util.Map.entry;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -58,13 +58,13 @@ class ConfigSanitizerTest {
   void contextAllowedProperties() {
     Map<String, String> input =
         Map.of(
-            OAuth2Properties.Basic.CLIENT_ID,
+            PREFIX + '.' + BasicConfig.CLIENT_ID,
             "client1",
-            OAuth2Properties.Basic.CLIENT_SECRET,
+            PREFIX + '.' + BasicConfig.CLIENT_SECRET,
             "secret",
-            OAuth2Properties.Basic.TOKEN_ENDPOINT,
+            PREFIX + '.' + BasicConfig.TOKEN_ENDPOINT,
             "https://example.com/token",
-            "custom.property",
+            PREFIX + ".custom.property",
             "value");
     Map<String, String> actual = new ConfigSanitizer(consumer).sanitizeContextProperties(input);
     assertThat(actual).isEqualTo(input);
@@ -88,23 +88,8 @@ class ConfigSanitizerTest {
 
   static Stream<String> contextDenyListProperties() {
     return Stream.of(
-        OAuth2Properties.System.AGENT_NAME,
-        OAuth2Properties.System.SESSION_CACHE_TIMEOUT,
-        OAuth2Properties.Http.CLIENT_TYPE,
-        OAuth2Properties.Http.READ_TIMEOUT,
-        OAuth2Properties.Http.CONNECT_TIMEOUT,
-        OAuth2Properties.Http.HEADERS_PREFIX + "custom",
-        OAuth2Properties.Http.COMPRESSION_ENABLED,
-        OAuth2Properties.Http.SSL_PROTOCOLS,
-        OAuth2Properties.Http.SSL_CIPHER_SUITES,
-        OAuth2Properties.Http.SSL_HOSTNAME_VERIFICATION_ENABLED,
-        OAuth2Properties.Http.SSL_TRUST_ALL,
-        OAuth2Properties.Http.SSL_TRUSTSTORE_PATH,
-        OAuth2Properties.Http.SSL_TRUSTSTORE_PASSWORD,
-        OAuth2Properties.Http.PROXY_HOST,
-        OAuth2Properties.Http.PROXY_PORT,
-        OAuth2Properties.Http.PROXY_USERNAME,
-        OAuth2Properties.Http.PROXY_PASSWORD);
+        SystemConfig.PREFIX + '.' + SystemConfig.AGENT_NAME,
+        HttpConfig.PREFIX + '.' + HttpConfig.CLIENT_TYPE);
   }
 
   @Test
@@ -118,11 +103,11 @@ class ConfigSanitizerTest {
   void tableAllowedProperties() {
     Map<String, String> input =
         Map.of(
-            OAuth2Properties.Basic.SCOPE,
+            PREFIX + '.' + BasicConfig.SCOPE,
             "read write",
-            OAuth2Properties.Basic.TOKEN_ENDPOINT,
+            PREFIX + '.' + BasicConfig.TOKEN_ENDPOINT,
             "https://example.com/token",
-            "custom.property",
+            PREFIX + ".custom.property",
             "value");
     Map<String, String> actual = new ConfigSanitizer(consumer).sanitizeTableProperties(input);
     assertThat(actual).isEqualTo(input);
@@ -149,22 +134,7 @@ class ConfigSanitizerTest {
     return Stream.concat(
         ConfigSanitizer.TABLE_DENY_LIST.stream(),
         Stream.of(
-            OAuth2Properties.System.AGENT_NAME,
-            OAuth2Properties.System.SESSION_CACHE_TIMEOUT,
-            OAuth2Properties.Http.CLIENT_TYPE,
-            OAuth2Properties.Http.READ_TIMEOUT,
-            OAuth2Properties.Http.CONNECT_TIMEOUT,
-            OAuth2Properties.Http.HEADERS_PREFIX + "custom",
-            OAuth2Properties.Http.COMPRESSION_ENABLED,
-            OAuth2Properties.Http.SSL_PROTOCOLS,
-            OAuth2Properties.Http.SSL_CIPHER_SUITES,
-            OAuth2Properties.Http.SSL_HOSTNAME_VERIFICATION_ENABLED,
-            OAuth2Properties.Http.SSL_TRUST_ALL,
-            OAuth2Properties.Http.SSL_TRUSTSTORE_PATH,
-            OAuth2Properties.Http.SSL_TRUSTSTORE_PASSWORD,
-            OAuth2Properties.Http.PROXY_HOST,
-            OAuth2Properties.Http.PROXY_PORT,
-            OAuth2Properties.Http.PROXY_USERNAME,
-            OAuth2Properties.Http.PROXY_PASSWORD));
+            SystemConfig.PREFIX + '.' + SystemConfig.AGENT_NAME,
+            HttpConfig.PREFIX + '.' + HttpConfig.CLIENT_TYPE));
   }
 }

@@ -16,21 +16,20 @@
 package com.dremio.iceberg.authmgr.oauth2.tokenexchange;
 
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Config;
+import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2AgentRuntime;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
-import com.nimbusds.oauth2.sdk.token.Token;
 import com.nimbusds.oauth2.sdk.token.TokenTypeURI;
+import com.nimbusds.oauth2.sdk.token.TypelessAccessToken;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ScheduledExecutorService;
 import org.immutables.value.Value;
 
 /** A component that centralizes the logic for supplying the subject token for token exchanges. */
 @AuthManagerImmutable
 public abstract class SubjectTokenSupplier extends AbstractTokenSupplier {
 
-  public static SubjectTokenSupplier create(
-      OAuth2Config config, ScheduledExecutorService executor) {
-    return ImmutableSubjectTokenSupplier.builder().mainConfig(config).executor(executor).build();
+  public static SubjectTokenSupplier create(OAuth2Config config, OAuth2AgentRuntime runtime) {
+    return ImmutableSubjectTokenSupplier.builder().mainConfig(config).runtime(runtime).build();
   }
 
   @Override
@@ -43,24 +42,24 @@ public abstract class SubjectTokenSupplier extends AbstractTokenSupplier {
 
   @Value.Check
   protected void validate() {
-    if (getToken().isEmpty() && getTokenAgentProperties().isEmpty()) {
+    if (getStaticToken().isEmpty() && getTokenAgentConfig().isEmpty()) {
       throw new IllegalArgumentException(
           "Subject token is dynamic but no configuration is provided");
     }
   }
 
   @Override
-  protected Optional<Token> getToken() {
+  protected Optional<TypelessAccessToken> getStaticToken() {
     return getMainConfig().getTokenExchangeConfig().getSubjectToken();
   }
 
   @Override
-  protected TokenTypeURI getTokenType() {
+  protected TokenTypeURI getStaticTokenType() {
     return getMainConfig().getTokenExchangeConfig().getSubjectTokenType();
   }
 
   @Override
-  protected Map<String, String> getTokenAgentProperties() {
+  protected Map<String, String> getDynamicTokenConfig() {
     return getMainConfig().getTokenExchangeConfig().getSubjectTokenConfig();
   }
 

@@ -15,11 +15,13 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.test;
 
+import static com.dremio.iceberg.authmgr.oauth2.OAuth2Config.PREFIX;
+
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Config;
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Manager;
-import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.Basic;
-import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.System;
+import com.dremio.iceberg.authmgr.oauth2.agent.ImmutableOAuth2AgentRuntime;
 import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2Agent;
+import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2AgentRuntime;
 import com.dremio.iceberg.authmgr.oauth2.config.AuthorizationCodeConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.BasicConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.ClientAssertionConfig;
@@ -52,6 +54,7 @@ import com.dremio.iceberg.authmgr.oauth2.test.user.UserEmulator;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
 import com.google.common.collect.ImmutableMap;
 import com.google.errorprone.annotations.MustBeClosed;
+import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.oauth2.sdk.GrantType;
 import com.nimbusds.oauth2.sdk.Scope;
 import com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod;
@@ -59,9 +62,9 @@ import com.nimbusds.oauth2.sdk.auth.Secret;
 import com.nimbusds.oauth2.sdk.id.Audience;
 import com.nimbusds.oauth2.sdk.id.ClientID;
 import com.nimbusds.oauth2.sdk.pkce.CodeChallengeMethod;
-import com.nimbusds.oauth2.sdk.token.AccessToken;
 import com.nimbusds.oauth2.sdk.token.Token;
 import com.nimbusds.oauth2.sdk.token.TokenTypeURI;
+import com.nimbusds.oauth2.sdk.token.TypelessAccessToken;
 import jakarta.annotation.Nullable;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -69,7 +72,6 @@ import java.net.URI;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
@@ -245,41 +247,45 @@ public abstract class TestEnvironment implements AutoCloseable {
 
   @Value.Default
   public OAuth2Config getOAuth2Config() {
-    return OAuth2Config.builder()
-        .basicConfig(getBasicConfig())
-        .resourceOwnerConfig(getResourceOwnerConfig())
-        .authorizationCodeConfig(getAuthorizationCodeConfig())
-        .deviceCodeConfig(getDeviceCodeConfig())
-        .tokenRefreshConfig(getTokenRefreshConfig())
-        .tokenExchangeConfig(getTokenExchangeConfig())
-        .clientAssertionConfig(getClientAssertionConfig())
-        .systemConfig(getSystemConfig())
-        .httpConfig(getHttpConfig())
-        .build();
+    Map<String, String> properties =
+        ImmutableMap.<String, String>builder()
+            .putAll(getBasicConfig())
+            .putAll(getResourceOwnerConfig())
+            .putAll(getAuthorizationCodeConfig())
+            .putAll(getDeviceCodeConfig())
+            .putAll(getTokenRefreshConfig())
+            .putAll(getTokenExchangeConfig())
+            .putAll(getClientAssertionConfig())
+            .putAll(getSystemConfig())
+            .putAll(getHttpConfig())
+            .build();
+    return OAuth2Config.from(properties);
   }
 
   @Value.Default
-  public BasicConfig getBasicConfig() {
-    BasicConfig.Builder builder =
-        BasicConfig.builder()
-            .grantType(getGrantType())
-            .clientAuthenticationMethod(getClientAuthenticationMethod())
-            .scope(getScope())
-            .extraRequestParameters(getExtraRequestParameters())
-            .minTimeout(getTimeout())
-            .timeout(getTimeout());
+  public Map<String, String> getBasicConfig() {
+    ImmutableMap.Builder<String, String> builder =
+        ImmutableMap.<String, String>builder()
+            .put(PREFIX + '.' + BasicConfig.GRANT_TYPE, getGrantType().getValue())
+            .put(PREFIX + '.' + BasicConfig.CLIENT_AUTH, getClientAuthenticationMethod().toString())
+            .put(PREFIX + '.' + BasicConfig.SCOPE, getScope().toString())
+            .putAll(
+                ConfigUtils.prefixedMap(
+                    getExtraRequestParameters(), PREFIX + '.' + BasicConfig.EXTRA_PARAMS))
+            .put(PREFIX + '.' + BasicConfig.TIMEOUT, getTimeout().toString())
+            .put(PREFIX + '.' + "min-timeout", getTimeout().toString());
     if (getToken().isPresent()) {
-      builder.token(getToken().get());
+      builder.put(PREFIX + '.' + BasicConfig.TOKEN, getToken().get().getValue());
     } else {
-      builder.clientId(getClientId());
+      builder.put(PREFIX + '.' + BasicConfig.CLIENT_ID, getClientId().getValue());
     }
     if (ConfigUtils.requiresClientSecret(getClientAuthenticationMethod())) {
-      builder.clientSecret(getClientSecret());
+      builder.put(PREFIX + '.' + BasicConfig.CLIENT_SECRET, getClientSecret().getValue());
     }
     if (isDiscoveryEnabled()) {
-      builder.issuerUrl(getAuthorizationServerUrl());
+      builder.put(PREFIX + '.' + BasicConfig.ISSUER_URL, getAuthorizationServerUrl().toString());
     } else {
-      builder.tokenEndpoint(getTokenEndpoint());
+      builder.put(PREFIX + '.' + BasicConfig.TOKEN_ENDPOINT, getTokenEndpoint().toString());
     }
     return builder.build();
   }
@@ -299,7 +305,7 @@ public abstract class TestEnvironment implements AutoCloseable {
     return ClientAuthenticationMethod.CLIENT_SECRET_BASIC;
   }
 
-  public abstract Optional<AccessToken> getToken();
+  public abstract Optional<TypelessAccessToken> getToken();
 
   @Value.Default
   public Scope getScope() {
@@ -313,20 +319,23 @@ public abstract class TestEnvironment implements AutoCloseable {
 
   @Value.Default
   public Duration getTimeout() {
-    return Duration.ofSeconds(5);
+    return isUnitTest() ? Duration.ofSeconds(5) : Duration.parse(BasicConfig.DEFAULT_TIMEOUT);
   }
 
   @Value.Default
-  public TokenRefreshConfig getTokenRefreshConfig() {
-    return TokenRefreshConfig.builder()
-        .enabled(isTokenRefreshEnabled())
-        .accessTokenLifespan(getAccessTokenLifespan())
-        .minAccessTokenLifespan(getAccessTokenLifespan())
-        // safety window and idle timeout are tailored for integration tests
-        .safetyWindow(Duration.ofSeconds(5))
-        .minRefreshDelay(Duration.ofSeconds(5))
-        .idleTimeout(Duration.ofSeconds(5))
-        .minIdleTimeout(Duration.ofSeconds(5))
+  public Map<String, String> getTokenRefreshConfig() {
+    return ImmutableMap.<String, String>builder()
+        .put(
+            TokenRefreshConfig.PREFIX + '.' + TokenRefreshConfig.ENABLED,
+            String.valueOf(isTokenRefreshEnabled()))
+        .put(
+            TokenRefreshConfig.PREFIX + '.' + TokenRefreshConfig.ACCESS_TOKEN_LIFESPAN,
+            getAccessTokenLifespan().toString())
+        .put(TokenRefreshConfig.PREFIX + '.' + TokenRefreshConfig.SAFETY_WINDOW, "PT5S")
+        .put(TokenRefreshConfig.PREFIX + '.' + TokenRefreshConfig.IDLE_TIMEOUT, "PT5S")
+        .put(TokenRefreshConfig.PREFIX + '.' + "min-refresh-delay", "PT5S")
+        .put(TokenRefreshConfig.PREFIX + '.' + "min-idle-timeout", "PT5S")
+        .put(TokenRefreshConfig.PREFIX + '.' + "min-access-token-lifespan", "PT5S")
         .build();
   }
 
@@ -346,8 +355,13 @@ public abstract class TestEnvironment implements AutoCloseable {
   }
 
   @Value.Default
-  public ResourceOwnerConfig getResourceOwnerConfig() {
-    return ResourceOwnerConfig.builder().username(getUsername()).password(getPassword()).build();
+  public Map<String, String> getResourceOwnerConfig() {
+    return ImmutableMap.<String, String>builder()
+        .put(ResourceOwnerConfig.PREFIX + '.' + ResourceOwnerConfig.USERNAME, getUsername())
+        .put(
+            ResourceOwnerConfig.PREFIX + '.' + ResourceOwnerConfig.PASSWORD,
+            getPassword().getValue())
+        .build();
   }
 
   @Value.Default
@@ -361,15 +375,26 @@ public abstract class TestEnvironment implements AutoCloseable {
   }
 
   @Value.Default
-  public AuthorizationCodeConfig getAuthorizationCodeConfig() {
-    AuthorizationCodeConfig.Builder builder =
-        AuthorizationCodeConfig.builder()
-            .pkceEnabled(isPkceEnabled())
-            .codeChallengeMethod(getCodeChallengeMethod());
+  public Map<String, String> getAuthorizationCodeConfig() {
+    ImmutableMap.Builder<String, String> builder =
+        ImmutableMap.<String, String>builder()
+            .put(
+                AuthorizationCodeConfig.PREFIX + '.' + AuthorizationCodeConfig.PKCE_ENABLED,
+                String.valueOf(isPkceEnabled()))
+            .put(
+                AuthorizationCodeConfig.PREFIX + '.' + AuthorizationCodeConfig.PKCE_METHOD,
+                getCodeChallengeMethod().toString());
     if (!isDiscoveryEnabled()) {
-      builder.authorizationEndpoint(getAuthorizationEndpoint());
+      builder.put(
+          AuthorizationCodeConfig.PREFIX + '.' + AuthorizationCodeConfig.ENDPOINT,
+          getAuthorizationEndpoint().toString());
     }
-    getRedirectUri().ifPresent(builder::redirectUri);
+    getRedirectUri()
+        .ifPresent(
+            u ->
+                builder.put(
+                    AuthorizationCodeConfig.PREFIX + '.' + AuthorizationCodeConfig.REDIRECT_URI,
+                    u.toString()));
     return builder.build();
   }
 
@@ -386,38 +411,66 @@ public abstract class TestEnvironment implements AutoCloseable {
   public abstract Optional<URI> getRedirectUri();
 
   @Value.Default
-  public DeviceCodeConfig getDeviceCodeConfig() {
-    DeviceCodeConfig.Builder builder =
-        DeviceCodeConfig.builder()
-            .ignoreServerPollInterval(isUnitTest())
-            .minPollInterval(Duration.ofMillis(10))
-            .pollInterval(Duration.ofMillis(10));
+  public Map<String, String> getDeviceCodeConfig() {
+    ImmutableMap.Builder<String, String> builder = ImmutableMap.builder();
+    builder
+        .put(DeviceCodeConfig.PREFIX + '.' + DeviceCodeConfig.POLL_INTERVAL, "PT0.01S")
+        .put(DeviceCodeConfig.PREFIX + '.' + "min-poll-interval", "PT0.01S")
+        .put(
+            DeviceCodeConfig.PREFIX + '.' + "ignore-server-poll-interval",
+            isUnitTest() ? "true" : "false");
     if (!isDiscoveryEnabled()) {
-      builder.deviceAuthorizationEndpoint(getDeviceAuthorizationEndpoint());
+      builder.put(
+          DeviceCodeConfig.PREFIX + '.' + DeviceCodeConfig.ENDPOINT,
+          getDeviceAuthorizationEndpoint().toString());
     }
     return builder.build();
   }
 
   @Value.Default
-  public TokenExchangeConfig getTokenExchangeConfig() {
-    TokenExchangeConfig.Builder builder =
-        TokenExchangeConfig.builder()
-            .subjectTokenType(getSubjectTokenType())
-            .actorTokenType(getActorTokenType())
-            .subjectTokenConfig(getSubjectTokenConfig())
-            .actorTokenConfig(getActorTokenConfig())
-            .requestedTokenType(getRequestedTokenType());
+  public Map<String, String> getTokenExchangeConfig() {
+    ImmutableMap.Builder<String, String> builder =
+        ImmutableMap.<String, String>builder()
+            .put(
+                TokenExchangeConfig.PREFIX + '.' + TokenExchangeConfig.SUBJECT_TOKEN_TYPE,
+                getSubjectTokenType().toString())
+            .put(
+                TokenExchangeConfig.PREFIX + '.' + TokenExchangeConfig.ACTOR_TOKEN_TYPE,
+                getActorTokenType().toString())
+            .put(
+                TokenExchangeConfig.PREFIX + '.' + TokenExchangeConfig.REQUESTED_TOKEN_TYPE,
+                getRequestedTokenType().toString());
+    getSubjectTokenConfig()
+        .forEach(
+            (k, v) ->
+                builder.put(
+                    TokenExchangeConfig.PREFIX + '.' + TokenExchangeConfig.SUBJECT_TOKEN + '.' + k,
+                    v));
+    getActorTokenConfig()
+        .forEach(
+            (k, v) ->
+                builder.put(
+                    TokenExchangeConfig.PREFIX + '.' + TokenExchangeConfig.ACTOR_TOKEN + '.' + k,
+                    v));
     if (getSubjectToken() != null) {
-      builder.subjectToken(getSubjectToken());
+      builder.put(
+          TokenExchangeConfig.PREFIX + '.' + TokenExchangeConfig.SUBJECT_TOKEN,
+          getSubjectToken().getValue());
     }
     if (getActorToken() != null) {
-      builder.actorToken(getActorToken());
+      builder.put(
+          TokenExchangeConfig.PREFIX + '.' + TokenExchangeConfig.ACTOR_TOKEN,
+          getActorToken().getValue());
     }
     if (getAudience() != null) {
-      builder.audiences(List.of(getAudience()));
+      builder.put(
+          TokenExchangeConfig.PREFIX + '.' + TokenExchangeConfig.AUDIENCE,
+          getAudience().toString());
     }
     if (getResource() != null) {
-      builder.resources(List.of(getResource()));
+      builder.put(
+          TokenExchangeConfig.PREFIX + '.' + TokenExchangeConfig.RESOURCE,
+          getResource().toString());
     }
     return builder.build();
   }
@@ -457,12 +510,15 @@ public abstract class TestEnvironment implements AutoCloseable {
   public Map<String, String> getSubjectTokenConfig() {
     ImmutableMap.Builder<String, String> builder =
         ImmutableMap.<String, String>builder()
-            .put(Basic.GRANT_TYPE, getSubjectGrantType().getValue())
-            .put(Basic.CLIENT_ID, getSubjectClientId().getValue())
-            .put(Basic.EXTRA_PARAMS_PREFIX + "extra2", "value2")
-            .put(Basic.SCOPE, getSubjectScope().toString());
+            .put(BasicConfig.GRANT_TYPE, getSubjectGrantType().getValue())
+            .put(BasicConfig.CLIENT_ID, getSubjectClientId().getValue())
+            .put(BasicConfig.EXTRA_PARAMS + ".extra2", "value2")
+            .put(BasicConfig.SCOPE, getSubjectScope().toString())
+            .put(
+                DeviceCodeConfig.GROUP_NAME + "." + DeviceCodeConfig.POLL_INTERVAL,
+                Duration.ofMillis(10).toString());
     if (ConfigUtils.requiresClientSecret(getClientAuthenticationMethod())) {
-      builder.put(Basic.CLIENT_SECRET, getSubjectClientSecret().getValue());
+      builder.put(BasicConfig.CLIENT_SECRET, getSubjectClientSecret().getValue());
     }
     return builder.build();
   }
@@ -502,12 +558,15 @@ public abstract class TestEnvironment implements AutoCloseable {
   public Map<String, String> getActorTokenConfig() {
     ImmutableMap.Builder<String, String> builder =
         ImmutableMap.<String, String>builder()
-            .put(Basic.GRANT_TYPE, getActorGrantType().getValue())
-            .put(Basic.CLIENT_ID, getActorClientId().getValue())
-            .put(Basic.EXTRA_PARAMS_PREFIX + "extra2", "value2")
-            .put(Basic.SCOPE, getActorScope().toString());
+            .put(BasicConfig.GRANT_TYPE, getActorGrantType().getValue())
+            .put(BasicConfig.CLIENT_ID, getActorClientId().getValue())
+            .put(BasicConfig.EXTRA_PARAMS + ".extra2", "value2")
+            .put(BasicConfig.SCOPE, getActorScope().toString())
+            .put(
+                DeviceCodeConfig.GROUP_NAME + "." + DeviceCodeConfig.POLL_INTERVAL,
+                Duration.ofMillis(10).toString());
     if (ConfigUtils.requiresClientSecret(getClientAuthenticationMethod())) {
-      builder.put(Basic.CLIENT_SECRET, getActorClientSecret().getValue());
+      builder.put(BasicConfig.CLIENT_SECRET, getActorClientSecret().getValue());
     }
     return builder.build();
   }
@@ -530,22 +589,33 @@ public abstract class TestEnvironment implements AutoCloseable {
   }
 
   @Value.Default
-  public ClientAssertionConfig getClientAssertionConfig() {
-    return ClientAssertionConfig.DEFAULT;
+  public Map<String, String> getClientAssertionConfig() {
+    ImmutableMap.Builder<String, String> builder = ImmutableMap.builder();
+    getJwsAlgorithm()
+        .ifPresent(
+            v ->
+                builder.put(
+                    ClientAssertionConfig.PREFIX + '.' + ClientAssertionConfig.ALGORITHM,
+                    v.getName()));
+    getPrivateKey()
+        .ifPresent(
+            v ->
+                builder.put(
+                    ClientAssertionConfig.PREFIX + '.' + ClientAssertionConfig.PRIVATE_KEY,
+                    v.toString()));
+    return builder.build();
   }
 
+  public abstract Optional<JWSAlgorithm> getJwsAlgorithm();
+
+  public abstract Optional<Path> getPrivateKey();
+
   @Value.Default
-  public SystemConfig getSystemConfig() {
-    return SystemConfig.builder()
-        .agentName(getAgentName())
-        .clock(getClock())
-        .console(getConsole())
+  public Map<String, String> getSystemConfig() {
+    return ImmutableMap.<String, String>builder()
+        .put(SystemConfig.PREFIX + '.' + SystemConfig.AGENT_NAME, getAgentName())
+        .put(SystemConfig.PREFIX + '.' + SystemConfig.SESSION_CACHE_TIMEOUT, "PT1H")
         .build();
-  }
-
-  @Value.Default
-  public Clock getClock() {
-    return new TestClock(TestConstants.NOW);
   }
 
   @Value.Default
@@ -553,26 +623,34 @@ public abstract class TestEnvironment implements AutoCloseable {
     return "iceberg-auth-manager-" + java.lang.System.nanoTime();
   }
 
-  @Value.Derived
-  public PrintStream getConsole() {
-    return getUser().getConsole();
-  }
-
   @Value.Default
-  public HttpConfig getHttpConfig() {
-    HttpConfig.Builder builder =
-        HttpConfig.builder()
-            .clientType(getHttpClientType())
-            .sslProtocols(getSslProtocols())
-            .sslCipherSuites(getSslCipherSuites())
-            .sslTrustAll(isSslTrustAll())
-            .compressionEnabled(isCompressionEnabled());
-    getProxyHost().ifPresent(builder::proxyHost);
-    getProxyPort().ifPresent(builder::proxyPort);
-    getProxyUsername().ifPresent(builder::proxyUsername);
-    getProxyPassword().ifPresent(builder::proxyPassword);
-    getSslTrustStorePath().ifPresent(builder::sslTrustStorePath);
-    getSslTrustStorePassword().ifPresent(builder::sslTrustStorePassword);
+  public Map<String, String> getHttpConfig() {
+    ImmutableMap.Builder<String, String> builder =
+        ImmutableMap.<String, String>builder()
+            .put(HttpConfig.PREFIX + '.' + HttpConfig.CLIENT_TYPE, getHttpClientType().toString())
+            .put(
+                HttpConfig.PREFIX + '.' + HttpConfig.SSL_TRUST_ALL,
+                String.valueOf(isSslTrustAll()));
+    getSslProtocols()
+        .ifPresent(v -> builder.put(HttpConfig.PREFIX + '.' + HttpConfig.SSL_PROTOCOLS, v));
+    getSslCipherSuites()
+        .ifPresent(v -> builder.put(HttpConfig.PREFIX + '.' + HttpConfig.SSL_CIPHER_SUITES, v));
+    getProxyHost().ifPresent(v -> builder.put(HttpConfig.PREFIX + '.' + HttpConfig.PROXY_HOST, v));
+    getProxyPort()
+        .ifPresent(
+            v -> builder.put(HttpConfig.PREFIX + '.' + HttpConfig.PROXY_PORT, String.valueOf(v)));
+    getProxyUsername()
+        .ifPresent(v -> builder.put(HttpConfig.PREFIX + '.' + HttpConfig.PROXY_USERNAME, v));
+    getProxyPassword()
+        .ifPresent(v -> builder.put(HttpConfig.PREFIX + '.' + HttpConfig.PROXY_PASSWORD, v));
+    getSslTrustStorePath()
+        .ifPresent(
+            v ->
+                builder.put(
+                    HttpConfig.PREFIX + '.' + HttpConfig.SSL_TRUSTSTORE_PATH, v.toString()));
+    getSslTrustStorePassword()
+        .ifPresent(
+            v -> builder.put(HttpConfig.PREFIX + '.' + HttpConfig.SSL_TRUSTSTORE_PASSWORD, v));
     return builder.build();
   }
 
@@ -581,18 +659,13 @@ public abstract class TestEnvironment implements AutoCloseable {
     return HttpClientType.DEFAULT;
   }
 
-  public abstract List<String> getSslProtocols();
+  public abstract Optional<String> getSslProtocols();
 
-  public abstract List<String> getSslCipherSuites();
+  public abstract Optional<String> getSslCipherSuites();
 
   @Value.Default
   public boolean isSslTrustAll() {
     return false;
-  }
-
-  @Value.Default
-  public boolean isCompressionEnabled() {
-    return true;
   }
 
   public abstract Optional<String> getProxyHost();
@@ -641,13 +714,13 @@ public abstract class TestEnvironment implements AutoCloseable {
         .put("prefix", TestConstants.WAREHOUSE)
         .put(CatalogProperties.FILE_IO_IMPL, "org.apache.iceberg.inmemory.InMemoryFileIO")
         .put(AuthProperties.AUTH_TYPE, OAuth2Manager.class.getName())
-        .put(Basic.GRANT_TYPE, getGrantType().toString())
-        .put(Basic.ISSUER_URL, getAuthorizationServerUrl().toString())
-        .put(Basic.CLIENT_ID, getClientId().getValue())
-        .put(Basic.CLIENT_SECRET, getClientSecret().getValue())
-        .put(Basic.SCOPE, getScope().toString())
-        .put(Basic.EXTRA_PARAMS_PREFIX + "extra1", "value1")
-        .put(System.AGENT_NAME, getAgentName())
+        .put(PREFIX + '.' + BasicConfig.GRANT_TYPE, getGrantType().toString())
+        .put(PREFIX + '.' + "issuer-url", getAuthorizationServerUrl().toString())
+        .put(PREFIX + '.' + BasicConfig.CLIENT_ID, getClientId().getValue())
+        .put(PREFIX + '.' + BasicConfig.CLIENT_SECRET, getClientSecret().getValue())
+        .put(PREFIX + '.' + BasicConfig.SCOPE, getScope().toString())
+        .put(PREFIX + '.' + BasicConfig.EXTRA_PARAMS + ".extra1", "value1")
+        .put(SystemConfig.PREFIX + '.' + SystemConfig.AGENT_NAME, getAgentName())
         .build();
   }
 
@@ -659,6 +732,25 @@ public abstract class TestEnvironment implements AutoCloseable {
   @Value.Default
   public Map<String, String> getTableProperties() {
     return Map.of();
+  }
+
+  @Value.Default
+  public OAuth2AgentRuntime getOAuth2AgentRuntime() {
+    return ImmutableOAuth2AgentRuntime.builder()
+        .executor(getExecutor())
+        .clock(getClock())
+        .console(getConsole())
+        .build();
+  }
+
+  @Value.Default
+  public Clock getClock() {
+    return isUnitTest() ? new TestClock(TestConstants.NOW) : Clock.systemUTC();
+  }
+
+  @Value.Derived
+  public PrintStream getConsole() {
+    return getUser().getConsole();
   }
 
   public HTTPClient.Builder newIcebergRestClientBuilder(Map<String, String> properties) {
@@ -686,12 +778,12 @@ public abstract class TestEnvironment implements AutoCloseable {
 
   @MustBeClosed
   public FlowFactory newFlowFactory() {
-    return FlowFactory.create(getOAuth2Config(), getExecutor());
+    return FlowFactory.create(getOAuth2Config(), getOAuth2AgentRuntime());
   }
 
   @MustBeClosed
   public OAuth2Agent newAgent() {
-    OAuth2Agent agent = new OAuth2Agent(getOAuth2Config(), getExecutor());
+    OAuth2Agent agent = new OAuth2Agent(getOAuth2Config(), getOAuth2AgentRuntime());
     getUser().addErrorListener(e -> agent.close());
     return agent;
   }

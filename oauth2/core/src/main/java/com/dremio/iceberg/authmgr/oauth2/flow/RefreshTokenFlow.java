@@ -52,7 +52,7 @@ abstract class RefreshTokenFlow extends AbstractFlow {
 
   @Override
   TokensResult toTokensResult(AccessTokenResponse response) {
-    Instant now = getConfig().getSystemConfig().getClock().instant();
+    Instant now = getRuntime().getClock().instant();
     Tokens tokens = response.toSuccessResponse().getTokens();
     // if the server doesn't return a new refresh token, keep using the current one
     if (tokens.getRefreshToken() == null) {

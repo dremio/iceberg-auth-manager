@@ -15,157 +15,103 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.config;
 
+import static com.dremio.iceberg.authmgr.oauth2.config.HttpConfig.CLIENT_TYPE;
+import static com.dremio.iceberg.authmgr.oauth2.config.HttpConfig.COMPRESSION_ENABLED;
+import static com.dremio.iceberg.authmgr.oauth2.config.HttpConfig.CONNECT_TIMEOUT;
+import static com.dremio.iceberg.authmgr.oauth2.config.HttpConfig.HEADERS;
+import static com.dremio.iceberg.authmgr.oauth2.config.HttpConfig.PREFIX;
+import static com.dremio.iceberg.authmgr.oauth2.config.HttpConfig.PROXY_HOST;
+import static com.dremio.iceberg.authmgr.oauth2.config.HttpConfig.PROXY_PASSWORD;
+import static com.dremio.iceberg.authmgr.oauth2.config.HttpConfig.PROXY_PORT;
+import static com.dremio.iceberg.authmgr.oauth2.config.HttpConfig.PROXY_USERNAME;
+import static com.dremio.iceberg.authmgr.oauth2.config.HttpConfig.READ_TIMEOUT;
+import static com.dremio.iceberg.authmgr.oauth2.config.HttpConfig.SSL_CIPHER_SUITES;
+import static com.dremio.iceberg.authmgr.oauth2.config.HttpConfig.SSL_HOSTNAME_VERIFICATION_ENABLED;
+import static com.dremio.iceberg.authmgr.oauth2.config.HttpConfig.SSL_PROTOCOLS;
+import static com.dremio.iceberg.authmgr.oauth2.config.HttpConfig.SSL_TRUSTSTORE_PASSWORD;
+import static com.dremio.iceberg.authmgr.oauth2.config.HttpConfig.SSL_TRUSTSTORE_PATH;
+import static com.dremio.iceberg.authmgr.oauth2.config.HttpConfig.SSL_TRUST_ALL;
+import static java.util.Collections.singletonList;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.AssertionsForClassTypes.catchThrowable;
+import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
-import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.Http;
-import com.dremio.iceberg.authmgr.oauth2.http.HttpClientType;
+import com.dremio.iceberg.authmgr.oauth2.config.validator.ConfigValidator;
 import com.google.common.collect.ImmutableMap;
+import io.smallrye.config.SmallRyeConfig;
+import io.smallrye.config.SmallRyeConfigBuilder;
+import io.smallrye.config.common.MapBackedConfigSource;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 class HttpConfigTest {
 
-  @ParameterizedTest
-  @MethodSource
-  void testFromProperties(
-      Map<String, String> properties, HttpConfig expected, Throwable expectedThrowable) {
-    if (properties != null && expected != null) {
-      HttpConfig actual = HttpConfig.builder().from(properties).build();
-      assertThat(actual).isEqualTo(expected);
-    } else {
-      Throwable actual = catchThrowable(() -> HttpConfig.builder().from(properties));
-      assertThat(actual)
-          .isInstanceOf(expectedThrowable.getClass())
-          .hasMessage(expectedThrowable.getMessage());
-    }
-  }
+  @TempDir static Path tempDir;
 
-  static Stream<Arguments> testFromProperties() {
-    return Stream.of(
-        Arguments.of(null, null, new NullPointerException("properties must not be null")),
-        Arguments.of(Map.of(), HttpConfig.DEFAULT, null),
-        Arguments.of(PROPERTIES_1, CONFIG_1, null),
-        Arguments.of(PROPERTIES_2, CONFIG_2, null));
+  static Path tempFile;
+
+  @BeforeAll
+  static void createFile() throws IOException {
+    tempFile = Files.createTempFile(tempDir, "trust-store", ".pkcs12");
   }
 
   @ParameterizedTest
   @MethodSource
-  void testMerge(HttpConfig base, Map<String, String> properties, HttpConfig expected) {
-    HttpConfig merged = base.merge(properties);
-    assertThat(merged).isEqualTo(expected);
+  void testValidate(Map<String, String> properties, List<String> expected) {
+    SmallRyeConfig smallRyeConfig =
+        new SmallRyeConfigBuilder()
+            .withMapping(HttpConfig.class, HttpConfig.PREFIX)
+            .withSources(new MapBackedConfigSource("catalog-properties", properties, 1000) {})
+            .build();
+    HttpConfig config = smallRyeConfig.getConfigMapping(HttpConfig.class, HttpConfig.PREFIX);
+    assertThatIllegalArgumentException()
+        .isThrownBy(config::validate)
+        .withMessage(ConfigValidator.buildDescription(expected.stream()));
   }
 
-  static Stream<Arguments> testMerge() {
+  static Stream<Arguments> testValidate() {
     return Stream.of(
-        Arguments.of(HttpConfig.DEFAULT, PROPERTIES_1, CONFIG_1),
-        Arguments.of(HttpConfig.DEFAULT, PROPERTIES_2, CONFIG_2),
-        Arguments.of(CONFIG_1, Map.of(), CONFIG_1),
-        Arguments.of(CONFIG_2, Map.of(), CONFIG_2),
-        Arguments.of(CONFIG_1, PROPERTIES_2, CONFIG_2),
-        Arguments.of(CONFIG_2, PROPERTIES_1, CONFIG_1),
-        Arguments.of(CONFIG_1, PROPERTIES_3, HttpConfig.DEFAULT),
-        Arguments.of(CONFIG_2, PROPERTIES_3, HttpConfig.DEFAULT));
+        Arguments.of(
+            Map.of(HttpConfig.PREFIX + '.' + SSL_TRUSTSTORE_PATH, "/invalid/path"),
+            singletonList(
+                "http: SSL truststore path '/invalid/path' is not a file or is not readable (rest.auth.oauth2.http.ssl.trust-store.path)")));
   }
 
-  private static final HttpConfig CONFIG_1 =
-      HttpConfig.builder()
-          .clientType(HttpClientType.APACHE)
-          .readTimeout(Duration.ofMinutes(1))
-          .connectionTimeout(Duration.ofMinutes(1))
-          .headers(Map.of("custom", "value1"))
-          .compressionEnabled(false)
-          .sslProtocols(List.of("TLSv1.2"))
-          .sslCipherSuites(List.of("TLS_AES_256_GCM_SHA384"))
-          .sslHostnameVerificationEnabled(true)
-          .sslTrustAll(true)
-          .sslTrustStorePath(Path.of("/path/to/truststore"))
-          .sslTrustStorePassword("truststore-password")
-          .proxyHost("proxy.example.com")
-          .proxyPort(8080)
-          .proxyUsername("user")
-          .proxyPassword("pass")
-          .build();
-
-  private static final HttpConfig CONFIG_2 =
-      HttpConfig.builder()
-          .clientType(HttpClientType.DEFAULT)
-          .readTimeout(Duration.ofMinutes(2))
-          .connectionTimeout(Duration.ofMinutes(2))
-          .headers(Map.of("custom", "value2"))
-          .compressionEnabled(true)
-          .sslProtocols(List.of("TLSv1.3"))
-          .sslCipherSuites(List.of("TLS_AES_128_GCM_SHA256"))
-          .sslHostnameVerificationEnabled(false)
-          .sslTrustAll(false)
-          .sslTrustStorePath(Path.of("/path/to/truststore2"))
-          .sslTrustStorePassword("truststore-password2")
-          .proxyHost("proxy2.example.com")
-          .proxyPort(8081)
-          .proxyUsername("user2")
-          .proxyPassword("pass2")
-          .build();
-
-  private static final Map<String, String> PROPERTIES_1 =
-      ImmutableMap.<String, String>builder()
-          .put(Http.CLIENT_TYPE, "apache")
-          .put(Http.READ_TIMEOUT, "PT1M")
-          .put(Http.CONNECT_TIMEOUT, "PT1M")
-          .put(Http.HEADERS_PREFIX + "custom", "value1")
-          .put(Http.COMPRESSION_ENABLED, "false")
-          .put(Http.SSL_PROTOCOLS, "TLSv1.2")
-          .put(Http.SSL_CIPHER_SUITES, "TLS_AES_256_GCM_SHA384")
-          .put(Http.SSL_HOSTNAME_VERIFICATION_ENABLED, "true")
-          .put(Http.SSL_TRUST_ALL, "true")
-          .put(Http.SSL_TRUSTSTORE_PATH, "/path/to/truststore")
-          .put(Http.SSL_TRUSTSTORE_PASSWORD, "truststore-password")
-          .put(Http.PROXY_HOST, "proxy.example.com")
-          .put(Http.PROXY_PORT, "8080")
-          .put(Http.PROXY_USERNAME, "user")
-          .put(Http.PROXY_PASSWORD, "pass")
-          .build();
-
-  private static final Map<String, String> PROPERTIES_2 =
-      ImmutableMap.<String, String>builder()
-          .put(Http.CLIENT_TYPE, "default")
-          .put(Http.READ_TIMEOUT, "PT2M")
-          .put(Http.CONNECT_TIMEOUT, "PT2M")
-          .put(Http.HEADERS_PREFIX + "custom", "value2")
-          .put(Http.COMPRESSION_ENABLED, "true")
-          .put(Http.SSL_PROTOCOLS, "TLSv1.3")
-          .put(Http.SSL_CIPHER_SUITES, "TLS_AES_128_GCM_SHA256")
-          .put(Http.SSL_HOSTNAME_VERIFICATION_ENABLED, "false")
-          .put(Http.SSL_TRUST_ALL, "false")
-          .put(Http.SSL_TRUSTSTORE_PATH, "/path/to/truststore2")
-          .put(Http.SSL_TRUSTSTORE_PASSWORD, "truststore-password2")
-          .put(Http.PROXY_HOST, "proxy2.example.com")
-          .put(Http.PROXY_PORT, "8081")
-          .put(Http.PROXY_USERNAME, "user2")
-          .put(Http.PROXY_PASSWORD, "pass2")
-          .build();
-
-  private static final Map<String, String> PROPERTIES_3 =
-      ImmutableMap.<String, String>builder()
-          .put(Http.CLIENT_TYPE, "")
-          .put(Http.READ_TIMEOUT, "")
-          .put(Http.CONNECT_TIMEOUT, "")
-          .put(Http.HEADERS_PREFIX + "custom", "")
-          .put(Http.COMPRESSION_ENABLED, "")
-          .put(Http.SSL_PROTOCOLS, "")
-          .put(Http.SSL_CIPHER_SUITES, "")
-          .put(Http.SSL_HOSTNAME_VERIFICATION_ENABLED, "")
-          .put(Http.SSL_TRUST_ALL, "")
-          .put(Http.SSL_TRUSTSTORE_PATH, "")
-          .put(Http.SSL_TRUSTSTORE_PASSWORD, "")
-          .put(Http.PROXY_HOST, "")
-          .put(Http.PROXY_PORT, "")
-          .put(Http.PROXY_USERNAME, "")
-          .put(Http.PROXY_PASSWORD, "")
-          .build();
+  @Test
+  void testAsMap() {
+    Map<String, String> properties =
+        ImmutableMap.<String, String>builder()
+            .put(PREFIX + '.' + CLIENT_TYPE, "APACHE")
+            .put(PREFIX + '.' + READ_TIMEOUT, "PT1M")
+            .put(PREFIX + '.' + CONNECT_TIMEOUT, "PT1M")
+            .put(PREFIX + '.' + HEADERS + ".custom", "value1")
+            .put(PREFIX + '.' + COMPRESSION_ENABLED, "true")
+            .put(PREFIX + '.' + SSL_PROTOCOLS, "TLSv1.2")
+            .put(PREFIX + '.' + SSL_CIPHER_SUITES, "TLS_AES_256_GCM_SHA384")
+            .put(PREFIX + '.' + SSL_HOSTNAME_VERIFICATION_ENABLED, "true")
+            .put(PREFIX + '.' + SSL_TRUST_ALL, "true")
+            .put(PREFIX + '.' + SSL_TRUSTSTORE_PATH, tempFile.toString())
+            .put(PREFIX + '.' + SSL_TRUSTSTORE_PASSWORD, "truststore-password")
+            .put(PREFIX + '.' + PROXY_HOST, "proxy.example.com")
+            .put(PREFIX + '.' + PROXY_PORT, "8080")
+            .put(PREFIX + '.' + PROXY_USERNAME, "user")
+            .put(PREFIX + '.' + PROXY_PASSWORD, "pass")
+            .build();
+    SmallRyeConfig smallRyeConfig =
+        new SmallRyeConfigBuilder()
+            .withMapping(HttpConfig.class, PREFIX)
+            .withSources(new MapBackedConfigSource("catalog-properties", properties, 1000) {})
+            .build();
+    HttpConfig config = smallRyeConfig.getConfigMapping(HttpConfig.class, PREFIX);
+    assertThat(config.asMap()).isEqualTo(properties);
+  }
 }

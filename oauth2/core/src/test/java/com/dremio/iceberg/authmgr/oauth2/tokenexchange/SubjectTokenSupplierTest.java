@@ -15,22 +15,20 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.tokenexchange;
 
+import static com.dremio.iceberg.authmgr.oauth2.OAuth2Config.PREFIX;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 import static org.mockito.Mockito.mock;
 
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Config;
-import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties;
+import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2AgentRuntime;
 import com.dremio.iceberg.authmgr.oauth2.config.BasicConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.TokenExchangeConfig;
+import com.google.common.collect.ImmutableMap;
 import com.nimbusds.oauth2.sdk.GrantType;
-import com.nimbusds.oauth2.sdk.auth.Secret;
-import com.nimbusds.oauth2.sdk.id.ClientID;
 import com.nimbusds.oauth2.sdk.token.AccessToken;
 import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
 import com.nimbusds.oauth2.sdk.token.TokenTypeURI;
-import com.nimbusds.oauth2.sdk.token.TypelessAccessToken;
-import java.net.URI;
 import java.util.Map;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ScheduledExecutorService;
@@ -42,12 +40,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 class SubjectTokenSupplierTest {
 
   private static final Map<String, String> CONFIG =
-      Map.of(OAuth2Properties.Basic.GRANT_TYPE, GrantType.CLIENT_CREDENTIALS.getValue());
+      Map.of(BasicConfig.GRANT_TYPE, GrantType.CLIENT_CREDENTIALS.getValue());
 
   @Test
   void testSupplyTokenAsyncStatic() {
-    OAuth2Config spec = createSpec("subject-token", TokenTypeURI.ID_TOKEN, Map.of());
-    try (SubjectTokenSupplier supplier = createSupplier(spec)) {
+    OAuth2Config config = createMainConfig("subject-token", TokenTypeURI.ID_TOKEN, Map.of());
+    try (SubjectTokenSupplier supplier = createSupplier(config)) {
       CompletionStage<AccessToken> stage = supplier.supplyTokenAsync();
       assertThat(stage)
           .isCompletedWithValue(
@@ -57,8 +55,8 @@ class SubjectTokenSupplierTest {
 
   @Test
   void testSupplyTokenAsyncDynamic() {
-    OAuth2Config spec = createSpec(null, TokenTypeURI.ACCESS_TOKEN, CONFIG);
-    try (SubjectTokenSupplier supplier = createSupplier(spec)) {
+    OAuth2Config config = createMainConfig(null, TokenTypeURI.ACCESS_TOKEN, CONFIG);
+    try (SubjectTokenSupplier supplier = createSupplier(config)) {
       CompletionStage<AccessToken> stage = supplier.supplyTokenAsync();
       assertThat(stage).isNotCompleted();
     }
@@ -67,35 +65,41 @@ class SubjectTokenSupplierTest {
   @Test
   @SuppressWarnings("resource")
   void testValidate() {
-    OAuth2Config spec = createSpec(null, TokenTypeURI.ACCESS_TOKEN, Map.of());
+    OAuth2Config config = createMainConfig(null, TokenTypeURI.ACCESS_TOKEN, Map.of());
     assertThatIllegalArgumentException()
-        .isThrownBy(() -> createSupplier(spec))
+        .isThrownBy(() -> createSupplier(config))
         .withMessage("Subject token is dynamic but no configuration is provided");
   }
 
-  private OAuth2Config createSpec(
+  private static OAuth2Config createMainConfig(
       String subjectToken, TokenTypeURI subjectTokenType, Map<String, String> subjectTokenConfig) {
-    TokenExchangeConfig.Builder tokenExchangeBuilder =
-        TokenExchangeConfig.builder()
-            .subjectTokenConfig(subjectTokenConfig)
-            .subjectTokenType(subjectTokenType);
+
+    ImmutableMap.Builder<String, String> builder = ImmutableMap.builder();
+
+    builder.put(PREFIX + '.' + BasicConfig.GRANT_TYPE, GrantType.TOKEN_EXCHANGE.getValue());
+    builder.put(PREFIX + '.' + BasicConfig.TOKEN_ENDPOINT, "https://example.com/token");
+    builder.put(PREFIX + '.' + BasicConfig.CLIENT_ID, "test-client");
+    builder.put(PREFIX + '.' + BasicConfig.CLIENT_SECRET, "test-secret");
+
+    builder.put(
+        TokenExchangeConfig.PREFIX + '.' + TokenExchangeConfig.SUBJECT_TOKEN_TYPE,
+        subjectTokenType.getURI().toString());
+
+    subjectTokenConfig.forEach(
+        (k, v) ->
+            builder.put(
+                TokenExchangeConfig.PREFIX + '.' + TokenExchangeConfig.SUBJECT_TOKEN + '.' + k, v));
+
     if (subjectToken != null) {
-      tokenExchangeBuilder.subjectToken(new TypelessAccessToken(subjectToken));
+      builder.put(
+          TokenExchangeConfig.PREFIX + '.' + TokenExchangeConfig.SUBJECT_TOKEN, subjectToken);
     }
-    return OAuth2Config.builder()
-        .basicConfig(
-            BasicConfig.builder()
-                .grantType(GrantType.TOKEN_EXCHANGE)
-                .tokenEndpoint(URI.create("https://example.com/token"))
-                .clientId(new ClientID("test-client"))
-                .clientSecret(new Secret("test-secret"))
-                .build())
-        .tokenExchangeConfig(tokenExchangeBuilder.build())
-        .build();
+
+    return OAuth2Config.from(builder.build());
   }
 
-  private static SubjectTokenSupplier createSupplier(OAuth2Config spec) {
+  private static SubjectTokenSupplier createSupplier(OAuth2Config config) {
     ScheduledExecutorService executor = mock(ScheduledExecutorService.class);
-    return SubjectTokenSupplier.create(spec, executor);
+    return SubjectTokenSupplier.create(config, OAuth2AgentRuntime.of(executor));
   }
 }

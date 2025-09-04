@@ -15,233 +15,155 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.config;
 
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.AuthorizationCode.CALLBACK_BIND_HOST;
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.AuthorizationCode.CALLBACK_BIND_PORT;
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.AuthorizationCode.CALLBACK_CONTEXT_PATH;
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.AuthorizationCode.ENDPOINT;
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.AuthorizationCode.PKCE_ENABLED;
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.AuthorizationCode.PKCE_METHOD;
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.AuthorizationCode.REDIRECT_URI;
-
-import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties;
-import com.dremio.iceberg.authmgr.oauth2.config.option.ConfigOption;
-import com.dremio.iceberg.authmgr.oauth2.config.option.ConfigOptions;
+import com.dremio.iceberg.authmgr.oauth2.OAuth2Config;
 import com.dremio.iceberg.authmgr.oauth2.config.validator.ConfigValidator;
-import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
-import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import com.nimbusds.oauth2.sdk.GrantType;
 import com.nimbusds.oauth2.sdk.pkce.CodeChallengeMethod;
+import io.smallrye.config.WithDefault;
+import io.smallrye.config.WithName;
 import java.net.URI;
-import java.util.List;
+import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.stream.Collectors;
-import org.immutables.value.Value;
 
-@AuthManagerImmutable
+/**
+ * Configuration properties for the <a
+ * href="https://datatracker.ietf.org/doc/html/rfc6749#section-4.1">Authorization Code Grant</a>
+ * flow.
+ *
+ * <p>This flow is used to obtain an access token by redirecting the user to the OAuth2
+ * authorization server, where they can log in and authorize the client application to access their
+ * resources.
+ */
 public interface AuthorizationCodeConfig {
 
-  List<CodeChallengeMethod> SUPPORTED_CODE_CHALLENGE_METHODS =
-      List.of(CodeChallengeMethod.PLAIN, CodeChallengeMethod.S256);
+  String GROUP_NAME = "auth-code";
+  String PREFIX = OAuth2Config.PREFIX + '.' + GROUP_NAME;
 
-  AuthorizationCodeConfig DEFAULT = builder().build();
+  String ENDPOINT = "endpoint";
+  String REDIRECT_URI = "redirect-uri";
+  String CALLBACK_BIND_HOST = "callback-bind-host";
+  String CALLBACK_BIND_PORT = "callback-bind-port";
+  String CALLBACK_CONTEXT_PATH = "callback-context-path";
+  String PKCE_ENABLED = "pkce.enabled";
+  String PKCE_METHOD = "pkce.method";
 
   /**
-   * The OAuth2 authorization endpoint. Either this or {@link BasicConfig#getIssuerUrl()} must be
-   * set, if the grant type is {@link GrantType#AUTHORIZATION_CODE}.
+   * URL of the OAuth2 authorization endpoint. For Keycloak, this is typically {@code
+   * https://<keycloak-server>/realms/<realm-name>/protocol/openid-connect/auth}.
    *
-   * @see OAuth2Properties.AuthorizationCode#ENDPOINT
+   * <p>If using the "authorization_code" grant type, either this property or {@link
+   * BasicConfig#ISSUER_URL} must be set. In case it is not set, the authorization endpoint will be
+   * discovered from the {@link BasicConfig#ISSUER_URL issuer URL}, using the OpenID Connect
+   * Discovery metadata published by the issuer.
    */
+  @WithName(ENDPOINT)
   Optional<URI> getAuthorizationEndpoint();
 
   /**
    * The redirect URI. This is the value of the {@code redirect_uri} parameter in the authorization
    * code request.
    *
-   * <p>Optional; if not present, the URI will be computed from {@value
-   * OAuth2Properties.AuthorizationCode#CALLBACK_BIND_HOST}, {@value
-   * OAuth2Properties.AuthorizationCode#CALLBACK_BIND_PORT} and {@value
-   * OAuth2Properties.AuthorizationCode#CALLBACK_CONTEXT_PATH}.
+   * <p>Optional; if not present, the URL will be computed from {@value #CALLBACK_BIND_HOST},
+   * {@value #CALLBACK_BIND_PORT} and {@value #CALLBACK_CONTEXT_PATH}.
    *
    * <p>Specifying this value is generally only necessary in containerized environments, if a
    * reverse proxy modifies the callback before it reaches the client, or if external TLS
    * termination is performed.
-   *
-   * @see OAuth2Properties.AuthorizationCode#REDIRECT_URI
    */
+  @WithName(REDIRECT_URI)
   Optional<URI> getRedirectUri();
 
   /**
-   * The address to use for the local web server that listens for the authorization code.
+   * Address of the OAuth2 authorization code flow local web server.
    *
-   * @see OAuth2Properties.AuthorizationCode#CALLBACK_BIND_HOST
+   * <p>The internal web server will listen for the authorization code callback on this address.
+   * This is only used if the grant type to use is {@link GrantType#AUTHORIZATION_CODE}.
+   *
+   * <p>Optional; if not present, the server will listen on the loopback interface.
    */
-  @Value.Default
-  default String getCallbackBindHost() {
-    return ConfigConstants.AUTHORIZATION_CODE_DEFAULT_CALLBACK_BIND_HOST;
-  }
+  @WithName(CALLBACK_BIND_HOST)
+  Optional<String> getCallbackBindHost();
 
   /**
-   * The port to use for the local web server that listens for the authorization code.
+   * Port of the OAuth2 authorization code flow local web server.
    *
-   * <p>If not set or set to zero, a random port from the dynamic client port range will be used.
-   * Only relevant when using the {@link GrantType#AUTHORIZATION_CODE} grant type.
+   * <p>The internal web server will listen for the authorization code callback on this port. This
+   * is only used if the grant type to use is {@link GrantType#AUTHORIZATION_CODE}.
    *
-   * @see OAuth2Properties.AuthorizationCode#CALLBACK_BIND_PORT
+   * <p>Optional; if not present, a random port will be used.
    */
+  @WithName(CALLBACK_BIND_PORT)
   OptionalInt getCallbackBindPort();
 
   /**
-   * The context path to use for the local web server that listens for the authorization code.
+   * Context path of the OAuth2 authorization code flow local web server.
    *
-   * <p>If not set, a default context path will be used.
-   *
-   * @see OAuth2Properties.AuthorizationCode#CALLBACK_CONTEXT_PATH
+   * <p>Optional; if not present, a default context path will be used.
    */
+  @WithName(CALLBACK_CONTEXT_PATH)
   Optional<String> getCallbackContextPath();
 
   /**
-   * Whether to use PKCE (Proof Key for Code Exchange) for the authorization code flow. PKCE is
-   * enabled by default.
+   * Whether to enable PKCE (Proof Key for Code Exchange) for the authorization code flow. The
+   * default is {@code true}.
    *
-   * @see OAuth2Properties.AuthorizationCode#PKCE_ENABLED
    * @see <a href="https://www.rfc-editor.org/rfc/rfc7636">RFC 7636</a>
    */
-  @Value.Default
-  default boolean isPkceEnabled() {
-    return true;
-  }
+  @WithName(PKCE_ENABLED)
+  @WithDefault("true")
+  boolean isPkceEnabled();
 
   /**
-   * The transformation to use for the PKCE code verifier. Defaults to {@link
-   * CodeChallengeMethod#S256}.
+   * The PKCE code challenge method to use. The default is {@code S256}. This is only used if PKCE
+   * is enabled.
    *
-   * @see OAuth2Properties.AuthorizationCode#PKCE_METHOD
+   * @see <a href="https://www.rfc-editor.org/rfc/rfc7636#section-4.2">RFC 7636 Section 4.2</a>
    */
-  @Value.Default
-  default CodeChallengeMethod getCodeChallengeMethod() {
-    return CodeChallengeMethod.S256;
-  }
+  @WithName(PKCE_METHOD)
+  @WithDefault("S256")
+  CodeChallengeMethod getCodeChallengeMethod();
 
-  @Value.Check
   default void validate() {
     ConfigValidator validator = new ConfigValidator();
     if (getAuthorizationEndpoint().isPresent()) {
       validator.checkEndpoint(
           getAuthorizationEndpoint().get(),
-          ENDPOINT,
+          PREFIX + '.' + ENDPOINT,
           "authorization code flow: authorization endpoint");
     }
     if (getCallbackBindPort().isPresent()) {
       validator.check(
           getCallbackBindPort().getAsInt() >= 0 && getCallbackBindPort().getAsInt() <= 65535,
-          CALLBACK_BIND_PORT,
+          PREFIX + '.' + CALLBACK_BIND_PORT,
           "authorization code flow: callback bind port must be between 0 and 65535 (inclusive)");
     }
     if (isPkceEnabled()) {
       validator.check(
-          SUPPORTED_CODE_CHALLENGE_METHODS.contains(getCodeChallengeMethod()),
-          PKCE_METHOD,
+          ConfigUtils.SUPPORTED_CODE_CHALLENGE_METHODS.contains(getCodeChallengeMethod()),
+          PREFIX + '.' + PKCE_METHOD,
           "authorization code flow: code challenge method must be one of: %s",
-          SUPPORTED_CODE_CHALLENGE_METHODS.stream()
+          ConfigUtils.SUPPORTED_CODE_CHALLENGE_METHODS.stream()
               .map(CodeChallengeMethod::getValue)
               .collect(Collectors.joining("', '", "'", "'")));
     }
     validator.validate();
   }
 
-  /**
-   * Merges the given properties into this {@link AuthorizationCodeConfig} and returns the result.
-   */
-  default AuthorizationCodeConfig merge(Map<String, String> properties) {
-    Objects.requireNonNull(properties, "properties must not be null");
-    AuthorizationCodeConfig.Builder builder = builder();
-    builder.endpointOption().set(properties, getAuthorizationEndpoint());
-    builder.redirectUriOption().set(properties, getRedirectUri());
-    builder.callbackBindHostOption().set(properties, getCallbackBindHost());
-    builder
-        .callbackBindPortOption()
-        .set(properties, getCallbackBindPort().stream().boxed().findAny());
-    builder.callbackContextPathOption().set(properties, getCallbackContextPath());
-    builder.pkceEnabledOption().set(properties, isPkceEnabled());
-    builder.codeChallengeMethodOption().set(properties, getCodeChallengeMethod());
-    return builder.build();
-  }
-
-  static Builder builder() {
-    return ImmutableAuthorizationCodeConfig.builder();
-  }
-
-  interface Builder {
-
-    @CanIgnoreReturnValue
-    Builder from(AuthorizationCodeConfig config);
-
-    @CanIgnoreReturnValue
-    default Builder from(Map<String, String> properties) {
-      Objects.requireNonNull(properties, "properties must not be null");
-      endpointOption().set(properties);
-      redirectUriOption().set(properties);
-      callbackBindHostOption().set(properties);
-      callbackBindPortOption().set(properties);
-      callbackContextPathOption().set(properties);
-      pkceEnabledOption().set(properties);
-      codeChallengeMethodOption().set(properties);
-      return this;
-    }
-
-    @CanIgnoreReturnValue
-    Builder authorizationEndpoint(URI authorizationEndpoint);
-
-    @CanIgnoreReturnValue
-    Builder redirectUri(URI redirectUri);
-
-    @CanIgnoreReturnValue
-    Builder callbackBindHost(String callbackBindHost);
-
-    @CanIgnoreReturnValue
-    Builder callbackBindPort(int callbackBindPort);
-
-    @CanIgnoreReturnValue
-    Builder callbackContextPath(String callbackContextPath);
-
-    @CanIgnoreReturnValue
-    Builder pkceEnabled(boolean pkceEnabled);
-
-    @CanIgnoreReturnValue
-    Builder codeChallengeMethod(CodeChallengeMethod codeChallengeMethod);
-
-    AuthorizationCodeConfig build();
-
-    private ConfigOption<URI> endpointOption() {
-      return ConfigOptions.simple(ENDPOINT, this::authorizationEndpoint, URI::create);
-    }
-
-    private ConfigOption<URI> redirectUriOption() {
-      return ConfigOptions.simple(REDIRECT_URI, this::redirectUri, URI::create);
-    }
-
-    private ConfigOption<String> callbackBindHostOption() {
-      return ConfigOptions.simple(CALLBACK_BIND_HOST, this::callbackBindHost);
-    }
-
-    private ConfigOption<Integer> callbackBindPortOption() {
-      return ConfigOptions.simple(CALLBACK_BIND_PORT, this::callbackBindPort, Integer::parseInt);
-    }
-
-    private ConfigOption<String> callbackContextPathOption() {
-      return ConfigOptions.simple(CALLBACK_CONTEXT_PATH, this::callbackContextPath);
-    }
-
-    private ConfigOption<Boolean> pkceEnabledOption() {
-      return ConfigOptions.simple(PKCE_ENABLED, this::pkceEnabled, Boolean::parseBoolean);
-    }
-
-    private ConfigOption<CodeChallengeMethod> codeChallengeMethodOption() {
-      return ConfigOptions.simple(
-          PKCE_METHOD, this::codeChallengeMethod, CodeChallengeMethod::parse);
-    }
+  default Map<String, String> asMap() {
+    Map<String, String> properties = new HashMap<>();
+    getAuthorizationEndpoint()
+        .ifPresent(u -> properties.put(PREFIX + '.' + ENDPOINT, u.toString()));
+    getRedirectUri().ifPresent(u -> properties.put(PREFIX + '.' + REDIRECT_URI, u.toString()));
+    getCallbackBindHost().ifPresent(h -> properties.put(PREFIX + '.' + CALLBACK_BIND_HOST, h));
+    getCallbackBindPort()
+        .ifPresent(p -> properties.put(PREFIX + '.' + CALLBACK_BIND_PORT, String.valueOf(p)));
+    getCallbackContextPath()
+        .ifPresent(p -> properties.put(PREFIX + '.' + CALLBACK_CONTEXT_PATH, p));
+    properties.put(PREFIX + '.' + PKCE_ENABLED, String.valueOf(isPkceEnabled()));
+    properties.put(PREFIX + '.' + PKCE_METHOD, getCodeChallengeMethod().getValue());
+    return Map.copyOf(properties);
   }
 }

@@ -15,19 +15,21 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.config;
 
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.DeviceCode.ENDPOINT;
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.DeviceCode.POLL_INTERVAL;
+import static com.dremio.iceberg.authmgr.oauth2.config.DeviceCodeConfig.ENDPOINT;
+import static com.dremio.iceberg.authmgr.oauth2.config.DeviceCodeConfig.POLL_INTERVAL;
+import static com.dremio.iceberg.authmgr.oauth2.config.DeviceCodeConfig.PREFIX;
 import static java.util.Collections.singletonList;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
-import static org.assertj.core.api.AssertionsForClassTypes.catchThrowable;
 
 import com.dremio.iceberg.authmgr.oauth2.config.validator.ConfigValidator;
-import java.net.URI;
-import java.time.Duration;
+import io.smallrye.config.SmallRyeConfig;
+import io.smallrye.config.SmallRyeConfigBuilder;
+import io.smallrye.config.common.MapBackedConfigSource;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -36,105 +38,56 @@ class DeviceCodeConfigTest {
 
   @ParameterizedTest
   @MethodSource
-  void testValidate(DeviceCodeConfig.Builder config, List<String> expected) {
+  void testValidate(Map<String, String> properties, List<String> expected) {
+    SmallRyeConfig smallRyeConfig =
+        new SmallRyeConfigBuilder()
+            .withMapping(DeviceCodeConfig.class, PREFIX)
+            .withSources(new MapBackedConfigSource("catalog-properties", properties, 1000) {})
+            .build();
+    DeviceCodeConfig config = smallRyeConfig.getConfigMapping(DeviceCodeConfig.class, PREFIX);
     assertThatIllegalArgumentException()
-        .isThrownBy(config::build)
+        .isThrownBy(config::validate)
         .withMessage(ConfigValidator.buildDescription(expected.stream()));
   }
 
   static Stream<Arguments> testValidate() {
     return Stream.of(
         Arguments.of(
-            DeviceCodeConfig.builder().deviceAuthorizationEndpoint(URI.create("/auth")),
+            Map.of(PREFIX + '.' + ENDPOINT, "/auth"),
             singletonList(
                 "device code flow: device authorization endpoint must not be relative (rest.auth.oauth2.device-code.endpoint)")),
         Arguments.of(
-            DeviceCodeConfig.builder()
-                .deviceAuthorizationEndpoint(URI.create("https://example.com?query")),
+            Map.of(PREFIX + '.' + ENDPOINT, "https://example.com?query"),
             singletonList(
                 "device code flow: device authorization endpoint must not have a query part (rest.auth.oauth2.device-code.endpoint)")),
         Arguments.of(
-            DeviceCodeConfig.builder()
-                .deviceAuthorizationEndpoint(URI.create("https://example.com#fragment")),
+            Map.of(PREFIX + '.' + ENDPOINT, "https://example.com#fragment"),
             singletonList(
                 "device code flow: device authorization endpoint must not have a fragment part (rest.auth.oauth2.device-code.endpoint)")),
         Arguments.of(
-            DeviceCodeConfig.builder()
-                .deviceAuthorizationEndpoint(URI.create("https://example.com"))
-                .pollInterval(Duration.ofSeconds(1)),
+            Map.of(
+                PREFIX + '.' + ENDPOINT,
+                "https://example.com",
+                PREFIX + '.' + POLL_INTERVAL,
+                "PT1S"),
             singletonList(
                 "device code flow: poll interval must be greater than or equal to PT5S (rest.auth.oauth2.device-code.poll-interval)")));
   }
 
-  @ParameterizedTest
-  @MethodSource
-  void testFromProperties(
-      Map<String, String> properties, DeviceCodeConfig expected, Throwable expectedThrowable) {
-    if (expectedThrowable == null) {
-      DeviceCodeConfig actual = DeviceCodeConfig.builder().from(properties).build();
-      assertThat(actual).isEqualTo(expected);
-    } else {
-      Throwable actual = catchThrowable(() -> DeviceCodeConfig.builder().from(properties));
-      assertThat(actual)
-          .isInstanceOf(expectedThrowable.getClass())
-          .hasMessage(expectedThrowable.getMessage());
-    }
-  }
-
-  static Stream<Arguments> testFromProperties() {
-    return Stream.of(
-        Arguments.of(null, null, new NullPointerException("properties must not be null")),
-        Arguments.of(
-            Map.of(ENDPOINT, "https://example.com/device", POLL_INTERVAL, "PT8S"),
-            DeviceCodeConfig.builder()
-                .deviceAuthorizationEndpoint(URI.create("https://example.com/device"))
-                .pollInterval(Duration.ofSeconds(8))
-                .build(),
-            null));
-  }
-
-  @ParameterizedTest
-  @MethodSource
-  void testMerge(DeviceCodeConfig base, Map<String, String> properties, DeviceCodeConfig expected) {
-    DeviceCodeConfig merged = base.merge(properties);
-    assertThat(merged).isEqualTo(expected);
-  }
-
-  static Stream<Arguments> testMerge() {
-    return Stream.of(
-        Arguments.of(
-            DeviceCodeConfig.builder().build(),
-            Map.of(ENDPOINT, "https://example.com/device", POLL_INTERVAL, "PT8S"),
-            DeviceCodeConfig.builder()
-                .deviceAuthorizationEndpoint(URI.create("https://example.com/device"))
-                .pollInterval(Duration.ofSeconds(8))
-                .build()),
-        Arguments.of(
-            DeviceCodeConfig.builder()
-                .deviceAuthorizationEndpoint(URI.create("https://example.com/device"))
-                .pollInterval(Duration.ofSeconds(8))
-                .build(),
-            Map.of(),
-            DeviceCodeConfig.builder()
-                .deviceAuthorizationEndpoint(URI.create("https://example.com/device"))
-                .pollInterval(Duration.ofSeconds(8))
-                .build()),
-        Arguments.of(
-            DeviceCodeConfig.builder()
-                .deviceAuthorizationEndpoint(URI.create("https://example.com/device"))
-                .pollInterval(Duration.ofSeconds(8))
-                .build(),
-            Map.of(ENDPOINT, "https://example2.com/device", POLL_INTERVAL, "PT9S"),
-            DeviceCodeConfig.builder()
-                .deviceAuthorizationEndpoint(URI.create("https://example2.com/device"))
-                .pollInterval(Duration.ofSeconds(9))
-                .build()),
-        Arguments.of(
-            DeviceCodeConfig.builder()
-                .deviceAuthorizationEndpoint(URI.create("https://example.com/device"))
-                .pollInterval(Duration.ofSeconds(8))
-                .build(),
-            Map.of(ENDPOINT, "", POLL_INTERVAL, ""),
-            DeviceCodeConfig.builder().build()));
+  @Test
+  void testAsMap() {
+    Map<String, String> properties =
+        Map.of(
+            PREFIX + '.' + ENDPOINT, "https://example.com/device",
+            PREFIX + '.' + POLL_INTERVAL, "PT1M",
+            PREFIX + '.' + "min-poll-interval", "PT1M",
+            PREFIX + '.' + "ignore-server-poll-interval", "true");
+    SmallRyeConfig smallRyeConfig =
+        new SmallRyeConfigBuilder()
+            .withMapping(DeviceCodeConfig.class, PREFIX)
+            .withSources(new MapBackedConfigSource("catalog-properties", properties, 1000) {})
+            .build();
+    DeviceCodeConfig config = smallRyeConfig.getConfigMapping(DeviceCodeConfig.class, PREFIX);
+    assertThat(config.asMap()).isEqualTo(properties);
   }
 }

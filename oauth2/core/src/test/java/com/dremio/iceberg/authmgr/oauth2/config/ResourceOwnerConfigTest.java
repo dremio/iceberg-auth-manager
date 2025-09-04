@@ -15,72 +15,29 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.config;
 
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.ResourceOwner.PASSWORD;
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.ResourceOwner.USERNAME;
+import static com.dremio.iceberg.authmgr.oauth2.config.ResourceOwnerConfig.PREFIX;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.AssertionsForClassTypes.catchThrowable;
 
-import com.nimbusds.oauth2.sdk.auth.Secret;
+import io.smallrye.config.SmallRyeConfig;
+import io.smallrye.config.SmallRyeConfigBuilder;
+import io.smallrye.config.common.MapBackedConfigSource;
 import java.util.Map;
-import java.util.stream.Stream;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.api.Test;
 
 class ResourceOwnerConfigTest {
 
-  @ParameterizedTest
-  @MethodSource
-  void testFromProperties(
-      Map<String, String> properties, ResourceOwnerConfig expected, Throwable expectedThrowable) {
-    if (expectedThrowable == null) {
-      ResourceOwnerConfig actual = ResourceOwnerConfig.builder().from(properties).build();
-      assertThat(actual)
-          .usingRecursiveComparison()
-          .ignoringFields("clientSecretProvider")
-          .isEqualTo(expected);
-    } else {
-      Throwable actual = catchThrowable(() -> ResourceOwnerConfig.builder().from(properties));
-      assertThat(actual)
-          .isInstanceOf(expectedThrowable.getClass())
-          .hasMessage(expectedThrowable.getMessage());
-    }
-  }
-
-  static Stream<Arguments> testFromProperties() {
-    return Stream.of(
-        Arguments.of(null, null, new NullPointerException("properties must not be null")),
-        Arguments.of(
-            Map.of(USERNAME, "Alice", PASSWORD, "s3cr3t"),
-            ResourceOwnerConfig.builder().username("Alice").password(new Secret("s3cr3t")).build(),
-            null));
-  }
-
-  @ParameterizedTest
-  @MethodSource
-  void testMerge(
-      ResourceOwnerConfig base, Map<String, String> properties, ResourceOwnerConfig expected) {
-    ResourceOwnerConfig merged = base.merge(properties);
-    assertThat(merged).isEqualTo(expected);
-  }
-
-  static Stream<Arguments> testMerge() {
-    return Stream.of(
-        Arguments.of(
-            ResourceOwnerConfig.builder().build(),
-            Map.of(USERNAME, "Alice", PASSWORD, "s3cr3t"),
-            ResourceOwnerConfig.builder().username("Alice").password(new Secret("s3cr3t")).build()),
-        Arguments.of(
-            ResourceOwnerConfig.builder().username("Alice").password(new Secret("s3cr3t")).build(),
-            Map.of(),
-            ResourceOwnerConfig.builder().username("Alice").password(new Secret("s3cr3t")).build()),
-        Arguments.of(
-            ResourceOwnerConfig.builder().username("Alice").password(new Secret("s3cr3t")).build(),
-            Map.of(USERNAME, "Bob", PASSWORD, "w00t"),
-            ResourceOwnerConfig.builder().username("Bob").password(new Secret("w00t")).build()),
-        Arguments.of(
-            ResourceOwnerConfig.builder().username("Alice").password(new Secret("s3cr3t")).build(),
-            Map.of(USERNAME, "", PASSWORD, ""),
-            ResourceOwnerConfig.builder().build()));
+  @Test
+  void testAsMap() {
+    Map<String, String> properties =
+        Map.of(
+            PREFIX + '.' + ResourceOwnerConfig.USERNAME, "username",
+            PREFIX + '.' + ResourceOwnerConfig.PASSWORD, "password");
+    SmallRyeConfig smallRyeConfig =
+        new SmallRyeConfigBuilder()
+            .withMapping(ResourceOwnerConfig.class, PREFIX)
+            .withSources(new MapBackedConfigSource("catalog-properties", properties, 1000) {})
+            .build();
+    ResourceOwnerConfig config = smallRyeConfig.getConfigMapping(ResourceOwnerConfig.class, PREFIX);
+    assertThat(config.asMap()).isEqualTo(properties);
   }
 }

@@ -17,12 +17,14 @@ package com.dremio.iceberg.authmgr.oauth2.test.flink;
 
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Config;
 import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2Agent;
+import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2AgentRuntime;
 import com.dremio.iceberg.authmgr.oauth2.config.TokenRefreshConfig;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Executors;
@@ -95,13 +97,10 @@ public final class RemoteAuthServerSupport {
   public String fetchNewToken() {
     var executor = Executors.newSingleThreadScheduledExecutor();
     try {
+      Map<String, String> agentConfig = new HashMap<>(getAgentConfig());
+      agentConfig.put(TokenRefreshConfig.PREFIX + '.' + TokenRefreshConfig.ENABLED, "false");
       try (var agent =
-          new OAuth2Agent(
-              OAuth2Config.builder()
-                  .from(getAgentConfig())
-                  .tokenRefreshConfig(TokenRefreshConfig.builder().enabled(false).build())
-                  .build(),
-              executor)) {
+          new OAuth2Agent(OAuth2Config.from(agentConfig), OAuth2AgentRuntime.of(executor))) {
         return agent.authenticate().getValue();
       }
     } finally {

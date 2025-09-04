@@ -21,6 +21,7 @@ import static com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod.CLIENT_SEC
 import static com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod.PRIVATE_KEY_JWT;
 
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Config;
+import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2AgentRuntime;
 import com.dremio.iceberg.authmgr.oauth2.endpoint.EndpointProvider;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import com.nimbusds.jose.JOSEException;
@@ -58,7 +59,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.ScheduledExecutorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -84,7 +84,7 @@ abstract class AbstractFlow implements Flow {
     B config(OAuth2Config config);
 
     @CanIgnoreReturnValue
-    B executor(ScheduledExecutorService executor);
+    B runtime(OAuth2AgentRuntime runtime);
 
     @CanIgnoreReturnValue
     B requestSender(HTTPRequestSender requestSender);
@@ -97,7 +97,7 @@ abstract class AbstractFlow implements Flow {
 
   abstract OAuth2Config getConfig();
 
-  abstract ScheduledExecutorService getExecutor();
+  abstract OAuth2AgentRuntime getRuntime();
 
   abstract HTTPRequestSender getRequestSender();
 
@@ -106,7 +106,7 @@ abstract class AbstractFlow implements Flow {
   CompletionStage<TokensResult> invokeTokenEndpoint(AuthorizationGrant grant) {
     TokenRequest.Builder builder = newTokenRequestBuilder(grant);
     HTTPRequest request = builder.build().toHTTPRequest();
-    return CompletableFuture.supplyAsync(() -> sendAndReceive(request), getExecutor())
+    return CompletableFuture.supplyAsync(() -> sendAndReceive(request), getRuntime().getExecutor())
         .whenComplete((response, error) -> log(request, response, error))
         .thenApply(this::parseTokenResponse)
         .thenApply(this::toTokensResult);
@@ -116,7 +116,7 @@ abstract class AbstractFlow implements Flow {
     URI tokenEndpoint = getEndpointProvider().getResolvedTokenEndpoint();
     ClientID clientID = getConfig().getBasicConfig().getClientId().orElseThrow();
     TokenRequest.Builder builder =
-        getConfig().getBasicConfig().isPublicClient()
+        isPublicClient()
             ? new TokenRequest.Builder(tokenEndpoint, clientID, grant)
             : new TokenRequest.Builder(tokenEndpoint, createClientAuthentication(), grant);
     getConfig().getBasicConfig().getScope().ifPresent(builder::scope);
@@ -150,7 +150,7 @@ abstract class AbstractFlow implements Flow {
   }
 
   TokensResult toTokensResult(AccessTokenResponse response) {
-    Instant now = getConfig().getSystemConfig().getClock().instant();
+    Instant now = getRuntime().getClock().instant();
     return TokensResult.of(response, now);
   }
 
@@ -165,6 +165,13 @@ abstract class AbstractFlow implements Flow {
     } else {
       LOGGER.warn("[{}] Error invoking endpoint: {}", agentName, request.getURI(), error);
     }
+  }
+
+  boolean isPublicClient() {
+    return getConfig()
+        .getBasicConfig()
+        .getClientAuthenticationMethod()
+        .equals(ClientAuthenticationMethod.NONE);
   }
 
   ClientAuthentication createClientAuthentication() {
@@ -226,7 +233,7 @@ abstract class AbstractFlow implements Flow {
         getConfig().getClientAssertionConfig().getAudience().isPresent()
             ? getConfig().getClientAssertionConfig().getAudience().get()
             : new Audience(tokenEndpoint);
-    Instant issuedAt = getConfig().getSystemConfig().getClock().instant();
+    Instant issuedAt = getRuntime().getClock().instant();
     Instant expiration = issuedAt.plus(getConfig().getClientAssertionConfig().getTokenLifespan());
     @SuppressWarnings({"rawtypes", "unchecked"})
     Map<String, Object> extraClaims = (Map) getConfig().getClientAssertionConfig().getExtraClaims();

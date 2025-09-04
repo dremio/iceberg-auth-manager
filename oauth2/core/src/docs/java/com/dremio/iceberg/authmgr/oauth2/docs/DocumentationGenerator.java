@@ -18,14 +18,18 @@ package com.dremio.iceberg.authmgr.oauth2.docs;
 import com.thoughtworks.qdox.JavaProjectBuilder;
 import com.thoughtworks.qdox.model.JavaClass;
 import com.thoughtworks.qdox.model.JavaField;
+import com.thoughtworks.qdox.model.JavaMethod;
+import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -71,110 +75,99 @@ public class DocumentationGenerator {
     KNOWN_REFS = Map.copyOf(refs);
   }
 
-  private final File inputFile;
-  private final String className;
-  private final String header;
-  private final File outputFile;
+  private static final String ROOT_CLASS_NAME = "com.dremio.iceberg.authmgr.oauth2.OAuth2Config";
 
+  private final Path rootConfigFile;
+  private final String header;
+  private final Path outputFile;
+
+  private JavaProjectBuilder builder;
   private String rootPrefix;
-  private JavaClass topClass;
+  private Map<String, Section> sections;
 
   public static void main(String[] args) throws IOException {
     String sourceFile = args[0];
-    String className = args[1];
-    String header = args[2];
-    String outputFile = args[3];
-    new DocumentationGenerator(new File(sourceFile), className, header, new File(outputFile))
-        .generate();
+    String header = args[1];
+    String outputFile = args[2];
+    DocumentationGenerator generator =
+        new DocumentationGenerator(Path.of(sourceFile), header, Path.of(outputFile));
+    generator.run();
   }
 
-  public DocumentationGenerator(File inputFile, String className, String header, File outputFile) {
-    this.inputFile = inputFile;
-    this.className = className;
+  public DocumentationGenerator(Path rootConfigFile, String header, Path outputFile) {
+    this.rootConfigFile = rootConfigFile;
     this.header = header;
     this.outputFile = outputFile;
   }
 
-  public void generate() throws IOException {
+  public void run() throws IOException {
+    parse();
+    generate();
+  }
 
-    List<Section> sections = parseProperties();
+  private void parse() throws IOException {
 
-    try (FileWriter writer = new FileWriter(outputFile, StandardCharsets.UTF_8)) {
+    builder = new JavaProjectBuilder();
+    builder.addSource(rootConfigFile.toFile());
+
+    File[] files =
+        rootConfigFile
+            .resolveSibling("config")
+            .toFile()
+            .listFiles(file -> file.getName().endsWith("Config.java"));
+    for (File file : Objects.requireNonNull(files)) {
+      builder.addSource(file);
+    }
+
+    JavaClass topClass = builder.getClassByName(ROOT_CLASS_NAME);
+    rootPrefix =
+        topClass.getFieldByName("PREFIX").getInitializationExpression().replace("\"", "") + '.';
+
+    sections = new LinkedHashMap<>();
+
+    for (JavaMethod method : topClass.getMethods()) {
+
+      if (method.getAnnotations().stream()
+          .map(a -> a.getType().getSimpleName())
+          .noneMatch(
+              n ->
+                  n.equals("io.smallrye.config.WithName")
+                      || n.equals("io.smallrye.config.WithParentName"))) {
+        continue;
+      }
+
+      JavaClass sectionConfigClass = (JavaClass) method.getReturnType();
+
+      sections.put(sectionConfigClass.getFullyQualifiedName(), new Section(sectionConfigClass));
+    }
+
+    for (Section section : sections.values()) {
+      section.parseProperties();
+    }
+  }
+
+  private void generate() throws IOException {
+
+    try (BufferedWriter writer = Files.newBufferedWriter(outputFile, StandardCharsets.UTF_8)) {
       writer.write(header);
 
-      for (Section section : sections) {
+      for (Section section : sections.values()) {
 
         writer.write("## " + section.name + "\n\n");
         if (section.description != null && !section.description.isEmpty()) {
           writer.write(section.description);
         }
 
-        for (Map.Entry<String, String> propertyEntry : section.properties.entrySet()) {
-          String propertyName = propertyEntry.getKey();
-          String propertyDescription = propertyEntry.getValue();
-          writer.write("### `" + propertyName + "`\n\n");
-          writer.write(propertyDescription);
+        for (Property property : section.properties) {
+          writer.write("### `" + property.name + "`\n\n");
+          writer.write(property.description);
         }
       }
     }
   }
 
-  private List<Section> parseProperties() throws IOException {
-
-    JavaProjectBuilder builder = new JavaProjectBuilder();
-    builder.addSource(inputFile);
-    topClass = builder.getClassByName(className);
-    rootPrefix = topClass.getFieldByName("PREFIX").getInitializationExpression().replace("\"", "");
-
-    List<Section> sections = new ArrayList<>();
-
-    for (JavaClass nestedClass : topClass.getNestedClasses()) {
-
-      String prefix = resolvePrefix(nestedClass);
-      Section section = new Section();
-      section.name = sanitizeSectionName(nestedClass.getSimpleName());
-      section.description = sanitizePropertyDescription(nestedClass, nestedClass.getComment());
-      sections.add(section);
-
-      for (JavaField field : nestedClass.getFields()) {
-        if (field.getName().equals("PREFIX") || field.getName().startsWith("DEFAULT_")) {
-          continue;
-        }
-        String propertyName = resolvePropertyName(field, prefix);
-        String propertyDescription = sanitizePropertyDescription(nestedClass, field.getComment());
-        section.properties.put(propertyName, propertyDescription);
-      }
-    }
-    return sections;
-  }
-
-  private String sanitizeSectionName(String className) {
-    return className.replaceAll("([A-Z])", " $1").trim() + " Settings";
-  }
-
-  private String resolvePrefix(JavaClass classRef) {
-    if (classRef == topClass) {
-      return "";
-    }
-    JavaField prefixField = classRef.getFieldByName("PREFIX");
-    if (prefixField == null) {
-      // Basic config: shares the root prefix
-      return rootPrefix;
-    } else {
-      return rootPrefix
-          + prefixField
-              .getInitializationExpression()
-              .replace("OAuth2Properties.PREFIX + ", "")
-              .replace("\"", "");
-    }
-  }
-
-  private String resolvePropertyName(JavaField field, String prefix) {
-    return prefix
-        + field.getInitializationExpression().replaceAll(".*PREFIX \\+ ", "").replace("\"", "");
-  }
-
-  private String sanitizePropertyDescription(JavaClass nestedClass, String text) {
+  @SuppressWarnings("UnnecessaryUnicodeEscape")
+  private String sanitizeDescription(Section section, String text) {
 
     Matcher matcher = EXTERNAL_LINK_PATTERN.matcher(text);
     StringBuilder sb = new StringBuilder();
@@ -200,7 +193,7 @@ public class DocumentationGenerator {
     while (matcher.find()) {
       String fieldRef = matcher.group(1);
       String refText = matcher.group(2);
-      String resolvedReference = resolveReference(fieldRef, nestedClass, refText);
+      String resolvedReference = resolveReference(section, fieldRef, refText);
       matcher.appendReplacement(sb, resolvedReference);
     }
     matcher.appendTail(sb);
@@ -221,29 +214,23 @@ public class DocumentationGenerator {
     return text;
   }
 
-  private String resolveReference(String linkRef, JavaClass nestedClass, String text) {
-    String refTarget = KNOWN_REFS.get(linkRef);
+  private String resolveReference(Section section, String ref, String text) {
+    String refTarget = KNOWN_REFS.get(ref);
     if (refTarget == null) {
-      String className;
-      String fieldName;
-      if (linkRef.startsWith("#")) {
-        className = nestedClass.getSimpleName();
-        fieldName = linkRef.substring(1);
-      } else {
-        String[] parts = linkRef.split("#");
-        className = parts[0];
-        fieldName = parts[1];
-      }
-      JavaClass classRef =
-          className.equals("OAuth2Properties")
-              ? topClass
-              : topClass.getNestedClassByName(className);
-      JavaField field = classRef.getFieldByName(fieldName);
-      if (fieldName.startsWith("DEFAULT_")) {
-        refTarget = field.getInitializationExpression().replace("\"", "");
-      } else {
-        String prefix = resolvePrefix(classRef);
-        refTarget = resolvePropertyName(field, prefix);
+      if (ref.equals("OAuth2Config#PREFIX")) {
+        refTarget = rootPrefix;
+      } else if (ref.startsWith("#")) {
+        // local ref
+        String fieldName = ref.substring(1);
+        refTarget = section.refs.get(fieldName);
+      } else if (section != null) {
+        // external ref
+        String[] parts = ref.split("#");
+        String className = section.configClass.getPackageName() + "." + parts[0];
+        String fieldName = parts[1];
+        JavaClass classRef = builder.getClassByName(className);
+        Section refSection = sections.get(classRef.getFullyQualifiedName());
+        refTarget = refSection.refs.get(fieldName);
       }
     }
     if (text == null) {
@@ -255,7 +242,8 @@ public class DocumentationGenerator {
         : text + " (`" + refTarget + "`)";
   }
 
-  private String cleanupHtmlTags(String text) {
+  @SuppressWarnings("UnnecessaryUnicodeEscape")
+  private static String cleanupHtmlTags(String text) {
     // Convert HTML lists
     text = text.replaceAll("<ul> *", "");
     text = text.replaceAll(" *</ul>", "");
@@ -278,10 +266,80 @@ public class DocumentationGenerator {
     return text;
   }
 
-  @SuppressWarnings("VisibilityModifier")
-  private static class Section {
-    String name;
-    String description;
-    Map<String, String> properties = new LinkedHashMap<>();
+  private class Section {
+
+    private final JavaClass configClass;
+    private final String prefix;
+    private final String name;
+    private final String description;
+    private final Map<String, String> refs = new LinkedHashMap<>();
+    private final List<Property> properties = new ArrayList<>();
+
+    private Section(JavaClass configClass) {
+      this.configClass = configClass;
+      this.name = sanitizeSectionName(configClass.getSimpleName());
+      this.prefix = resolvePrefix();
+      parseLocalReferences();
+      this.description = sanitizeDescription(this, configClass.getComment());
+    }
+
+    private String sanitizeSectionName(String className) {
+      return className.replace("Config", "").replaceAll("([A-Z])", " $1").trim() + " Settings";
+    }
+
+    private String resolvePrefix() {
+      JavaField groupNameField = configClass.getFieldByName("GROUP_NAME");
+      if (groupNameField == null) {
+        // Basic config: shares the root prefix
+        return rootPrefix;
+      } else {
+        return rootPrefix + groupNameField.getInitializationExpression().replace("\"", "") + '.';
+      }
+    }
+
+    private void parseLocalReferences() {
+      for (JavaField field : configClass.getFields()) {
+        String refName = field.getName();
+        String refText = field.getInitializationExpression().replace("\"", "");
+        if (refName.equals("PREFIX")) {
+          refs.put("PREFIX", prefix);
+        } else if (refName.equals("GROUP_NAME") || refName.startsWith("DEFAULT_")) {
+          refs.put(refName, refText);
+        } else {
+          refs.put(refName, prefix + refText);
+        }
+      }
+    }
+
+    private void parseProperties() {
+      for (JavaMethod method : configClass.getMethods()) {
+        if (method.getComment() == null || !method.getTagsByName("hidden").isEmpty()) {
+          continue;
+        }
+        method.getAnnotations().stream()
+            .filter(a -> a.getType().getSimpleName().equals("io.smallrye.config.WithName"))
+            .map(a -> a.getNamedParameter("value").toString())
+            .findFirst()
+            .ifPresent(
+                name -> {
+                  String propertyName = refs.get(name);
+                  String description = sanitizeDescription(this, method.getComment());
+                  properties.add(new Property(propertyName, description));
+                });
+      }
+    }
+  }
+
+  private static class Property {
+
+    private final String name;
+    private final String description;
+    private final boolean prefix;
+
+    private Property(String name, String description) {
+      prefix = description.contains("This is a prefix property");
+      this.name = name + (prefix ? ".*" : "");
+      this.description = description;
+    }
   }
 }

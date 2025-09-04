@@ -15,21 +15,24 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.config;
 
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.TokenRefresh.ACCESS_TOKEN_LIFESPAN;
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.TokenRefresh.ENABLED;
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.TokenRefresh.IDLE_TIMEOUT;
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.TokenRefresh.SAFETY_WINDOW;
+import static com.dremio.iceberg.authmgr.oauth2.config.TokenRefreshConfig.ACCESS_TOKEN_LIFESPAN;
+import static com.dremio.iceberg.authmgr.oauth2.config.TokenRefreshConfig.ENABLED;
+import static com.dremio.iceberg.authmgr.oauth2.config.TokenRefreshConfig.IDLE_TIMEOUT;
+import static com.dremio.iceberg.authmgr.oauth2.config.TokenRefreshConfig.PREFIX;
+import static com.dremio.iceberg.authmgr.oauth2.config.TokenRefreshConfig.SAFETY_WINDOW;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
-import static org.assertj.core.api.AssertionsForClassTypes.catchThrowable;
 
 import com.dremio.iceberg.authmgr.oauth2.config.validator.ConfigValidator;
-import java.time.Duration;
+import io.smallrye.config.SmallRyeConfig;
+import io.smallrye.config.SmallRyeConfigBuilder;
+import io.smallrye.config.common.MapBackedConfigSource;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -38,143 +41,60 @@ class TokenRefreshConfigTest {
 
   @ParameterizedTest
   @MethodSource
-  void testValidate(TokenRefreshConfig.Builder config, List<String> expected) {
+  void testValidate(Map<String, String> properties, List<String> expected) {
+    SmallRyeConfig smallRyeConfig =
+        new SmallRyeConfigBuilder()
+            .withMapping(TokenRefreshConfig.class, PREFIX)
+            .withSources(new MapBackedConfigSource("catalog-properties", properties, 1000) {})
+            .build();
+    TokenRefreshConfig config = smallRyeConfig.getConfigMapping(TokenRefreshConfig.class, PREFIX);
     assertThatIllegalArgumentException()
-        .isThrownBy(config::build)
+        .isThrownBy(config::validate)
         .withMessage(ConfigValidator.buildDescription(expected.stream()));
   }
 
   static Stream<Arguments> testValidate() {
     return Stream.of(
         Arguments.of(
-            TokenRefreshConfig.builder().accessTokenLifespan(Duration.ofSeconds(2)),
+            Map.of(PREFIX + '.' + ACCESS_TOKEN_LIFESPAN, "PT2S"),
             asList(
                 "access token lifespan must be greater than or equal to PT30S (rest.auth.oauth2.token-refresh.access-token-lifespan)",
                 "refresh safety window must be less than the access token lifespan (rest.auth.oauth2.token-refresh.safety-window / rest.auth.oauth2.token-refresh.access-token-lifespan)")),
         Arguments.of(
-            TokenRefreshConfig.builder().safetyWindow(Duration.ofMillis(100)),
+            Map.of(PREFIX + '.' + SAFETY_WINDOW, "PT0.1S"),
             singletonList(
                 "refresh safety window must be greater than or equal to PT5S (rest.auth.oauth2.token-refresh.safety-window)")),
         Arguments.of(
-            TokenRefreshConfig.builder()
-                .safetyWindow(Duration.ofMinutes(10))
-                .accessTokenLifespan(Duration.ofMinutes(5)),
+            Map.of(
+                PREFIX + '.' + SAFETY_WINDOW,
+                "PT10M",
+                PREFIX + '.' + ACCESS_TOKEN_LIFESPAN,
+                "PT5M"),
             singletonList(
                 "refresh safety window must be less than the access token lifespan (rest.auth.oauth2.token-refresh.safety-window / rest.auth.oauth2.token-refresh.access-token-lifespan)")),
         Arguments.of(
-            TokenRefreshConfig.builder().idleTimeout(Duration.ofMillis(100)),
+            Map.of(PREFIX + '.' + IDLE_TIMEOUT, "PT0.1S"),
             singletonList(
                 "token refresh idle timeout must be greater than or equal to PT30S (rest.auth.oauth2.token-refresh.idle-timeout)")));
   }
 
-  @ParameterizedTest
-  @MethodSource
-  void testFromProperties(
-      Map<String, String> properties, TokenRefreshConfig expected, Throwable expectedThrowable) {
-    if (properties != null && expected != null) {
-      TokenRefreshConfig actual = TokenRefreshConfig.builder().from(properties).build();
-      assertThat(actual).isEqualTo(expected);
-    } else {
-      Throwable actual = catchThrowable(() -> TokenRefreshConfig.builder().from(properties));
-      assertThat(actual)
-          .isInstanceOf(expectedThrowable.getClass())
-          .hasMessage(expectedThrowable.getMessage());
-    }
-  }
-
-  static Stream<Arguments> testFromProperties() {
-    return Stream.of(
-        Arguments.of(null, null, new NullPointerException("properties must not be null")),
-        Arguments.of(
-            Map.of(
-                ENABLED,
-                "false",
-                ACCESS_TOKEN_LIFESPAN,
-                "PT1H",
-                SAFETY_WINDOW,
-                "PT10S",
-                IDLE_TIMEOUT,
-                "PT1M"),
-            TokenRefreshConfig.builder()
-                .enabled(false)
-                .accessTokenLifespan(Duration.ofHours(1))
-                .safetyWindow(Duration.ofSeconds(10))
-                .idleTimeout(Duration.ofMinutes(1))
-                .build(),
-            null));
-  }
-
-  @ParameterizedTest
-  @MethodSource
-  void testMerge(
-      TokenRefreshConfig base, Map<String, String> properties, TokenRefreshConfig expected) {
-    TokenRefreshConfig merged = base.merge(properties);
-    assertThat(merged).isEqualTo(expected);
-  }
-
-  static Stream<Arguments> testMerge() {
-    return Stream.of(
-        Arguments.of(
-            TokenRefreshConfig.builder().build(),
-            Map.of(
-                ENABLED,
-                "false",
-                ACCESS_TOKEN_LIFESPAN,
-                "PT1H",
-                SAFETY_WINDOW,
-                "PT10S",
-                IDLE_TIMEOUT,
-                "PT1M"),
-            TokenRefreshConfig.builder()
-                .enabled(false)
-                .accessTokenLifespan(Duration.ofHours(1))
-                .safetyWindow(Duration.ofSeconds(10))
-                .idleTimeout(Duration.ofMinutes(1))
-                .build()),
-        Arguments.of(
-            TokenRefreshConfig.builder()
-                .enabled(false)
-                .accessTokenLifespan(Duration.ofHours(1))
-                .safetyWindow(Duration.ofSeconds(10))
-                .idleTimeout(Duration.ofMinutes(1))
-                .build(),
-            Map.of(),
-            TokenRefreshConfig.builder()
-                .enabled(false)
-                .accessTokenLifespan(Duration.ofHours(1))
-                .safetyWindow(Duration.ofSeconds(10))
-                .idleTimeout(Duration.ofMinutes(1))
-                .build()),
-        Arguments.of(
-            TokenRefreshConfig.builder()
-                .enabled(false)
-                .accessTokenLifespan(Duration.ofHours(1))
-                .safetyWindow(Duration.ofSeconds(10))
-                .idleTimeout(Duration.ofMinutes(1))
-                .build(),
-            Map.of(
-                ENABLED,
-                "true",
-                ACCESS_TOKEN_LIFESPAN,
-                "PT2H",
-                SAFETY_WINDOW,
-                "PT20S",
-                IDLE_TIMEOUT,
-                "PT2M"),
-            TokenRefreshConfig.builder()
-                .enabled(true)
-                .accessTokenLifespan(Duration.ofHours(2))
-                .safetyWindow(Duration.ofSeconds(20))
-                .idleTimeout(Duration.ofMinutes(2))
-                .build()),
-        Arguments.of(
-            TokenRefreshConfig.builder()
-                .enabled(false)
-                .accessTokenLifespan(Duration.ofHours(1))
-                .safetyWindow(Duration.ofSeconds(10))
-                .idleTimeout(Duration.ofMinutes(1))
-                .build(),
-            Map.of(ENABLED, "", ACCESS_TOKEN_LIFESPAN, "", SAFETY_WINDOW, "", IDLE_TIMEOUT, ""),
-            TokenRefreshConfig.builder().build()));
+  @Test
+  void testAsMap() {
+    Map<String, String> properties =
+        Map.of(
+            PREFIX + '.' + ENABLED, "true",
+            PREFIX + '.' + ACCESS_TOKEN_LIFESPAN, "PT1M",
+            PREFIX + '.' + SAFETY_WINDOW, "PT10S",
+            PREFIX + '.' + IDLE_TIMEOUT, "PT1M",
+            PREFIX + '.' + "min-access-token-lifespan", "PT10S",
+            PREFIX + '.' + "min-refresh-delay", "PT10S",
+            PREFIX + '.' + "min-idle-timeout", "PT10S");
+    SmallRyeConfig smallRyeConfig =
+        new SmallRyeConfigBuilder()
+            .withMapping(TokenRefreshConfig.class, PREFIX)
+            .withSources(new MapBackedConfigSource("catalog-properties", properties, 1000) {})
+            .build();
+    TokenRefreshConfig config = smallRyeConfig.getConfigMapping(TokenRefreshConfig.class, PREFIX);
+    assertThat(config.asMap()).isEqualTo(properties);
   }
 }

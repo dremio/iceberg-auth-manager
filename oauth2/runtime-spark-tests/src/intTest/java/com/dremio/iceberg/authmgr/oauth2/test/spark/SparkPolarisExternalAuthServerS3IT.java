@@ -17,7 +17,7 @@ package com.dremio.iceberg.authmgr.oauth2.test.spark;
 
 import static com.dremio.iceberg.authmgr.oauth2.test.spark.RemoteAuthServerSupport.OAUTH2_AGENT_CONFIG_ENV;
 
-import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties;
+import com.dremio.iceberg.authmgr.oauth2.config.BasicConfig;
 import com.dremio.iceberg.authmgr.oauth2.test.container.PolarisContainer;
 import com.google.common.collect.ImmutableMap;
 import java.nio.file.Path;
@@ -41,8 +41,8 @@ public class SparkPolarisExternalAuthServerS3IT extends SparkPolarisS3ITBase {
     Map<String, String> agentConfig = RemoteAuthServerSupport.INSTANCE.getAgentConfig();
     return CompletableFuture.completedFuture(
         new PolarisContainer(
-                agentConfig.get(OAuth2Properties.Basic.CLIENT_ID),
-                agentConfig.get(OAuth2Properties.Basic.CLIENT_SECRET))
+                agentConfig.get(BasicConfig.PREFIX + '.' + BasicConfig.CLIENT_ID),
+                agentConfig.get(BasicConfig.PREFIX + '.' + BasicConfig.CLIENT_SECRET))
             .withEnv("AWS_REGION", "us-west-2")
             .withEnv("polaris.features.\"SKIP_CREDENTIAL_SUBSCOPING_INDIRECTION\"", "true")
             .withEnv("quarkus.oidc.tenant-enabled", "true")
@@ -50,8 +50,11 @@ public class SparkPolarisExternalAuthServerS3IT extends SparkPolarisS3ITBase {
             .withEnv("polaris.oidc.principal-mapper.id-claim-path", "principal_id")
             .withEnv("quarkus.oidc.roles.role-claim-path", "principal_role")
             .withEnv(
-                "quarkus.oidc.auth-server-url", agentConfig.get(OAuth2Properties.Basic.ISSUER_URL))
-            .withEnv("quarkus.oidc.client-id", agentConfig.get(OAuth2Properties.Basic.CLIENT_ID))
+                "quarkus.oidc.auth-server-url",
+                agentConfig.get(BasicConfig.PREFIX + '.' + BasicConfig.ISSUER_URL))
+            .withEnv(
+                "quarkus.oidc.client-id",
+                agentConfig.get(BasicConfig.PREFIX + '.' + BasicConfig.CLIENT_ID))
             .withNetwork(network));
   }
 

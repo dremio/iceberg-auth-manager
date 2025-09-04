@@ -60,7 +60,7 @@ abstract class DeviceCodeFlow extends AbstractFlow {
 
   @Value.Derived
   String getMsgPrefix() {
-    return AbstractFlow.getMsgPrefix(getConfig().getSystemConfig().getAgentName());
+    return AbstractFlow.getMsgPrefix(getAgentName());
   }
 
   /**
@@ -98,7 +98,7 @@ abstract class DeviceCodeFlow extends AbstractFlow {
             response -> {
               pollInterval = getConfig().getDeviceCodeConfig().getPollInterval();
               checkPollInterval(response.getInterval());
-              PrintStream console = getConfig().getSystemConfig().getConsole();
+              PrintStream console = getRuntime().getConsole();
               synchronized (console) {
                 console.println();
                 console.println(getMsgPrefix() + OAUTH2_AGENT_TITLE);
@@ -110,14 +110,17 @@ abstract class DeviceCodeFlow extends AbstractFlow {
                 console.println();
                 console.flush();
               }
-              pollFuture = getExecutor().submit(() -> pollForNewTokens(response.getDeviceCode()));
+              pollFuture =
+                  getRuntime()
+                      .getExecutor()
+                      .submit(() -> pollForNewTokens(response.getDeviceCode()));
               return getTokensFuture();
             });
   }
 
   private CompletionStage<DeviceAuthorizationSuccessResponse> invokeDeviceAuthorizationEndpoint() {
     DeviceAuthorizationRequest.Builder builder =
-        getConfig().getBasicConfig().isPublicClient()
+        isPublicClient()
             ? new DeviceAuthorizationRequest.Builder(
                 getConfig().getBasicConfig().getClientId().orElseThrow())
             : new DeviceAuthorizationRequest.Builder(createClientAuthentication());
@@ -125,7 +128,7 @@ abstract class DeviceCodeFlow extends AbstractFlow {
     getConfig().getBasicConfig().getScope().ifPresent(builder::scope);
     getConfig().getBasicConfig().getExtraRequestParameters().forEach(builder::customParameter);
     HTTPRequest request = builder.build().toHTTPRequest();
-    return CompletableFuture.supplyAsync(() -> sendAndReceive(request), getExecutor())
+    return CompletableFuture.supplyAsync(() -> sendAndReceive(request), getRuntime().getExecutor())
         .whenComplete((response, error) -> log(request, response, error))
         .thenApply(this::parseDeviceAuthorizationResponse);
   }
@@ -164,7 +167,7 @@ abstract class DeviceCodeFlow extends AbstractFlow {
     } else {
       exp = seconds / 60 + " minutes and " + seconds % 60 + " seconds";
     }
-    PrintStream console = getConfig().getSystemConfig().getConsole();
+    PrintStream console = getRuntime().getConsole();
     console.println(getMsgPrefix() + "(The code will expire in " + exp + ")");
   }
 
@@ -187,7 +190,8 @@ abstract class DeviceCodeFlow extends AbstractFlow {
                           "[{}] Device Auth Flow: waiting for authorization to complete",
                           getAgentName());
                       pollFuture =
-                          getExecutor()
+                          getRuntime()
+                              .getExecutor()
                               .schedule(
                                   () -> pollForNewTokens(deviceCode),
                                   pollInterval.toMillis(),
@@ -204,7 +208,8 @@ abstract class DeviceCodeFlow extends AbstractFlow {
                         this.pollInterval = pollInterval;
                       }
                       pollFuture =
-                          getExecutor()
+                          getRuntime()
+                              .getExecutor()
                               .schedule(
                                   () -> pollForNewTokens(deviceCode),
                                   pollInterval.toMillis(),

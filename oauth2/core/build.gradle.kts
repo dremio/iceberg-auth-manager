@@ -47,6 +47,8 @@ dependencies {
 
   implementation(libs.httpclient5)
 
+  implementation(libs.smallrye.config) { exclude(group = "jakarta.annotation") }
+
   implementation(libs.slf4j.api)
   implementation(libs.caffeine)
 
@@ -162,12 +164,11 @@ tasks.named("processDocsResources", ProcessResources::class) {
 
 tasks.register<JavaExec>("generateDocs") {
   group = "documentation"
-  description = "Generates configuration documentation from OAuth2Properties"
+  description = "Generates configuration documentation from OAuth2Config"
   mainClass.set("com.dremio.iceberg.authmgr.oauth2.docs.DocumentationGenerator")
   classpath = sourceSets.getByName("docs").runtimeClasspath
 
-  val inputFile =
-    project.file("src/main/java/com/dremio/iceberg/authmgr/oauth2/OAuth2Properties.java")
+  val inputFile = project.file("src/main/java/com/dremio/iceberg/authmgr/oauth2/OAuth2Config.java")
   val outputFile = rootProject.file("docs/configuration.md")
 
   val headerFile = sourceSets.getByName("docs").resources.singleFile
@@ -176,14 +177,13 @@ tasks.register<JavaExec>("generateDocs") {
   inputs.files(inputFile, headerFile)
   outputs.file(outputFile)
 
-  args(
-    inputFile.absolutePath,
-    "com.dremio.iceberg.authmgr.oauth2.OAuth2Properties",
-    header,
-    outputFile.absolutePath,
-  )
+  args(inputFile.absolutePath, header, outputFile.absolutePath)
 
   doFirst { outputFile.parentFile.mkdirs() }
 }
 
 tasks.named("publish") { dependsOn("generateDocs") }
+
+rootProject.tasks.named("spotlessMarkdown") { dependsOn(":authmgr-oauth2-core:generateDocs") }
+
+rootProject.tasks.named("rat") { dependsOn(":authmgr-oauth2-core:generateDocs") }

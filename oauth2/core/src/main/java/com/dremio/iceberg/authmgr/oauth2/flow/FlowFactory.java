@@ -16,6 +16,7 @@
 package com.dremio.iceberg.authmgr.oauth2.flow;
 
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Config;
+import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2AgentRuntime;
 import com.dremio.iceberg.authmgr.oauth2.endpoint.EndpointProvider;
 import com.dremio.iceberg.authmgr.oauth2.http.HttpClient;
 import com.dremio.iceberg.authmgr.oauth2.tokenexchange.ActorTokenSupplier;
@@ -25,21 +26,20 @@ import com.nimbusds.oauth2.sdk.GrantType;
 import com.nimbusds.oauth2.sdk.token.RefreshToken;
 import jakarta.annotation.Nullable;
 import java.util.Objects;
-import java.util.concurrent.ScheduledExecutorService;
 import org.immutables.value.Value;
 
 @AuthManagerImmutable
 public abstract class FlowFactory implements AutoCloseable {
 
-  public static FlowFactory create(OAuth2Config config, ScheduledExecutorService executor) {
-    return ImmutableFlowFactory.builder().config(config).executor(executor).build();
+  public static FlowFactory create(OAuth2Config config, OAuth2AgentRuntime runtime) {
+    return ImmutableFlowFactory.builder().config(config).runtime(runtime).build();
   }
 
   /** Creates a flow for fetching new tokens. This is used for the initial token fetch. */
   public Flow createInitialFlow() {
     return newInitialFlowBuilder()
         .config(getConfig())
-        .executor(getExecutor())
+        .runtime(getRuntime())
         .endpointProvider(getEndpointProvider())
         .requestSender(getHttpClient())
         .build();
@@ -52,7 +52,7 @@ public abstract class FlowFactory implements AutoCloseable {
   public Flow createTokenRefreshFlow(RefreshToken currentRefreshToken) {
     return ImmutableRefreshTokenFlow.builder()
         .config(getConfig())
-        .executor(getExecutor())
+        .runtime(getRuntime())
         .endpointProvider(getEndpointProvider())
         .requestSender(getHttpClient())
         .refreshToken(currentRefreshToken)
@@ -83,7 +83,7 @@ public abstract class FlowFactory implements AutoCloseable {
 
   protected abstract OAuth2Config getConfig();
 
-  protected abstract ScheduledExecutorService getExecutor();
+  protected abstract OAuth2AgentRuntime getRuntime();
 
   @Value.Lazy
   @SuppressWarnings("MustBeClosedChecker")
@@ -101,7 +101,7 @@ public abstract class FlowFactory implements AutoCloseable {
   protected SubjectTokenSupplier getSubjectTokenSupplier() {
     return !getConfig().getBasicConfig().getGrantType().equals(GrantType.TOKEN_EXCHANGE)
         ? null
-        : SubjectTokenSupplier.create(getConfig(), getExecutor());
+        : SubjectTokenSupplier.create(getConfig(), getRuntime());
   }
 
   @Value.Default
@@ -109,7 +109,7 @@ public abstract class FlowFactory implements AutoCloseable {
   protected ActorTokenSupplier getActorTokenSupplier() {
     return !getConfig().getBasicConfig().getGrantType().equals(GrantType.TOKEN_EXCHANGE)
         ? null
-        : ActorTokenSupplier.create(getConfig(), getExecutor());
+        : ActorTokenSupplier.create(getConfig(), getRuntime());
   }
 
   private AbstractFlow.Builder<? extends Flow, ?> newInitialFlowBuilder() {

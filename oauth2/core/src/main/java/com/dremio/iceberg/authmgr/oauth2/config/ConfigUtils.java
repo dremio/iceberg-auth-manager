@@ -16,67 +16,33 @@
 package com.dremio.iceberg.authmgr.oauth2.config;
 
 import com.nimbusds.oauth2.sdk.GrantType;
-import com.nimbusds.oauth2.sdk.ParseException;
 import com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod;
-import com.nimbusds.oauth2.sdk.id.Audience;
-import com.nimbusds.oauth2.sdk.token.TokenTypeURI;
-import java.net.URI;
+import com.nimbusds.oauth2.sdk.pkce.CodeChallengeMethod;
 import java.util.List;
-import java.util.function.Function;
+import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public final class ConfigUtils {
 
-  private ConfigUtils() {}
+  public static final List<GrantType> SUPPORTED_INITIAL_GRANT_TYPES =
+      List.of(
+          GrantType.CLIENT_CREDENTIALS,
+          GrantType.PASSWORD,
+          GrantType.AUTHORIZATION_CODE,
+          GrantType.DEVICE_CODE,
+          GrantType.TOKEN_EXCHANGE);
 
-  public static GrantType parseGrantType(String grantType) {
-    try {
-      return GrantType.parse(grantType);
-    } catch (ParseException e) {
-      throw new IllegalArgumentException("Failed to parse grant type: " + grantType, e);
-    }
-  }
+  public static final List<ClientAuthenticationMethod> SUPPORTED_CLIENT_AUTH_METHODS =
+      List.of(
+          ClientAuthenticationMethod.NONE,
+          ClientAuthenticationMethod.CLIENT_SECRET_BASIC,
+          ClientAuthenticationMethod.CLIENT_SECRET_POST,
+          ClientAuthenticationMethod.CLIENT_SECRET_JWT,
+          ClientAuthenticationMethod.PRIVATE_KEY_JWT);
 
-  public static TokenTypeURI parseTokenTypeURI(String uri) {
-    try {
-      return TokenTypeURI.parse(uri);
-    } catch (ParseException e) {
-      throw new IllegalArgumentException("Failed to parse token type URI: " + uri, e);
-    }
-  }
-
-  public static List<Audience> parseAudienceList(String audience) {
-    return parseSpaceSeparatedList(audience, Audience::new);
-  }
-
-  public static List<URI> parseUriList(String uris) {
-    return parseSpaceSeparatedList(uris, URI::create);
-  }
-
-  public static List<String> parseSpaceSeparatedList(String text) {
-    return parseList(text, " +", Function.identity());
-  }
-
-  public static List<String> parseCommaSeparatedList(String text) {
-    return parseList(text, ",", Function.identity());
-  }
-
-  public static <T> List<T> parseSpaceSeparatedList(String text, Function<String, T> mapper) {
-    return parseList(text, " +", mapper);
-  }
-
-  public static <T> List<T> parseCommaSeparatedList(String text, Function<String, T> mapper) {
-    return parseList(text, ",", mapper);
-  }
-
-  public static <T> List<T> parseList(String text, String separator, Function<String, T> mapper) {
-    if (text == null || text.isBlank()) {
-      return List.of();
-    }
-    String[] parts = text.trim().split(separator);
-    return Stream.of(parts).map(String::trim).map(mapper).collect(Collectors.toList());
-  }
+  public static final List<CodeChallengeMethod> SUPPORTED_CODE_CHALLENGE_METHODS =
+      List.of(CodeChallengeMethod.PLAIN, CodeChallengeMethod.S256);
 
   public static boolean requiresClientSecret(ClientAuthenticationMethod method) {
     return method.equals(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
@@ -93,4 +59,20 @@ public final class ConfigUtils {
     return grantType.equals(GrantType.AUTHORIZATION_CODE)
         || grantType.equals(GrantType.DEVICE_CODE);
   }
+
+  public static List<String> parseCommaSeparatedList(String text) {
+    if (text == null || text.isBlank()) {
+      return List.of();
+    }
+    String[] parts = text.trim().split(",");
+    return Stream.of(parts).map(String::trim).collect(Collectors.toList());
+  }
+
+  public static Map<String, String> prefixedMap(Map<String, String> properties, String prefix) {
+    return properties.entrySet().stream()
+        .map(e -> Map.entry(prefix + '.' + e.getKey(), e.getValue()))
+        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+  }
+
+  private ConfigUtils() {}
 }

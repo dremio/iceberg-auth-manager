@@ -15,32 +15,23 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.config;
 
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.ClientAssertion.ALGORITHM;
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.ClientAssertion.AUDIENCE;
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.ClientAssertion.EXTRA_CLAIMS_PREFIX;
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.ClientAssertion.ISSUER;
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.ClientAssertion.PRIVATE_KEY;
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.ClientAssertion.SUBJECT;
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.ClientAssertion.TOKEN_LIFESPAN;
+import static com.dremio.iceberg.authmgr.oauth2.config.ClientAssertionConfig.PREFIX;
 import static java.util.Collections.singletonList;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
-import static org.assertj.core.api.AssertionsForClassTypes.catchThrowable;
 
 import com.dremio.iceberg.authmgr.oauth2.config.validator.ConfigValidator;
-import com.nimbusds.jose.JWSAlgorithm;
-import com.nimbusds.oauth2.sdk.id.Audience;
-import com.nimbusds.oauth2.sdk.id.Issuer;
-import com.nimbusds.oauth2.sdk.id.Subject;
+import io.smallrye.config.SmallRyeConfig;
+import io.smallrye.config.SmallRyeConfigBuilder;
+import io.smallrye.config.common.MapBackedConfigSource;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -59,157 +50,57 @@ class ClientAssertionConfigTest {
 
   @ParameterizedTest
   @MethodSource
-  void testValidate(ClientAssertionConfig.Builder config, List<String> expected) {
+  void testValidate(Map<String, String> properties, List<String> expected) {
+    SmallRyeConfig smallRyeConfig =
+        new SmallRyeConfigBuilder()
+            .withMapping(ClientAssertionConfig.class, PREFIX)
+            .withSources(new MapBackedConfigSource("catalog-properties", properties, 1000) {})
+            .build();
+    ClientAssertionConfig config =
+        smallRyeConfig.getConfigMapping(ClientAssertionConfig.class, PREFIX);
     assertThatIllegalArgumentException()
-        .isThrownBy(config::build)
+        .isThrownBy(config::validate)
         .withMessage(ConfigValidator.buildDescription(expected.stream()));
   }
 
   static Stream<Arguments> testValidate() {
     return Stream.of(
         Arguments.of(
-            ClientAssertionConfig.builder().algorithm(JWSAlgorithm.RS256),
+            Map.of(PREFIX + '.' + ClientAssertionConfig.ALGORITHM, "RS256"),
             singletonList(
                 "client assertion: JWS signing algorithm RS256 requires a private key (rest.auth.oauth2.client-assertion.jwt.algorithm / rest.auth.oauth2.client-assertion.jwt.private-key)")),
         Arguments.of(
-            ClientAssertionConfig.builder()
-                .algorithm(JWSAlgorithm.HS256)
-                .privateKey(Paths.get(tempFile.toString())),
+            Map.of(
+                PREFIX + '.' + ClientAssertionConfig.ALGORITHM,
+                "HS256",
+                PREFIX + '.' + ClientAssertionConfig.PRIVATE_KEY,
+                tempFile.toString()),
             singletonList(
                 "client assertion: private key must not be set for JWS algorithm HS256 (rest.auth.oauth2.client-assertion.jwt.algorithm / rest.auth.oauth2.client-assertion.jwt.private-key)")),
         Arguments.of(
-            ClientAssertionConfig.builder().privateKey(Paths.get("/invalid/path")),
+            Map.of(PREFIX + '.' + ClientAssertionConfig.PRIVATE_KEY, "/invalid/path"),
             singletonList(
                 "client assertion: private key path '/invalid/path' is not a file or is not readable (rest.auth.oauth2.client-assertion.jwt.private-key)")));
   }
 
-  @ParameterizedTest
-  @MethodSource
-  void testFromProperties(
-      Map<String, String> properties, ClientAssertionConfig expected, Throwable expectedThrowable) {
-    if (expectedThrowable == null) {
-      ClientAssertionConfig actual = ClientAssertionConfig.builder().from(properties).build();
-      assertThat(actual).isEqualTo(expected);
-    } else {
-      Throwable actual = catchThrowable(() -> ClientAssertionConfig.builder().from(properties));
-      assertThat(actual)
-          .isInstanceOf(expectedThrowable.getClass())
-          .hasMessage(expectedThrowable.getMessage());
-    }
-  }
-
-  static Stream<Arguments> testFromProperties() {
-    return Stream.of(
-        Arguments.of(null, null, new NullPointerException("properties must not be null")),
-        Arguments.of(
-            Map.of(
-                ISSUER,
-                "https://example.com/token",
-                SUBJECT,
-                "subject",
-                AUDIENCE,
-                "audience",
-                TOKEN_LIFESPAN,
-                "PT1H",
-                EXTRA_CLAIMS_PREFIX + "key1",
-                "value1",
-                ALGORITHM,
-                "RS256",
-                PRIVATE_KEY,
-                tempFile.toString()),
-            ClientAssertionConfig.builder()
-                .issuer(new Issuer("https://example.com/token"))
-                .subject(new Subject("subject"))
-                .audience(new Audience("audience"))
-                .tokenLifespan(Duration.ofHours(1))
-                .extraClaims(Map.of("key1", "value1"))
-                .algorithm(JWSAlgorithm.RS256)
-                .privateKey(tempFile)
-                .build(),
-            null));
-  }
-
-  @ParameterizedTest
-  @MethodSource
-  void testMerge(
-      ClientAssertionConfig base, Map<String, String> properties, ClientAssertionConfig expected) {
-    ClientAssertionConfig merged = base.merge(properties);
-    assertThat(merged).isEqualTo(expected);
-  }
-
-  static Stream<Arguments> testMerge() {
-    return Stream.of(
-        Arguments.of(
-            ClientAssertionConfig.builder().build(),
-            Map.of(
-                ISSUER,
-                "https://example.com/token",
-                SUBJECT,
-                "subject",
-                AUDIENCE,
-                "audience",
-                TOKEN_LIFESPAN,
-                "PT1H",
-                EXTRA_CLAIMS_PREFIX + "key1",
-                "value1",
-                ALGORITHM,
-                "RS256",
-                PRIVATE_KEY,
-                tempFile.toString()),
-            ClientAssertionConfig.builder()
-                .issuer(new Issuer("https://example.com/token"))
-                .subject(new Subject("subject"))
-                .audience(new Audience("audience"))
-                .tokenLifespan(Duration.ofHours(1))
-                .extraClaims(Map.of("key1", "value1"))
-                .algorithm(JWSAlgorithm.RS256)
-                .privateKey(tempFile)
-                .build()),
-        Arguments.of(
-            ClientAssertionConfig.builder()
-                .issuer(new Issuer("https://example.com/token"))
-                .subject(new Subject("subject"))
-                .audience(new Audience("audience"))
-                .tokenLifespan(Duration.ofHours(1))
-                .extraClaims(Map.of("key1", "value1"))
-                .algorithm(JWSAlgorithm.RS256)
-                .privateKey(tempFile)
-                .build(),
-            Map.of(),
-            ClientAssertionConfig.builder()
-                .issuer(new Issuer("https://example.com/token"))
-                .subject(new Subject("subject"))
-                .audience(new Audience("audience"))
-                .tokenLifespan(Duration.ofHours(1))
-                .extraClaims(Map.of("key1", "value1"))
-                .algorithm(JWSAlgorithm.RS256)
-                .privateKey(tempFile)
-                .build()),
-        Arguments.of(
-            ClientAssertionConfig.builder()
-                .issuer(new Issuer("https://example.com/token"))
-                .subject(new Subject("subject"))
-                .audience(new Audience("audience"))
-                .tokenLifespan(Duration.ofHours(1))
-                .extraClaims(Map.of("key1", "value1"))
-                .algorithm(JWSAlgorithm.RS256)
-                .privateKey(tempFile)
-                .build(),
-            Map.of(
-                ISSUER,
-                "",
-                SUBJECT,
-                "",
-                AUDIENCE,
-                "",
-                TOKEN_LIFESPAN,
-                "",
-                EXTRA_CLAIMS_PREFIX + "key1",
-                "",
-                ALGORITHM,
-                "",
-                PRIVATE_KEY,
-                ""),
-            ClientAssertionConfig.builder().build()));
+  @Test
+  void testAsMap() {
+    Map<String, String> properties =
+        Map.of(
+            PREFIX + '.' + ClientAssertionConfig.ISSUER, "https://example.com",
+            PREFIX + '.' + ClientAssertionConfig.SUBJECT, "subject",
+            PREFIX + '.' + ClientAssertionConfig.AUDIENCE, "audience",
+            PREFIX + '.' + ClientAssertionConfig.TOKEN_LIFESPAN, "PT1M",
+            PREFIX + '.' + ClientAssertionConfig.ALGORITHM, "RS256",
+            PREFIX + '.' + ClientAssertionConfig.PRIVATE_KEY, tempFile.toString(),
+            PREFIX + '.' + ClientAssertionConfig.EXTRA_CLAIMS + ".extra1", "value1");
+    SmallRyeConfig smallRyeConfig =
+        new SmallRyeConfigBuilder()
+            .withMapping(ClientAssertionConfig.class, PREFIX)
+            .withSources(new MapBackedConfigSource("catalog-properties", properties, 1000) {})
+            .build();
+    ClientAssertionConfig config =
+        smallRyeConfig.getConfigMapping(ClientAssertionConfig.class, PREFIX);
+    assertThat(config.asMap()).isEqualTo(properties);
   }
 }

@@ -19,7 +19,6 @@ import com.dremio.iceberg.authmgr.oauth2.test.ImmutableTestEnvironment;
 import com.dremio.iceberg.authmgr.oauth2.test.TestConstants;
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironmentExtension;
-import java.time.Clock;
 import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -55,7 +54,6 @@ public class KeycloakExtension extends TestEnvironmentExtension
             .get(KeycloakContainer.class.getName(), KeycloakContainer.class);
     return TestEnvironment.builder()
         .unitTest(false)
-        .clock(Clock.systemUTC())
         .serverRootUrl(keycloak.getRootUrl())
         .authorizationServerUrl(keycloak.getIssuerUrl())
         .tokenEndpoint(keycloak.getTokenEndpoint())

@@ -41,8 +41,9 @@ using:
 To enable this OAuth2 `AuthManager`, set the `rest.auth.type` configuration property to
 `com.dremio.iceberg.authmgr.oauth2.OAuth2Manager`.
 
-All configuration options are prefixed with `rest.auth.oauth2.`. See the
-[Configuration](./configuration.md) section for a full list of configuration options.
+Configuration options can be passed via catalog properties, but also via system properties,
+environment variables, or configuration files. See the [Configuration](./configuration.md) section
+for a full list of configuration options.
 
 ## Client Authentication
 

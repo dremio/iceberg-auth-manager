@@ -15,7 +15,9 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.test;
 
-import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.Basic;
+import static com.dremio.iceberg.authmgr.oauth2.OAuth2Config.PREFIX;
+
+import com.dremio.iceberg.authmgr.oauth2.config.BasicConfig;
 import com.google.common.base.Strings;
 import com.nimbusds.oauth2.sdk.Scope;
 import com.nimbusds.oauth2.sdk.auth.Secret;
@@ -92,11 +94,11 @@ public class TestConstants {
           UUID.randomUUID().toString(),
           "user",
           Map.of(
-              Basic.CLIENT_ID,
+              PREFIX + '.' + BasicConfig.CLIENT_ID,
               TestConstants.CLIENT_ID2.getValue(),
-              Basic.CLIENT_SECRET,
+              PREFIX + '.' + BasicConfig.CLIENT_SECRET,
               TestConstants.CLIENT_SECRET2.getValue()),
-          Map.of(Basic.SCOPE, TestConstants.SCOPE2.toString()));
+          Map.of(PREFIX + '.' + BasicConfig.SCOPE, TestConstants.SCOPE2.toString()));
 
   private TestConstants() {}
 }
