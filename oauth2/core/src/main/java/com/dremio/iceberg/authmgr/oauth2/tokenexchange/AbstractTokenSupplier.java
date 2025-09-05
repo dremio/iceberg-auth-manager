@@ -72,7 +72,7 @@ public abstract class AbstractTokenSupplier implements AutoCloseable {
   @Value.Default
   @Nullable
   protected OAuth2Agent getTokenAgent() {
-    if (getMainConfig().getBasicConfig().getGrantType() != GrantType.TOKEN_EXCHANGE
+    if (!getMainConfig().getBasicConfig().getGrantType().equals(GrantType.TOKEN_EXCHANGE)
         || getToken().isPresent()
         || getTokenAgentProperties().isEmpty()) {
       return null;

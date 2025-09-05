@@ -99,7 +99,7 @@ public abstract class FlowFactory implements AutoCloseable {
   @Value.Default
   @Nullable
   protected SubjectTokenSupplier getSubjectTokenSupplier() {
-    return getConfig().getBasicConfig().getGrantType() != GrantType.TOKEN_EXCHANGE
+    return !getConfig().getBasicConfig().getGrantType().equals(GrantType.TOKEN_EXCHANGE)
         ? null
         : SubjectTokenSupplier.create(getConfig(), getExecutor());
   }
@@ -107,7 +107,7 @@ public abstract class FlowFactory implements AutoCloseable {
   @Value.Default
   @Nullable
   protected ActorTokenSupplier getActorTokenSupplier() {
-    return getConfig().getBasicConfig().getGrantType() != GrantType.TOKEN_EXCHANGE
+    return !getConfig().getBasicConfig().getGrantType().equals(GrantType.TOKEN_EXCHANGE)
         ? null
         : ActorTokenSupplier.create(getConfig(), getExecutor());
   }

@@ -115,7 +115,7 @@ public interface OAuth2Config {
     ConfigValidator validator = new ConfigValidator();
     // We only need to validate constraints that span multiple configuration options here;
     // individual configuration options are validated in their respective classes.
-    if (getBasicConfig().getGrantType() == GrantType.PASSWORD) {
+    if (getBasicConfig().getGrantType().equals(GrantType.PASSWORD)) {
       validator.check(
           getResourceOwnerConfig().getUsername().isPresent()
               && !getResourceOwnerConfig().getUsername().get().isEmpty(),
@@ -128,7 +128,7 @@ public interface OAuth2Config {
           "password must be set if grant type is '%s'",
           GrantType.PASSWORD.getValue());
     }
-    if (getBasicConfig().getGrantType() == GrantType.AUTHORIZATION_CODE) {
+    if (getBasicConfig().getGrantType().equals(GrantType.AUTHORIZATION_CODE)) {
       validator.check(
           getBasicConfig().getIssuerUrl().isPresent()
               || getAuthorizationCodeConfig().getAuthorizationEndpoint().isPresent(),
@@ -136,7 +136,7 @@ public interface OAuth2Config {
           "either issuer URL or authorization endpoint must be set if grant type is '%s'",
           GrantType.AUTHORIZATION_CODE.getValue());
     }
-    if (getBasicConfig().getGrantType() == GrantType.DEVICE_CODE) {
+    if (getBasicConfig().getGrantType().equals(GrantType.DEVICE_CODE)) {
       validator.check(
           getBasicConfig().getIssuerUrl().isPresent()
               || getDeviceCodeConfig().getDeviceAuthorizationEndpoint().isPresent(),
