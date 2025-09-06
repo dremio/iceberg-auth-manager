@@ -88,7 +88,7 @@ public abstract class FlowFactory implements AutoCloseable {
   @Value.Lazy
   @SuppressWarnings("MustBeClosedChecker")
   protected HttpClient getHttpClient() {
-    return getConfig().getHttpConfig().getClientType().newHttpClient(getConfig().getHttpConfig());
+    return getConfig().getHttpConfig().newHttpClient();
   }
 
   @Value.Default

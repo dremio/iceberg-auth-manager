@@ -34,9 +34,11 @@ import static com.dremio.iceberg.authmgr.oauth2.OAuth2Properties.Http.SSL_TRUST_
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Properties;
 import com.dremio.iceberg.authmgr.oauth2.config.option.ConfigOption;
 import com.dremio.iceberg.authmgr.oauth2.config.option.ConfigOptions;
+import com.dremio.iceberg.authmgr.oauth2.http.HttpClient;
 import com.dremio.iceberg.authmgr.oauth2.http.HttpClientType;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
+import com.google.errorprone.annotations.MustBeClosed;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
@@ -51,6 +53,12 @@ import org.immutables.value.Value;
 public interface HttpConfig {
 
   HttpConfig DEFAULT = builder().build();
+
+  /** Creates an HTTP client based on this configuration. */
+  @MustBeClosed
+  default HttpClient newHttpClient() {
+    return getClientType().newHttpClient(this);
+  }
 
   /**
    * The HTTP client implementation to use for network communication. Defaults to {@link
