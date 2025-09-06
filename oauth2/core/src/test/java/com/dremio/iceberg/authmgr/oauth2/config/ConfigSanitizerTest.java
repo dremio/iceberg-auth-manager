@@ -71,6 +71,42 @@ class ConfigSanitizerTest {
     assertThat(messages).isEmpty();
   }
 
+  @ParameterizedTest
+  @MethodSource("contextDenyListProperties")
+  void contextForbiddenProperties(String forbiddenProperty) {
+    Map<String, String> input =
+        Map.of(forbiddenProperty, "forbidden", "allowed.property", "allowed");
+    Map<String, String> actual = new ConfigSanitizer(consumer).sanitizeContextProperties(input);
+    assertThat(actual).containsOnly(entry("allowed.property", "allowed"));
+    assertThat(messages).hasSize(1);
+    Pair<String, String> message = messages.get(0);
+    assertThat(message)
+        .extracting(Pair::first)
+        .isEqualTo("Ignoring property '{}': this property is not allowed in a session context.");
+    assertThat(message).extracting(Pair::second).isEqualTo(forbiddenProperty);
+  }
+
+  static Stream<String> contextDenyListProperties() {
+    return Stream.of(
+        OAuth2Properties.System.AGENT_NAME,
+        OAuth2Properties.System.SESSION_CACHE_TIMEOUT,
+        OAuth2Properties.Http.CLIENT_TYPE,
+        OAuth2Properties.Http.READ_TIMEOUT,
+        OAuth2Properties.Http.CONNECT_TIMEOUT,
+        OAuth2Properties.Http.HEADERS_PREFIX + "custom",
+        OAuth2Properties.Http.COMPRESSION_ENABLED,
+        OAuth2Properties.Http.SSL_PROTOCOLS,
+        OAuth2Properties.Http.SSL_CIPHER_SUITES,
+        OAuth2Properties.Http.SSL_HOSTNAME_VERIFICATION_ENABLED,
+        OAuth2Properties.Http.SSL_TRUST_ALL,
+        OAuth2Properties.Http.SSL_TRUSTSTORE_PATH,
+        OAuth2Properties.Http.SSL_TRUSTSTORE_PASSWORD,
+        OAuth2Properties.Http.PROXY_HOST,
+        OAuth2Properties.Http.PROXY_PORT,
+        OAuth2Properties.Http.PROXY_USERNAME,
+        OAuth2Properties.Http.PROXY_PASSWORD);
+  }
+
   @Test
   void tableEmptyProperties() {
     Map<String, String> actual = new ConfigSanitizer(consumer).sanitizeTableProperties(Map.of());
@@ -110,6 +146,25 @@ class ConfigSanitizerTest {
   }
 
   static Stream<String> tableDenyListProperties() {
-    return ConfigSanitizer.TABLE_DENY_LIST.stream();
+    return Stream.concat(
+        ConfigSanitizer.TABLE_DENY_LIST.stream(),
+        Stream.of(
+            OAuth2Properties.System.AGENT_NAME,
+            OAuth2Properties.System.SESSION_CACHE_TIMEOUT,
+            OAuth2Properties.Http.CLIENT_TYPE,
+            OAuth2Properties.Http.READ_TIMEOUT,
+            OAuth2Properties.Http.CONNECT_TIMEOUT,
+            OAuth2Properties.Http.HEADERS_PREFIX + "custom",
+            OAuth2Properties.Http.COMPRESSION_ENABLED,
+            OAuth2Properties.Http.SSL_PROTOCOLS,
+            OAuth2Properties.Http.SSL_CIPHER_SUITES,
+            OAuth2Properties.Http.SSL_HOSTNAME_VERIFICATION_ENABLED,
+            OAuth2Properties.Http.SSL_TRUST_ALL,
+            OAuth2Properties.Http.SSL_TRUSTSTORE_PATH,
+            OAuth2Properties.Http.SSL_TRUSTSTORE_PASSWORD,
+            OAuth2Properties.Http.PROXY_HOST,
+            OAuth2Properties.Http.PROXY_PORT,
+            OAuth2Properties.Http.PROXY_USERNAME,
+            OAuth2Properties.Http.PROXY_PASSWORD));
   }
 }

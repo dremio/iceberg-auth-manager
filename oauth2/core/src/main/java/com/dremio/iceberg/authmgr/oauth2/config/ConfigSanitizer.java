@@ -24,9 +24,8 @@ import java.util.function.BiConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/** Sanitizes configuration properties received from external sources. */
 public final class ConfigSanitizer {
-
-  public static final Set<String> CONTEXT_DENY_LIST = Set.of();
 
   public static final Set<String> TABLE_DENY_LIST =
       Set.of(
@@ -57,7 +56,7 @@ public final class ConfigSanitizer {
   public Map<String, String> sanitizeContextProperties(Map<String, String> properties) {
     return sanitizeProperties(
         properties,
-        CONTEXT_DENY_LIST,
+        Set.of(),
         "Ignoring property '{}': this property is not allowed in a session context.");
   }
 
@@ -75,6 +74,12 @@ public final class ConfigSanitizer {
     for (Iterator<String> iterator = properties.keySet().iterator(); iterator.hasNext(); ) {
       String key = iterator.next();
       if (denyList.contains(key)) {
+        logConsumer.accept(message, key);
+        iterator.remove();
+      } else if (key.startsWith(OAuth2Properties.System.PREFIX)) {
+        logConsumer.accept(message, key);
+        iterator.remove();
+      } else if (key.startsWith(OAuth2Properties.Http.PREFIX)) {
         logConsumer.accept(message, key);
         iterator.remove();
       }
