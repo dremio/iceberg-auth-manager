@@ -24,8 +24,6 @@ plugins {
 
 description = "Flink tests for Dremio AuthManager for Apache Iceberg"
 
-ext { set("mavenName", "Auth Manager for Apache Iceberg - OAuth2 - Flink Tests") }
-
 // Matrix testing configuration
 val icebergVersions = project.findProperty("authmgr.test.iceberg.versions").toString().split(",")
 val flinkVersions = project.findProperty("authmgr.test.flink.versions").toString().split(",")

@@ -13,11 +13,11 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-# Dremio AuthManager for Apache Iceberg - Usage with Flink
+# Dremio AuthManager for Apache Iceberg - Usage with Apache Flink
 
 ## Prerequisites
 
-* Iceberg 1.9.0 or later is required.
+* Apache Iceberg 1.9.0 or later is required.
 * Dremio AuthManager for Apache Iceberg requires Java 11 or later for runtime.
 * Dremio AuthManager for Apache Iceberg is meant to be used in conjunction with an Iceberg engine
   runtime jar, e.g. `iceberg-flink-runtime-1.20`.

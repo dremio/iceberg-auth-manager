@@ -70,6 +70,9 @@ public class PolarisContainer extends GenericContainer<PolarisContainer> {
 
   @Override
   public void start() {
+    if (getContainerId() != null) {
+      return;
+    }
     super.start();
     baseUri = URI.create("http://localhost:" + getMappedPort(8181));
   }

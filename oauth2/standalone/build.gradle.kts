@@ -14,17 +14,12 @@
  * limitations under the License.
  */
 
-import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-
-plugins { id("com.gradleup.shadow") }
-
-val shadowJar = tasks.named<ShadowJar>("shadowJar")
-
-shadowJar.configure {
-  outputs.cacheIf { false } // do not cache uber/shaded jars
-  mergeServiceFiles()
+plugins {
+  id("authmgr-bundle")
+  id("authmgr-maven")
 }
 
-tasks.withType<ShadowJar>().configureEach { isZip64 = true }
+description =
+  "Standalone OAuth2 Bundle for the Dremio AuthManager for Apache Iceberg - Suitable for use with the Apache Iceberg Kafka Sink Connector"
 
-tasks.named("assemble").configure { dependsOn("shadowJar") }
+ext { set("mavenName", "Auth Manager for Apache Iceberg - OAuth2 - Standalone Bundle") }

@@ -15,90 +15,17 @@
  */
 
 plugins {
-  id("authmgr-java")
-  id("authmgr-shadow-jar")
+  id("authmgr-bundle")
   id("authmgr-maven")
 }
 
-description = "Runtime bundle for Dremio AuthManager for Apache Iceberg"
+description =
+  "Runtime OAuth2 Bundle for the Dremio AuthManager for Apache Iceberg - Suitable for use with Apache Spark and Apache Flink runtimes"
 
-ext { set("mavenName", "Auth Manager for Apache Iceberg - OAuth2 - Runtime") }
-
-// Create configurations to hold the core project's source and javadoc artifacts
-val coreSources by
-  configurations.creating {
-    isCanBeConsumed = false
-    isCanBeResolved = true
-    attributes {
-      attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category.DOCUMENTATION))
-      attribute(Bundling.BUNDLING_ATTRIBUTE, objects.named(Bundling.EXTERNAL))
-      attribute(DocsType.DOCS_TYPE_ATTRIBUTE, objects.named(DocsType.SOURCES))
-    }
-  }
-
-val coreJavadoc by
-  configurations.creating {
-    isCanBeConsumed = false
-    isCanBeResolved = true
-    attributes {
-      attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category.DOCUMENTATION))
-      attribute(Bundling.BUNDLING_ATTRIBUTE, objects.named(Bundling.EXTERNAL))
-      attribute(DocsType.DOCS_TYPE_ATTRIBUTE, objects.named(DocsType.JAVADOC))
-    }
-  }
-
-dependencies {
-  api(project(":authmgr-oauth2-core")) {
-    // exclude dependencies that are already provided by Iceberg runtime jars
-    exclude(group = "org.apache.iceberg")
-    exclude(group = "org.apache.httpcomponents.client5")
-    exclude(group = "com.fasterxml.jackson.core")
-    exclude(group = "com.github.ben-manes.caffeine")
-    exclude(group = "org.slf4j")
-  }
-  coreSources(project(":authmgr-oauth2-core", "sourcesElements"))
-  coreJavadoc(project(":authmgr-oauth2-core", "javadocElements"))
-}
+ext { set("mavenName", "Auth Manager for Apache Iceberg - OAuth2 - Runtime Bundle") }
 
 tasks.shadowJar {
-  isZip64 = true
-  archiveClassifier = "" // publish the shadowed JAR instead of the original JAR
-  // relocate dependencies that are specific to the AuthManager
-  relocate("com.nimbusds", "com.dremio.iceberg.authmgr.shaded.com.nimbusds")
-  relocate("net.minidev", "com.dremio.iceberg.authmgr.shaded.net.minidev")
-  relocate("org.objectweb.asm", "com.dremio.iceberg.authmgr.shaded.org.objectweb.asm")
-  relocate("io.smallrye", "com.dremio.iceberg.authmgr.shaded.io.smallrye")
-  relocate("org.eclipse.microprofile", "com.dremio.iceberg.authmgr.shaded.org.eclipse.microprofile")
-  relocate("org.jboss", "com.dremio.iceberg.authmgr.shaded.org.jboss")
-  // relocate to same packages as in Iceberg runtime jars
-  relocate("com.fasterxml.jackson", "org.apache.iceberg.shaded.com.fasterxml.jackson")
+  // additional relocations to align with Iceberg Spark and Flink runtime jars
   relocate("com.github.benmanes", "org.apache.iceberg.shaded.com.github.benmanes")
   relocate("org.apache.hc", "org.apache.iceberg.shaded.org.apache.hc")
-  // exclude module-info.class files
-  exclude("META-INF/**/module-info.class")
-  // exclude unnecessary files from Nimbus OIDC SDK and JoSE JWT
-  exclude("META-INF/maven/com.github.stephenc.jcip/**")
-  exclude("META-INF/maven/com.google.code.gson/**")
-  exclude("META-INF/proguard/**")
-  exclude("iso3166_*.properties")
-  // exclude smallrye-config from minimizing since it has generated code
-  minimize { exclude(dependency("io.smallrye.config:smallrye-config")) }
 }
-
-// Configure the source jar to copy from the core project's source jar
-tasks.named<Jar>("sourcesJar") {
-  dependsOn(":authmgr-oauth2-core:sourcesJar")
-  from({ coreSources.incoming.artifactView { lenient(true) }.files.map { zipTree(it) } })
-}
-
-// Configure the javadoc jar to copy from the core project's javadoc jar
-tasks.named<Jar>("javadocJar") {
-  dependsOn(":authmgr-oauth2-core:javadocJar")
-  from({ coreJavadoc.incoming.artifactView { lenient(true) }.files.map { zipTree(it) } })
-}
-
-// Skip the javadoc generation task as we'll copy from the core project
-tasks.withType<Javadoc> { enabled = false }
-
-// We're replacing the "original jar" with the uber-jar.
-tasks.named("jar") { enabled = false }

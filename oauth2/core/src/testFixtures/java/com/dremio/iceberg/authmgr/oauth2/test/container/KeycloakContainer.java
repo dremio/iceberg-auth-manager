@@ -105,6 +105,9 @@ public class KeycloakContainer extends ExtendableKeycloakContainer<KeycloakConta
 
   @Override
   public void start() {
+    if (getContainerId() != null) {
+      return;
+    }
     super.start();
     rootUrl = URI.create(getAuthServerUrl());
     issuerUrl = rootUrl.resolve(CONTEXT_PATH);

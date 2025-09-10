@@ -30,11 +30,12 @@ Follow the instructions in the [Installation](./installation.md) section to get 
 
 ## Usage
 
-To use the Dremio AuthManager for Apache Iceberg, follow the instructions for the engine you are 
+To use the Dremio AuthManager for Apache Iceberg, follow the instructions for the platform you are 
 using:
 
 * [Apache Spark](./spark.md)
 * [Apache Flink](./flink.md)
+* [Apache Kafka](./kafka.md)
 
 ## Configuration
 

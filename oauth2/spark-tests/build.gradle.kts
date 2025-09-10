@@ -24,8 +24,6 @@ plugins {
 
 description = "Spark tests for Dremio AuthManager for Apache Iceberg"
 
-ext { set("mavenName", "Auth Manager for Apache Iceberg - OAuth2 - Spark Tests") }
-
 // Matrix testing configuration
 val icebergVersions = project.findProperty("authmgr.test.iceberg.versions").toString().split(",")
 val sparkVersions = project.findProperty("authmgr.test.spark.versions").toString().split(",")
