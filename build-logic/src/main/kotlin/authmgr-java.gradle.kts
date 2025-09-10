@@ -93,12 +93,6 @@ if (project.hasProperty("release")) {
       manifest {
         attributes(
           "Created-By" to "Gradle ${gradle.gradleVersion}",
-          "Built-By" to gitProps["git.build.user.email"],
-          "Build-Jdk" to
-            "${System.getProperty("java.vendor")} ${System.getProperty("java.vm.version")}",
-          "Build-Jdk-Spec" to System.getProperty("java.specification.version"),
-          "Build-OS" to
-            "${System.getProperty("os.name")} ${System.getProperty("os.arch")} ${System.getProperty("os.version")}",
           "Build-Revision" to gitProps["git.commit.id"],
           "Build-Timestamp" to gitProps["git.commit.time"],
           "Build-Tool" to "Gradle ${gradle.gradleVersion}",
