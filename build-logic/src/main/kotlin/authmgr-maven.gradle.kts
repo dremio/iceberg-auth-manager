@@ -43,7 +43,7 @@ afterEvaluate {
 
         // This publication is used for staging and deployment to Maven Central by JReleaser
         create<MavenPublication>("staging-maven") {
-          if (project.plugins.hasPlugin("com.gradleup.shadow")) {
+          if (project.plugins.hasPlugin("authmgr-runtime-jar")) {
             from(components["shadow"])
             // Shadow component doesn't include javadoc and sources jars by default, so add them
             // explicitly
