@@ -19,7 +19,6 @@ plugins { `kotlin-dsl` }
 dependencies {
   implementation(gradleKotlinDsl())
   implementation(baselibs.errorprone)
-  implementation(baselibs.git.properties)
   implementation(baselibs.idea.ext)
   implementation(baselibs.shadow)
   implementation(baselibs.spotless)

@@ -86,21 +86,42 @@ tasks.withType<Jar>().configureEach {
 }
 
 if (project.hasProperty("release")) {
-  tasks.withType<Jar>().configureEach {
-    dependsOn(rootProject.tasks.named("generateGitProperties"))
-    doFirst {
-      val gitProps = rootProject.extra["gitProps"] as Map<*, *>
-      manifest {
-        attributes(
-          "Created-By" to "Gradle ${gradle.gradleVersion}",
-          "Build-Revision" to gitProps["git.commit.id"],
-          "Build-Timestamp" to gitProps["git.commit.time"],
-          "Build-Tool" to "Gradle ${gradle.gradleVersion}",
-          "Git-Tag" to gitProps["git.closest.tag.name"],
-        )
+
+  fun git(vararg args: String): String {
+    return rootProject.providers
+      .exec {
+        executable = "git"
+        args(args.toList())
       }
+      .standardOutput
+      .asText
+      .get()
+      .trim()
+  }
+
+  fun gitInfo(): Map<String, String> {
+    return if (rootProject.extra.has("gitReleaseInfo")) {
+      @Suppress("UNCHECKED_CAST")
+      rootProject.extra["gitReleaseInfo"] as Map<String, String>
+    } else {
+      val gitHead = git("rev-parse", "HEAD")
+      val gitDescribe =
+        try {
+          git("describe", "--tags")
+        } catch (_: Exception) {
+          git("describe", "--always", "--dirty")
+        }
+      val info =
+        mapOf(
+          "Build-Git-Head" to gitHead,
+          "Build-Git-Describe" to gitDescribe,
+        )
+      rootProject.extra["gitReleaseInfo"] = info
+      info
     }
   }
+
+  tasks.withType<Jar>().configureEach { manifest { attributes.putAll(gitInfo()) } }
 }
 
 tasks.withType<Javadoc>().configureEach {
