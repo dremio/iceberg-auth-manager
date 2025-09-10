@@ -37,6 +37,11 @@ tasks.withType<Jar>().configureEach {
 
 // Use afterEvaluate to ensure properties are accessed after they've been set
 afterEvaluate {
+
+  // Projects to exclude from publication and BOM
+  val excludedProjects =
+    setOf("authmgr-oauth2-runtime-flink-tests", "authmgr-oauth2-runtime-spark-tests")
+
   publishing {
     publications {
       create<MavenPublication>("maven") {
@@ -99,9 +104,8 @@ afterEvaluate {
           if (project == rootProject) {
             withXml {
               val modules = asNode().appendNode("modules")
-              rootProject
-                .publishedProjects()
-                .filter { it != rootProject }
+              rootProject.subprojects
+                .filter { it.name !in excludedProjects }
                 .forEach { modules.appendNode("module", it.name) }
             }
           } else {
