@@ -38,12 +38,10 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 class ClientAssertionConfigTest {
 
-  @TempDir static Path tempDir;
-
   static Path tempFile;
 
   @BeforeAll
-  static void createFile() throws IOException {
+  static void createFile(@TempDir Path tempDir) throws IOException {
     tempFile = Files.createTempFile(tempDir, "private-key", ".pem");
   }
 

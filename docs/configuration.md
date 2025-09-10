@@ -205,29 +205,41 @@ If using the "authorization_code" grant type, either this property or `rest.auth
 
 The redirect URI. This is the value of the `redirect_uri` parameter in the authorization code request.
 
-Optional; if not present, the URL will be computed from `rest.auth.oauth2.auth-code.callback-bind-host`, `rest.auth.oauth2.auth-code.callback-bind-port` and `rest.auth.oauth2.auth-code.callback-context-path`.
+Optional; if not present, the URL will be computed from `rest.auth.oauth2.auth-code.callback.bind-host`, `rest.auth.oauth2.auth-code.callback.bind-port` and `rest.auth.oauth2.auth-code.callback.context-path`.
 
 Specifying this value is generally only necessary in containerized environments, if a reverse proxy modifies the callback before it reaches the client, or if external TLS termination is performed.
 
-### `rest.auth.oauth2.auth-code.callback-bind-host`
+### `rest.auth.oauth2.auth-code.callback.https`
+
+Whether to use HTTPS for the local web server that listens for the authorization code. The default is `false`.
+
+Ignored if `rest.auth.oauth2.auth-code.redirect-uri` is set.
+
+### `rest.auth.oauth2.auth-code.callback.bind-host`
 
 Address of the OAuth2 authorization code flow local web server.
+
+Ignored if `rest.auth.oauth2.auth-code.redirect-uri` is set.
 
 The internal web server will listen for the authorization code callback on this address. This is only used if the grant type to use is `authorization_code`.
 
 Optional; if not present, the server will listen on the loopback interface.
 
-### `rest.auth.oauth2.auth-code.callback-bind-port`
+### `rest.auth.oauth2.auth-code.callback.bind-port`
 
 Port of the OAuth2 authorization code flow local web server.
+
+Ignored if `rest.auth.oauth2.auth-code.redirect-uri` is set.
 
 The internal web server will listen for the authorization code callback on this port. This is only used if the grant type to use is `authorization_code`.
 
 Optional; if not present, a random port will be used.
 
-### `rest.auth.oauth2.auth-code.callback-context-path`
+### `rest.auth.oauth2.auth-code.callback.context-path`
 
 Context path of the OAuth2 authorization code flow local web server.
+
+Ignored if `rest.auth.oauth2.auth-code.redirect-uri` is set.
 
 Optional; if not present, a default context path will be used.
 
@@ -238,6 +250,36 @@ Whether to enable PKCE (Proof Key for Code Exchange) for the authorization code 
 ### `rest.auth.oauth2.auth-code.pkce.method`
 
 The PKCE code challenge method to use. The default is `S256`. This is only used if PKCE is enabled.
+
+### `rest.auth.oauth2.auth-code.ssl.key-store.path`
+
+Path to the key store to use for HTTPS requests. Optional, defaults to the system key store.
+
+Ignored if `rest.auth.oauth2.auth-code.callback.https` is `false` or if `rest.auth.oauth2.auth-code.redirect-uri` is set to a non-HTTPS URL.
+
+### `rest.auth.oauth2.auth-code.ssl.key-store.password`
+
+Password for the key store to use for HTTPS requests. Optional, defaults to no password.
+
+Ignored if `rest.auth.oauth2.auth-code.callback.https` is `false` or if `rest.auth.oauth2.auth-code.redirect-uri` is set to a non-HTTPS URL.
+
+### `rest.auth.oauth2.auth-code.ssl.key-store.alias`
+
+The alias of the key to use from the key store. Optional, defaults to the first matching key in the store.
+
+Ignored if `rest.auth.oauth2.auth-code.callback.https` is `false` or if `rest.auth.oauth2.auth-code.redirect-uri` is set to a non-HTTPS URL.
+
+### `rest.auth.oauth2.auth-code.ssl.protocols`
+
+A comma-separated list of SSL protocols to use for HTTPS requests. Optional, defaults to the system protocols.
+
+Ignored if `rest.auth.oauth2.auth-code.callback.https` is `false` or if `rest.auth.oauth2.auth-code.redirect-uri` is set to a non-HTTPS URL.
+
+### `rest.auth.oauth2.auth-code.ssl.cipher-suites`
+
+A comma-separated list of SSL cipher suites to use for HTTPS requests. Optional, defaults to the system cipher suites.
+
+Ignored if `rest.auth.oauth2.auth-code.callback.https` is `false` or if `rest.auth.oauth2.auth-code.redirect-uri` is set to a non-HTTPS URL.
 
 ## Device Code Settings
 
@@ -407,7 +449,7 @@ This value is used for housekeeping; it does not mean that cached sessions will 
 
 ## Http Settings
 
-Configuration properties for HTTP communication.
+Configuration properties for HTTP clients.
 
 ### `rest.auth.oauth2.http.client-type`
 

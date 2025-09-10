@@ -39,6 +39,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import javax.net.ssl.SSLContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,6 +58,7 @@ public class InteractiveUserEmulator implements UserEmulator, Runnable {
 
   private final TerminalEmulator terminal;
   private final UserBehavior userBehavior;
+  private final SSLContext sslContext;
   private final ExecutorService executor;
 
   private final AtomicBoolean closing = new AtomicBoolean();
@@ -64,8 +66,9 @@ public class InteractiveUserEmulator implements UserEmulator, Runnable {
 
   private URI authUrl;
 
-  public InteractiveUserEmulator(UserBehavior userBehavior) {
+  public InteractiveUserEmulator(UserBehavior userBehavior, SSLContext sslContext) {
     this.userBehavior = userBehavior;
+    this.sslContext = sslContext;
     terminal = new TerminalEmulator();
     executor =
         Executors.newCachedThreadPool(
@@ -107,6 +110,7 @@ public class InteractiveUserEmulator implements UserEmulator, Runnable {
               ImmutableAuthorizationCodeUserFlow.builder()
                   .userBehavior(userBehavior)
                   .authUrl(authUrl)
+                  .sslContext(sslContext)
                   .errorListener(this::recordFailure)
                   .build();
         }
@@ -120,6 +124,7 @@ public class InteractiveUserEmulator implements UserEmulator, Runnable {
             ImmutableDeviceCodeUserFlow.builder()
                 .userBehavior(userBehavior)
                 .authUrl(authUrl)
+                .sslContext(sslContext)
                 .errorListener(this::recordFailure)
                 .userCode(userCode)
                 .build();

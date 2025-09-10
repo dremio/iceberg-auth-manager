@@ -61,7 +61,7 @@ public abstract class AuthorizationCodeExpectation extends InitialTokenFetchExpe
         super.requestBody()
             .put("grant_type", GrantType.AUTHORIZATION_CODE.toString())
             .put("code", "[a-zA-Z0-9-._~]+")
-            .put("redirect_uri", "http://.*");
+            .put("redirect_uri", "https?://.*");
     if (getTestEnvironment().isPkceEnabled()) {
       builder.put("code_verifier", "[a-zA-Z0-9-._~]+");
     }
@@ -112,7 +112,7 @@ public abstract class AuthorizationCodeExpectation extends InitialTokenFetchExpe
             .withQueryStringParameter("client_id", String.format("(%s|%s)", CLIENT_ID1, CLIENT_ID2))
             .withQueryStringParameter("scope", String.format("(%s|%s)", SCOPE1, SCOPE2))
             .withQueryStringParameter(
-                "redirect_uri", "http://localhost:\\d+/iceberg-auth-manager-\\d+(-\\w+)?/auth")
+                "redirect_uri", "https?://localhost:\\d+/iceberg-auth-manager-\\d+(-\\w+)?/auth")
             .withQueryStringParameter("state", "[a-zA-Z0-9-._~]+")
             .withQueryStringParameter("(extra1|extra2)", "(value1|value2)");
     if (getTestEnvironment().isPkceEnabled()) {

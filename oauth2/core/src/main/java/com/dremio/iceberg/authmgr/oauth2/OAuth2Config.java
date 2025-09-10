@@ -177,7 +177,7 @@ public interface OAuth2Config {
           getBasicConfig().getIssuerUrl().isPresent()
               || getAuthorizationCodeConfig().getAuthorizationEndpoint().isPresent(),
           List.of(
-              PREFIX + '.' + "issuer-url",
+              PREFIX + '.' + BasicConfig.ISSUER_URL,
               AuthorizationCodeConfig.PREFIX + '.' + AuthorizationCodeConfig.ENDPOINT),
           "either issuer URL or authorization endpoint must be set if grant type is '%s'",
           GrantType.AUTHORIZATION_CODE.getValue());
@@ -187,7 +187,7 @@ public interface OAuth2Config {
           getBasicConfig().getIssuerUrl().isPresent()
               || getDeviceCodeConfig().getDeviceAuthorizationEndpoint().isPresent(),
           List.of(
-              PREFIX + '.' + "issuer-url",
+              PREFIX + '.' + BasicConfig.ISSUER_URL,
               DeviceCodeConfig.PREFIX + '.' + DeviceCodeConfig.ENDPOINT),
           "either issuer URL or device authorization endpoint must be set if grant type is '%s'",
           GrantType.DEVICE_CODE.getValue());

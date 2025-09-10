@@ -55,13 +55,11 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 class HttpConfigTest {
 
-  @TempDir static Path tempDir;
-
   static Path tempFile;
 
   @BeforeAll
-  static void createFile() throws IOException {
-    tempFile = Files.createTempFile(tempDir, "trust-store", ".pkcs12");
+  static void createFile(@TempDir Path tempDir) throws IOException {
+    tempFile = Files.createTempFile(tempDir, "private-key", ".pem");
   }
 
   @ParameterizedTest

@@ -36,6 +36,7 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -215,7 +216,7 @@ public class KeycloakContainer extends ExtendableKeycloakContainer<KeycloakConta
         authenticationMethod != NONE); // required for client credentials grant
     client.setDirectAccessGrantsEnabled(true); // required for password grant
     client.setStandardFlowEnabled(true); // required for authorization code grant
-    client.setRedirectUris(ImmutableList.of("http://localhost:*"));
+    client.setRedirectUris(List.of("http://localhost:*", "https://localhost:*"));
     ImmutableMap.Builder<String, String> attributes =
         ImmutableMap.<String, String>builder()
             .put("use.refresh.tokens", "true")

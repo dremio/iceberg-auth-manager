@@ -202,14 +202,16 @@ public class ApacheHttpClient implements HttpClient {
     connManager.setTlsSocketStrategy(
         new DefaultClientTlsStrategy(
             sslContext,
-            config.getSslProtocols().isEmpty()
-                ? HttpsSupport.getSystemProtocols()
-                : ConfigUtils.parseCommaSeparatedList(config.getSslProtocols().get())
-                    .toArray(new String[0]),
-            config.getSslCipherSuites().isEmpty()
-                ? HttpsSupport.getSystemCipherSuits()
-                : ConfigUtils.parseCommaSeparatedList(config.getSslCipherSuites().get())
-                    .toArray(new String[0]),
+            config
+                .getSslProtocols()
+                .map(ConfigUtils::parseCommaSeparatedList)
+                .map(list -> list.toArray(new String[0]))
+                .orElseGet(HttpsSupport::getSystemProtocols),
+            config
+                .getSslCipherSuites()
+                .map(ConfigUtils::parseCommaSeparatedList)
+                .map(list -> list.toArray(new String[0]))
+                .orElseGet(HttpsSupport::getSystemCipherSuits),
             SSLBufferMode.STATIC,
             config.isSslHostnameVerificationEnabled()
                 ? HttpsSupport.getDefaultHostnameVerifier()

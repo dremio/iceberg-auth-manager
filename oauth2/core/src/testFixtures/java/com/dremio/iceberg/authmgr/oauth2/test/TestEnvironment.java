@@ -70,6 +70,7 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.net.URI;
 import java.nio.file.Path;
+import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.Map;
@@ -77,6 +78,7 @@ import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import javax.net.ssl.SSLContext;
 import org.apache.iceberg.CatalogProperties;
 import org.apache.iceberg.catalog.SessionCatalog.SessionContext;
 import org.apache.iceberg.rest.HTTPClient;
@@ -376,25 +378,38 @@ public abstract class TestEnvironment implements AutoCloseable {
 
   @Value.Default
   public Map<String, String> getAuthorizationCodeConfig() {
+    String prefix = AuthorizationCodeConfig.PREFIX;
     ImmutableMap.Builder<String, String> builder =
         ImmutableMap.<String, String>builder()
             .put(
-                AuthorizationCodeConfig.PREFIX + '.' + AuthorizationCodeConfig.PKCE_ENABLED,
+                prefix + '.' + AuthorizationCodeConfig.PKCE_ENABLED,
                 String.valueOf(isPkceEnabled()))
             .put(
-                AuthorizationCodeConfig.PREFIX + '.' + AuthorizationCodeConfig.PKCE_METHOD,
-                getCodeChallengeMethod().toString());
+                prefix + '.' + AuthorizationCodeConfig.PKCE_METHOD,
+                getCodeChallengeMethod().toString())
+            .put(
+                prefix + '.' + AuthorizationCodeConfig.CALLBACK_HTTPS,
+                String.valueOf(isCallbackHttps()));
     if (!isDiscoveryEnabled()) {
       builder.put(
-          AuthorizationCodeConfig.PREFIX + '.' + AuthorizationCodeConfig.ENDPOINT,
-          getAuthorizationEndpoint().toString());
+          prefix + '.' + AuthorizationCodeConfig.ENDPOINT, getAuthorizationEndpoint().toString());
     }
     getRedirectUri()
         .ifPresent(
-            u ->
-                builder.put(
-                    AuthorizationCodeConfig.PREFIX + '.' + AuthorizationCodeConfig.REDIRECT_URI,
-                    u.toString()));
+            u -> builder.put(prefix + '.' + AuthorizationCodeConfig.REDIRECT_URI, u.toString()));
+    if (isCallbackHttps()) {
+      getSslKeyStorePath()
+          .ifPresent(
+              p ->
+                  builder.put(
+                      prefix + '.' + AuthorizationCodeConfig.SSL_KEYSTORE_PATH, p.toString()));
+      getSslKeyStorePassword()
+          .ifPresent(
+              p -> builder.put(prefix + '.' + AuthorizationCodeConfig.SSL_KEYSTORE_PASSWORD, p));
+      getSslKeyStoreAlias()
+          .ifPresent(
+              a -> builder.put(prefix + '.' + AuthorizationCodeConfig.SSL_KEYSTORE_ALIAS, a));
+    }
     return builder.build();
   }
 
@@ -409,6 +424,17 @@ public abstract class TestEnvironment implements AutoCloseable {
   }
 
   public abstract Optional<URI> getRedirectUri();
+
+  @Value.Default
+  public boolean isCallbackHttps() {
+    return false;
+  }
+
+  public abstract Optional<Path> getSslKeyStorePath();
+
+  public abstract Optional<String> getSslKeyStorePassword();
+
+  public abstract Optional<String> getSslKeyStoreAlias();
 
   @Value.Default
   public Map<String, String> getDeviceCodeConfig() {
@@ -701,10 +727,19 @@ public abstract class TestEnvironment implements AutoCloseable {
       if (ConfigUtils.requiresUserInteraction(mainGrant)
           || ConfigUtils.requiresUserInteraction(subjectGrant)
           || ConfigUtils.requiresUserInteraction(actorGrant)) {
-        return new InteractiveUserEmulator(getUserBehavior());
+        return new InteractiveUserEmulator(getUserBehavior(), getUserSslContext());
       }
     }
     return UserEmulator.INACTIVE;
+  }
+
+  @Value.Default
+  public SSLContext getUserSslContext() {
+    try {
+      return SSLContext.getDefault();
+    } catch (NoSuchAlgorithmException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Value.Default
@@ -715,7 +750,7 @@ public abstract class TestEnvironment implements AutoCloseable {
         .put(CatalogProperties.FILE_IO_IMPL, "org.apache.iceberg.inmemory.InMemoryFileIO")
         .put(AuthProperties.AUTH_TYPE, OAuth2Manager.class.getName())
         .put(PREFIX + '.' + BasicConfig.GRANT_TYPE, getGrantType().toString())
-        .put(PREFIX + '.' + "issuer-url", getAuthorizationServerUrl().toString())
+        .put(PREFIX + '.' + BasicConfig.ISSUER_URL, getAuthorizationServerUrl().toString())
         .put(PREFIX + '.' + BasicConfig.CLIENT_ID, getClientId().getValue())
         .put(PREFIX + '.' + BasicConfig.CLIENT_SECRET, getClientSecret().getValue())
         .put(PREFIX + '.' + BasicConfig.SCOPE, getScope().toString())

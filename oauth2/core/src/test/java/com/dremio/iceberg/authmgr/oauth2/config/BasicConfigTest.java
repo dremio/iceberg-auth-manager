@@ -66,7 +66,7 @@ class BasicConfigTest {
                 "Client1",
                 PREFIX + '.' + BasicConfig.CLIENT_SECRET,
                 "s3cr3t",
-                PREFIX + '.' + "issuer-url",
+                PREFIX + '.' + BasicConfig.ISSUER_URL,
                 "realms/master"),
             singletonList("Issuer URL must not be relative (rest.auth.oauth2.issuer-url)")),
         Arguments.of(
@@ -75,7 +75,7 @@ class BasicConfigTest {
                 "Client1",
                 PREFIX + '.' + BasicConfig.CLIENT_SECRET,
                 "s3cr3t",
-                PREFIX + '.' + "issuer-url",
+                PREFIX + '.' + BasicConfig.ISSUER_URL,
                 "https://example.com?query"),
             singletonList("Issuer URL must not have a query part (rest.auth.oauth2.issuer-url)")),
         Arguments.of(
@@ -84,7 +84,7 @@ class BasicConfigTest {
                 "Client1",
                 PREFIX + '.' + BasicConfig.CLIENT_SECRET,
                 "s3cr3t",
-                PREFIX + '.' + "issuer-url",
+                PREFIX + '.' + BasicConfig.ISSUER_URL,
                 "https://example.com#fragment"),
             singletonList(
                 "Issuer URL must not have a fragment part (rest.auth.oauth2.issuer-url)")),
@@ -215,7 +215,7 @@ class BasicConfigTest {
                 "Client1",
                 PREFIX + '.' + BasicConfig.CLIENT_SECRET,
                 "s3cr3t",
-                PREFIX + '.' + "issuer-url",
+                PREFIX + '.' + BasicConfig.ISSUER_URL,
                 "https://example.com"),
             singletonList(
                 "timeout must be greater than or equal to PT30S (rest.auth.oauth2.timeout)")));

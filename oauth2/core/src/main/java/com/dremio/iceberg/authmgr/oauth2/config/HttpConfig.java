@@ -30,7 +30,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 
-/** Configuration properties for HTTP communication. */
+/** Configuration properties for HTTP clients. */
 public interface HttpConfig {
 
   String GROUP_NAME = "http";

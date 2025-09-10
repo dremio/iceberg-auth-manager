@@ -22,6 +22,8 @@ import com.nimbusds.oauth2.sdk.pkce.CodeChallengeMethod;
 import io.smallrye.config.WithDefault;
 import io.smallrye.config.WithName;
 import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -44,11 +46,20 @@ public interface AuthorizationCodeConfig {
 
   String ENDPOINT = "endpoint";
   String REDIRECT_URI = "redirect-uri";
-  String CALLBACK_BIND_HOST = "callback-bind-host";
-  String CALLBACK_BIND_PORT = "callback-bind-port";
-  String CALLBACK_CONTEXT_PATH = "callback-context-path";
+
+  String CALLBACK_HTTPS = "callback.https";
+  String CALLBACK_BIND_HOST = "callback.bind-host";
+  String CALLBACK_BIND_PORT = "callback.bind-port";
+  String CALLBACK_CONTEXT_PATH = "callback.context-path";
+
   String PKCE_ENABLED = "pkce.enabled";
   String PKCE_METHOD = "pkce.method";
+
+  String SSL_KEYSTORE_PATH = "ssl.key-store.path";
+  String SSL_KEYSTORE_PASSWORD = "ssl.key-store.password";
+  String SSL_KEYSTORE_ALIAS = "ssl.key-store.alias";
+  String SSL_PROTOCOLS = "ssl.protocols";
+  String SSL_CIPHER_SUITES = "ssl.cipher-suites";
 
   /**
    * URL of the OAuth2 authorization endpoint. For Keycloak, this is typically {@code
@@ -77,7 +88,19 @@ public interface AuthorizationCodeConfig {
   Optional<URI> getRedirectUri();
 
   /**
+   * Whether to use HTTPS for the local web server that listens for the authorization code. The
+   * default is {@code false}.
+   *
+   * <p>Ignored if {@value #REDIRECT_URI} is set.
+   */
+  @WithName(CALLBACK_HTTPS)
+  @WithDefault("false")
+  boolean isCallbackHttps();
+
+  /**
    * Address of the OAuth2 authorization code flow local web server.
+   *
+   * <p>Ignored if {@value #REDIRECT_URI} is set.
    *
    * <p>The internal web server will listen for the authorization code callback on this address.
    * This is only used if the grant type to use is {@link GrantType#AUTHORIZATION_CODE}.
@@ -90,6 +113,8 @@ public interface AuthorizationCodeConfig {
   /**
    * Port of the OAuth2 authorization code flow local web server.
    *
+   * <p>Ignored if {@value #REDIRECT_URI} is set.
+   *
    * <p>The internal web server will listen for the authorization code callback on this port. This
    * is only used if the grant type to use is {@link GrantType#AUTHORIZATION_CODE}.
    *
@@ -100,6 +125,8 @@ public interface AuthorizationCodeConfig {
 
   /**
    * Context path of the OAuth2 authorization code flow local web server.
+   *
+   * <p>Ignored if {@value #REDIRECT_URI} is set.
    *
    * <p>Optional; if not present, a default context path will be used.
    */
@@ -126,6 +153,54 @@ public interface AuthorizationCodeConfig {
   @WithDefault("S256")
   CodeChallengeMethod getCodeChallengeMethod();
 
+  /**
+   * Path to the key store to use for HTTPS requests. Optional, defaults to the system key store.
+   *
+   * <p>Ignored if {@value #CALLBACK_HTTPS} is {@code false} or if {@value #REDIRECT_URI} is set to
+   * a non-HTTPS URL.
+   */
+  @WithName(SSL_KEYSTORE_PATH)
+  Optional<Path> getSslKeyStorePath();
+
+  /**
+   * Password for the key store to use for HTTPS requests. Optional, defaults to no password.
+   *
+   * <p>Ignored if {@value #CALLBACK_HTTPS} is {@code false} or if {@value #REDIRECT_URI} is set to
+   * a non-HTTPS URL.
+   */
+  @WithName(SSL_KEYSTORE_PASSWORD)
+  Optional<String> getSslKeyStorePassword();
+
+  /**
+   * The alias of the key to use from the key store. Optional, defaults to the first matching key in
+   * the store.
+   *
+   * <p>Ignored if {@value #CALLBACK_HTTPS} is {@code false} or if {@value #REDIRECT_URI} is set to
+   * a non-HTTPS URL.
+   */
+  @WithName(SSL_KEYSTORE_ALIAS)
+  Optional<String> getSslKeyStoreAlias();
+
+  /**
+   * A comma-separated list of SSL protocols to use for HTTPS requests. Optional, defaults to the
+   * system protocols.
+   *
+   * <p>Ignored if {@value #CALLBACK_HTTPS} is {@code false} or if {@value #REDIRECT_URI} is set to
+   * a non-HTTPS URL.
+   */
+  @WithName(SSL_PROTOCOLS)
+  Optional<String> getSslProtocols();
+
+  /**
+   * A comma-separated list of SSL cipher suites to use for HTTPS requests. Optional, defaults to
+   * the system cipher suites.
+   *
+   * <p>Ignored if {@value #CALLBACK_HTTPS} is {@code false} or if {@value #REDIRECT_URI} is set to
+   * a non-HTTPS URL.
+   */
+  @WithName(SSL_CIPHER_SUITES)
+  Optional<String> getSslCipherSuites();
+
   default void validate() {
     ConfigValidator validator = new ConfigValidator();
     if (getAuthorizationEndpoint().isPresent()) {
@@ -149,6 +224,13 @@ public interface AuthorizationCodeConfig {
               .map(CodeChallengeMethod::getValue)
               .collect(Collectors.joining("', '", "'", "'")));
     }
+    if (getSslKeyStorePath().isPresent()) {
+      validator.check(
+          Files.isReadable(getSslKeyStorePath().get()),
+          PREFIX + '.' + SSL_KEYSTORE_PATH,
+          "authorization code flow: SSL keystore path '%s' is not a file or is not readable",
+          getSslKeyStorePath().get());
+    }
     validator.validate();
   }
 
@@ -157,6 +239,7 @@ public interface AuthorizationCodeConfig {
     getAuthorizationEndpoint()
         .ifPresent(u -> properties.put(PREFIX + '.' + ENDPOINT, u.toString()));
     getRedirectUri().ifPresent(u -> properties.put(PREFIX + '.' + REDIRECT_URI, u.toString()));
+    properties.put(PREFIX + '.' + CALLBACK_HTTPS, String.valueOf(isCallbackHttps()));
     getCallbackBindHost().ifPresent(h -> properties.put(PREFIX + '.' + CALLBACK_BIND_HOST, h));
     getCallbackBindPort()
         .ifPresent(p -> properties.put(PREFIX + '.' + CALLBACK_BIND_PORT, String.valueOf(p)));
@@ -164,6 +247,13 @@ public interface AuthorizationCodeConfig {
         .ifPresent(p -> properties.put(PREFIX + '.' + CALLBACK_CONTEXT_PATH, p));
     properties.put(PREFIX + '.' + PKCE_ENABLED, String.valueOf(isPkceEnabled()));
     properties.put(PREFIX + '.' + PKCE_METHOD, getCodeChallengeMethod().getValue());
+    getSslKeyStorePath()
+        .ifPresent(p -> properties.put(PREFIX + '.' + SSL_KEYSTORE_PATH, p.toString()));
+    getSslKeyStorePassword()
+        .ifPresent(p -> properties.put(PREFIX + '.' + SSL_KEYSTORE_PASSWORD, p));
+    getSslKeyStoreAlias().ifPresent(a -> properties.put(PREFIX + '.' + SSL_KEYSTORE_ALIAS, a));
+    getSslProtocols().ifPresent(p -> properties.put(PREFIX + '.' + SSL_PROTOCOLS, p));
+    getSslCipherSuites().ifPresent(c -> properties.put(PREFIX + '.' + SSL_CIPHER_SUITES, c));
     return Map.copyOf(properties);
   }
 }

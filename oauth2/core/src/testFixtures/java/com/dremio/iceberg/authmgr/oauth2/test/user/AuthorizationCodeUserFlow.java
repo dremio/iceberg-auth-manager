@@ -44,7 +44,7 @@ public abstract class AuthorizationCodeUserFlow extends UserFlow {
       Set<String> cookies = new HashSet<>();
       URI callbackUri;
       if (getUserBehavior().getUsername().isEmpty()) {
-        HttpURLConnection conn = (HttpURLConnection) getAuthUrl().toURL().openConnection();
+        HttpURLConnection conn = openConnection(getAuthUrl());
         callbackUri = readRedirectUrl(conn, cookies);
         conn.disconnect();
       } else {
@@ -74,7 +74,7 @@ public abstract class AuthorizationCodeUserFlow extends UserFlow {
               .addParameter("state", params.get("state").get(0))
               .build();
     }
-    HttpURLConnection conn = (HttpURLConnection) callbackUrl.toURL().openConnection();
+    HttpURLConnection conn = openConnection(callbackUrl);
     conn.setRequestMethod("GET");
     int status = conn.getResponseCode();
     conn.disconnect();

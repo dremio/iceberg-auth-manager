@@ -34,11 +34,14 @@ import java.net.URLEncoder;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,12 +70,15 @@ public abstract class UserFlow implements Runnable {
    */
   protected abstract Consumer<Throwable> getErrorListener();
 
+  /** The SSL context to use for HTTPS requests. */
+  protected abstract Optional<SSLContext> getSslContext();
+
   /**
    * Emulates the user logging in to the authorization server. This method is only called for
    * integration tests.
    */
-  protected static URI login(
-      URI loginPageUrl, String username, String password, Set<String> cookies) throws Exception {
+  protected URI login(URI loginPageUrl, String username, String password, Set<String> cookies)
+      throws Exception {
     LOGGER.debug("Performing login...");
     // receive login page
     String loginHtml = getHtmlPage(loginPageUrl, cookies);
@@ -92,7 +98,7 @@ public abstract class UserFlow implements Runnable {
     return redirectUrl;
   }
 
-  protected static String getHtmlPage(URI url, Set<String> cookies) throws Exception {
+  protected String getHtmlPage(URI url, Set<String> cookies) throws Exception {
     HttpURLConnection conn = openConnection(url);
     conn.setRequestMethod("GET");
     writeCookies(conn, cookies);
@@ -103,13 +109,16 @@ public abstract class UserFlow implements Runnable {
     return html;
   }
 
-  /**
-   * Open a connection to the given URL, optionally replacing hostname and port with those actually
-   * accessible by this client; this is necessary because the auth server may be sending URLs with a
-   * hostname + port address that is only accessible within a Docker network, e.g. keycloak:8080.
-   */
-  protected static HttpURLConnection openConnection(URI url) throws Exception {
+  /** Open a connection to the given URL. */
+  protected HttpURLConnection openConnection(URI url) throws Exception {
     HttpURLConnection conn = (HttpURLConnection) url.toURL().openConnection();
+    if (conn instanceof HttpsURLConnection) {
+      getSslContext()
+          .ifPresent(
+              ctx -> ((HttpsURLConnection) conn).setSSLSocketFactory(ctx.getSocketFactory()));
+      // disable hostname verification
+      ((HttpsURLConnection) conn).setHostnameVerifier((hostname, session) -> true);
+    }
     // must contain text/html
     conn.addRequestProperty("Accept", "text/html, *; q=.2, */*; q=.2");
     return conn;

@@ -214,10 +214,10 @@ public interface BasicConfig {
     BasicConfig basicConfig = this;
     validator.check(
         getIssuerUrl().isPresent() || getTokenEndpoint().isPresent(),
-        List.of(PREFIX + '.' + "issuer-url", PREFIX + '.' + TOKEN_ENDPOINT),
+        List.of(PREFIX + '.' + ISSUER_URL, PREFIX + '.' + TOKEN_ENDPOINT),
         "either issuer URL or token endpoint must be set");
     if (getIssuerUrl().isPresent()) {
-      validator.checkEndpoint(getIssuerUrl().get(), PREFIX + '.' + "issuer-url", "Issuer URL");
+      validator.checkEndpoint(getIssuerUrl().get(), PREFIX + '.' + ISSUER_URL, "Issuer URL");
     }
     if (getTokenEndpoint().isPresent()) {
       validator.checkEndpoint(
@@ -280,7 +280,7 @@ public interface BasicConfig {
   default Map<String, String> asMap() {
     Map<String, String> properties = new HashMap<>();
     getToken().ifPresent(t -> properties.put(PREFIX + '.' + "token", t.getValue()));
-    getIssuerUrl().ifPresent(u -> properties.put(PREFIX + '.' + "issuer-url", u.toString()));
+    getIssuerUrl().ifPresent(u -> properties.put(PREFIX + '.' + ISSUER_URL, u.toString()));
     getTokenEndpoint().ifPresent(u -> properties.put(PREFIX + '.' + TOKEN_ENDPOINT, u.toString()));
     properties.put(PREFIX + '.' + GRANT_TYPE, getGrantType().getValue());
     properties.put(PREFIX + '.' + CLIENT_AUTH, getClientAuthenticationMethod().getValue());

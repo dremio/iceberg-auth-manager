@@ -63,6 +63,7 @@ import java.nio.file.Path;
 import java.text.ParseException;
 import java.util.Map;
 import java.util.Objects;
+import org.apache.http.ssl.SSLContextBuilder;
 import org.assertj.core.api.SoftAssertions;
 import org.assertj.core.api.junit.jupiter.InjectSoftAssertions;
 import org.assertj.core.api.junit.jupiter.SoftAssertionsExtension;
@@ -213,6 +214,32 @@ public class OAuth2AgentKeycloakIT {
                 .grantType(AUTHORIZATION_CODE)
                 .pkceEnabled(enabled)
                 .codeChallengeMethod(method)
+                .build();
+        OAuth2Agent agent = env.newAgent()) {
+      assertAgent(agent, CLIENT_ID1, true);
+    }
+  }
+
+  @CartesianTest
+  void httpsCallback(
+      @EnumLike CodeChallengeMethod method, Builder envBuilder, @TempDir Path tempDir)
+      throws Exception {
+    Path keyStorePath = tempDir.resolve("keystore.p12");
+    try (InputStream is = getClass().getResourceAsStream("/mockserver.p12")) {
+      Files.copy(Objects.requireNonNull(is), keyStorePath);
+    }
+    try (TestEnvironment env =
+            envBuilder
+                .grantType(AUTHORIZATION_CODE)
+                .codeChallengeMethod(method)
+                .callbackHttps(true)
+                .sslKeyStorePath(keyStorePath)
+                .sslKeyStorePassword("s3cr3t")
+                .sslKeyStoreAlias("1")
+                .userSslContext(
+                    SSLContextBuilder.create()
+                        .loadTrustMaterial(keyStorePath.toFile(), "s3cr3t".toCharArray())
+                        .build())
                 .build();
         OAuth2Agent agent = env.newAgent()) {
       assertAgent(agent, CLIENT_ID1, true);

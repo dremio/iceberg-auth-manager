@@ -18,6 +18,9 @@ package com.dremio.iceberg.authmgr.oauth2.flow;
 import static java.net.HttpURLConnection.HTTP_OK;
 import static java.net.HttpURLConnection.HTTP_UNAUTHORIZED;
 
+import com.dremio.iceberg.authmgr.oauth2.config.AuthorizationCodeConfig;
+import com.dremio.iceberg.authmgr.oauth2.config.ConfigUtils;
+import com.dremio.iceberg.authmgr.oauth2.config.HttpConfig;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
 import com.google.errorprone.annotations.FormatMethod;
 import com.nimbusds.oauth2.sdk.AuthorizationCode;
@@ -31,19 +34,25 @@ import com.nimbusds.oauth2.sdk.pkce.CodeChallengeMethod;
 import com.nimbusds.oauth2.sdk.pkce.CodeVerifier;
 import com.nimbusds.oauth2.sdk.util.URLUtils;
 import com.sun.net.httpserver.HttpExchange;
-import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
+import com.sun.net.httpserver.HttpsConfigurator;
+import com.sun.net.httpserver.HttpsParameters;
+import com.sun.net.httpserver.HttpsServer;
 import java.io.IOException;
 import java.io.PrintStream;
-import java.io.UncheckedIOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Phaser;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLParameters;
+import org.apache.hc.core5.ssl.PrivateKeyStrategy;
+import org.apache.hc.core5.ssl.SSLContextBuilder;
 import org.immutables.value.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -119,9 +128,17 @@ abstract class AuthorizationCodeFlow extends AbstractFlow {
     return getConfig()
         .getAuthorizationCodeConfig()
         .getRedirectUri()
-        .map(uri -> createServer(uri.getHost(), uri.getPort(), uri.getPath(), this::doRequest))
-        .orElseGet(
-            () -> createServer(getBindHost(), getBindPort(), getContextPath(), this::doRequest));
+        .map(uri -> createServer(uri.getHost(), uri.getPort(), uri.getPath()))
+        .orElseGet(() -> createServer(getBindHost(), getBindPort(), getContextPath()));
+  }
+
+  @Value.Derived
+  boolean isSsl() {
+    return getConfig()
+        .getAuthorizationCodeConfig()
+        .getRedirectUri()
+        .map(uri -> uri.getScheme().equals("https"))
+        .orElse(getConfig().getAuthorizationCodeConfig().isCallbackHttps());
   }
 
   /** The redirect URI, resolved to the actual port number after the server has started. */
@@ -130,10 +147,7 @@ abstract class AuthorizationCodeFlow extends AbstractFlow {
     return getConfig()
         .getAuthorizationCodeConfig()
         .getRedirectUri()
-        .orElseGet(
-            () ->
-                defaultRedirectUri(
-                    getBindHost(), getServer().getAddress().getPort(), getContextPath()));
+        .orElseGet(this::buildRedirectUri);
   }
 
   /** The request to the authorization endpoint that will be presented to the user. */
@@ -294,21 +308,75 @@ abstract class AuthorizationCodeFlow extends AbstractFlow {
     }
   }
 
-  @SuppressWarnings("HttpUrlsUsage")
-  private static URI defaultRedirectUri(String host, int port, String contextPath) {
-    return URI.create(String.format("http://%s:%d/%s", host, port, contextPath)).normalize();
+  private URI buildRedirectUri() {
+    String scheme = isSsl() ? "https" : "http";
+    String host = getBindHost();
+    int port = getServer().getAddress().getPort(); // resolved port
+    String path = getContextPath();
+    try {
+      return new URI(scheme, null, host, port, path, null, null);
+    } catch (URISyntaxException e) {
+      throw new RuntimeException(e);
+    }
   }
 
-  private static HttpServer createServer(
-      String hostname, int port, String contextPath, HttpHandler handler) {
+  private HttpServer createServer(String hostname, int port, String contextPath) {
     try {
-      HttpServer server = HttpServer.create(new InetSocketAddress(hostname, port), 0);
-      server.createContext(contextPath.isEmpty() ? "/" : contextPath, handler);
+      HttpServer server;
+      if (isSsl()) {
+        server = HttpsServer.create(new InetSocketAddress(hostname, port), 0);
+        ((HttpsServer) server)
+            .setHttpsConfigurator(
+                new HttpsConfigurator(createSslContext()) {
+                  @Override
+                  public void configure(HttpsParameters params) {
+                    configureSslParams(getSSLContext(), params);
+                  }
+                });
+      } else {
+        server = HttpServer.create(new InetSocketAddress(hostname, port), 0);
+      }
+      server.createContext(contextPath.isEmpty() ? "/" : contextPath, this::doRequest);
       server.start();
       return server;
-    } catch (IOException e) {
-      throw new UncheckedIOException(e);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
     }
+  }
+
+  private SSLContext createSslContext() throws Exception {
+    AuthorizationCodeConfig config = getConfig().getAuthorizationCodeConfig();
+    if (config.getSslKeyStorePath().isPresent()) {
+      PrivateKeyStrategy strategy = null;
+      if (config.getSslKeyStoreAlias().isPresent()) {
+        String alias = config.getSslKeyStoreAlias().get();
+        strategy = (aliases, sslParameters) -> aliases.containsKey(alias) ? alias : null;
+      }
+      return SSLContextBuilder.create()
+          .loadKeyMaterial(
+              config.getSslKeyStorePath().get(),
+              config.getSslKeyStorePassword().map(String::toCharArray).orElse(null),
+              config.getSslKeyStorePassword().map(String::toCharArray).orElse(new char[0]),
+              strategy)
+          .build();
+    }
+    return SSLContext.getDefault();
+  }
+
+  private void configureSslParams(SSLContext sslContext, HttpsParameters params) {
+    SSLParameters sslParameters = sslContext.getDefaultSSLParameters();
+    HttpConfig httpConfig = getConfig().getHttpConfig();
+    httpConfig
+        .getSslProtocols()
+        .map(ConfigUtils::parseCommaSeparatedList)
+        .map(list -> list.toArray(new String[0]))
+        .ifPresent(sslParameters::setProtocols);
+    httpConfig
+        .getSslCipherSuites()
+        .map(ConfigUtils::parseCommaSeparatedList)
+        .map(list -> list.toArray(new String[0]))
+        .ifPresent(sslParameters::setCipherSuites);
+    params.setSSLParameters(sslParameters);
   }
 
   @FormatMethod
