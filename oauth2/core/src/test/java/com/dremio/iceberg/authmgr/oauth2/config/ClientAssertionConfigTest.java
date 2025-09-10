@@ -16,7 +16,6 @@
 package com.dremio.iceberg.authmgr.oauth2.config;
 
 import static com.dremio.iceberg.authmgr.oauth2.config.ClientAssertionConfig.PREFIX;
-import static java.util.Collections.singletonList;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
@@ -67,20 +66,33 @@ class ClientAssertionConfigTest {
     return Stream.of(
         Arguments.of(
             Map.of(PREFIX + '.' + ClientAssertionConfig.ALGORITHM, "RS256"),
-            singletonList(
-                "client assertion: JWS signing algorithm RS256 requires a private key (rest.auth.oauth2.client-assertion.jwt.algorithm / rest.auth.oauth2.client-assertion.jwt.private-key)")),
+            List.of(
+                "client assertion: JWS signing algorithm 'RS256' requires a private key "
+                    + "(rest.auth.oauth2.client-assertion.jwt.algorithm / rest.auth.oauth2.client-assertion.jwt.private-key)")),
         Arguments.of(
             Map.of(
                 PREFIX + '.' + ClientAssertionConfig.ALGORITHM,
                 "HS256",
                 PREFIX + '.' + ClientAssertionConfig.PRIVATE_KEY,
                 tempFile.toString()),
-            singletonList(
-                "client assertion: private key must not be set for JWS algorithm HS256 (rest.auth.oauth2.client-assertion.jwt.algorithm / rest.auth.oauth2.client-assertion.jwt.private-key)")),
+            List.of(
+                "client assertion: private key must not be set for JWS algorithm 'HS256' "
+                    + "(rest.auth.oauth2.client-assertion.jwt.algorithm / rest.auth.oauth2.client-assertion.jwt.private-key)")),
+        Arguments.of(
+            Map.of(
+                PREFIX + '.' + ClientAssertionConfig.ALGORITHM,
+                "RSA_SHA256",
+                PREFIX + '.' + ClientAssertionConfig.PRIVATE_KEY,
+                tempFile.toString()),
+            List.of(
+                "client assertion: unsupported JWS algorithm 'RSA_SHA256', must be one of: "
+                    + "'HS256', 'HS384', 'HS512', 'RS256', 'RS384', 'RS512', 'PS256', 'PS384', 'PS512', 'ES256', 'ES256K', 'ES384', 'ES512', 'EdDSA', 'Ed25519', 'Ed448' "
+                    + "(rest.auth.oauth2.client-assertion.jwt.algorithm)")),
         Arguments.of(
             Map.of(PREFIX + '.' + ClientAssertionConfig.PRIVATE_KEY, "/invalid/path"),
-            singletonList(
-                "client assertion: private key path '/invalid/path' is not a file or is not readable (rest.auth.oauth2.client-assertion.jwt.private-key)")));
+            List.of(
+                "client assertion: private key path '/invalid/path' is not a file or is not readable "
+                    + "(rest.auth.oauth2.client-assertion.jwt.private-key)")));
   }
 
   @Test

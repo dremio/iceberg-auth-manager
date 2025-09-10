@@ -31,6 +31,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Configuration properties for JWT client assertion as specified in <a
@@ -49,10 +51,11 @@ public interface ClientAssertionConfig {
   String SUBJECT = "subject";
   String AUDIENCE = "audience";
   String TOKEN_LIFESPAN = "token-lifespan";
-  String DEFAULT_TOKEN_LIFESPAN = "PT5M";
   String ALGORITHM = "algorithm";
   String PRIVATE_KEY = "private-key";
   String EXTRA_CLAIMS = "extra-claims";
+
+  String DEFAULT_TOKEN_LIFESPAN = "PT5M";
 
   /** The issuer of the client assertion JWT. Optional. The default is the client ID. */
   @WithName(ISSUER)
@@ -106,14 +109,24 @@ public interface ClientAssertionConfig {
         validator.check(
             getPrivateKey().isPresent(),
             List.of(PREFIX + '.' + ALGORITHM, PREFIX + '.' + PRIVATE_KEY),
-            "client assertion: JWS signing algorithm %s requires a private key",
+            "client assertion: JWS signing algorithm '%s' requires a private key",
             getAlgorithm().get().getName());
-      } else {
+      } else if (JWSAlgorithm.Family.HMAC_SHA.contains(getAlgorithm().get())) {
         validator.check(
             getPrivateKey().isEmpty(),
             List.of(PREFIX + '.' + ALGORITHM, PREFIX + '.' + PRIVATE_KEY),
-            "client assertion: private key must not be set for JWS algorithm %s",
+            "client assertion: private key must not be set for JWS algorithm '%s'",
             getAlgorithm().get().getName());
+      } else {
+        validator.check(
+            false,
+            PREFIX + '.' + ALGORITHM,
+            "client assertion: unsupported JWS algorithm '%s', must be one of: %s",
+            getAlgorithm().get().getName(),
+            Stream.concat(
+                    JWSAlgorithm.Family.HMAC_SHA.stream(), JWSAlgorithm.Family.SIGNATURE.stream())
+                .map(JWSAlgorithm::getName)
+                .collect(Collectors.joining("', '", "'", "'")));
       }
     }
     if (getPrivateKey().isPresent()) {
