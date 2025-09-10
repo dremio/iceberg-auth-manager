@@ -111,11 +111,7 @@ if (project.hasProperty("release")) {
         } catch (_: Exception) {
           git("describe", "--always", "--dirty")
         }
-      val info =
-        mapOf(
-          "Build-Git-Head" to gitHead,
-          "Build-Git-Describe" to gitDescribe,
-        )
+      val info = mapOf("Build-Git-Head" to gitHead, "Build-Git-Describe" to gitDescribe)
       rootProject.extra["gitReleaseInfo"] = info
       info
     }
