@@ -14,17 +14,13 @@
  * limitations under the License.
  */
 
-import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-
-plugins { id("com.gradleup.shadow") }
-
-val shadowJar = tasks.named<ShadowJar>("shadowJar")
-
-shadowJar.configure {
-  outputs.cacheIf { false } // do not cache uber/shaded jars
-  mergeServiceFiles()
+plugins {
+  id("authmgr-runtime-jar")
+  id("authmgr-maven")
 }
 
-tasks.withType<ShadowJar>().configureEach { isZip64 = true }
+description =
+  "Runtime bundle for Dremio AuthManager for Apache Iceberg - " +
+    "Variant for the Iceberg Kafka Connect plugin without relocated Iceberg dependencies"
 
-tasks.named("assemble").configure { dependsOn("shadowJar") }
+ext { set("mavenName", "Auth Manager for Apache Iceberg - OAuth2 - Runtime - Kafka") }
