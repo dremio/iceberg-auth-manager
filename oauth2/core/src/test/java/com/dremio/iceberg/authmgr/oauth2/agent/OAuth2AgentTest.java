@@ -474,7 +474,7 @@ class OAuth2AgentTest {
   @Test
   void testSsl(@TempDir Path tempDir) throws IOException {
     Path trustStorePath = tempDir.resolve("truststore.p12");
-    try (InputStream is = getClass().getResourceAsStream("/mockserver.p12")) {
+    try (InputStream is = getClass().getResourceAsStream("/openssl/mockserver.p12")) {
       Files.copy(Objects.requireNonNull(is), trustStorePath);
     }
     try (TestEnvironment env =

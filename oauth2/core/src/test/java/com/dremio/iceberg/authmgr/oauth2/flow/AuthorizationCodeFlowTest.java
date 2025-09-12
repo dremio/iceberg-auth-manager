@@ -62,7 +62,7 @@ class AuthorizationCodeFlowTest {
   @Test
   void httpsCallback(@TempDir Path tempDir) throws Exception {
     Path keyStorePath = tempDir.resolve("keystore.p12");
-    try (InputStream is = getClass().getResourceAsStream("/mockserver.p12")) {
+    try (InputStream is = getClass().getResourceAsStream("/openssl/mockserver.p12")) {
       Files.copy(Objects.requireNonNull(is), keyStorePath);
     }
     try (TestEnvironment env =
