@@ -73,7 +73,7 @@ public class SparkPolarisKeycloakS3IT extends SparkPolarisS3ITBase {
 
   @AfterAll
   @Override
-  public void stopAllContainers() {
+  public void stopAllContainers() throws Exception {
     var keycloak = this.keycloak;
     try (keycloak) {
       super.stopAllContainers();

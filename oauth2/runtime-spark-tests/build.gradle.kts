@@ -33,6 +33,9 @@ val sparkVersions = project.findProperty("authmgr.test.spark.versions").toString
 // Use the first combination as default for regular intTest
 val defaultIcebergVersion = icebergVersions.last()
 val defaultSparkVersion = sparkVersions.last()
+val defaultSparkVersionMajorMinor = defaultSparkVersion.substringBeforeLast(".")
+
+val scalaVersion = "2.13"
 
 val intTestBase =
   configurations.create("intTestBase") {
@@ -71,19 +74,25 @@ dependencies {
 
   // Add to intTestImplementation all Iceberg/Spark dependencies (with default versions)
   // that are required for compilation of test classes
-  intTestImplementation(platform(libs.iceberg.bom))
-  intTestImplementation("org.apache.iceberg:iceberg-spark-runtime-3.5_2.12")
-  intTestImplementation("org.apache.iceberg:iceberg-spark-extensions-3.5_2.12")
-  intTestImplementation("org.apache.spark:spark-sql_2.12:$defaultSparkVersion")
+  intTestImplementation(
+    "org.apache.iceberg:iceberg-spark-runtime-${defaultSparkVersionMajorMinor}_$scalaVersion:$defaultIcebergVersion"
+  )
+  intTestImplementation(
+    "org.apache.iceberg:iceberg-spark-extensions-${defaultSparkVersionMajorMinor}_$scalaVersion:$defaultIcebergVersion"
+  )
+  intTestImplementation("org.apache.spark:spark-sql_$scalaVersion:$defaultSparkVersion")
 }
 
 // Create matrix test tasks for each version combination
 val matrixTestTasks = mutableListOf<TaskProvider<Test>>()
 
 icebergVersions.forEach { icebergVersion ->
-  sparkVersions.forEach { sparkVersion ->
-    val suiteName =
-      "intTest_iceberg${icebergVersion.replace(".", "_")}_spark${sparkVersion.replace(".", "_")}"
+  sparkVersions.forEach sparkVersion@{ sparkVersion ->
+    if (sparkVersion.startsWith("4.") && icebergVersion.startsWith("1.9.")) {
+      return@sparkVersion
+    }
+
+    val suiteName = suiteName(icebergVersion, sparkVersion)
 
     val runtimeConfig =
       configurations.create(suiteName) {
@@ -92,13 +101,19 @@ icebergVersions.forEach { icebergVersion ->
         isCanBeConsumed = false
       }
 
+    val sparkVersionMajorMinor = sparkVersion.substringBeforeLast(".")
+
     // Add version-specific dependencies
     dependencies {
       runtimeConfig(platform("org.apache.iceberg:iceberg-bom:$icebergVersion"))
-      runtimeConfig("org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:$icebergVersion")
-      runtimeConfig("org.apache.iceberg:iceberg-spark-extensions-3.5_2.12:$icebergVersion")
+      runtimeConfig(
+        "org.apache.iceberg:iceberg-spark-runtime-${sparkVersionMajorMinor}_$scalaVersion:$icebergVersion"
+      )
+      runtimeConfig(
+        "org.apache.iceberg:iceberg-spark-extensions-${sparkVersionMajorMinor}_$scalaVersion:$icebergVersion"
+      )
       runtimeConfig("org.apache.iceberg:iceberg-aws-bundle:$icebergVersion")
-      runtimeConfig("org.apache.spark:spark-sql_2.12:$sparkVersion") {
+      runtimeConfig("org.apache.spark:spark-sql_$scalaVersion:$sparkVersion") {
         exclude(group = "org.apache.logging.log4j")
       }
     }
@@ -145,11 +160,7 @@ icebergVersions.forEach { icebergVersion ->
 }
 
 tasks.named<Test>("intTest").configure {
-  dependsOn(
-    tasks.named(
-      "intTest_iceberg${defaultIcebergVersion.replace(".", "_")}_spark${defaultSparkVersion.replace(".", "_")}"
-    )
-  )
+  dependsOn(tasks.named(suiteName(defaultIcebergVersion, defaultSparkVersion)))
   // the task itself should not run any tests
   enabled = false
   description =
@@ -179,3 +190,6 @@ tasks.register("printTestMatrix") {
     }
   }
 }
+
+private fun suiteName(icebergVersion: String, sparkVersion: String) =
+  "intTest_iceberg_${icebergVersion.replace(".", "_")}_spark_${sparkVersion.replace(".", "_")}"

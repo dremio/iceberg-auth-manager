@@ -20,14 +20,21 @@ import com.dremio.iceberg.authmgr.oauth2.cache.AuthSessionCacheFactory;
 import com.dremio.iceberg.authmgr.oauth2.config.ConfigSanitizer;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import org.apache.iceberg.catalog.SessionCatalog.SessionContext;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.rest.RESTClient;
 import org.apache.iceberg.rest.RESTUtil;
+import org.apache.iceberg.rest.auth.AuthManager;
 import org.apache.iceberg.rest.auth.AuthSession;
-import org.apache.iceberg.rest.auth.RefreshingAuthManager;
+import org.apache.iceberg.util.ThreadPools;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public class OAuth2Manager extends RefreshingAuthManager {
+public class OAuth2Manager implements AuthManager {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(OAuth2Manager.class);
 
   private final String name;
   private final AuthSessionCacheFactory<OAuth2Config, OAuth2Session> sessionCacheFactory;
@@ -36,6 +43,7 @@ public class OAuth2Manager extends RefreshingAuthManager {
 
   private OAuth2Session initSession;
   private AuthSessionCache<OAuth2Config, OAuth2Session> sessionCache;
+  private ScheduledExecutorService refreshExecutor;
 
   public OAuth2Manager(String managerName) {
     this(managerName, OAuth2Manager::createSessionCache);
@@ -44,7 +52,6 @@ public class OAuth2Manager extends RefreshingAuthManager {
   public OAuth2Manager(
       String managerName,
       AuthSessionCacheFactory<OAuth2Config, OAuth2Session> sessionCacheFactory) {
-    super(managerName + "-token-refresh");
     this.name = managerName;
     this.sessionCacheFactory = sessionCacheFactory;
   }
@@ -114,16 +121,41 @@ public class OAuth2Manager extends RefreshingAuthManager {
     AuthSessionCache<OAuth2Config, OAuth2Session> cache = sessionCache;
     try (session;
         cache) {
-      super.close();
+      ScheduledExecutorService executor = this.refreshExecutor;
+      if (executor != null) {
+        executor.shutdown();
+        try {
+          if (!executor.awaitTermination(1, TimeUnit.MINUTES)) {
+            LOGGER.warn("Timed out waiting for refresh executor to terminate");
+            executor.shutdownNow();
+          }
+        } catch (InterruptedException e) {
+          LOGGER.warn("Interrupted while waiting for refresh executor to terminate", e);
+          Thread.currentThread().interrupt();
+        }
+      }
     } finally {
       this.initSession = null;
       this.sessionCache = null;
+      this.refreshExecutor = null;
     }
   }
 
   private void initialize(OAuth2Config config) {
     if (sessionCache == null) {
       sessionCache = sessionCacheFactory.apply(name, config);
+    }
+  }
+
+  private ScheduledExecutorService refreshExecutor() {
+    if (refreshExecutor != null) {
+      return refreshExecutor;
+    }
+    try {
+      return ThreadPools.authRefreshPool();
+    } catch (NoSuchMethodError e) {
+      // Iceberg < 1.10 doesn't have ThreadPools.authRefreshPool()
+      return refreshExecutor = ThreadPools.newScheduledPool(name + "-token-refresh", 1);
     }
   }
 

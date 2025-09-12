@@ -20,7 +20,7 @@
 [versions]
 errorprone = "2.41.0"
 hadoop = "3.4.1"
-iceberg = "1.9.2" # When updating iceberg version, also update the iceberg test versions in gradle.properties
+iceberg = "1.10.0" # When updating iceberg version, also update the iceberg test versions in gradle.properties
 immutables = "2.11.1"
 mockito = "5.18.0"
 mockserver = "5.15.0"

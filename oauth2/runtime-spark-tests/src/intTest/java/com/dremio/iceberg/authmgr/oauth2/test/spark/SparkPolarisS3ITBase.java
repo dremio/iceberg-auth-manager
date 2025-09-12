@@ -91,7 +91,7 @@ public abstract class SparkPolarisS3ITBase extends SparkS3ITBase {
 
   @AfterAll
   @Override
-  public void stopAllContainers() {
+  public void stopAllContainers() throws Exception {
     var polaris = this.polaris;
     try (polaris) {
       super.stopAllContainers();

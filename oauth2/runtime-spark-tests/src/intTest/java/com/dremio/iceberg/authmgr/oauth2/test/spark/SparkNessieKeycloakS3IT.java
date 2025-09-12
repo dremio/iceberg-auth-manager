@@ -85,7 +85,7 @@ public class SparkNessieKeycloakS3IT extends SparkNessieS3ITBase {
 
   @AfterAll
   @Override
-  public void stopAllContainers() {
+  public void stopAllContainers() throws Exception {
     var keycloak = this.keycloak;
     try (keycloak) {
       super.stopAllContainers();

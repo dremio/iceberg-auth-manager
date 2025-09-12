@@ -123,7 +123,7 @@ public abstract class SparkS3ITBase {
   }
 
   @AfterAll
-  public void stopAllContainers() {
+  public void stopAllContainers() throws Exception {
     var s3 = this.s3;
     try (s3) {
       if (spark != null) {

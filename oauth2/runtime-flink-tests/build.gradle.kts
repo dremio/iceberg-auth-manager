@@ -33,6 +33,7 @@ val flinkVersions = project.findProperty("authmgr.test.flink.versions").toString
 // Use the last combination as default for regular intTest
 val defaultIcebergVersion = icebergVersions.last()
 val defaultFlinkVersion = flinkVersions.last()
+val defaultFlinkVersionMajorMinor = defaultFlinkVersion.substringBeforeLast(".")
 
 val intTestBase =
   configurations.create("intTestBase") {
@@ -75,8 +76,9 @@ dependencies {
 
   // Add to intTestImplementation all Iceberg/Flink dependencies (with default versions)
   // that are required for compilation of test classes
-  intTestImplementation(platform(libs.iceberg.bom))
-  intTestImplementation("org.apache.iceberg:iceberg-flink-runtime-1.20")
+  intTestImplementation(
+    "org.apache.iceberg:iceberg-flink-runtime-$defaultFlinkVersionMajorMinor:$defaultIcebergVersion"
+  )
   intTestImplementation("org.apache.flink:flink-table-api-java:$defaultFlinkVersion")
 }
 
@@ -84,9 +86,12 @@ dependencies {
 val matrixTestTasks = mutableListOf<TaskProvider<Test>>()
 
 icebergVersions.forEach { icebergVersion ->
-  flinkVersions.forEach { flinkVersion ->
-    val suiteName =
-      "intTest_iceberg${icebergVersion.replace(".", "_")}_flink${flinkVersion.replace(".", "_")}"
+  flinkVersions.forEach flinkVersion@{ flinkVersion ->
+    if (flinkVersion.startsWith("2.") && icebergVersion.startsWith("1.9.")) {
+      return@flinkVersion
+    }
+
+    val suiteName = suiteName(icebergVersion, flinkVersion)
 
     val runtimeConfig =
       configurations.create(suiteName) {
@@ -95,10 +100,14 @@ icebergVersions.forEach { icebergVersion ->
         isCanBeConsumed = false
       }
 
+    val flinkVersionMajorMinor = flinkVersion.substringBeforeLast(".")
+
     // Add version-specific dependencies
     dependencies {
       runtimeConfig(platform("org.apache.iceberg:iceberg-bom:$icebergVersion"))
-      runtimeConfig("org.apache.iceberg:iceberg-flink-runtime-1.20:$icebergVersion")
+      runtimeConfig(
+        "org.apache.iceberg:iceberg-flink-runtime-$flinkVersionMajorMinor:$icebergVersion"
+      )
       runtimeConfig("org.apache.flink:flink-table-api-java:$flinkVersion")
       runtimeConfig("org.apache.flink:flink-table-runtime:$flinkVersion")
       runtimeConfig("org.apache.flink:flink-table-planner-loader:$flinkVersion")
@@ -169,11 +178,7 @@ icebergVersions.forEach { icebergVersion ->
 }
 
 tasks.named<Test>("intTest").configure {
-  dependsOn(
-    tasks.named(
-      "intTest_iceberg${defaultIcebergVersion.replace(".", "_")}_flink${defaultFlinkVersion.replace(".", "_")}"
-    )
-  )
+  dependsOn(tasks.named(suiteName(defaultIcebergVersion, defaultFlinkVersion)))
   // the task itself should not run any tests
   enabled = false
   description =
@@ -203,3 +208,6 @@ tasks.register("printTestMatrix") {
     }
   }
 }
+
+private fun suiteName(icebergVersion: String, flinkVersion: String) =
+  "intTest_iceberg_${icebergVersion.replace(".", "_")}_flink_${flinkVersion.replace(".", "_")}"

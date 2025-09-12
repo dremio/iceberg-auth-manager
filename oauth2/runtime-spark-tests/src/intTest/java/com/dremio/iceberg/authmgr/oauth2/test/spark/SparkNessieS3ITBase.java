@@ -47,7 +47,7 @@ public abstract class SparkNessieS3ITBase extends SparkS3ITBase {
 
   @AfterAll
   @Override
-  public void stopAllContainers() {
+  public void stopAllContainers() throws Exception {
     var nessie = this.nessie;
     try (nessie) {
       super.stopAllContainers();
