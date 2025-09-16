@@ -28,6 +28,13 @@ publishing {
   }
 }
 
+tasks.withType<Jar>().configureEach {
+  from(tasks.named("generatePomFileForMavenPublication")) {
+    include("pom-default.xml")
+    eachFile { this.path = "META-INF/maven/${project.group}/${project.name}/pom.xml" }
+  }
+}
+
 // Use afterEvaluate to ensure properties are accessed after they've been set
 afterEvaluate {
 
@@ -38,11 +45,11 @@ afterEvaluate {
   publishing {
     publications {
 
-      // Only create staging-maven publication for projects that should be published
+      // Only create maven publication for projects that should be published
       if (project.name !in excludedProjects) {
 
         // This publication is used for staging and deployment to Maven Central by JReleaser
-        create<MavenPublication>("staging-maven") {
+        create<MavenPublication>("maven") {
           if (project.plugins.hasPlugin("authmgr-bundle")) {
             from(components["shadow"])
             // Shadow component doesn't include javadoc and sources jars by default, so add them
