@@ -21,11 +21,11 @@
 errorprone = "2.41.0"
 hadoop = "3.4.1"
 iceberg = "1.10.0" # When updating iceberg version, also update the iceberg test versions in gradle.properties
-immutables = "2.11.1"
-mockito = "5.18.0"
+immutables = "2.11.3"
+mockito = "5.19.0"
 mockserver = "5.15.0"
-nimbus-oauth2 = "11.27.1"
-nimbus-jose-jwt = "10.4.2"
+nimbus-oauth2 = "11.28"
+nimbus-jose-jwt = "10.5"
 slf4j = "2.0.17"
 
 [bundles]
@@ -36,7 +36,7 @@ slf4j = "2.0.17"
 # If a dependency is removed, check whether the LICENSE and/or NOTICE files need to be adapted
 # (aka mention of the dependency removed).
 #
-assertj-core = { module = "org.assertj:assertj-core", version = "3.27.3" }
+assertj-core = { module = "org.assertj:assertj-core", version = "3.27.4" }
 awaitility = { module = "org.awaitility:awaitility", version = "4.3.0" }
 bouncycastle-bcpkix = { module = "org.bouncycastle:bcpkix-jdk18on", version = "1.81" }
 caffeine = { module = "com.github.ben-manes.caffeine:caffeine", version = "3.2.2" }
@@ -62,7 +62,7 @@ mockserver-client-java = { module = "org.mock-server:mockserver-client-java", ve
 mockserver-netty = { module = "org.mock-server:mockserver-netty", version.ref = "mockserver" }
 nimbus-oauth2-oidc-sdk = { module = "com.nimbusds:oauth2-oidc-sdk", version.ref = "nimbus-oauth2" }
 nimbus-jose-jwt = { module = "com.nimbusds:nimbus-jose-jwt", version.ref = "nimbus-jose-jwt" }
-s3mock-testcontainers = { module = "com.adobe.testing:s3mock-testcontainers", version = "4.7.0" }
+s3mock-testcontainers = { module = "com.adobe.testing:s3mock-testcontainers", version = "4.8.0" }
 slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
 smallrye-config = { module = "io.smallrye.config:smallrye-config", version = "3.13.4" }
 testcontainers-bom = { module = "org.testcontainers:testcontainers-bom", version = "1.21.3" }
