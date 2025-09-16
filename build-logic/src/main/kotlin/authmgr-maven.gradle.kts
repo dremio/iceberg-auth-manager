@@ -28,10 +28,12 @@ publishing {
   }
 }
 
-tasks.withType<Jar>().configureEach {
-  from(tasks.named("generatePomFileForMavenPublication")) {
-    include("pom-default.xml")
-    eachFile { this.path = "META-INF/maven/${project.group}/${project.name}/pom.xml" }
+if (project.hasProperty("release")) {
+  tasks.withType<Jar>().configureEach {
+    from(tasks.named("generatePomFileForMavenPublication")) {
+      include("pom-default.xml")
+      eachFile { this.path = "META-INF/maven/${project.group}/${project.name}/pom.xml" }
+    }
   }
 }
 
