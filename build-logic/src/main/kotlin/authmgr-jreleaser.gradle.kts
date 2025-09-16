@@ -42,18 +42,6 @@ jreleaser {
     copyright = "Copyright (c) ${LocalDate.now().year} Dremio"
   }
 
-  files {
-    subprojects.forEach { project ->
-      if (project.name !in excludedProjects) {
-        glob {
-          pattern.set(
-            project.layout.buildDirectory.dir("libs").get().asFile.absolutePath + "/**.jar"
-          )
-        }
-      }
-    }
-  }
-
   signing {
     active.set(Active.ALWAYS)
     verify.set(false) // requires the GPG public key to be set up
@@ -151,10 +139,14 @@ jreleaser {
         content.set(
           """
           ## Try It Out
+          
           {{projectNameCapitalized}} is available as a Maven artifact from [Maven Central](https://central.sonatype.com/namespace/com.dremio.iceberg.authmgr).
           You can also download the latest version from the [GitHub Releases page]({{repoUrl}}/releases).
+          
           ## Highlights
+          
           The full changelog can be found [here]({{repoUrl}}/compare/{{previousTagName}}...{{tagName}}).
+          
           {{changelogChanges}}
           {{changelogContributors}}
           """
@@ -181,18 +173,13 @@ jreleaser {
           active.set(Active.RELEASE_PRERELEASE)
           url.set("https://central.sonatype.com/api/v1/publisher")
           applyMavenCentralRules.set(true)
-          // Parent POM
-          stagingRepository(
-            rootProject.layout.buildDirectory.dir("staging-deploy").get().asFile.absolutePath
-          )
-          // Child POMs
-          subprojects.forEach { project ->
-            if (project.name !in excludedProjects) {
+          rootProject.allprojects
+            .filter { it.name !in excludedProjects }
+            .forEach {
               stagingRepository(
-                project.layout.buildDirectory.dir("staging-deploy").get().asFile.absolutePath
+                it.layout.buildDirectory.dir("staging-deploy").get().asFile.absolutePath
               )
             }
-          }
         }
       }
     }
