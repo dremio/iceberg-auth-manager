@@ -36,14 +36,14 @@ val docs by
   }
 
 dependencies {
-  implementation(platform(libs.iceberg.bom))
-  implementation("org.apache.iceberg:iceberg-api")
-  implementation("org.apache.iceberg:iceberg-core")
+  api(platform(libs.iceberg.bom))
+  api("org.apache.iceberg:iceberg-api")
+  api("org.apache.iceberg:iceberg-core")
 
-  implementation(libs.nimbus.oauth2.oidc.sdk) {
+  api(libs.nimbus.oauth2.oidc.sdk) {
     exclude(group = "com.github.stephenc.jcip", module = "jcip-annotations")
   }
-  implementation(libs.nimbus.jose.jwt)
+  api(libs.nimbus.jose.jwt)
 
   implementation(libs.httpclient5)
 

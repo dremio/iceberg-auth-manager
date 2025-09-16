@@ -49,13 +49,24 @@ afterEvaluate {
             // explicitly
             artifact(tasks.named("javadocJar"))
             artifact(tasks.named("sourcesJar"))
-          } else {
-            from(components.firstOrNull { it.name == "java" })
+          } else if (project.plugins.hasPlugin("authmgr-java")) {
+            val javaComponent = components["java"] as AdhocComponentWithVariants
+            from(javaComponent)
+            if (project.plugins.hasPlugin("authmgr-java-testing")) {
+              // Do not include testFixtures in publication as they appear in compile scope
+              // https://github.com/gradle/gradle/issues/14936
+              javaComponent.withVariantsFromConfiguration(
+                configurations["testFixturesApiElements"]
+              ) {
+                skip()
+              }
+              javaComponent.withVariantsFromConfiguration(
+                configurations["testFixturesRuntimeElements"]
+              ) {
+                skip()
+              }
+            }
           }
-
-          // Suppress test fixtures capability warnings
-          suppressPomMetadataWarningsFor("testFixturesApiElements")
-          suppressPomMetadataWarningsFor("testFixturesRuntimeElements")
 
           pom {
             // Use the mavenName property if it exists, otherwise use a default
