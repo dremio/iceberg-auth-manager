@@ -42,6 +42,20 @@ jreleaser {
     copyright = "Copyright (c) ${LocalDate.now().year} Dremio"
   }
 
+  // Required to upload release assets to the GitHub Release page
+  // see https://github.com/jreleaser/jreleaser/issues/1627
+  files {
+    subprojects.forEach { project ->
+      if (project.name !in excludedProjects) {
+        glob {
+          pattern.set(
+            project.layout.buildDirectory.dir("libs").get().asFile.absolutePath + "/**.jar"
+          )
+        }
+      }
+    }
+  }
+
   signing {
     active.set(Active.ALWAYS)
     verify.set(false) // requires the GPG public key to be set up
