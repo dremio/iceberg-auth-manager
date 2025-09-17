@@ -63,9 +63,11 @@ val intTestBase =
 configurations.intTestImplementation.get().extendsFrom(intTestBase)
 
 dependencies {
-  intTestBase(project(":authmgr-oauth2-standalone"))
+  intTestBase(project(":authmgr-oauth2-standalone", "shadow"))
+  intTestBase(project(":authmgr-oauth2-tests"))
 
-  intTestBase(testFixtures(project(":authmgr-oauth2-core")) as ModuleDependency)
+  intTestBase(platform(libs.iceberg.bom))
+  intTestBase("org.apache.iceberg:iceberg-core")
 
   intTestBase(platform(libs.testcontainers.bom))
   intTestBase("org.testcontainers:testcontainers")
@@ -78,6 +80,7 @@ dependencies {
   intTestBase("org.junit.platform:junit-platform-launcher")
 
   intTestBase(libs.httpclient5)
+  intTestBase(libs.guava)
 
   intTestBase(libs.assertj.core)
   intTestBase(libs.mockito.core)

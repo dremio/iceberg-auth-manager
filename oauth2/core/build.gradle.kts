@@ -61,6 +61,8 @@ dependencies {
   compileOnly(project(":authmgr-immutables"))
   annotationProcessor(project(":authmgr-immutables", configuration = "processor"))
 
+  testFixturesApi(project(":authmgr-oauth2-tests"))
+
   testFixturesApi(platform(libs.iceberg.bom))
   testFixturesApi("org.apache.iceberg:iceberg-api")
   testFixturesApi("org.apache.iceberg:iceberg-core")

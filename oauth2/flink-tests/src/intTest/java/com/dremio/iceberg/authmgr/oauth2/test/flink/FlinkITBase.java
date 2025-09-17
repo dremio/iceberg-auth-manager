@@ -15,20 +15,15 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.test.flink;
 
-import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.CLIENT_ID1;
-import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.CLIENT_SECRET1;
-import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.WAREHOUSE;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.adobe.testing.s3mock.testcontainers.S3MockContainer;
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Manager;
+import com.dremio.iceberg.authmgr.oauth2.test.container.KeycloakContainer;
 import com.dremio.iceberg.authmgr.oauth2.test.container.PolarisContainer;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterators;
-import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.iceberg.IcebergBuild;
@@ -39,15 +34,21 @@ import org.junit.jupiter.api.TestInstance;
 import org.testcontainers.containers.Network;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-@SuppressWarnings("resource")
-public abstract class FlinkPolarisS3ITBase {
+public abstract class FlinkITBase {
+
+  public static final String WAREHOUSE = "warehouse1";
+  public static final String SCOPE = "catalog";
+  public static final String CLIENT_ID = "Client1";
+  public static final String CLIENT_SECRET = "s3cr3t";
 
   protected S3MockContainer s3;
-  protected volatile PolarisContainer polaris;
+  protected KeycloakContainer keycloak;
+  protected PolarisContainer polaris;
+
   protected TableEnvironment flink;
 
   @BeforeAll
-  public void recordExpectedVersions() {
+  void recordExpectedVersions() {
     var expectedIcebergVersion = System.getProperty("authmgr.test.iceberg.version");
     var actualIcebergVersion = IcebergBuild.version();
     assertThat(actualIcebergVersion).startsWith(expectedIcebergVersion);
@@ -55,65 +56,40 @@ public abstract class FlinkPolarisS3ITBase {
   }
 
   @BeforeAll
-  public void setup() throws ExecutionException, InterruptedException {
+  void setup() {
     var network = Network.newNetwork();
-    startAllContainers(network).get();
+    s3 = createS3Container(network);
+    startContainers(network);
     EnvironmentSettings settings = EnvironmentSettings.newInstance().inBatchMode().build();
     flink = TableEnvironment.create(settings);
     createFlinkCatalog(flinkCatalogOptions());
   }
 
-  protected CompletableFuture<Void> startAllContainers(Network network) {
-    s3 = createS3Container(network);
-    return CompletableFuture.allOf(
-        CompletableFuture.runAsync(this.s3::start),
-        createPolarisContainer(network)
-            .thenCompose(
-                container -> {
-                  polaris = container;
-                  return CompletableFuture.runAsync(container::start);
-                })
-            .thenCompose(v -> fetchNewToken())
-            .thenAccept(this::createPolarisCatalog));
-  }
+  protected abstract void startContainers(Network network);
 
   @SuppressWarnings("resource")
   protected S3MockContainer createS3Container(Network network) {
-    return new S3MockContainer("3.11.0")
-        .withInitialBuckets("test-bucket")
+    return new S3MockContainer("4.8.0")
         .withNetwork(network)
-        .withNetworkAliases("s3");
+        .withNetworkAliases("s3")
+        .withInitialBuckets("test-bucket");
   }
 
-  protected abstract CompletableFuture<PolarisContainer> createPolarisContainer(Network network);
+  @SuppressWarnings("resource")
+  protected KeycloakContainer createKeycloakContainer(Network network) {
+    return new KeycloakContainer()
+        .withNetwork(network)
+        .withScope(SCOPE)
+        .withClient(CLIENT_ID, CLIENT_SECRET, "client_secret_basic");
+  }
 
-  protected abstract CompletableFuture<String> fetchNewToken();
-
-  protected void createPolarisCatalog(String token) {
-    polaris.createCatalog(
-        token,
-        Map.of(
-            "default-base-location",
-            "s3://test-bucket/path/to/data",
-            "table-default.s3.endpoint",
-            "http://s3:9090",
-            "table-default.s3.path-style-access",
-            "true",
-            "table-default.s3.access-key-id",
-            "fake",
-            "table-default.s3.secret-access-key",
-            "fake"),
-        Map.of(
-            "storageType",
-            "S3",
-            "roleArn",
-            "arn:aws:iam::123456789012:role/my-role",
-            "externalId",
-            "my-external-id",
-            "userArn",
-            "arn:aws:iam::123456789012:user/my-user",
-            "allowedLocations",
-            List.of("s3://test-bucket/path/to/data")));
+  @SuppressWarnings("resource")
+  protected PolarisContainer createPolarisContainer(Network network) {
+    return new PolarisContainer()
+        .withNetwork(network)
+        .withClient(CLIENT_ID, CLIENT_SECRET)
+        .withEnv("AWS_REGION", "us-west-2")
+        .withEnv("polaris.features.\"SKIP_CREDENTIAL_SUBSCOPING_INDIRECTION\"", "true");
   }
 
   protected Map<String, String> flinkCatalogOptions() {
@@ -127,8 +103,8 @@ public abstract class FlinkPolarisS3ITBase {
         .put("s3.path-style-access", "true")
         .put("s3.endpoint", s3.getHttpEndpoint())
         .put("rest.auth.type", OAuth2Manager.class.getName())
-        .put("rest.auth.oauth2.client-id", CLIENT_ID1.getValue())
-        .put("rest.auth.oauth2.client-secret", CLIENT_SECRET1.getValue())
+        .put("rest.auth.oauth2.client-id", CLIENT_ID)
+        .put("rest.auth.oauth2.client-secret", CLIENT_SECRET)
         .put("rest.auth.oauth2.http.client-type", "apache")
         .build();
   }
@@ -159,12 +135,14 @@ public abstract class FlinkPolarisS3ITBase {
     }
   }
 
-  @SuppressWarnings("EmptyTryBlock")
   @AfterAll
-  public void stopAllContainers() {
-    var polaris = this.polaris;
+  @SuppressWarnings("EmptyTryBlock")
+  void stopContainers() {
     var s3 = this.s3;
-    try (polaris;
-        s3) {}
+    var keycloak = this.keycloak;
+    var polaris = this.polaris;
+    try (s3;
+        keycloak;
+        polaris) {}
   }
 }

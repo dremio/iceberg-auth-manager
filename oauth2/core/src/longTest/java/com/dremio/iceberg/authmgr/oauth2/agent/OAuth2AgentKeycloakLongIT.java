@@ -15,14 +15,15 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.agent;
 
+import static com.dremio.iceberg.authmgr.oauth2.test.junit.KeycloakExtension.CLIENT_ID1;
+import static com.dremio.iceberg.authmgr.oauth2.test.junit.KeycloakExtension.SCOPE1;
 import static com.nimbusds.oauth2.sdk.GrantType.AUTHORIZATION_CODE;
 import static com.nimbusds.oauth2.sdk.GrantType.DEVICE_CODE;
 import static com.nimbusds.oauth2.sdk.GrantType.TOKEN_EXCHANGE;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.dremio.iceberg.authmgr.oauth2.test.ImmutableTestEnvironment.Builder;
-import com.dremio.iceberg.authmgr.oauth2.test.TestConstants;
-import com.dremio.iceberg.authmgr.oauth2.test.container.KeycloakExtension;
+import com.dremio.iceberg.authmgr.oauth2.test.junit.KeycloakExtension;
 import com.nimbusds.jwt.JWT;
 import com.nimbusds.jwt.JWTParser;
 import com.nimbusds.oauth2.sdk.token.AccessToken;
@@ -48,10 +49,8 @@ public class OAuth2AgentKeycloakLongIT extends OAuth2AgentLongITBase {
     try {
       JWT jwt = JWTParser.parse(accessToken.getValue());
       assertThat(jwt).isNotNull();
-      assertThat(jwt.getJWTClaimsSet().getStringClaim("azp"))
-          .isEqualTo(TestConstants.CLIENT_ID1.getValue());
-      assertThat(jwt.getJWTClaimsSet().getStringClaim("scope"))
-          .contains(TestConstants.SCOPE1.toString());
+      assertThat(jwt.getJWTClaimsSet().getStringClaim("azp")).isEqualTo(CLIENT_ID1);
+      assertThat(jwt.getJWTClaimsSet().getStringClaim("scope")).contains(SCOPE1);
     } catch (ParseException e) {
       throw new RuntimeException(e);
     }

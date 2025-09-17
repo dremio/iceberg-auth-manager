@@ -13,37 +13,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dremio.iceberg.authmgr.oauth2.test.spark;
+package com.dremio.iceberg.authmgr.oauth2.test.spark.polaris;
 
-import com.dremio.iceberg.authmgr.oauth2.test.container.PolarisContainer;
+import com.dremio.iceberg.authmgr.oauth2.test.spark.SparkITBase;
 import com.google.common.collect.ImmutableMap;
+import java.net.URI;
 import java.nio.file.Path;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import org.testcontainers.containers.Network;
+import org.testcontainers.lifecycle.Startables;
 
-/** A test that exercises Spark with Polaris configured as its own authentication provider. */
-public class SparkPolarisS3IT extends SparkPolarisS3ITBase {
+/** A test that exercises Spark with Polaris as the catalog server and the identity provider. */
+public class SparkPolarisIT extends SparkITBase {
 
-  @SuppressWarnings("resource")
   @Override
-  protected CompletableFuture<PolarisContainer> createPolarisContainer(Network network) {
-    return CompletableFuture.completedFuture(
-        new PolarisContainer()
-            .withEnv("AWS_REGION", "us-west-2")
-            .withEnv("polaris.features.\"SKIP_CREDENTIAL_SUBSCOPING_INDIRECTION\"", "true")
-            .withNetwork(network));
+  protected void startContainers(Network network) {
+    polaris = createPolarisContainer(network);
+    Startables.deepStart(s3, polaris).join();
+    String token = polaris.fetchNewToken();
+    polaris.createCatalog(token, WAREHOUSE, "s3://test-bucket/path/to/data", "http://s3:9090");
   }
 
   @Override
-  protected CompletableFuture<String> fetchNewToken() {
-    return CompletableFuture.supplyAsync(polaris::fetchNewToken);
+  protected URI catalogApiEndpoint() {
+    return polaris.getCatalogApiEndpoint();
   }
 
   @Override
   protected Map<String, Object> sparkConfig(Path tempDir) {
     return ImmutableMap.<String, Object>builder()
         .putAll(super.sparkConfig(tempDir))
+        .put("spark.sql.catalog.test.header.Polaris-Realm", "POLARIS")
         .put("spark.sql.catalog.test.rest.auth.oauth2.token-endpoint", polaris.getTokenEndpoint())
         .put("spark.sql.catalog.test.rest.auth.oauth2.scope", "PRINCIPAL_ROLE:ALL")
         .build();

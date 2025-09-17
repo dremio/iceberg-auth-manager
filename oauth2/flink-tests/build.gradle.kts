@@ -44,16 +44,8 @@ val intTestBase =
 configurations.intTestImplementation.get().extendsFrom(intTestBase)
 
 dependencies {
-
-  // Note: iceberg-core will be provided by the iceberg-flink-runtime jar,
-  // with shaded dependencies; it should not leak into this project unshaded.
-
-  // Use the shaded JAR for compilation to match runtime behavior
-  intTestBase(project(":authmgr-oauth2-runtime", "shadowRuntimeElements"))
-
-  intTestBase(testFixtures(project(":authmgr-oauth2-core")) as ModuleDependency) {
-    exclude(group = "org.apache.iceberg")
-  }
+  intTestBase(project(":authmgr-oauth2-runtime", "shadow"))
+  intTestBase(project(":authmgr-oauth2-tests"))
 
   intTestBase(libs.hadoop.common)
   intTestBase(libs.hadoop.hdfs.client)
@@ -67,6 +59,8 @@ dependencies {
   intTestBase("org.junit.jupiter:junit-jupiter")
   intTestBase("org.junit.jupiter:junit-jupiter-api")
   intTestBase("org.junit.platform:junit-platform-launcher")
+
+  intTestBase(libs.guava)
 
   intTestBase(libs.assertj.core)
   intTestBase(libs.mockito.core)

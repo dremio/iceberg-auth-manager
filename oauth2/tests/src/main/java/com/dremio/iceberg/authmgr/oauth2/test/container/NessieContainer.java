@@ -31,10 +31,10 @@ public class NessieContainer extends GenericContainer<NessieContainer> {
 
   @SuppressWarnings("resource")
   public NessieContainer() {
-    super("ghcr.io/projectnessie/nessie:0.104.1");
+    super("ghcr.io/projectnessie/nessie:0.105.1");
+    withNetworkAliases("nessie");
     withLogConsumer(new Slf4jLogConsumer(LOGGER));
     withExposedPorts(19120, 9000);
-    withNetworkAliases("nessie");
     waitingFor(Wait.forHttp("/q/health/ready").forPort(9000));
     withEnv("nessie.version.store.type", "IN_MEMORY");
     withEnv("quarkus.log.level", getRootLoggerLevel());
@@ -44,6 +44,9 @@ public class NessieContainer extends GenericContainer<NessieContainer> {
 
   @Override
   public void start() {
+    if (getContainerId() != null) {
+      return;
+    }
     super.start();
     baseUri = URI.create("http://localhost:" + getMappedPort(19120));
   }

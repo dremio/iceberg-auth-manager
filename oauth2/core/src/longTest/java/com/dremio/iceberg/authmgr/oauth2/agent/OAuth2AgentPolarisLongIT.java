@@ -18,7 +18,7 @@ package com.dremio.iceberg.authmgr.oauth2.agent;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.dremio.iceberg.authmgr.oauth2.test.ImmutableTestEnvironment.Builder;
-import com.dremio.iceberg.authmgr.oauth2.test.container.PolarisExtension;
+import com.dremio.iceberg.authmgr.oauth2.test.junit.PolarisExtension;
 import com.nimbusds.jwt.JWT;
 import com.nimbusds.jwt.JWTParser;
 import com.nimbusds.oauth2.sdk.token.AccessToken;

@@ -18,48 +18,39 @@ package com.dremio.iceberg.authmgr.oauth2.test.flink;
 import static com.dremio.iceberg.authmgr.oauth2.test.flink.RemoteAuthServerSupport.OAUTH2_AGENT_CONFIG_ENV;
 
 import com.dremio.iceberg.authmgr.oauth2.config.BasicConfig;
-import com.dremio.iceberg.authmgr.oauth2.test.container.PolarisContainer;
 import com.google.common.collect.ImmutableMap;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.testcontainers.containers.Network;
+import org.testcontainers.lifecycle.Startables;
 
 /**
- * A test that exercises Spark with Polaris configured with an external authentication provider.
+ * A test that exercises Flink with Polaris as the catalog server and a remote identity provider.
  *
  * <p>The external authentication provider is configured via the {@link
  * RemoteAuthServerSupport#OAUTH2_AGENT_CONFIG_ENV} environment variable.
  */
 @EnabledIfEnvironmentVariable(named = OAUTH2_AGENT_CONFIG_ENV, matches = ".+")
-public class FlinkPolarisExternalAuthServerS3IT extends FlinkPolarisS3ITBase {
+public class FlinkPolarisRemoteIT extends FlinkITBase {
 
-  @SuppressWarnings("resource")
   @Override
-  protected CompletableFuture<PolarisContainer> createPolarisContainer(Network network) {
+  protected void startContainers(Network network) {
     Map<String, String> agentConfig = RemoteAuthServerSupport.INSTANCE.getAgentConfig();
-    return CompletableFuture.completedFuture(
-        new PolarisContainer(
-                agentConfig.get(BasicConfig.PREFIX + '.' + BasicConfig.CLIENT_ID),
-                agentConfig.get(BasicConfig.PREFIX + '.' + BasicConfig.CLIENT_SECRET))
-            .withEnv("AWS_REGION", "us-west-2")
-            .withEnv("polaris.features.\"SKIP_CREDENTIAL_SUBSCOPING_INDIRECTION\"", "true")
+    String clientId = agentConfig.get(BasicConfig.PREFIX + '.' + BasicConfig.CLIENT_ID);
+    String clientSecret = agentConfig.get(BasicConfig.PREFIX + '.' + BasicConfig.CLIENT_SECRET);
+    String issuerUrl = agentConfig.get(BasicConfig.PREFIX + '.' + BasicConfig.ISSUER_URL);
+    polaris =
+        createPolarisContainer(network)
+            .withClient(clientId, clientSecret)
             .withEnv("quarkus.oidc.tenant-enabled", "true")
             .withEnv("polaris.authentication.type", "external")
             .withEnv("polaris.oidc.principal-mapper.id-claim-path", "principal_id")
             .withEnv("quarkus.oidc.roles.role-claim-path", "principal_role")
-            .withEnv(
-                "quarkus.oidc.auth-server-url",
-                agentConfig.get(BasicConfig.PREFIX + '.' + BasicConfig.ISSUER_URL))
-            .withEnv(
-                "quarkus.oidc.client-id",
-                agentConfig.get(BasicConfig.PREFIX + '.' + BasicConfig.CLIENT_ID))
-            .withNetwork(network));
-  }
-
-  @Override
-  protected CompletableFuture<String> fetchNewToken() {
-    return CompletableFuture.completedFuture(RemoteAuthServerSupport.INSTANCE.fetchNewToken());
+            .withEnv("quarkus.oidc.auth-server-url", issuerUrl)
+            .withEnv("quarkus.oidc.client-id", clientId);
+    Startables.deepStart(s3, polaris).join();
+    String token = RemoteAuthServerSupport.INSTANCE.fetchNewToken();
+    polaris.createCatalog(token, WAREHOUSE, "s3://test-bucket/path/to/data", "http://s3:9090");
   }
 
   @Override

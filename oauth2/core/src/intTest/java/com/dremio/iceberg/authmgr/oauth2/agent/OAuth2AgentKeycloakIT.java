@@ -15,12 +15,14 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.agent;
 
-import static com.dremio.iceberg.authmgr.oauth2.test.container.KeycloakContainer.CLIENT_ID1;
-import static com.dremio.iceberg.authmgr.oauth2.test.container.KeycloakContainer.CLIENT_ID2;
-import static com.dremio.iceberg.authmgr.oauth2.test.container.KeycloakContainer.CLIENT_ID3;
-import static com.dremio.iceberg.authmgr.oauth2.test.container.KeycloakContainer.CLIENT_ID4;
-import static com.dremio.iceberg.authmgr.oauth2.test.container.KeycloakContainer.CLIENT_ID5;
-import static com.dremio.iceberg.authmgr.oauth2.test.container.KeycloakContainer.CLIENT_SECRET3;
+import static com.dremio.iceberg.authmgr.oauth2.test.junit.KeycloakExtension.CLIENT_ID1;
+import static com.dremio.iceberg.authmgr.oauth2.test.junit.KeycloakExtension.CLIENT_ID2;
+import static com.dremio.iceberg.authmgr.oauth2.test.junit.KeycloakExtension.CLIENT_ID3;
+import static com.dremio.iceberg.authmgr.oauth2.test.junit.KeycloakExtension.CLIENT_ID4;
+import static com.dremio.iceberg.authmgr.oauth2.test.junit.KeycloakExtension.CLIENT_ID5;
+import static com.dremio.iceberg.authmgr.oauth2.test.junit.KeycloakExtension.CLIENT_SECRET1;
+import static com.dremio.iceberg.authmgr.oauth2.test.junit.KeycloakExtension.CLIENT_SECRET3;
+import static com.dremio.iceberg.authmgr.oauth2.test.junit.KeycloakExtension.SCOPE1;
 import static com.nimbusds.oauth2.sdk.GrantType.AUTHORIZATION_CODE;
 import static com.nimbusds.oauth2.sdk.GrantType.CLIENT_CREDENTIALS;
 import static com.nimbusds.oauth2.sdk.GrantType.DEVICE_CODE;
@@ -43,9 +45,8 @@ import com.dremio.iceberg.authmgr.oauth2.flow.TokensResult;
 import com.dremio.iceberg.authmgr.oauth2.http.HttpClientType;
 import com.dremio.iceberg.authmgr.oauth2.test.ImmutableTestEnvironment.Builder;
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
-import com.dremio.iceberg.authmgr.oauth2.test.container.KeycloakContainer;
-import com.dremio.iceberg.authmgr.oauth2.test.container.KeycloakExtension;
 import com.dremio.iceberg.authmgr.oauth2.test.junit.EnumLike;
+import com.dremio.iceberg.authmgr.oauth2.test.junit.KeycloakExtension;
 import com.dremio.iceberg.authmgr.oauth2.test.user.UserBehavior;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jwt.JWT;
@@ -385,7 +386,7 @@ public class OAuth2AgentKeycloakIT {
                         BasicConfig.GRANT_TYPE,
                         subjectGrantType.getValue(),
                         BasicConfig.SCOPE,
-                        KeycloakContainer.SCOPE1,
+                        SCOPE1,
                         BasicConfig.CLIENT_ID,
                         CLIENT_ID4,
                         BasicConfig.CLIENT_AUTH,
@@ -399,11 +400,11 @@ public class OAuth2AgentKeycloakIT {
                         BasicConfig.GRANT_TYPE,
                         CLIENT_CREDENTIALS.getValue(),
                         BasicConfig.SCOPE,
-                        KeycloakContainer.SCOPE1,
+                        SCOPE1,
                         BasicConfig.CLIENT_ID,
                         CLIENT_ID1,
                         BasicConfig.CLIENT_SECRET,
-                        KeycloakContainer.CLIENT_SECRET1,
+                        CLIENT_SECRET1,
                         BasicConfig.CLIENT_AUTH,
                         CLIENT_SECRET_BASIC.getValue()))
                 .build();
@@ -542,8 +543,7 @@ public class OAuth2AgentKeycloakIT {
     JWT jwt = JWTParser.parse(accessToken.getValue());
     soft.assertThat(jwt).isNotNull();
     soft.assertThat(jwt.getJWTClaimsSet().getStringClaim("azp")).isEqualTo(clientId);
-    soft.assertThat(jwt.getJWTClaimsSet().getStringClaim("scope"))
-        .contains(KeycloakContainer.SCOPE1);
+    soft.assertThat(jwt.getJWTClaimsSet().getStringClaim("scope")).contains(SCOPE1);
   }
 
   private Path copyPrivateKey(String resource, Path tempDir) throws IOException {

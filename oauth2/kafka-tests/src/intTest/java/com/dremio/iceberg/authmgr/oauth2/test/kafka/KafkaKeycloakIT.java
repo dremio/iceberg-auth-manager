@@ -15,10 +15,6 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.test.kafka;
 
-import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.WAREHOUSE;
-import static com.dremio.iceberg.authmgr.oauth2.test.container.KeycloakContainer.CLIENT_ID1;
-import static com.dremio.iceberg.authmgr.oauth2.test.container.KeycloakContainer.CLIENT_SECRET1;
-import static com.dremio.iceberg.authmgr.oauth2.test.container.KeycloakContainer.SCOPE1;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.adobe.testing.s3mock.testcontainers.S3MockContainer;
@@ -72,7 +68,12 @@ import org.testcontainers.utility.DockerImageName;
 import org.testcontainers.utility.MountableFile;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-public class KafkaKeycloakS3IT {
+public class KafkaKeycloakIT {
+
+  private static final String WAREHOUSE = "warehouse1";
+  private static final String SCOPE = "catalog";
+  private static final String CLIENT_ID = "Client1";
+  private static final String CLIENT_SECRET = "s3cr3t";
 
   private static final String AWS_REGION = "us-west-2";
   private static final String AWS_ACCESS_KEY = "fake";
@@ -108,7 +109,8 @@ public class KafkaKeycloakS3IT {
   @BeforeAll
   public void startContainers() {
     Startables.deepStart(s3, keycloak, polaris, kafka, connect).join();
-    createPolarisCatalog();
+    String token = keycloak.fetchNewToken(CLIENT_ID, CLIENT_SECRET, SCOPE);
+    polaris.createCatalog(token, WAREHOUSE, "s3://test-bucket/path/to/data", "http://s3:9090");
   }
 
   @AfterAll
@@ -190,7 +192,7 @@ public class KafkaKeycloakS3IT {
 
   @SuppressWarnings("resource")
   private S3MockContainer createS3Container() {
-    return new S3MockContainer("3.12.0")
+    return new S3MockContainer("4.8.0")
         .withNetwork(network)
         .withNetworkAliases("s3")
         .withInitialBuckets("test-bucket");
@@ -198,21 +200,24 @@ public class KafkaKeycloakS3IT {
 
   @SuppressWarnings("resource")
   private KeycloakContainer createKeycloakContainer() {
-    return new KeycloakContainer().withNetwork(network).withNetworkAliases("keycloak");
+    return new KeycloakContainer()
+        .withNetwork(network)
+        .withScope(SCOPE)
+        .withClient(CLIENT_ID, CLIENT_SECRET, "client_secret_basic");
   }
 
   @SuppressWarnings("resource")
   private PolarisContainer createPolarisContainer() {
     return new PolarisContainer()
         .withNetwork(network)
-        .withNetworkAliases("polaris")
+        .withClient(CLIENT_ID, CLIENT_SECRET)
         .withEnv("AWS_REGION", AWS_REGION)
         .withEnv("polaris.features.\"SKIP_CREDENTIAL_SUBSCOPING_INDIRECTION\"", "true")
         .withEnv("quarkus.oidc.tenant-enabled", "true")
         .withEnv("quarkus.oidc.auth-server-url", "http://keycloak:8080/realms/master")
         // required because different iss claims will be used from inside and outside the network
         .withEnv("quarkus.oidc.token.issuer", "any")
-        .withEnv("quarkus.oidc.client-id", CLIENT_ID1)
+        .withEnv("quarkus.oidc.client-id", CLIENT_ID)
         .withEnv("polaris.authentication.type", "external")
         .withEnv("polaris.oidc.principal-mapper.id-claim-path", "principal_id")
         .dependsOn(s3, keycloak);
@@ -276,34 +281,6 @@ public class KafkaKeycloakS3IT {
         .dependsOn(kafka);
   }
 
-  private void createPolarisCatalog() {
-    String token = keycloak.fetchNewToken(SCOPE1);
-    polaris.createCatalog(
-        token,
-        Map.of(
-            "default-base-location",
-            "s3://test-bucket/path/to/data",
-            "table-default.s3.endpoint",
-            "http://s3:9090",
-            "table-default.s3.path-style-access",
-            "true",
-            "table-default.s3.access-key-id",
-            AWS_ACCESS_KEY,
-            "table-default.s3.secret-access-key",
-            AWS_SECRET_KEY),
-        Map.of(
-            "storageType",
-            "S3",
-            "roleArn",
-            "arn:aws:iam::123456789012:role/my-role",
-            "externalId",
-            "my-external-id",
-            "userArn",
-            "arn:aws:iam::123456789012:user/my-user",
-            "allowedLocations",
-            List.of("s3://test-bucket/path/to/data")));
-  }
-
   private RESTCatalog initIcebergClient() {
     RESTCatalog restCatalog = new RESTCatalog();
     // URIs must be external to the network (i.e. localhost)
@@ -320,10 +297,10 @@ public class KafkaKeycloakS3IT {
             .put("warehouse", WAREHOUSE)
             .put("header.Accept-Encoding", "none") // for debugging
             .put("rest.auth.type", OAuth2Manager.class.getName())
-            .put("rest.auth.oauth2.client-id", CLIENT_ID1)
-            .put("rest.auth.oauth2.client-secret", CLIENT_SECRET1)
+            .put("rest.auth.oauth2.client-id", CLIENT_ID)
+            .put("rest.auth.oauth2.client-secret", CLIENT_SECRET)
             .put("rest.auth.oauth2.issuer-url", keycloak.getIssuerUrl().toString())
-            .put("rest.auth.oauth2.scope", SCOPE1)
+            .put("rest.auth.oauth2.scope", SCOPE)
             .put("rest.auth.oauth2.http.client-type", "apache")
             .build());
     return restCatalog;
@@ -361,10 +338,10 @@ public class KafkaKeycloakS3IT {
         .config("iceberg.catalog.client.region", AWS_REGION)
         .config("iceberg.catalog.warehouse", WAREHOUSE)
         .config("iceberg.catalog.rest.auth.type", OAuth2Manager.class.getName())
-        .config("iceberg.catalog.rest.auth.oauth2.client-id", CLIENT_ID1)
-        .config("iceberg.catalog.rest.auth.oauth2.client-secret", CLIENT_SECRET1)
+        .config("iceberg.catalog.rest.auth.oauth2.client-id", CLIENT_ID)
+        .config("iceberg.catalog.rest.auth.oauth2.client-secret", CLIENT_SECRET)
         .config("iceberg.catalog.rest.auth.oauth2.issuer-url", "http://keycloak:8080/realms/master")
-        .config("iceberg.catalog.rest.auth.oauth2.scope", SCOPE1);
+        .config("iceberg.catalog.rest.auth.oauth2.scope", SCOPE);
   }
 
   private KafkaProducer<String, byte[]> initKafkaProducer() {

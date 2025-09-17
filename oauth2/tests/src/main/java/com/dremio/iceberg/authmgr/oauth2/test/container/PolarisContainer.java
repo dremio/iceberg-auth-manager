@@ -15,7 +15,7 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.test.container;
 
-import com.dremio.iceberg.authmgr.oauth2.test.TestConstants;
+import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import jakarta.ws.rs.client.Client;
 import jakarta.ws.rs.client.ClientBuilder;
 import jakarta.ws.rs.client.Entity;
@@ -24,8 +24,8 @@ import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.Response;
 import java.net.URI;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
-import org.apache.iceberg.rest.ResourcePaths;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.GenericContainer;
@@ -36,22 +36,19 @@ public class PolarisContainer extends GenericContainer<PolarisContainer> {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(PolarisContainer.class);
 
-  private static final Duration ACCESS_TOKEN_LIFESPAN = Duration.ofSeconds(15);
+  public static final String CLIENT_ID = "Client1";
+  public static final String CLIENT_SECRET = "s3cr3t";
 
-  private final String clientId;
-  private final String clientSecret;
+  private String clientId = CLIENT_ID;
+  private String clientSecret = CLIENT_SECRET;
+  private Duration accessTokenLifespan = Duration.ofMinutes(10);
 
   private URI baseUri;
 
-  public PolarisContainer() {
-    this(TestConstants.CLIENT_ID1.getValue(), TestConstants.CLIENT_SECRET1.getValue());
-  }
-
   @SuppressWarnings("resource")
-  public PolarisContainer(String clientId, String clientSecret) {
+  public PolarisContainer() {
     super("apache/polaris:1.0.1-incubating");
-    this.clientId = clientId;
-    this.clientSecret = clientSecret;
+    withNetworkAliases("polaris");
     withLogConsumer(new Slf4jLogConsumer(LOGGER));
     withExposedPorts(8181, 8182);
     waitingFor(
@@ -59,22 +56,35 @@ public class PolarisContainer extends GenericContainer<PolarisContainer> {
             .forPath("/q/health")
             .forPort(8182)
             .forResponsePredicate(body -> body.contains("\"status\": \"UP\"")));
-    withEnv("POLARIS_BOOTSTRAP_CREDENTIALS", "POLARIS," + clientId + "," + clientSecret);
-    withEnv(
-        "polaris-authentication.token-broker.max-token-generation",
-        ACCESS_TOKEN_LIFESPAN.toString());
     withEnv("quarkus.log.level", getRootLoggerLevel());
     withEnv("quarkus.log.category.\"io.quarkus.oidc\".level", getPolarisLoggerLevel());
     withEnv("quarkus.log.category.\"org.apache.polaris\".level", getPolarisLoggerLevel());
   }
 
   @Override
+  @SuppressWarnings("resource")
   public void start() {
     if (getContainerId() != null) {
       return;
     }
+    withEnv("POLARIS_BOOTSTRAP_CREDENTIALS", "POLARIS," + clientId + "," + clientSecret);
+    withEnv(
+        "polaris-authentication.token-broker.max-token-generation", accessTokenLifespan.toString());
     super.start();
     baseUri = URI.create("http://localhost:" + getMappedPort(8181));
+  }
+
+  @CanIgnoreReturnValue
+  public PolarisContainer withClient(String clientId, String clientSecret) {
+    this.clientId = clientId;
+    this.clientSecret = clientSecret;
+    return this;
+  }
+
+  @CanIgnoreReturnValue
+  public PolarisContainer withAccessTokenLifespan(Duration accessTokenLifespan) {
+    this.accessTokenLifespan = accessTokenLifespan;
+    return this;
   }
 
   public URI baseUri() {
@@ -86,11 +96,11 @@ public class PolarisContainer extends GenericContainer<PolarisContainer> {
   }
 
   public URI getTokenEndpoint() {
-    return getCatalogApiEndpoint().resolve(ResourcePaths.tokens());
+    return getCatalogApiEndpoint().resolve("v1/oauth/tokens");
   }
 
   public Duration getAccessTokenLifespan() {
-    return ACCESS_TOKEN_LIFESPAN;
+    return accessTokenLifespan;
   }
 
   private static String getRootLoggerLevel() {
@@ -106,7 +116,7 @@ public class PolarisContainer extends GenericContainer<PolarisContainer> {
         Response response =
             client
                 .target(getCatalogApiEndpoint())
-                .path(ResourcePaths.tokens())
+                .path("v1/oauth/tokens")
                 .request()
                 .post(
                     Entity.form(
@@ -127,15 +137,43 @@ public class PolarisContainer extends GenericContainer<PolarisContainer> {
     }
   }
 
+  public void createCatalog(String token, String name, String location, String endpoint) {
+    createCatalog(
+        token,
+        name,
+        Map.of(
+            "default-base-location",
+            location,
+            "table-default.s3.endpoint",
+            endpoint,
+            "table-default.s3.path-style-access",
+            "true",
+            "table-default.s3.access-key-id",
+            "fake",
+            "table-default.s3.secret-access-key",
+            "fake"),
+        Map.of(
+            "storageType",
+            "S3",
+            "roleArn",
+            "arn:aws:iam::123456789012:role/my-role",
+            "externalId",
+            "my-external-id",
+            "userArn",
+            "arn:aws:iam::123456789012:user/my-user",
+            "allowedLocations",
+            List.of(location)));
+  }
+
   public void createCatalog(
-      String token, Map<String, String> properties, Map<String, Object> storageInfo) {
+      String token, String name, Map<String, String> properties, Map<String, Object> storageInfo) {
     var body =
         Entity.json(
             Map.of(
                 "catalog",
                 Map.of(
                     "name",
-                    TestConstants.WAREHOUSE,
+                    name,
                     "type",
                     "INTERNAL",
                     "readOnly",

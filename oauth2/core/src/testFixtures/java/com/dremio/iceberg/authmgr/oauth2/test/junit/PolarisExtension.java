@@ -13,13 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dremio.iceberg.authmgr.oauth2.test.container;
+package com.dremio.iceberg.authmgr.oauth2.test.junit;
 
 import com.dremio.iceberg.authmgr.oauth2.test.ImmutableTestEnvironment;
+import com.dremio.iceberg.authmgr.oauth2.test.TestConstants;
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironmentExtension;
+import com.dremio.iceberg.authmgr.oauth2.test.container.PolarisContainer;
 import com.nimbusds.oauth2.sdk.Scope;
 import java.time.Clock;
+import java.time.Duration;
 import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -27,9 +30,17 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 public class PolarisExtension extends TestEnvironmentExtension
     implements BeforeAllCallback, AfterAllCallback {
 
+  public static final String CLIENT_ID = TestConstants.CLIENT_ID1.getValue();
+  public static final String CLIENT_SECRET = TestConstants.CLIENT_SECRET1.getValue();
+
+  public static final Duration ACCESS_TOKEN_LIFESPAN = Duration.ofSeconds(15);
+
   @Override
   public void beforeAll(ExtensionContext context) {
-    PolarisContainer polaris = new PolarisContainer();
+    PolarisContainer polaris =
+        new PolarisContainer()
+            .withClient(CLIENT_ID, CLIENT_SECRET)
+            .withAccessTokenLifespan(ACCESS_TOKEN_LIFESPAN);
     polaris.start();
     context
         .getStore(ExtensionContext.Namespace.GLOBAL)
