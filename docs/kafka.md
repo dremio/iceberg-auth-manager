@@ -18,7 +18,7 @@ limitations under the License.
 ## Prerequisites
 
 * Apache Iceberg 1.9.1 or later is required.
-* Dremio AuthManager for Apache Iceberg 0.0.6 or later is required.
+* Dremio AuthManager for Apache Iceberg 0.1.0 or later is required.
 * Apache Iceberg Sink Connector for Kafka Connect requires Java 17 or later for runtime.
 
 ## Preparing the Connector
@@ -29,6 +29,46 @@ repackage the connector bundle with the Dremio AuthManager for Apache Iceberg ru
 The jar to use is `com.dremio.iceberg.authmgr:authmgr-oauth2-standalone`. This jar does
 not relocate Iceberg packages, and is the only one suitable for use in conjunction with the Iceberg
 Kafka Sink Connector.
+
+### Using a Dockerfile
+
+The following Dockerfile can be used to build a custom Kafka Connect image with the Iceberg Kafka
+Sink Connector and the Dremio AuthManager for Apache Iceberg:
+
+```dockerfile
+# Use the base Kafka Connect image
+FROM confluentinc/cp-kafka-connect:latest
+
+ARG ICEBERG_CONNECTOR_VERSION
+ARG AUTHMGR_VERSION
+ARG MAVEN_REPO=https://repo1.maven.org/maven2
+
+# Install the Iceberg Kafka Sink Connector
+RUN confluent-hub install --no-prompt iceberg/iceberg-kafka-connect:$ICEBERG_CONNECTOR_VERSION
+
+# Download the Dremio AuthManager for Apache Iceberg standalone jar
+RUN curl -L $MAVEN_REPO/com/dremio/iceberg/authmgr/authmgr-oauth2-standalone/$AUTHMGR_VERSION/authmgr-oauth2-standalone-$AUTHMGR_VERSION.jar \
+    -o /usr/share/confluent-hub-components/iceberg-iceberg-kafka-connect/lib/authmgr-oauth2-standalone-$AUTHMGR_VERSION.jar
+
+# Set up the plugin path
+ENV CONNECT_PLUGIN_PATH="/usr/share/confluent-hub-components"
+
+# Expose the necessary ports
+EXPOSE 8083
+```
+
+You can then build and run the image using the following commands:
+
+```shell
+docker build \
+  --build-arg ICEBERG_CONNECTOR_VERSION=[REPLACE_WITH_VERSION] \
+  --build-arg AUTHMGR_VERSION=[REPLACE_WITH_VERSION] \
+  -t kafka-connect-dremio-authmgr
+docker run -p 8083:8083 kafka-connect-dremio-authmgr
+```
+
+Note: more environment variables may be required to run the container, depending on your Kafka
+Connect setup, e.g. for configuring the Kafka cluster to connect to (`CONNECT_BOOTSTRAP_SERVERS`).
 
 ### Rebuilding from Source
 
