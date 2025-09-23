@@ -21,143 +21,139 @@ import org.jreleaser.model.api.deploy.maven.MavenCentralMavenDeployer
 
 plugins { id("org.jreleaser") }
 
-jreleaser {
-  gitRootSearch.set(true)
+// Use gradle.projectsEvaluated to ensure ALL projects have been evaluated
+gradle.projectsEvaluated {
+  jreleaser {
+    gitRootSearch.set(true)
 
-  // Projects to exclude from publication and release
-  val excludedProjects =
-    setOf("authmgr-oauth2-flink-tests", "authmgr-oauth2-spark-tests", "authmgr-oauth2-kafka-tests")
-
-  // Projects to include as release assets in the GitHub Release page
-  val assetsProjects = setOf("authmgr-oauth2-runtime", "authmgr-oauth2-standalone")
-
-  project {
-    name.set("Dremio Iceberg AuthManager")
-    description.set("Dremio AuthManager for Apache Iceberg")
-    authors.set(listOf("Dremio"))
-    license.set("Apache-2.0")
-    links {
-      homepage.set("https://github.com/dremio/iceberg-auth-manager")
-      bugTracker = "https://github.com/dremio/iceberg-auth-manager/issues"
-    }
-    inceptionYear = "2025"
-    vendor = "Dremio"
-    copyright = "Copyright (c) ${LocalDate.now().year} Dremio"
-  }
-
-  // Required to upload release assets to the GitHub Release page
-  // see https://github.com/jreleaser/jreleaser/issues/1627
-  files {
-    subprojects
-      .filter { it.name in assetsProjects }
-      .forEach { project ->
-        artifact {
-          path.set(
-            project.layout.buildDirectory
-              .dir("libs")
-              .get()
-              .file("${project.name}-${rootProject.version}.jar")
-          )
-        }
+    project {
+      name.set("Dremio Iceberg AuthManager")
+      description.set("Dremio AuthManager for Apache Iceberg")
+      authors.set(listOf("Dremio"))
+      license.set("Apache-2.0")
+      links {
+        homepage.set("https://github.com/dremio/iceberg-auth-manager")
+        bugTracker = "https://github.com/dremio/iceberg-auth-manager/issues"
       }
-  }
+      inceptionYear = "2025"
+      vendor = "Dremio"
+      copyright = "Copyright (c) ${LocalDate.now().year} Dremio"
+    }
 
-  signing {
-    active.set(Active.ALWAYS)
-    verify.set(false) // requires the GPG public key to be set up
-    armored.set(true)
-  }
+    // Required to upload release assets to the GitHub Release page
+    // see https://github.com/jreleaser/jreleaser/issues/1627
+    // Only upload artifacts with the "authmgr-bundle" plugin applied
+    files {
+      subprojects
+        .filter { it.plugins.hasPlugin("authmgr-bundle") }
+        .forEach { project ->
+          artifact {
+            path.set(
+              project.layout.buildDirectory
+                .dir("libs")
+                .get()
+                .file("${project.name}-${rootProject.version}.jar")
+            )
+          }
+        }
+    }
 
-  hooks {
-    condition.set("'{{ Env.CI }}' == true")
-    script {
-      before {
-        filter { includes.set(listOf("session")) }
-        run.set(
-          """
+    signing {
+      active.set(Active.ALWAYS)
+      verify.set(false) // requires the GPG public key to be set up
+      armored.set(true)
+    }
+
+    hooks {
+      condition.set("'{{ Env.CI }}' == true")
+      script {
+        before {
+          filter { includes.set(listOf("session")) }
+          run.set(
+            """
         echo "### {{command}}" >> ${'$'}GITHUB_STEP_SUMMARY
         echo "| Step | Outcome |" >> ${'$'}GITHUB_STEP_SUMMARY
         echo "| ---- | ------- |" >> ${'$'}GITHUB_STEP_SUMMARY
         """
-            .trimIndent()
-        )
-      }
-      success {
-        filter { excludes.set(listOf("session")) }
-        run.set(
-          """
+              .trimIndent()
+          )
+        }
+        success {
+          filter { excludes.set(listOf("session")) }
+          run.set(
+            """
         echo "| {{event.name}} | :white_check_mark: |" >> ${'$'}GITHUB_STEP_SUMMARY
         """
-            .trimIndent()
-        )
-      }
-      success {
-        filter { includes.set(listOf("session")) }
-        run.set(
-          """
+              .trimIndent()
+          )
+        }
+        success {
+          filter { includes.set(listOf("session")) }
+          run.set(
+            """
         echo "" >> ${'$'}GITHUB_STEP_SUMMARY
         """
-            .trimIndent()
-        )
-      }
-      failure {
-        filter { excludes.set(listOf("session")) }
-        run.set(
-          """
+              .trimIndent()
+          )
+        }
+        failure {
+          filter { excludes.set(listOf("session")) }
+          run.set(
+            """
         echo "| {{event.name}} | :x: |" >> ${'$'}GITHUB_STEP_SUMMARY
         """
-            .trimIndent()
-        )
-      }
-      failure {
-        filter { includes.set(listOf("session")) }
-        run.set(
-          """
+              .trimIndent()
+          )
+        }
+        failure {
+          filter { includes.set(listOf("session")) }
+          run.set(
+            """
         echo "" >> ${'$'}GITHUB_STEP_SUMMARY
         echo "### Failure" >> ${'$'}GITHUB_STEP_SUMMARY
         echo "\`\`\`" >> ${'$'}GITHUB_STEP_SUMMARY
         echo "{{event.stacktrace}}\`\`\`" >> ${'$'}GITHUB_STEP_SUMMARY
         echo "" >> ${'$'}GITHUB_STEP_SUMMARY
         """
-            .trimIndent()
-        )
+              .trimIndent()
+          )
+        }
       }
     }
-  }
 
-  release {
-    github {
-      releaseName.set("{{projectNameCapitalized}} {{projectVersionNumber}}")
-      repoOwner.set("dremio")
-      name.set("iceberg-auth-manager")
-      branch.set("main")
-      tagName.set("authmgr-{{projectVersion}}")
-      commitAuthor {
-        name.set("{{projectNameCapitalized}} Release Workflow [bot]")
-        email.set("authmgr-release-workflow-noreply@dremio.com")
-      }
-      milestone {
-        close.set(true)
-        name.set("{{projectVersionNumber}}")
-      }
-      issues {
-        // TODO enable when the CI user has permissions to close issues
-        enabled.set(false)
-        comment.set(
-          "🎉 This issue has been resolved in version {{projectVersionNumber}} ([Release Notes]({{releaseNotesUrl}}))"
-        )
-        applyMilestone.set(Apply.ALWAYS)
-      }
-      // TODO enable when the CI user has permissions to write to discussions
-      discussionCategoryName.set("")
-      changelog {
-        links.set(true)
-        skipMergeCommits.set(true)
-        formatted.set(Active.ALWAYS)
-        preset.set("conventional-commits")
-        categoryTitleFormat.set("### {{categoryTitle}}")
-        content.set(
-          """
+    release {
+      github {
+        releaseName.set("{{projectNameCapitalized}} {{projectVersionNumber}}")
+        repoOwner.set("dremio")
+        name.set("iceberg-auth-manager")
+        branch.set("main")
+        tagName.set("authmgr-{{projectVersion}}")
+        commitAuthor {
+          name.set("{{projectNameCapitalized}} Release Workflow [bot]")
+          email.set("authmgr-release-workflow-noreply@dremio.com")
+        }
+        milestone {
+          close.set(true)
+          name.set("{{projectVersionNumber}}")
+        }
+        issues {
+          // TODO enable when the CI user has permissions to close issues
+          enabled.set(false)
+          comment.set(
+            "🎉 This issue has been resolved in version {{projectVersionNumber}} ([Release Notes]({{releaseNotesUrl}}))"
+          )
+          applyMilestone.set(Apply.ALWAYS)
+        }
+        // TODO enable when the CI user has permissions to write to discussions
+        discussionCategoryName.set("")
+        changelog {
+          links.set(true)
+          skipMergeCommits.set(true)
+          formatted.set(Active.ALWAYS)
+          preset.set("conventional-commits")
+          categoryTitleFormat.set("### {{categoryTitle}}")
+          content.set(
+            """
           ## Try It Out
           
           {{projectNameCapitalized}} is available as a Maven artifact from [Maven Central](https://central.sonatype.com/namespace/com.dremio.iceberg.authmgr).
@@ -170,36 +166,37 @@ jreleaser {
           {{changelogChanges}}
           {{changelogContributors}}
           """
-            .trimIndent()
-        )
-        contributors {
-          format.set(
-            "- {{contributorName}}{{#contributorUsernameAsLink}} ({{.}}){{/contributorUsernameAsLink}}"
+              .trimIndent()
           )
-        }
-        hide {
-          categories.set(listOf("test", "tasks", "build", "docs"))
-          contributors.set(listOf("[bot]", "renovate-bot", "GitHub"))
+          contributors {
+            format.set(
+              "- {{contributorName}}{{#contributorUsernameAsLink}} ({{.}}){{/contributorUsernameAsLink}}"
+            )
+          }
+          hide {
+            categories.set(listOf("test", "tasks", "build", "docs"))
+            contributors.set(listOf("[bot]", "renovate-bot", "GitHub"))
+          }
         }
       }
     }
-  }
 
-  deploy {
-    maven {
-      mavenCentral {
-        create("sonatype") {
-          stage.set(MavenCentralMavenDeployer.Stage.FULL)
-          active.set(Active.RELEASE_PRERELEASE)
-          url.set("https://central.sonatype.com/api/v1/publisher")
-          applyMavenCentralRules.set(true)
-          rootProject.allprojects
-            .filter { it.name !in excludedProjects }
-            .forEach {
-              stagingRepository(
-                it.layout.buildDirectory.dir("staging-deploy").get().asFile.absolutePath
-              )
-            }
+    deploy {
+      maven {
+        mavenCentral {
+          create("sonatype") {
+            stage.set(MavenCentralMavenDeployer.Stage.FULL)
+            active.set(Active.RELEASE_PRERELEASE)
+            url.set("https://central.sonatype.com/api/v1/publisher")
+            applyMavenCentralRules.set(true)
+            rootProject.allprojects
+              .filter { it.plugins.hasPlugin("authmgr-maven") }
+              .forEach {
+                stagingRepository(
+                  it.layout.buildDirectory.dir("staging-deploy").get().asFile.absolutePath
+                )
+              }
+          }
         }
       }
     }
