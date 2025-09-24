@@ -129,7 +129,7 @@ jobs:
 
       - name: Print POMs names and contents
         run: |
-          find . -name "authmgr-*-${RELEASE_VERSION}-*.pom" -exec sh -c 'echo "----\nPOM file: {}"; cat {}' \; || true
+          find . -path "*/build/staging-deploy/*" -name "*.pom" -exec sh -c 'echo ----; echo POM file: {}; cat {}' \;
 
       - name: JReleaser full release
         env:
