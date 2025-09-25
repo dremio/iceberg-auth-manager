@@ -66,9 +66,12 @@ public interface ClientAssertionConfig {
   @WithName(SUBJECT)
   Optional<Subject> getSubject();
 
-  /** The audience of the client assertion JWT. Optional. The default is the token endpoint. */
+  /**
+   * The audience of the client assertion JWT. Optional. The default is the token endpoint. Can be a
+   * single audience or a comma-separated list of audiences.
+   */
   @WithName(AUDIENCE)
-  Optional<Audience> getAudience();
+  Optional<List<Audience>> getAudience();
 
   /** The expiration time of the client assertion JWT. Optional. The default is 5 minutes. */
   @WithName(TOKEN_LIFESPAN)
@@ -166,10 +169,15 @@ public interface ClientAssertionConfig {
   }
 
   default Map<String, String> asMap() {
-    Map<String, String> properties = new HashMap<>();
+    Map<String, String> properties = new HashMap<String, String>();
     getIssuer().ifPresent(i -> properties.put(PREFIX + '.' + ISSUER, i.getValue()));
     getSubject().ifPresent(s -> properties.put(PREFIX + '.' + SUBJECT, s.getValue()));
-    getAudience().ifPresent(a -> properties.put(PREFIX + '.' + AUDIENCE, a.getValue()));
+    getAudience()
+        .ifPresent(
+            a ->
+                properties.put(
+                    PREFIX + '.' + AUDIENCE,
+                    a.stream().map(Audience::getValue).collect(Collectors.joining(","))));
     properties.put(PREFIX + '.' + TOKEN_LIFESPAN, getTokenLifespan().toString());
     getAlgorithm().ifPresent(a -> properties.put(PREFIX + '.' + ALGORITHM, a.getName()));
     getKeyId().ifPresent(k -> properties.put(PREFIX + '.' + KEY_ID, k));

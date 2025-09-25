@@ -231,10 +231,11 @@ abstract class AbstractFlow implements Flow {
         getConfig().getClientAssertionConfig().getSubject().isPresent()
             ? getConfig().getClientAssertionConfig().getSubject().get()
             : new Subject(getConfig().getBasicConfig().getClientId().orElseThrow().getValue());
-    Audience audience =
-        getConfig().getClientAssertionConfig().getAudience().isPresent()
-            ? getConfig().getClientAssertionConfig().getAudience().get()
-            : new Audience(tokenEndpoint);
+    List<Audience> audiences =
+        getConfig()
+            .getClientAssertionConfig()
+            .getAudience()
+            .orElseGet(() -> List.of(new Audience(tokenEndpoint)));
     Instant issuedAt = getRuntime().getClock().instant();
     Instant expiration = issuedAt.plus(getConfig().getClientAssertionConfig().getTokenLifespan());
     @SuppressWarnings({"rawtypes", "unchecked"})
@@ -242,7 +243,7 @@ abstract class AbstractFlow implements Flow {
     return new JWTAssertionDetails(
         issuer,
         subject,
-        List.of(audience),
+        audiences,
         Date.from(expiration),
         Date.from(issuedAt),
         Date.from(issuedAt),

@@ -20,6 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
 import com.dremio.iceberg.authmgr.oauth2.config.validator.ConfigValidator;
+import com.nimbusds.oauth2.sdk.id.Audience;
 import io.smallrye.config.SmallRyeConfig;
 import io.smallrye.config.SmallRyeConfigBuilder;
 import io.smallrye.config.common.MapBackedConfigSource;
@@ -148,5 +149,39 @@ class ClientAssertionConfigTest {
     ClientAssertionConfig config =
         smallRyeConfig.getConfigMapping(ClientAssertionConfig.class, PREFIX);
     assertThat(config.getKeyId()).hasValue("my-key-123");
+  }
+
+  @Test
+  void testAudienceSingleValue() {
+    Map<String, String> properties =
+        Map.of(PREFIX + '.' + ClientAssertionConfig.AUDIENCE, "https://example.com");
+    SmallRyeConfig smallRyeConfig =
+        new SmallRyeConfigBuilder()
+            .withMapping(ClientAssertionConfig.class, PREFIX)
+            .withSources(new MapBackedConfigSource("catalog-properties", properties, 1000) {})
+            .build();
+    ClientAssertionConfig config =
+        smallRyeConfig.getConfigMapping(ClientAssertionConfig.class, PREFIX);
+    assertThat(config.getAudience()).contains(List.of(new Audience("https://example.com")));
+  }
+
+  @Test
+  void testAudienceMultipleValues() {
+    Map<String, String> properties =
+        Map.of(
+            PREFIX + '.' + ClientAssertionConfig.AUDIENCE,
+            "https://auth1.example.com,https://auth2.example.com");
+    SmallRyeConfig smallRyeConfig =
+        new SmallRyeConfigBuilder()
+            .withMapping(ClientAssertionConfig.class, PREFIX)
+            .withSources(new MapBackedConfigSource("catalog-properties", properties, 1000) {})
+            .build();
+    ClientAssertionConfig config =
+        smallRyeConfig.getConfigMapping(ClientAssertionConfig.class, PREFIX);
+    assertThat(config.getAudience())
+        .contains(
+            List.of(
+                new Audience("https://auth1.example.com"),
+                new Audience("https://auth2.example.com")));
   }
 }

@@ -403,7 +403,7 @@ The subject of the client assertion JWT. Optional. The default is the client ID.
 
 ### `rest.auth.oauth2.client-assertion.jwt.audience`
 
-The audience of the client assertion JWT. Optional. The default is the token endpoint.
+The audience of the client assertion JWT. Optional. The default is the token endpoint. Can be a single audience or a comma-separated list of audiences.
 
 ### `rest.auth.oauth2.client-assertion.jwt.token-lifespan`
 
