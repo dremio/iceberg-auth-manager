@@ -24,6 +24,8 @@ This directory contains the following files:
 * `ecdsa_private_key.pem` - ECDSA private key (`BEGIN EC PRIVATE KEY`)
 * `rsa_certificate.pem` - Self-signed certificate from RSA key with CN="test"
 * `ecdsa_certificate.pem` - Self-signed certificate from ECDSA key with CN="test"
+* `keystore.p12` - Java keystore containing `rsa_certificate.pem` and `rsa_private_key_pkcs8.pem`
+  (password: `s3cr3t`)
 * `mockserver.p12` - Mock Server's Java keystore containing its certificate and private key
   (password: `s3cr3t`)
 
@@ -49,7 +51,10 @@ openssl req -new -x509 -key rsa_private_key_pkcs8.pem -out rsa_certificate.pem -
 # 5. Generate long-lived self-signed certificate from ECDSA key (100 years)
 openssl req -new -x509 -key ecdsa_private_key.pem -out ecdsa_certificate.pem -days 36500 -subj "/CN=test"
 
-# 6. Generate Java keystore from Mock Server's certificate and private key
+# 6. Generate Java keystore from RSA certificate and private key
+openssl pkcs12 -export -in rsa_certificate.pem -inkey rsa_private_key_pkcs8.pem -out keystore.p12 -password pass:s3cr3t
+
+# 7. Generate Java keystore from Mock Server's certificate and private key
 wget https://raw.githubusercontent.com/mock-server/mockserver/refs/heads/master/mockserver-core/src/main/resources/org/mockserver/socket/CertificateAuthorityCertificate.pem -O mockserver.pem
 wget https://raw.githubusercontent.com/mock-server/mockserver/refs/heads/master/mockserver-core/src/main/resources/org/mockserver/socket/CertificateAuthorityPrivateKey.pem -O mockserver.key
 openssl pkcs12 -export -in mockserver.pem -inkey mockserver.key -out mockserver.p12 -password pass:s3cr3t

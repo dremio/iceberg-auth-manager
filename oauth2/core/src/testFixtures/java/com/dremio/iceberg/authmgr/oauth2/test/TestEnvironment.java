@@ -655,8 +655,10 @@ public abstract class TestEnvironment implements AutoCloseable {
         ImmutableMap.<String, String>builder()
             .put(HttpConfig.PREFIX + '.' + HttpConfig.CLIENT_TYPE, getHttpClientType().toString())
             .put(
-                HttpConfig.PREFIX + '.' + HttpConfig.SSL_TRUST_ALL,
-                String.valueOf(isSslTrustAll()));
+                HttpConfig.PREFIX + '.' + HttpConfig.SSL_TRUST_ALL, String.valueOf(isSslTrustAll()))
+            .put(
+                HttpConfig.PREFIX + '.' + HttpConfig.SSL_HOSTNAME_VERIFICATION_ENABLED,
+                String.valueOf(isSslHostnameVerificationEnabled()));
     getSslProtocols()
         .ifPresent(v -> builder.put(HttpConfig.PREFIX + '.' + HttpConfig.SSL_PROTOCOLS, v));
     getSslCipherSuites()
@@ -692,6 +694,11 @@ public abstract class TestEnvironment implements AutoCloseable {
   @Value.Default
   public boolean isSslTrustAll() {
     return false;
+  }
+
+  @Value.Default
+  public boolean isSslHostnameVerificationEnabled() {
+    return true;
   }
 
   public abstract Optional<String> getProxyHost();
