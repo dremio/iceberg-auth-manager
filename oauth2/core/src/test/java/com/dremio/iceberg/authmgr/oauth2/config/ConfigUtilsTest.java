@@ -25,7 +25,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.junit.jupiter.params.provider.ValueSource;
 
 class ConfigUtilsTest {
 
@@ -73,12 +72,6 @@ class ConfigUtilsTest {
         Arguments.of(GrantType.REFRESH_TOKEN, false),
         Arguments.of(GrantType.PASSWORD, false),
         Arguments.of(GrantType.TOKEN_EXCHANGE, false));
-  }
-
-  @ParameterizedTest
-  @ValueSource(strings = {"a,b,c", "a, b, c", "  a  , b  , c  "})
-  void parseCommaSeparatedList(String text) {
-    assertThat(ConfigUtils.parseCommaSeparatedList(text)).containsExactly("a", "b", "c");
   }
 
   @Test

@@ -21,7 +21,6 @@ import com.nimbusds.oauth2.sdk.pkce.CodeChallengeMethod;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public final class ConfigUtils {
 
@@ -58,14 +57,6 @@ public final class ConfigUtils {
   public static boolean requiresUserInteraction(GrantType grantType) {
     return grantType.equals(GrantType.AUTHORIZATION_CODE)
         || grantType.equals(GrantType.DEVICE_CODE);
-  }
-
-  public static List<String> parseCommaSeparatedList(String text) {
-    if (text == null || text.isBlank()) {
-      return List.of();
-    }
-    String[] parts = text.trim().split(",");
-    return Stream.of(parts).map(String::trim).collect(Collectors.toList());
   }
 
   public static Map<String, String> prefixedMap(Map<String, String> properties, String prefix) {
