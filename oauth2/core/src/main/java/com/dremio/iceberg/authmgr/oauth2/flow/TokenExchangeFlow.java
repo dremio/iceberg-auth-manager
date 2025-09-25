@@ -88,6 +88,6 @@ abstract class TokenExchangeFlow extends AbstractFlow {
                 ? TokenTypeURI.ACCESS_TOKEN
                 : actorToken.getIssuedTokenType(),
         tokenExchangeConfig.getRequestedTokenType(),
-        tokenExchangeConfig.getAudience().map(List::of).orElse(List.of()));
+        tokenExchangeConfig.getAudience().orElseGet(List::of));
   }
 }

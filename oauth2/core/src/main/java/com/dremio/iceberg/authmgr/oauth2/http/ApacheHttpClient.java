@@ -15,7 +15,6 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.http;
 
-import com.dremio.iceberg.authmgr.oauth2.config.ConfigUtils;
 import com.dremio.iceberg.authmgr.oauth2.config.HttpConfig;
 import com.nimbusds.oauth2.sdk.http.HTTPRequest;
 import com.nimbusds.oauth2.sdk.http.HTTPResponse;
@@ -204,12 +203,10 @@ public class ApacheHttpClient implements HttpClient {
             sslContext,
             config
                 .getSslProtocols()
-                .map(ConfigUtils::parseCommaSeparatedList)
                 .map(list -> list.toArray(new String[0]))
                 .orElseGet(HttpsSupport::getSystemProtocols),
             config
                 .getSslCipherSuites()
-                .map(ConfigUtils::parseCommaSeparatedList)
                 .map(list -> list.toArray(new String[0]))
                 .orElseGet(HttpsSupport::getSystemCipherSuits),
             SSLBufferMode.STATIC,

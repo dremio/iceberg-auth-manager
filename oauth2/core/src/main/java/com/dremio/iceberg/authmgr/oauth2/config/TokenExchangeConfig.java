@@ -24,8 +24,10 @@ import io.smallrye.config.WithDefault;
 import io.smallrye.config.WithName;
 import java.net.URI;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * Configuration properties for the <a href="https://datatracker.ietf.org/doc/html/rfc8693">Token
@@ -173,10 +175,12 @@ public interface TokenExchangeConfig {
   /**
    * The logical name of the target service where the client intends to use the requested security
    * token. This serves a purpose similar to the resource parameter but with the client providing a
-   * logical name for the target service. Optional.
+   * logical name for the target service.
+   *
+   * <p>Optional. Can be a single value or a comma-separated list of values.
    */
   @WithName(AUDIENCE)
-  Optional<Audience> getAudience();
+  Optional<List<Audience>> getAudience();
 
   default void validate() {
     ConfigValidator validator = new ConfigValidator();
@@ -206,7 +210,12 @@ public interface TokenExchangeConfig {
     properties.put(
         PREFIX + '.' + REQUESTED_TOKEN_TYPE, getRequestedTokenType().getURI().toString());
     getResource().ifPresent(r -> properties.put(PREFIX + '.' + RESOURCE, r.toString()));
-    getAudience().ifPresent(a -> properties.put(PREFIX + '.' + AUDIENCE, a.getValue()));
+    getAudience()
+        .ifPresent(
+            a ->
+                properties.put(
+                    PREFIX + '.' + AUDIENCE,
+                    a.stream().map(Audience::getValue).collect(Collectors.joining(","))));
     getSubjectTokenConfig()
         .forEach((k, v) -> properties.put(PREFIX + '.' + SUBJECT_TOKEN + '.' + k, v));
     getActorTokenConfig()

@@ -383,7 +383,9 @@ A URI that indicates the target service or resource where the client intends to 
 
 ### `rest.auth.oauth2.token-exchange.audience`
 
-The logical name of the target service where the client intends to use the requested security token. This serves a purpose similar to the resource parameter but with the client providing a logical name for the target service. Optional.
+The logical name of the target service where the client intends to use the requested security token. This serves a purpose similar to the resource parameter but with the client providing a logical name for the target service.
+
+Optional. Can be a single value or a comma-separated list of values.
 
 ## Client Assertion Settings
 
