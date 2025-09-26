@@ -123,17 +123,14 @@ gradle.projectsEvaluated {
 
     release {
       github {
-        releaseName.set("{{projectNameCapitalized}} {{projectVersionNumber}}")
+        releaseName.set("AuthManager {{projectVersionNumber}}")
         repoOwner.set("dremio")
         name.set("iceberg-auth-manager")
         branch.set("main")
         tagName.set("authmgr-{{projectVersion}}")
-        commitAuthor {
-          name.set("{{projectNameCapitalized}} Release Workflow [bot]")
-          email.set("authmgr-release-workflow-noreply@dremio.com")
-        }
         milestone {
-          close.set(true)
+          // TODO enable when the CI user has permissions to close milestones
+          close.set(false)
           name.set("{{projectVersionNumber}}")
         }
         issues {
