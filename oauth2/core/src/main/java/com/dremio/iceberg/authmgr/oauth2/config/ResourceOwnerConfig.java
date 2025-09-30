@@ -19,8 +19,6 @@ import com.dremio.iceberg.authmgr.oauth2.OAuth2Config;
 import com.nimbusds.oauth2.sdk.GrantType;
 import com.nimbusds.oauth2.sdk.auth.Secret;
 import io.smallrye.config.WithName;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -54,11 +52,4 @@ public interface ResourceOwnerConfig {
    */
   @WithName(PASSWORD)
   Optional<Secret> getPassword();
-
-  default Map<String, String> asMap() {
-    Map<String, String> properties = new HashMap<>();
-    getUsername().ifPresent(u -> properties.put(PREFIX + '.' + USERNAME, u));
-    getPassword().ifPresent(p -> properties.put(PREFIX + '.' + PASSWORD, p.getValue()));
-    return Map.copyOf(properties);
-  }
 }

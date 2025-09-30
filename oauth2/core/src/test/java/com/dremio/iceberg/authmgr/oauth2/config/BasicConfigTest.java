@@ -17,7 +17,6 @@ package com.dremio.iceberg.authmgr.oauth2.config;
 
 import static com.dremio.iceberg.authmgr.oauth2.OAuth2Config.PREFIX;
 import static java.util.Collections.singletonList;
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
 import com.dremio.iceberg.authmgr.oauth2.config.validator.ConfigValidator;
@@ -29,7 +28,6 @@ import io.smallrye.config.common.MapBackedConfigSource;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -219,28 +217,5 @@ class BasicConfigTest {
                 "https://example.com"),
             singletonList(
                 "timeout must be greater than or equal to PT30S (rest.auth.oauth2.timeout)")));
-  }
-
-  @Test
-  void testAsMap() {
-    Map<String, String> properties =
-        Map.of(
-            PREFIX + '.' + BasicConfig.TOKEN_ENDPOINT, "https://example.com/token",
-            PREFIX + '.' + BasicConfig.CLIENT_ID, "Client1",
-            PREFIX + '.' + BasicConfig.CLIENT_SECRET, "s3cr3t",
-            PREFIX + '.' + BasicConfig.GRANT_TYPE, GrantType.AUTHORIZATION_CODE.getValue(),
-            PREFIX + '.' + BasicConfig.CLIENT_AUTH,
-                ClientAuthenticationMethod.CLIENT_SECRET_POST.getValue(),
-            PREFIX + '.' + BasicConfig.SCOPE, "test",
-            PREFIX + '.' + BasicConfig.EXTRA_PARAMS + ".extra1", "value1",
-            PREFIX + '.' + BasicConfig.TIMEOUT, "PT1M",
-            PREFIX + '.' + "min-timeout", "PT1M");
-    SmallRyeConfig smallRyeConfig =
-        new SmallRyeConfigBuilder()
-            .withMapping(BasicConfig.class, PREFIX)
-            .withSources(new MapBackedConfigSource("catalog-properties", properties, 1000) {})
-            .build();
-    BasicConfig config = smallRyeConfig.getConfigMapping(BasicConfig.class, PREFIX);
-    assertThat(config.asMap()).isEqualTo(properties);
   }
 }

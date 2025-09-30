@@ -85,10 +85,6 @@ Any property that can be set under the `rest.auth.oauth2.` prefix can also be se
 prefixes, and will be used to configure a secondary agent for fetching the subject and actor
 tokens.
 
-> [!WARNING]
-> The effective subject and actor token agent configuration will be the result of merging the
-> subject-specific and actor-specific configuration with the main configuration.
-
 This allows the AuthManager to support distinct configurations: a primary configuration for the
 token exchange itself, and one or two secondary configurations, for the subject and actor token
 fetches. This can even include using different IDPs for the token exchange and for fetching the
@@ -142,6 +138,7 @@ rest.auth.oauth2.token-exchange.subject-token.client-id=Client2
 rest.auth.oauth2.token-exchange.subject-token.client-secret=$CLIENT2_SECRET
 
 # Actor token settings
+rest.auth.oauth2.token-exchange.actor-token.issuer-url=https://$PRIMARY_IDP/realms/primary
 rest.auth.oauth2.token-exchange.actor-token.grant-type=client_credentials
 rest.auth.oauth2.token-exchange.actor-token.scope=catalog3
 rest.auth.oauth2.token-exchange.actor-token.client-id=Client3

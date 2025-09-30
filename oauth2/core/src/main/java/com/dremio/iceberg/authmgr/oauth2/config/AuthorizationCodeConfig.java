@@ -24,8 +24,6 @@ import io.smallrye.config.WithName;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.stream.Collectors;
@@ -232,28 +230,5 @@ public interface AuthorizationCodeConfig {
           getSslKeyStorePath().get());
     }
     validator.validate();
-  }
-
-  default Map<String, String> asMap() {
-    Map<String, String> properties = new HashMap<>();
-    getAuthorizationEndpoint()
-        .ifPresent(u -> properties.put(PREFIX + '.' + ENDPOINT, u.toString()));
-    getRedirectUri().ifPresent(u -> properties.put(PREFIX + '.' + REDIRECT_URI, u.toString()));
-    properties.put(PREFIX + '.' + CALLBACK_HTTPS, String.valueOf(isCallbackHttps()));
-    getCallbackBindHost().ifPresent(h -> properties.put(PREFIX + '.' + CALLBACK_BIND_HOST, h));
-    getCallbackBindPort()
-        .ifPresent(p -> properties.put(PREFIX + '.' + CALLBACK_BIND_PORT, String.valueOf(p)));
-    getCallbackContextPath()
-        .ifPresent(p -> properties.put(PREFIX + '.' + CALLBACK_CONTEXT_PATH, p));
-    properties.put(PREFIX + '.' + PKCE_ENABLED, String.valueOf(isPkceEnabled()));
-    properties.put(PREFIX + '.' + PKCE_METHOD, getCodeChallengeMethod().getValue());
-    getSslKeyStorePath()
-        .ifPresent(p -> properties.put(PREFIX + '.' + SSL_KEYSTORE_PATH, p.toString()));
-    getSslKeyStorePassword()
-        .ifPresent(p -> properties.put(PREFIX + '.' + SSL_KEYSTORE_PASSWORD, p));
-    getSslKeyStoreAlias().ifPresent(a -> properties.put(PREFIX + '.' + SSL_KEYSTORE_ALIAS, a));
-    getSslProtocols().ifPresent(p -> properties.put(PREFIX + '.' + SSL_PROTOCOLS, p));
-    getSslCipherSuites().ifPresent(c -> properties.put(PREFIX + '.' + SSL_CIPHER_SUITES, c));
-    return Map.copyOf(properties);
   }
 }

@@ -42,11 +42,8 @@ import io.smallrye.config.SmallRyeConfigBuilder;
 import io.smallrye.config.WithName;
 import io.smallrye.config.WithParentName;
 import io.smallrye.config.common.MapBackedConfigSource;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import org.eclipse.microprofile.config.spi.ConfigSource;
 
 @ConfigMapping(prefix = PREFIX)
 public interface OAuth2Config {
@@ -107,38 +104,6 @@ public interface OAuth2Config {
         new SmallRyeConfigBuilder()
             .addDefaultSources()
             .withSources(source)
-            .withMapping(OAuth2Config.class)
-            .build();
-    OAuth2Config config = smallRyeConfig.getConfigMapping(OAuth2Config.class);
-    config.validate();
-    return config;
-  }
-
-  /**
-   * Merges the given properties into this {@link OAuth2Config} and returns the result.
-   *
-   * <p>This method is used to merge the properties from the parent (catalog) session with the
-   * properties from the table or context properties.
-   *
-   * <p>The properties are loaded in the following order:
-   *
-   * <ol>
-   *   <li>Child session properties (ordinal 2000)
-   *   <li>Parent session properties (ordinal 1000)
-   * </ol>
-   *
-   * This method does not load any other properties from the system, environment, or config files,
-   * as the parent session properties already contain properties sourced from those sources.
-   */
-  default OAuth2Config merge(Map<String, String> childProperties) {
-    Objects.requireNonNull(childProperties, "childProperties must not be null");
-    ConfigSource childSource =
-        new MapBackedConfigSource("child session properties", childProperties, 2000) {};
-    ConfigSource parentSource =
-        new MapBackedConfigSource("parent session properties", asMap(), 1000) {};
-    SmallRyeConfig smallRyeConfig =
-        new SmallRyeConfigBuilder()
-            .withSources(childSource, parentSource)
             .withMapping(OAuth2Config.class)
             .build();
     OAuth2Config config = smallRyeConfig.getConfigMapping(OAuth2Config.class);
@@ -228,20 +193,5 @@ public interface OAuth2Config {
       }
     }
     validator.validate();
-  }
-
-  /** Returns all properties in this config as a flattened map. */
-  default Map<String, String> asMap() {
-    Map<String, String> properties = new HashMap<>();
-    properties.putAll(getBasicConfig().asMap());
-    properties.putAll(getResourceOwnerConfig().asMap());
-    properties.putAll(getAuthorizationCodeConfig().asMap());
-    properties.putAll(getDeviceCodeConfig().asMap());
-    properties.putAll(getTokenRefreshConfig().asMap());
-    properties.putAll(getTokenExchangeConfig().asMap());
-    properties.putAll(getClientAssertionConfig().asMap());
-    properties.putAll(getSystemConfig().asMap());
-    properties.putAll(getHttpConfig().asMap());
-    return Map.copyOf(properties);
   }
 }

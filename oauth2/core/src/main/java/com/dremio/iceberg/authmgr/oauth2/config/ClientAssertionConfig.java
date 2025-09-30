@@ -27,7 +27,6 @@ import io.smallrye.config.WithName;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -166,23 +165,5 @@ public interface ClientAssertionConfig {
           getPrivateKey().get());
     }
     validator.validate();
-  }
-
-  default Map<String, String> asMap() {
-    Map<String, String> properties = new HashMap<String, String>();
-    getIssuer().ifPresent(i -> properties.put(PREFIX + '.' + ISSUER, i.getValue()));
-    getSubject().ifPresent(s -> properties.put(PREFIX + '.' + SUBJECT, s.getValue()));
-    getAudience()
-        .ifPresent(
-            a ->
-                properties.put(
-                    PREFIX + '.' + AUDIENCE,
-                    a.stream().map(Audience::getValue).collect(Collectors.joining(","))));
-    properties.put(PREFIX + '.' + TOKEN_LIFESPAN, getTokenLifespan().toString());
-    getAlgorithm().ifPresent(a -> properties.put(PREFIX + '.' + ALGORITHM, a.getName()));
-    getKeyId().ifPresent(k -> properties.put(PREFIX + '.' + KEY_ID, k));
-    getPrivateKey().ifPresent(p -> properties.put(PREFIX + '.' + PRIVATE_KEY, p.toString()));
-    getExtraClaims().forEach((k, v) -> properties.put(PREFIX + '.' + EXTRA_CLAIMS + '.' + k, v));
-    return Map.copyOf(properties);
   }
 }

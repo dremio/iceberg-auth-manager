@@ -27,7 +27,6 @@ import io.smallrye.config.WithDefault;
 import io.smallrye.config.WithName;
 import java.net.URI;
 import java.time.Duration;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -275,22 +274,5 @@ public interface BasicConfig {
         getMinTimeout());
     validator.validate();
     return basicConfig;
-  }
-
-  default Map<String, String> asMap() {
-    Map<String, String> properties = new HashMap<>();
-    getToken().ifPresent(t -> properties.put(PREFIX + '.' + "token", t.getValue()));
-    getIssuerUrl().ifPresent(u -> properties.put(PREFIX + '.' + ISSUER_URL, u.toString()));
-    getTokenEndpoint().ifPresent(u -> properties.put(PREFIX + '.' + TOKEN_ENDPOINT, u.toString()));
-    properties.put(PREFIX + '.' + GRANT_TYPE, getGrantType().getValue());
-    properties.put(PREFIX + '.' + CLIENT_AUTH, getClientAuthenticationMethod().getValue());
-    getClientId().ifPresent(i -> properties.put(PREFIX + '.' + CLIENT_ID, i.getValue()));
-    getClientSecret().ifPresent(s -> properties.put(PREFIX + '.' + CLIENT_SECRET, s.getValue()));
-    getScope().ifPresent(s -> properties.put(PREFIX + '.' + SCOPE, s.toString()));
-    getExtraRequestParameters()
-        .forEach((k, v) -> properties.put(PREFIX + '.' + EXTRA_PARAMS + '.' + k, v));
-    properties.put(PREFIX + '.' + TIMEOUT, getTimeout().toString());
-    properties.put(PREFIX + '.' + "min-timeout", getMinTimeout().toString());
-    return Map.copyOf(properties);
   }
 }

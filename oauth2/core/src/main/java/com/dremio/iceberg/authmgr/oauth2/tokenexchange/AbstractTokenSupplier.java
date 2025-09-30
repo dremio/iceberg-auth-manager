@@ -83,7 +83,7 @@ public abstract class AbstractTokenSupplier implements AutoCloseable {
       tokenAgentProperties.put(
           SystemConfig.PREFIX + '.' + SystemConfig.AGENT_NAME, getDefaultAgentName());
     }
-    OAuth2Config tokenAgentConfig = getMainConfig().merge(tokenAgentProperties);
+    OAuth2Config tokenAgentConfig = OAuth2Config.from(tokenAgentProperties);
     return new OAuth2Agent(tokenAgentConfig, getRuntime());
   }
 

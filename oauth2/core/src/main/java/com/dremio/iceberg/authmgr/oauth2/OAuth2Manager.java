@@ -60,7 +60,7 @@ public class OAuth2Manager implements AuthManager {
   public AuthSession initSession(RESTClient initClient, Map<String, String> initProperties) {
     OAuth2Config initConfig = OAuth2Config.from(initProperties);
     initialize(initConfig);
-    return initSession = new OAuth2Session(initConfig, refreshExecutor());
+    return initSession = new OAuth2Session(initProperties, initConfig, refreshExecutor());
   }
 
   @Override
@@ -69,12 +69,12 @@ public class OAuth2Manager implements AuthManager {
     OAuth2Config catalogConfig = OAuth2Config.from(catalogProperties);
     initialize(catalogConfig);
     OAuth2Session catalogSession;
-    if (initSession != null && catalogConfig.equals(initSession.getConfig())) {
+    if (initSession != null && catalogProperties.equals(initSession.getProperties())) {
       // Copy the existing session if the properties are the same as the init session
       // to avoid requiring from users to log in again, for human-based flows.
       catalogSession = initSession.copy();
     } else {
-      catalogSession = new OAuth2Session(catalogConfig, refreshExecutor());
+      catalogSession = new OAuth2Session(catalogProperties, catalogConfig, refreshExecutor());
     }
     initSession = null;
     return catalogSession;
@@ -98,12 +98,14 @@ public class OAuth2Manager implements AuthManager {
   }
 
   private AuthSession maybeCacheSession(AuthSession parent, Map<String, String> childProperties) {
-    OAuth2Config parentConfig = ((OAuth2Session) parent).getConfig();
-    OAuth2Config childConfig = parentConfig.merge(childProperties);
-    return childConfig.equals(parentConfig)
-        ? parent
-        : sessionCache.cachedSession(
-            childConfig, k -> new OAuth2Session(childConfig, refreshExecutor()));
+    Map<String, String> parentProperties = ((OAuth2Session) parent).getProperties();
+    Map<String, String> mergedProperties = RESTUtil.merge(parentProperties, childProperties);
+    if (mergedProperties.equals(parentProperties)) {
+      return parent;
+    }
+    return sessionCache.cachedSession(
+        OAuth2Config.from(mergedProperties),
+        cfg -> new OAuth2Session(mergedProperties, cfg, refreshExecutor()));
   }
 
   @Override
@@ -112,7 +114,8 @@ public class OAuth2Manager implements AuthManager {
     // catalog properties.
     OAuth2Config config = OAuth2Config.from(properties);
     initialize(config);
-    return sessionCache.cachedSession(config, k -> new OAuth2Session(config, refreshExecutor()));
+    return sessionCache.cachedSession(
+        config, cfg -> new OAuth2Session(properties, cfg, refreshExecutor()));
   }
 
   @Override

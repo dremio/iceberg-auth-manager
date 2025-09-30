@@ -39,9 +39,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 @ExtendWith(SoftAssertionsExtension.class)
 class SubjectTokenSupplierTest {
 
-  private static final Map<String, String> CONFIG =
-      Map.of(BasicConfig.GRANT_TYPE, GrantType.CLIENT_CREDENTIALS.getValue());
-
   @Test
   void testSupplyTokenAsyncStatic() {
     OAuth2Config config = createMainConfig("subject-token", TokenTypeURI.ID_TOKEN, Map.of());
@@ -55,7 +52,19 @@ class SubjectTokenSupplierTest {
 
   @Test
   void testSupplyTokenAsyncDynamic() {
-    OAuth2Config config = createMainConfig(null, TokenTypeURI.ACCESS_TOKEN, CONFIG);
+    OAuth2Config config =
+        createMainConfig(
+            null,
+            TokenTypeURI.ACCESS_TOKEN,
+            Map.of(
+                BasicConfig.GRANT_TYPE,
+                GrantType.CLIENT_CREDENTIALS.getValue(),
+                BasicConfig.TOKEN_ENDPOINT,
+                "https://example.com/token",
+                BasicConfig.CLIENT_ID,
+                "test-client",
+                BasicConfig.CLIENT_SECRET,
+                "test-secret"));
     try (SubjectTokenSupplier supplier = createSupplier(config)) {
       CompletionStage<AccessToken> stage = supplier.supplyTokenAsync();
       assertThat(stage).isNotCompleted();

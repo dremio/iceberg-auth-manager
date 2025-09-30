@@ -23,11 +23,9 @@ import com.nimbusds.oauth2.sdk.token.TypelessAccessToken;
 import io.smallrye.config.WithDefault;
 import io.smallrye.config.WithName;
 import java.net.URI;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 /**
  * Configuration properties for the <a href="https://datatracker.ietf.org/doc/html/rfc8693">Token
@@ -199,27 +197,5 @@ public interface TokenExchangeConfig {
           TokenTypeURI.ACCESS_TOKEN);
     }
     validator.validate();
-  }
-
-  default Map<String, String> asMap() {
-    Map<String, String> properties = new HashMap<>();
-    getSubjectToken().ifPresent(t -> properties.put(PREFIX + '.' + SUBJECT_TOKEN, t.getValue()));
-    getActorToken().ifPresent(t -> properties.put(PREFIX + '.' + ACTOR_TOKEN, t.getValue()));
-    properties.put(PREFIX + '.' + SUBJECT_TOKEN_TYPE, getSubjectTokenType().getURI().toString());
-    properties.put(PREFIX + '.' + ACTOR_TOKEN_TYPE, getActorTokenType().getURI().toString());
-    properties.put(
-        PREFIX + '.' + REQUESTED_TOKEN_TYPE, getRequestedTokenType().getURI().toString());
-    getResource().ifPresent(r -> properties.put(PREFIX + '.' + RESOURCE, r.toString()));
-    getAudience()
-        .ifPresent(
-            a ->
-                properties.put(
-                    PREFIX + '.' + AUDIENCE,
-                    a.stream().map(Audience::getValue).collect(Collectors.joining(","))));
-    getSubjectTokenConfig()
-        .forEach((k, v) -> properties.put(PREFIX + '.' + SUBJECT_TOKEN + '.' + k, v));
-    getActorTokenConfig()
-        .forEach((k, v) -> properties.put(PREFIX + '.' + ACTOR_TOKEN + '.' + k, v));
-    return Map.copyOf(properties);
   }
 }

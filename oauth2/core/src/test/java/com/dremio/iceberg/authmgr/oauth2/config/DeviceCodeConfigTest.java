@@ -19,7 +19,6 @@ import static com.dremio.iceberg.authmgr.oauth2.config.DeviceCodeConfig.ENDPOINT
 import static com.dremio.iceberg.authmgr.oauth2.config.DeviceCodeConfig.POLL_INTERVAL;
 import static com.dremio.iceberg.authmgr.oauth2.config.DeviceCodeConfig.PREFIX;
 import static java.util.Collections.singletonList;
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
 import com.dremio.iceberg.authmgr.oauth2.config.validator.ConfigValidator;
@@ -29,7 +28,6 @@ import io.smallrye.config.common.MapBackedConfigSource;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -72,22 +70,5 @@ class DeviceCodeConfigTest {
                 "PT1S"),
             singletonList(
                 "device code flow: poll interval must be greater than or equal to PT5S (rest.auth.oauth2.device-code.poll-interval)")));
-  }
-
-  @Test
-  void testAsMap() {
-    Map<String, String> properties =
-        Map.of(
-            PREFIX + '.' + ENDPOINT, "https://example.com/device",
-            PREFIX + '.' + POLL_INTERVAL, "PT1M",
-            PREFIX + '.' + "min-poll-interval", "PT1M",
-            PREFIX + '.' + "ignore-server-poll-interval", "true");
-    SmallRyeConfig smallRyeConfig =
-        new SmallRyeConfigBuilder()
-            .withMapping(DeviceCodeConfig.class, PREFIX)
-            .withSources(new MapBackedConfigSource("catalog-properties", properties, 1000) {})
-            .build();
-    DeviceCodeConfig config = smallRyeConfig.getConfigMapping(DeviceCodeConfig.class, PREFIX);
-    assertThat(config.asMap()).isEqualTo(properties);
   }
 }

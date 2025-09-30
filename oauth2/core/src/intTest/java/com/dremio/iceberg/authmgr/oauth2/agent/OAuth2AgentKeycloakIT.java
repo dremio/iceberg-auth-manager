@@ -20,7 +20,6 @@ import static com.dremio.iceberg.authmgr.oauth2.test.junit.KeycloakExtension.CLI
 import static com.dremio.iceberg.authmgr.oauth2.test.junit.KeycloakExtension.CLIENT_ID3;
 import static com.dremio.iceberg.authmgr.oauth2.test.junit.KeycloakExtension.CLIENT_ID4;
 import static com.dremio.iceberg.authmgr.oauth2.test.junit.KeycloakExtension.CLIENT_ID5;
-import static com.dremio.iceberg.authmgr.oauth2.test.junit.KeycloakExtension.CLIENT_SECRET1;
 import static com.dremio.iceberg.authmgr.oauth2.test.junit.KeycloakExtension.CLIENT_SECRET3;
 import static com.dremio.iceberg.authmgr.oauth2.test.junit.KeycloakExtension.SCOPE1;
 import static com.nimbusds.oauth2.sdk.GrantType.AUTHORIZATION_CODE;
@@ -38,8 +37,6 @@ import static com.nimbusds.oauth2.sdk.token.TokenTypeURI.REFRESH_TOKEN;
 import static org.assertj.core.api.Assumptions.assumeThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
-import com.dremio.iceberg.authmgr.oauth2.config.BasicConfig;
-import com.dremio.iceberg.authmgr.oauth2.config.ClientAssertionConfig;
 import com.dremio.iceberg.authmgr.oauth2.flow.OAuth2Exception;
 import com.dremio.iceberg.authmgr.oauth2.flow.TokensResult;
 import com.dremio.iceberg.authmgr.oauth2.http.HttpClientType;
@@ -62,7 +59,6 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.text.ParseException;
-import java.util.Map;
 import java.util.Objects;
 import org.apache.http.ssl.SSLContextBuilder;
 import org.assertj.core.api.SoftAssertions;
@@ -352,71 +348,13 @@ public class OAuth2AgentKeycloakIT {
                 .build();
         OAuth2Agent agent = env.newAgent()) {
       assertAgent(agent, CLIENT_ID1, expectRefreshToken);
-    }
-  }
-
-  /**
-   * Tests a delegation scenario where both the subject and actor tokens are dynamically obtained,
-   * with the subject token agent using private key JWT authentication.
-   *
-   * <p>This test also tests the copying of agents, including subject and actor token agents.
-   * Refresh tokens are requested except for the client credentials grant where they are not
-   * supported.
-   */
-  @CartesianTest
-  void delegation4(
-      @EnumLike(excludes = "urn:ietf:params:oauth:grant-type:token-exchange")
-          GrantType subjectGrantType,
-      Builder envBuilder,
-      @TempDir Path tempDir)
-      throws Exception {
-    Path privateKeyPath = copyPrivateKey("/openssl/rsa_private_key_pkcs8.pem", tempDir);
-    boolean expectRefreshToken = subjectGrantType != CLIENT_CREDENTIALS;
-    try (TestEnvironment env =
-            envBuilder
-                .grantType(TOKEN_EXCHANGE)
-                .clientId(new ClientID(CLIENT_ID4))
-                .clientAuthenticationMethod(PRIVATE_KEY_JWT)
-                .jwsAlgorithm(JWSAlgorithm.RS256)
-                .privateKey(privateKeyPath)
-                .requestedTokenType(expectRefreshToken ? REFRESH_TOKEN : ACCESS_TOKEN)
-                .subjectGrantType(subjectGrantType) // triggers a user emulator if necessary
-                .subjectTokenConfig(
-                    Map.of(
-                        BasicConfig.GRANT_TYPE,
-                        subjectGrantType.getValue(),
-                        BasicConfig.SCOPE,
-                        SCOPE1,
-                        BasicConfig.CLIENT_ID,
-                        CLIENT_ID4,
-                        BasicConfig.CLIENT_AUTH,
-                        PRIVATE_KEY_JWT.getValue(),
-                        ClientAssertionConfig.GROUP_NAME + "." + ClientAssertionConfig.PRIVATE_KEY,
-                        privateKeyPath.toString(),
-                        ClientAssertionConfig.GROUP_NAME + "." + ClientAssertionConfig.ALGORITHM,
-                        JWSAlgorithm.RS256.getName()))
-                .actorTokenConfig(
-                    Map.of(
-                        BasicConfig.GRANT_TYPE,
-                        CLIENT_CREDENTIALS.getValue(),
-                        BasicConfig.SCOPE,
-                        SCOPE1,
-                        BasicConfig.CLIENT_ID,
-                        CLIENT_ID1,
-                        BasicConfig.CLIENT_SECRET,
-                        CLIENT_SECRET1,
-                        BasicConfig.CLIENT_AUTH,
-                        CLIENT_SECRET_BASIC.getValue()))
-                .build();
-        OAuth2Agent agent = env.newAgent()) {
-      assertAgent(agent, CLIENT_ID4, expectRefreshToken);
-      // test copy before and after close
+      // test copy before and after close to exercise copying of dependent agents
       try (OAuth2Agent agent2 = agent.copy()) {
-        assertAgent(agent2, CLIENT_ID4, expectRefreshToken);
+        assertAgent(agent2, CLIENT_ID1, expectRefreshToken);
       }
       agent.close();
       try (OAuth2Agent agent3 = agent.copy()) {
-        assertAgent(agent3, CLIENT_ID4, expectRefreshToken);
+        assertAgent(agent3, CLIENT_ID1, expectRefreshToken);
       }
     }
   }
