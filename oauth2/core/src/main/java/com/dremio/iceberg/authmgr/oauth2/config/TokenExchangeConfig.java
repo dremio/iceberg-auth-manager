@@ -120,7 +120,7 @@ public interface TokenExchangeConfig {
    * <p>Example:
    *
    * <pre>{@code
-   * rest.auth.oauth2.grant-type=token_exchange
+   * rest.auth.oauth2.grant-type=urn:ietf:params:oauth:grant-type:token-exchange
    * rest.auth.oauth2.token-endpoint=https://main-token-endpoint.com/token
    * rest.auth.oauth2.client-id=main-client-id
    * rest.auth.oauth2.client-secret=main-client-secret
@@ -149,7 +149,7 @@ public interface TokenExchangeConfig {
    * <p>Example:
    *
    * <pre>{@code
-   * rest.auth.oauth2.grant-type=token_exchange
+   * rest.auth.oauth2.grant-type=urn:ietf:params:oauth:grant-type:token-exchange
    * rest.auth.oauth2.token-endpoint=https://main-token-endpoint.com/token
    * rest.auth.oauth2.client-id=main-client-id
    * rest.auth.oauth2.client-secret=main-client-secret

@@ -52,7 +52,7 @@ rest.auth.type=com.dremio.iceberg.authmgr.oauth2.OAuth2Manager
 
 # Basic settings
 rest.auth.oauth2.issuer-url=https://$PRIMARY_IDP/realms/primary
-rest.auth.oauth2.grant-type=token_exchange
+rest.auth.oauth2.grant-type=urn:ietf:params:oauth:grant-type:token-exchange
 rest.auth.oauth2.client-id=Client1
 rest.auth.oauth2.client-secret=$CLIENT1_SECRET
 rest.auth.oauth2.scope=catalog1
@@ -103,22 +103,23 @@ rest.auth.type=com.dremio.iceberg.authmgr.oauth2.OAuth2Manager
 
 # Basic settings
 rest.auth.oauth2.issuer-url=https://$PRIMARY_IDP/realms/primary
-rest.auth.oauth2.grant-type=token_exchange
+rest.auth.oauth2.grant-type=urn:ietf:params:oauth:grant-type:token-exchange
 rest.auth.oauth2.client-id=Client1
 rest.auth.oauth2.client-secret=$CLIENT1_SECRET
 rest.auth.oauth2.scope=catalog1
 
 # Subject token settings
 rest.auth.oauth2.token-exchange.subject-token.issuer-url=https://$SECONDARY_IDP/realms/secondary
-rest.auth.oauth2.token-exchange.subject-token.grant-type=device_code
+rest.auth.oauth2.token-exchange.subject-token.grant-type=urn:ietf:params:oauth:grant-type:device_code
 rest.auth.oauth2.token-exchange.subject-token.client-id=Client2
 rest.auth.oauth2.token-exchange.subject-token.client-secret=$CLIENT2_SECRET
 rest.auth.oauth2.token-exchange.subject-token.scope=catalog2
 ```
 
-In this example, the subject token is obtained from a secondary IDP using the `device_code` grant
-type, thus allowing the user to authenticate with their own identity. The primary IDP is then used
-to exchange the subject token for an access token using the token exchange grant type.
+In this example, the subject token is obtained from a secondary IDP using the
+`urn:ietf:params:oauth:grant-type:device_code` grant type, thus allowing the user to authenticate
+with their own identity. The primary IDP is then used to exchange the subject token for an access
+token using the token exchange grant type.
 
 Here is a more complex example of how to configure the AuthManager to fetch both the subject and
 actor tokens:
@@ -128,7 +129,7 @@ rest.auth.type=com.dremio.iceberg.authmgr.oauth2.OAuth2Manager
 
 # Basic settings
 rest.auth.oauth2.issuer-url=https://$PRIMARY_IDP/realms/primary
-rest.auth.oauth2.grant-type=token_exchange
+rest.auth.oauth2.grant-type=urn:ietf:params:oauth:grant-type:token-exchange
 rest.auth.oauth2.client-id=Client1
 rest.auth.oauth2.client-secret=$CLIENT1_SECRET
 rest.auth.oauth2.scope=catalog1
