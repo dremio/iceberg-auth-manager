@@ -40,7 +40,7 @@ import org.mockserver.model.Parameters;
 
 @AuthManagerImmutable
 @Value.Enclosing
-public abstract class AuthorizationCodeExpectation extends InitialTokenFetchExpectation {
+public abstract class AuthorizationCodeExpectation extends AbstractTokenEndpointExpectation {
 
   /** A map of pending authorization requests, keyed by the redirect URI. */
   @Value.Lazy
@@ -52,7 +52,7 @@ public abstract class AuthorizationCodeExpectation extends InitialTokenFetchExpe
   @Override
   public void create() {
     createAuthEndpointExpectation();
-    super.create();
+    createTokenEndpointExpectation();
   }
 
   @Override
@@ -68,39 +68,42 @@ public abstract class AuthorizationCodeExpectation extends InitialTokenFetchExpe
     return builder;
   }
 
-  @Override
-  protected HttpResponse response(
-      HttpRequest httpRequest, String accessToken, String refreshToken) {
-    Map<String, List<String>> params = decodeBodyParameters(httpRequest);
-    String redirectUri = params.get("redirect_uri").get(0);
-    PendingAuthRequest pendingAuthRequest = getPendingAuthRequests().get(redirectUri);
-    if (pendingAuthRequest == null) {
-      return AUTHORIZATION_SERVER_ERROR_RESPONSE;
-    }
-    List<String> code = params.get("code");
-    if (code == null
-        || code.isEmpty()
-        || !code.get(0).equals(pendingAuthRequest.getCode().getValue())) {
-      return AUTHORIZATION_SERVER_ERROR_RESPONSE;
-    }
-    if (getTestEnvironment().isPkceEnabled()) {
-      if (pendingAuthRequest.getCodeChallengeMethod().isEmpty()
-          || pendingAuthRequest.getCodeChallenge().isEmpty()) {
-        return AUTHORIZATION_SERVER_ERROR_RESPONSE;
-      }
-      List<String> codeVerifier = params.get("code_verifier");
-      if (codeVerifier == null || codeVerifier.isEmpty()) {
-        return AUTHORIZATION_SERVER_ERROR_RESPONSE;
-      }
-      if (!pendingAuthRequest
-          .getCodeChallenge()
-          .get()
-          .equals(pendingAuthRequest.getCodeChallenge().get())) {
-        return AUTHORIZATION_SERVER_ERROR_RESPONSE;
-      }
-    }
-    getPendingAuthRequests().remove(redirectUri);
-    return super.response(httpRequest, accessToken, refreshToken);
+  private void createTokenEndpointExpectation() {
+    getClientAndServer()
+        .when(request())
+        .respond(
+            request -> {
+              Map<String, List<String>> params = decodeBodyParameters(request);
+              String redirectUri = params.get("redirect_uri").get(0);
+              PendingAuthRequest pendingAuthRequest = getPendingAuthRequests().get(redirectUri);
+              if (pendingAuthRequest == null) {
+                return AUTHORIZATION_SERVER_ERROR_RESPONSE;
+              }
+              List<String> code = params.get("code");
+              if (code == null
+                  || code.isEmpty()
+                  || !code.get(0).equals(pendingAuthRequest.getCode().getValue())) {
+                return AUTHORIZATION_SERVER_ERROR_RESPONSE;
+              }
+              if (getTestEnvironment().isPkceEnabled()) {
+                if (pendingAuthRequest.getCodeChallengeMethod().isEmpty()
+                    || pendingAuthRequest.getCodeChallenge().isEmpty()) {
+                  return AUTHORIZATION_SERVER_ERROR_RESPONSE;
+                }
+                List<String> codeVerifier = params.get("code_verifier");
+                if (codeVerifier == null || codeVerifier.isEmpty()) {
+                  return AUTHORIZATION_SERVER_ERROR_RESPONSE;
+                }
+                if (!pendingAuthRequest
+                    .getCodeChallenge()
+                    .get()
+                    .equals(pendingAuthRequest.getCodeChallenge().get())) {
+                  return AUTHORIZATION_SERVER_ERROR_RESPONSE;
+                }
+              }
+              getPendingAuthRequests().remove(redirectUri);
+              return super.response("access_initial", "refresh_initial");
+            });
   }
 
   private void createAuthEndpointExpectation() {

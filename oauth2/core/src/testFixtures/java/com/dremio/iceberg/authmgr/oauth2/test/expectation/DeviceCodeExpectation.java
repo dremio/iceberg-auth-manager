@@ -39,7 +39,7 @@ import org.mockserver.model.ParameterBody;
 import org.mockserver.model.StringBody;
 
 @AuthManagerImmutable
-public abstract class DeviceCodeExpectation extends InitialTokenFetchExpectation {
+public abstract class DeviceCodeExpectation extends AbstractTokenEndpointExpectation {
 
   /** A map of pending authorization requests, keyed by the user and device code. */
   @Value.Lazy
@@ -52,7 +52,7 @@ public abstract class DeviceCodeExpectation extends InitialTokenFetchExpectation
   public void create() {
     createDeviceAuthEndpointExpectation();
     createDeviceVerificationEndpointExpectation();
-    super.create();
+    createTokenEndpointExpectation();
   }
 
   @Override
@@ -62,23 +62,26 @@ public abstract class DeviceCodeExpectation extends InitialTokenFetchExpectation
         .put("device_code", "[a-zA-Z0-9-._~]+");
   }
 
-  @Override
-  protected HttpResponse response(
-      HttpRequest httpRequest, String accessToken, String refreshToken) {
-    Map<String, List<String>> params = decodeBodyParameters(httpRequest);
-    DeviceCode deviceCode = new DeviceCode(params.get("device_code").get(0));
-    PendingAuthRequest pendingAuthRequest = getPendingAuthRequests().get(deviceCode);
-    if (pendingAuthRequest.isUserCodeReceived()) {
-      getPendingAuthRequests().remove(pendingAuthRequest.getDeviceCode());
-      getPendingAuthRequests().remove(pendingAuthRequest.getUserCode());
-      return super.response(httpRequest, accessToken, refreshToken);
-    } else {
-      return HttpResponse.response()
-          .withStatusCode(401)
-          .withBody(
-              JsonBody.json(
-                  "{\"error\":\"authorization_pending\",\"error_description\":\"User code not yet received\"}"));
-    }
+  private void createTokenEndpointExpectation() {
+    getClientAndServer()
+        .when(request())
+        .respond(
+            request -> {
+              Map<String, List<String>> params = decodeBodyParameters(request);
+              DeviceCode deviceCode = new DeviceCode(params.get("device_code").get(0));
+              PendingAuthRequest pendingAuthRequest = getPendingAuthRequests().get(deviceCode);
+              if (pendingAuthRequest.isUserCodeReceived()) {
+                getPendingAuthRequests().remove(pendingAuthRequest.getDeviceCode());
+                getPendingAuthRequests().remove(pendingAuthRequest.getUserCode());
+                return super.response("access_initial", "refresh_initial");
+              } else {
+                return HttpResponse.response()
+                    .withStatusCode(401)
+                    .withBody(
+                        JsonBody.json(
+                            "{\"error\":\"authorization_pending\",\"error_description\":\"User code not yet received\"}"));
+              }
+            });
   }
 
   private void createDeviceAuthEndpointExpectation() {
