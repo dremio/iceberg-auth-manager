@@ -16,6 +16,7 @@
 package com.dremio.iceberg.authmgr.oauth2.test;
 
 import static com.dremio.iceberg.authmgr.oauth2.OAuth2Config.PREFIX;
+import static org.apache.iceberg.rest.RESTUtil.extractPrefixMap;
 
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Config;
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Manager;
@@ -536,17 +537,22 @@ public abstract class TestEnvironment implements AutoCloseable {
   public Map<String, String> getSubjectTokenConfig() {
     ImmutableMap.Builder<String, String> builder =
         ImmutableMap.<String, String>builder()
+            .putAll(extractPrefixMap(getBasicConfig(), PREFIX + '.'))
+            .putAll(extractPrefixMap(getResourceOwnerConfig(), PREFIX + '.'))
+            .putAll(extractPrefixMap(getAuthorizationCodeConfig(), PREFIX + '.'))
+            .putAll(extractPrefixMap(getDeviceCodeConfig(), PREFIX + '.'))
+            .putAll(extractPrefixMap(getTokenRefreshConfig(), PREFIX + '.'))
+            .putAll(extractPrefixMap(getClientAssertionConfig(), PREFIX + '.'))
+            .putAll(extractPrefixMap(getSystemConfig(), PREFIX + '.'))
+            .putAll(extractPrefixMap(getHttpConfig(), PREFIX + '.'))
             .put(BasicConfig.GRANT_TYPE, getSubjectGrantType().getValue())
             .put(BasicConfig.CLIENT_ID, getSubjectClientId().getValue())
             .put(BasicConfig.EXTRA_PARAMS + ".extra2", "value2")
-            .put(BasicConfig.SCOPE, getSubjectScope().toString())
-            .put(
-                DeviceCodeConfig.GROUP_NAME + "." + DeviceCodeConfig.POLL_INTERVAL,
-                Duration.ofMillis(10).toString());
+            .put(BasicConfig.SCOPE, getSubjectScope().toString());
     if (ConfigUtils.requiresClientSecret(getClientAuthenticationMethod())) {
       builder.put(BasicConfig.CLIENT_SECRET, getSubjectClientSecret().getValue());
     }
-    return builder.build();
+    return builder.buildKeepingLast();
   }
 
   @Value.Default
@@ -584,17 +590,22 @@ public abstract class TestEnvironment implements AutoCloseable {
   public Map<String, String> getActorTokenConfig() {
     ImmutableMap.Builder<String, String> builder =
         ImmutableMap.<String, String>builder()
+            .putAll(extractPrefixMap(getBasicConfig(), PREFIX + '.'))
+            .putAll(extractPrefixMap(getResourceOwnerConfig(), PREFIX + '.'))
+            .putAll(extractPrefixMap(getAuthorizationCodeConfig(), PREFIX + '.'))
+            .putAll(extractPrefixMap(getDeviceCodeConfig(), PREFIX + '.'))
+            .putAll(extractPrefixMap(getTokenRefreshConfig(), PREFIX + '.'))
+            .putAll(extractPrefixMap(getClientAssertionConfig(), PREFIX + '.'))
+            .putAll(extractPrefixMap(getSystemConfig(), PREFIX + '.'))
+            .putAll(extractPrefixMap(getHttpConfig(), PREFIX + '.'))
             .put(BasicConfig.GRANT_TYPE, getActorGrantType().getValue())
             .put(BasicConfig.CLIENT_ID, getActorClientId().getValue())
             .put(BasicConfig.EXTRA_PARAMS + ".extra2", "value2")
-            .put(BasicConfig.SCOPE, getActorScope().toString())
-            .put(
-                DeviceCodeConfig.GROUP_NAME + "." + DeviceCodeConfig.POLL_INTERVAL,
-                Duration.ofMillis(10).toString());
+            .put(BasicConfig.SCOPE, getActorScope().toString());
     if (ConfigUtils.requiresClientSecret(getClientAuthenticationMethod())) {
       builder.put(BasicConfig.CLIENT_SECRET, getActorClientSecret().getValue());
     }
-    return builder.build();
+    return builder.buildKeepingLast();
   }
 
   @Value.Default

@@ -18,10 +18,7 @@ package com.dremio.iceberg.authmgr.oauth2.config;
 import static com.dremio.iceberg.authmgr.oauth2.config.TokenExchangeConfig.ACTOR_TOKEN;
 import static com.dremio.iceberg.authmgr.oauth2.config.TokenExchangeConfig.ACTOR_TOKEN_TYPE;
 import static com.dremio.iceberg.authmgr.oauth2.config.TokenExchangeConfig.AUDIENCE;
-import static com.dremio.iceberg.authmgr.oauth2.config.TokenExchangeConfig.DEFAULT_TOKEN_TYPE;
 import static com.dremio.iceberg.authmgr.oauth2.config.TokenExchangeConfig.PREFIX;
-import static com.dremio.iceberg.authmgr.oauth2.config.TokenExchangeConfig.REQUESTED_TOKEN_TYPE;
-import static com.dremio.iceberg.authmgr.oauth2.config.TokenExchangeConfig.RESOURCE;
 import static com.dremio.iceberg.authmgr.oauth2.config.TokenExchangeConfig.SUBJECT_TOKEN;
 import static com.dremio.iceberg.authmgr.oauth2.config.TokenExchangeConfig.SUBJECT_TOKEN_TYPE;
 import static java.util.Collections.singletonList;
@@ -72,41 +69,6 @@ class TokenExchangeConfigTest {
                 "https://actor-token-endpoint.com/token"),
             singletonList(
                 "actor token type must be urn:ietf:params:oauth:token-type:access_token when using dynamic actor token (rest.auth.oauth2.token-exchange.actor-token-type)")));
-  }
-
-  @Test
-  void testAsMap() {
-    Map<String, String> properties =
-        ImmutableMap.<String, String>builder()
-            .put(PREFIX + '.' + SUBJECT_TOKEN, "subject-token")
-            .put(PREFIX + '.' + ACTOR_TOKEN, "actor-token")
-            .put(PREFIX + '.' + SUBJECT_TOKEN_TYPE, DEFAULT_TOKEN_TYPE)
-            .put(PREFIX + '.' + ACTOR_TOKEN_TYPE, DEFAULT_TOKEN_TYPE)
-            .put(PREFIX + '.' + REQUESTED_TOKEN_TYPE, DEFAULT_TOKEN_TYPE)
-            .put(PREFIX + '.' + RESOURCE, "https://example.com/resource")
-            .put(PREFIX + '.' + AUDIENCE, "https://example.com/resource")
-            .put(
-                PREFIX + '.' + SUBJECT_TOKEN + '.' + BasicConfig.TOKEN_ENDPOINT,
-                "https://subject-token-endpoint.com/token")
-            .put(PREFIX + '.' + SUBJECT_TOKEN + '.' + BasicConfig.GRANT_TYPE, "client_credentials")
-            .put(PREFIX + '.' + SUBJECT_TOKEN + '.' + BasicConfig.CLIENT_ID, "subject-client")
-            .put(PREFIX + '.' + SUBJECT_TOKEN + '.' + BasicConfig.CLIENT_SECRET, "subject-secret")
-            .put(PREFIX + '.' + SUBJECT_TOKEN + '.' + BasicConfig.SCOPE, "subject-scope")
-            .put(
-                PREFIX + '.' + ACTOR_TOKEN + '.' + BasicConfig.TOKEN_ENDPOINT,
-                "https://actor-token-endpoint.com/token")
-            .put(PREFIX + '.' + ACTOR_TOKEN + '.' + BasicConfig.GRANT_TYPE, "client_credentials")
-            .put(PREFIX + '.' + ACTOR_TOKEN + '.' + BasicConfig.CLIENT_ID, "actor-client")
-            .put(PREFIX + '.' + ACTOR_TOKEN + '.' + BasicConfig.CLIENT_SECRET, "actor-secret")
-            .put(PREFIX + '.' + ACTOR_TOKEN + '.' + BasicConfig.SCOPE, "actor-scope")
-            .build();
-    SmallRyeConfig smallRyeConfig =
-        new SmallRyeConfigBuilder()
-            .withMapping(TokenExchangeConfig.class, PREFIX)
-            .withSources(new MapBackedConfigSource("catalog-properties", properties, 1000) {})
-            .build();
-    TokenExchangeConfig config = smallRyeConfig.getConfigMapping(TokenExchangeConfig.class, PREFIX);
-    assertThat(config.asMap()).isEqualTo(properties);
   }
 
   @Test

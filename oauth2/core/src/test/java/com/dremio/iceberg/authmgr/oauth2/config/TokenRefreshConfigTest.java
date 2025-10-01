@@ -16,13 +16,11 @@
 package com.dremio.iceberg.authmgr.oauth2.config;
 
 import static com.dremio.iceberg.authmgr.oauth2.config.TokenRefreshConfig.ACCESS_TOKEN_LIFESPAN;
-import static com.dremio.iceberg.authmgr.oauth2.config.TokenRefreshConfig.ENABLED;
 import static com.dremio.iceberg.authmgr.oauth2.config.TokenRefreshConfig.IDLE_TIMEOUT;
 import static com.dremio.iceberg.authmgr.oauth2.config.TokenRefreshConfig.PREFIX;
 import static com.dremio.iceberg.authmgr.oauth2.config.TokenRefreshConfig.SAFETY_WINDOW;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
 import com.dremio.iceberg.authmgr.oauth2.config.validator.ConfigValidator;
@@ -32,7 +30,6 @@ import io.smallrye.config.common.MapBackedConfigSource;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -76,25 +73,5 @@ class TokenRefreshConfigTest {
             Map.of(PREFIX + '.' + IDLE_TIMEOUT, "PT0.1S"),
             singletonList(
                 "token refresh idle timeout must be greater than or equal to PT30S (rest.auth.oauth2.token-refresh.idle-timeout)")));
-  }
-
-  @Test
-  void testAsMap() {
-    Map<String, String> properties =
-        Map.of(
-            PREFIX + '.' + ENABLED, "true",
-            PREFIX + '.' + ACCESS_TOKEN_LIFESPAN, "PT1M",
-            PREFIX + '.' + SAFETY_WINDOW, "PT10S",
-            PREFIX + '.' + IDLE_TIMEOUT, "PT1M",
-            PREFIX + '.' + "min-access-token-lifespan", "PT10S",
-            PREFIX + '.' + "min-refresh-delay", "PT10S",
-            PREFIX + '.' + "min-idle-timeout", "PT10S");
-    SmallRyeConfig smallRyeConfig =
-        new SmallRyeConfigBuilder()
-            .withMapping(TokenRefreshConfig.class, PREFIX)
-            .withSources(new MapBackedConfigSource("catalog-properties", properties, 1000) {})
-            .build();
-    TokenRefreshConfig config = smallRyeConfig.getConfigMapping(TokenRefreshConfig.class, PREFIX);
-    assertThat(config.asMap()).isEqualTo(properties);
   }
 }

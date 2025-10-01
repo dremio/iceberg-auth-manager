@@ -95,28 +95,6 @@ class ClientAssertionConfigTest {
   }
 
   @Test
-  void testAsMap() {
-    Map<String, String> properties =
-        Map.of(
-            PREFIX + '.' + ClientAssertionConfig.ISSUER, "https://example.com",
-            PREFIX + '.' + ClientAssertionConfig.SUBJECT, "subject",
-            PREFIX + '.' + ClientAssertionConfig.AUDIENCE, "audience",
-            PREFIX + '.' + ClientAssertionConfig.TOKEN_LIFESPAN, "PT1M",
-            PREFIX + '.' + ClientAssertionConfig.ALGORITHM, "RS256",
-            PREFIX + '.' + ClientAssertionConfig.PRIVATE_KEY, tempFile.toString(),
-            PREFIX + '.' + ClientAssertionConfig.KEY_ID, "test-key-id",
-            PREFIX + '.' + ClientAssertionConfig.EXTRA_CLAIMS + ".extra1", "value1");
-    SmallRyeConfig smallRyeConfig =
-        new SmallRyeConfigBuilder()
-            .withMapping(ClientAssertionConfig.class, PREFIX)
-            .withSources(new MapBackedConfigSource("catalog-properties", properties, 1000) {})
-            .build();
-    ClientAssertionConfig config =
-        smallRyeConfig.getConfigMapping(ClientAssertionConfig.class, PREFIX);
-    assertThat(config.asMap()).isEqualTo(properties);
-  }
-
-  @Test
   void testKeyIdOptional() {
     Map<String, String> properties =
         Map.of(

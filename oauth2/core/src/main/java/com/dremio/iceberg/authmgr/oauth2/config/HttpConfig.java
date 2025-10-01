@@ -25,7 +25,6 @@ import io.smallrye.config.WithName;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -240,31 +239,5 @@ public interface HttpConfig {
           getSslTrustStorePath().get());
     }
     validator.validate();
-  }
-
-  default Map<String, String> asMap() {
-    Map<String, String> properties = new HashMap<>();
-    properties.put(PREFIX + '.' + CLIENT_TYPE, getClientType().name());
-    properties.put(PREFIX + '.' + READ_TIMEOUT, getReadTimeout().toString());
-    properties.put(PREFIX + '.' + CONNECT_TIMEOUT, getConnectionTimeout().toString());
-    getHeaders().forEach((k, v) -> properties.put(PREFIX + '.' + HEADERS + '.' + k, v));
-    getProxyHost().ifPresent(h -> properties.put(PREFIX + '.' + PROXY_HOST, h));
-    getProxyPort().ifPresent(p -> properties.put(PREFIX + '.' + PROXY_PORT, String.valueOf(p)));
-    getProxyUsername().ifPresent(u -> properties.put(PREFIX + '.' + PROXY_USERNAME, u));
-    getProxyPassword().ifPresent(p -> properties.put(PREFIX + '.' + PROXY_PASSWORD, p));
-    getSslProtocols()
-        .ifPresent(p -> properties.put(PREFIX + '.' + SSL_PROTOCOLS, String.join(",", p)));
-    getSslCipherSuites()
-        .ifPresent(c -> properties.put(PREFIX + '.' + SSL_CIPHER_SUITES, String.join(",", c)));
-    properties.put(
-        PREFIX + '.' + SSL_HOSTNAME_VERIFICATION_ENABLED,
-        String.valueOf(isSslHostnameVerificationEnabled()));
-    properties.put(PREFIX + '.' + SSL_TRUST_ALL, String.valueOf(isSslTrustAll()));
-    getSslTrustStorePath()
-        .ifPresent(p -> properties.put(PREFIX + '.' + SSL_TRUSTSTORE_PATH, p.toString()));
-    getSslTrustStorePassword()
-        .ifPresent(p -> properties.put(PREFIX + '.' + SSL_TRUSTSTORE_PASSWORD, p));
-    properties.put(PREFIX + '.' + COMPRESSION_ENABLED, String.valueOf(isCompressionEnabled()));
-    return Map.copyOf(properties);
   }
 }

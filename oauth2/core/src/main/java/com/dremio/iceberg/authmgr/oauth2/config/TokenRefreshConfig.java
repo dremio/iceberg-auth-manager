@@ -20,9 +20,7 @@ import com.dremio.iceberg.authmgr.oauth2.config.validator.ConfigValidator;
 import io.smallrye.config.WithDefault;
 import io.smallrye.config.WithName;
 import java.time.Duration;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /** Configuration properties for the token refresh feature. */
 public interface TokenRefreshConfig {
@@ -139,18 +137,5 @@ public interface TokenRefreshConfig {
           getMinIdleTimeout());
       validator.validate();
     }
-  }
-
-  default Map<String, String> asMap() {
-    Map<String, String> properties = new HashMap<>();
-    properties.put(PREFIX + '.' + ENABLED, String.valueOf(isEnabled()));
-    properties.put(PREFIX + '.' + ACCESS_TOKEN_LIFESPAN, getAccessTokenLifespan().toString());
-    properties.put(PREFIX + '.' + SAFETY_WINDOW, getSafetyWindow().toString());
-    properties.put(PREFIX + '.' + IDLE_TIMEOUT, getIdleTimeout().toString());
-    properties.put(
-        PREFIX + '.' + "min-access-token-lifespan", getMinAccessTokenLifespan().toString());
-    properties.put(PREFIX + '.' + "min-refresh-delay", getMinRefreshDelay().toString());
-    properties.put(PREFIX + '.' + "min-idle-timeout", getMinIdleTimeout().toString());
-    return Map.copyOf(properties);
   }
 }

@@ -20,8 +20,6 @@ import com.dremio.iceberg.authmgr.oauth2.config.validator.ConfigValidator;
 import io.smallrye.config.WithDefault;
 import io.smallrye.config.WithName;
 import java.time.Duration;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * Configuration properties for the whole system.
@@ -65,12 +63,5 @@ public interface SystemConfig {
     validator.check(
         !getAgentName().isBlank(), PREFIX + '.' + AGENT_NAME, "agent name must not be blank");
     validator.validate();
-  }
-
-  default Map<String, String> asMap() {
-    Map<String, String> properties = new HashMap<>();
-    properties.put(PREFIX + '.' + AGENT_NAME, getAgentName());
-    properties.put(PREFIX + '.' + SESSION_CACHE_TIMEOUT, getSessionCacheTimeout().toString());
-    return Map.copyOf(properties);
   }
 }

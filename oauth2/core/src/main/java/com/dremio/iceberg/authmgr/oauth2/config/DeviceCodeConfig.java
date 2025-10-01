@@ -22,8 +22,6 @@ import io.smallrye.config.WithDefault;
 import io.smallrye.config.WithName;
 import java.net.URI;
 import java.time.Duration;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -101,16 +99,5 @@ public interface DeviceCodeConfig {
         "device code flow: poll interval must be greater than or equal to %s",
         getMinPollInterval());
     validator.validate();
-  }
-
-  default Map<String, String> asMap() {
-    Map<String, String> properties = new HashMap<>();
-    getDeviceAuthorizationEndpoint()
-        .ifPresent(u -> properties.put(PREFIX + '.' + ENDPOINT, u.toString()));
-    properties.put(PREFIX + '.' + POLL_INTERVAL, getPollInterval().toString());
-    properties.put(PREFIX + '.' + "min-poll-interval", getMinPollInterval().toString());
-    properties.put(
-        PREFIX + '.' + "ignore-server-poll-interval", String.valueOf(ignoreServerPollInterval()));
-    return Map.copyOf(properties);
   }
 }
