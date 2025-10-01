@@ -27,9 +27,7 @@ public abstract class RefreshTokenExpectation extends AbstractTokenEndpointExpec
 
   @Override
   public void create() {
-    getClientAndServer()
-        .when(request())
-        .respond(httpRequest -> response(httpRequest, "access_refreshed", "refresh_refreshed"));
+    getClientAndServer().when(request()).respond(response("access_refreshed", "refresh_refreshed"));
   }
 
   @Override

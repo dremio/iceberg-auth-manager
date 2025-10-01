@@ -28,7 +28,12 @@ import com.nimbusds.oauth2.sdk.GrantType;
 import com.nimbusds.oauth2.sdk.token.TokenTypeURI;
 
 @AuthManagerImmutable
-public abstract class TokenExchangeExpectation extends InitialTokenFetchExpectation {
+public abstract class TokenExchangeExpectation extends AbstractTokenEndpointExpectation {
+
+  @Override
+  public void create() {
+    getClientAndServer().when(request()).respond(response("access_initial", "refresh_initial"));
+  }
 
   @Override
   protected ImmutableMap.Builder<String, String> requestBody() {

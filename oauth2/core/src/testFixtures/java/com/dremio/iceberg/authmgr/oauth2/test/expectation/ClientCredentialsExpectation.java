@@ -23,7 +23,12 @@ import com.google.common.collect.ImmutableMap;
 import com.nimbusds.oauth2.sdk.GrantType;
 
 @AuthManagerImmutable
-public abstract class ClientCredentialsExpectation extends InitialTokenFetchExpectation {
+public abstract class ClientCredentialsExpectation extends AbstractTokenEndpointExpectation {
+
+  @Override
+  public void create() {
+    getClientAndServer().when(request()).respond(response("access_initial", "refresh_initial"));
+  }
 
   @Override
   protected ImmutableMap.Builder<String, String> requestBody() {

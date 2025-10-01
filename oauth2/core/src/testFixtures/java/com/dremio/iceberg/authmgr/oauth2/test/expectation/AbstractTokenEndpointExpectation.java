@@ -53,8 +53,7 @@ public abstract class AbstractTokenEndpointExpectation extends AbstractExpectati
         .withBody(ExpectationUtils.getParameterBody(requestBody().build()));
   }
 
-  protected HttpResponse response(
-      HttpRequest httpRequest, String accessToken, String refreshToken) {
+  protected HttpResponse response(String accessToken, String refreshToken) {
     return HttpResponse.response()
         .withBody(getJsonBody(responseBody(accessToken, refreshToken).build()));
   }

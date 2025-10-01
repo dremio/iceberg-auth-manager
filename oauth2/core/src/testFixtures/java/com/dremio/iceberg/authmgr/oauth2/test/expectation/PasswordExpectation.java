@@ -24,7 +24,12 @@ import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
 import com.google.common.collect.ImmutableMap;
 
 @AuthManagerImmutable
-public abstract class PasswordExpectation extends InitialTokenFetchExpectation {
+public abstract class PasswordExpectation extends AbstractTokenEndpointExpectation {
+
+  @Override
+  public void create() {
+    getClientAndServer().when(request()).respond(response("access_initial", "refresh_initial"));
+  }
 
   @Override
   protected ImmutableMap.Builder<String, String> requestBody() {

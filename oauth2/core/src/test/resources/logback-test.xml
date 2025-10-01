@@ -29,5 +29,5 @@ limitations under the License.
   <logger name="com.dremio.iceberg.authmgr.oauth2" level="INFO"/>
   <logger name="org.apache.iceberg" level="INFO"/>
   <!-- MockServer: set level to INFO to print all requests and responses -->
-  <logger name="org.mockserver.log" level="WARN"/>
+  <logger name="org.mockserver" level="WARN"/>
 </configuration>
