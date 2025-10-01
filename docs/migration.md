@@ -92,6 +92,25 @@ Note: Dremio Auth Manager also supports static subject and actor tokens when usi
 exchange grant type: this is a common use case for impersonation and delegation, and does not
 preclude the use of OAuth2 token refresh mechanisms (see [Token Exchange](./token-exchange.md)).
 
+### Support for Context- and Table-Level Sessions
+
+Iceberg's `AuthManager` API introduces the concept of context- and table-level sessions.
+
+Context-level sessions are created by merging the catalog session with the session context, which is
+generally empty, but can also contain the current user's credentials, depending on the engine.
+
+Table-level sessions are created by merging the catalog session with table-specific properties, such
+as a particular OAuth2 token, provided by the catalog server when the client contacts a table
+endpoint.
+
+Iceberg's built-in OAuth2 `AuthManager` supports both types of sessions.
+
+However, issuing OAuth2 tokens from the catalog server directly to clients is not compliant with the
+OAuth2 standard. For this reason, Dremio's Auth Manager does not support table-level sessions.
+
+Most catalog servers do not vend OAuth2 tokens nor any other OAuth2-related information to clients,
+so this should not be a problem in practice.
+
 ### Token Refreshes
 
 Iceberg's built-in OAuth2 `AuthManager` has a non-standard way of handling token refreshes, making

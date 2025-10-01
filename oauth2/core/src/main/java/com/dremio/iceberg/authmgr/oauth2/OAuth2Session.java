@@ -29,19 +29,15 @@ import org.apache.iceberg.rest.auth.AuthSession;
 public class OAuth2Session implements AuthSession {
 
   private final Map<String, String> properties;
-  private final OAuth2Config config;
   private final OAuth2Agent agent;
 
-  public OAuth2Session(
-      Map<String, String> properties, OAuth2Config config, ScheduledExecutorService executor) {
+  public OAuth2Session(Map<String, String> properties, ScheduledExecutorService executor) {
     this.properties = Map.copyOf(properties);
-    this.config = config;
-    this.agent = new OAuth2Agent(config, OAuth2AgentRuntime.of(executor));
+    this.agent = new OAuth2Agent(OAuth2Config.from(properties), OAuth2AgentRuntime.of(executor));
   }
 
   private OAuth2Session(OAuth2Session toCopy) {
     this.properties = toCopy.properties;
-    this.config = toCopy.config;
     this.agent = toCopy.agent.copy();
   }
 
