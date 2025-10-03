@@ -72,7 +72,7 @@ public abstract class AuthorizationCodeExpectation extends InitialTokenFetchExpe
   protected HttpResponse response(
       HttpRequest httpRequest, String accessToken, String refreshToken) {
     Map<String, List<String>> params = decodeBodyParameters(httpRequest);
-    String redirectUri = params.get("redirect_uri").get(0);
+    String redirectUri = params.get("redirect_uri").getFirst();
     PendingAuthRequest pendingAuthRequest = getPendingAuthRequests().get(redirectUri);
     if (pendingAuthRequest == null) {
       return AUTHORIZATION_SERVER_ERROR_RESPONSE;
@@ -80,7 +80,7 @@ public abstract class AuthorizationCodeExpectation extends InitialTokenFetchExpe
     List<String> code = params.get("code");
     if (code == null
         || code.isEmpty()
-        || !code.get(0).equals(pendingAuthRequest.getCode().getValue())) {
+        || !code.getFirst().equals(pendingAuthRequest.getCode().getValue())) {
       return AUTHORIZATION_SERVER_ERROR_RESPONSE;
     }
     if (getTestEnvironment().isPkceEnabled()) {
@@ -125,12 +125,12 @@ public abstract class AuthorizationCodeExpectation extends InitialTokenFetchExpe
         .respond(
             httpRequest -> {
               Parameters parameters = httpRequest.getQueryStringParameters();
-              String redirectUri = parameters.getValues("redirect_uri").get(0);
+              String redirectUri = parameters.getValues("redirect_uri").getFirst();
               AuthorizationCode code = new AuthorizationCode();
               String location =
                   new URIBuilder(redirectUri)
                       .addParameter("code", code.getValue())
-                      .addParameter("state", parameters.getValues("state").get(0))
+                      .addParameter("state", parameters.getValues("state").getFirst())
                       .build()
                       .toString();
               CodeChallengeMethod method = null;
@@ -141,8 +141,10 @@ public abstract class AuthorizationCodeExpectation extends InitialTokenFetchExpe
                   return AUTHORIZATION_SERVER_ERROR_RESPONSE;
                 }
                 method =
-                    CodeChallengeMethod.parse(parameters.getValues("code_challenge_method").get(0));
-                codeChallenge = CodeChallenge.parse(parameters.getValues("code_challenge").get(0));
+                    CodeChallengeMethod.parse(
+                        parameters.getValues("code_challenge_method").getFirst());
+                codeChallenge =
+                    CodeChallenge.parse(parameters.getValues("code_challenge").getFirst());
               }
               var pendingAuthRequest =
                   ImmutableAuthorizationCodeExpectation.PendingAuthRequest.builder()
