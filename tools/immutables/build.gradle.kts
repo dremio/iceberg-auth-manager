@@ -15,7 +15,7 @@
  */
 
 plugins {
-  id("authmgr-java")
+  id("authmgr-java-production")
   id("authmgr-maven")
 }
 

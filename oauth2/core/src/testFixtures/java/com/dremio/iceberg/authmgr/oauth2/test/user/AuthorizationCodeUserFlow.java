@@ -71,7 +71,7 @@ public abstract class AuthorizationCodeUserFlow extends UserFlow {
           new URIBuilder(callbackUrl)
               .clearParameters()
               .addParameter("code", "WRONG-CODE")
-              .addParameter("state", params.get("state").get(0))
+              .addParameter("state", params.get("state").getFirst())
               .build();
     }
     HttpURLConnection conn = openConnection(callbackUrl);

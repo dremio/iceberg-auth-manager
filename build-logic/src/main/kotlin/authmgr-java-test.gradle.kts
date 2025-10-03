@@ -14,19 +14,11 @@
  * limitations under the License.
  */
 
-plugins { id("authmgr-java-test") }
+import org.gradle.api.tasks.compile.JavaCompile
 
-description = "Test Utilities for Dremio AuthManager for Apache Iceberg"
+plugins { id("authmgr-java") }
 
-dependencies {
-  api(platform(libs.testcontainers.bom))
-  api("org.testcontainers:testcontainers")
-  api("org.testcontainers:junit-jupiter")
-  api(libs.testcontainers.keycloak)
+// For test-only modules, compile everything with Java 21
+tasks.withType(JavaCompile::class.java).configureEach { options.release = 21 }
 
-  implementation(libs.keycloak.admin.client)
-  implementation(libs.guava)
-
-  compileOnly(libs.jakarta.annotation.api)
-  compileOnly(libs.errorprone.annotations)
-}
+java { toolchain { languageVersion.set(JavaLanguageVersion.of(21)) } }

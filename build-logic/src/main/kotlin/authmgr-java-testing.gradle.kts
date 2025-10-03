@@ -24,6 +24,11 @@ plugins {
   id("jacoco-report-aggregation")
 }
 
+// Configure all test tasks to use Java 21
+tasks.withType<Test>().configureEach {
+  javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(21)) })
+}
+
 tasks.named<Test>("test").configure { jvmArgs("-Duser.language=en") }
 
 testing {

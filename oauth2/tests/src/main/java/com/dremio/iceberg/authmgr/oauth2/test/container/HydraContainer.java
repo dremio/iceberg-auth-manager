@@ -142,17 +142,7 @@ public class HydraContainer extends GenericContainer<HydraContainer> {
     }
   }
 
-  private static class HydraClient {
-    final String clientId;
-    final String clientSecret;
-    final String authMethod;
-
-    HydraClient(String clientId, String clientSecret, String authMethod) {
-      this.clientId = clientId;
-      this.clientSecret = clientSecret;
-      this.authMethod = authMethod;
-    }
-  }
+  private record HydraClient(String clientId, String clientSecret, String authMethod) {}
 
   private static String getLogLevel() {
     return LOGGER.isDebugEnabled()

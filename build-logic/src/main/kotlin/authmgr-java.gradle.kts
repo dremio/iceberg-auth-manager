@@ -26,7 +26,6 @@ plugins {
 }
 
 tasks.withType(JavaCompile::class.java).configureEach {
-  options.release = 11
   options.compilerArgs.addAll(listOf("-Xlint:unchecked", "-Xlint:deprecation"))
   options.errorprone.disableAllWarnings = true
   options.errorprone.excludedPaths =
