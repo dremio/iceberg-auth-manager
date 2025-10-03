@@ -15,19 +15,17 @@
  */
 package com.dremio.iceberg.authmgr.oauth2;
 
-import com.dremio.iceberg.authmgr.oauth2.cache.AuthSessionCache;
-import com.dremio.iceberg.authmgr.oauth2.cache.AuthSessionCacheFactory;
-import com.dremio.iceberg.authmgr.oauth2.config.ConfigSanitizer;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import org.apache.iceberg.CatalogProperties;
 import org.apache.iceberg.catalog.SessionCatalog.SessionContext;
-import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.rest.RESTClient;
 import org.apache.iceberg.rest.RESTUtil;
 import org.apache.iceberg.rest.auth.AuthManager;
 import org.apache.iceberg.rest.auth.AuthSession;
+import org.apache.iceberg.rest.auth.AuthSessionCache;
 import org.apache.iceberg.util.ThreadPools;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,95 +35,73 @@ public class OAuth2Manager implements AuthManager {
   private static final Logger LOGGER = LoggerFactory.getLogger(OAuth2Manager.class);
 
   private final String name;
-  private final AuthSessionCacheFactory<OAuth2Config, OAuth2Session> sessionCacheFactory;
-
-  private final ConfigSanitizer configSanitizer = new ConfigSanitizer();
 
   private OAuth2Session initSession;
-  private AuthSessionCache<OAuth2Config, OAuth2Session> sessionCache;
   private ScheduledExecutorService refreshExecutor;
 
-  public OAuth2Manager(String managerName) {
-    this(managerName, OAuth2Manager::createSessionCache);
-  }
+  private volatile AuthSessionCache sessionCache;
 
-  public OAuth2Manager(
-      String managerName,
-      AuthSessionCacheFactory<OAuth2Config, OAuth2Session> sessionCacheFactory) {
+  public OAuth2Manager(String managerName) {
     this.name = managerName;
-    this.sessionCacheFactory = sessionCacheFactory;
   }
 
   @Override
   public AuthSession initSession(RESTClient initClient, Map<String, String> initProperties) {
-    OAuth2Config initConfig = OAuth2Config.from(initProperties);
-    initialize(initConfig);
-    return initSession = new OAuth2Session(initProperties, initConfig, refreshExecutor());
+    return initSession = new OAuth2Session(initProperties, refreshExecutor());
   }
 
   @Override
   public AuthSession catalogSession(
       RESTClient sharedClient, Map<String, String> catalogProperties) {
-    OAuth2Config catalogConfig = OAuth2Config.from(catalogProperties);
-    initialize(catalogConfig);
-    OAuth2Session catalogSession;
-    if (initSession != null && catalogProperties.equals(initSession.getProperties())) {
-      // Copy the existing session if the properties are the same as the init session
-      // to avoid requiring from users to log in again, for human-based flows.
-      catalogSession = initSession.copy();
-    } else {
-      catalogSession = new OAuth2Session(catalogProperties, catalogConfig, refreshExecutor());
-    }
-    initSession = null;
+    // Copy the existing session if the properties are the same as the init session
+    // to avoid requiring from users to log in again, for human-based flows.
+    OAuth2Session catalogSession =
+        initSession != null && catalogProperties.equals(initSession.getProperties())
+            ? initSession.copy()
+            : new OAuth2Session(catalogProperties, refreshExecutor());
+    initSession = null; // already closed
     return catalogSession;
   }
 
   @Override
   public AuthSession contextualSession(SessionContext context, AuthSession parent) {
+    if ((context.properties() == null || context.properties().isEmpty())
+        && (context.credentials() == null || context.credentials().isEmpty())) {
+      return parent;
+    }
     Map<String, String> contextProperties =
         RESTUtil.merge(
             Optional.ofNullable(context.properties()).orElseGet(Map::of),
             Optional.ofNullable(context.credentials()).orElseGet(Map::of));
-    contextProperties = configSanitizer.sanitizeContextProperties(contextProperties);
-    return maybeCacheSession(parent, contextProperties);
-  }
-
-  @Override
-  public AuthSession tableSession(
-      TableIdentifier table, Map<String, String> properties, AuthSession parent) {
-    Map<String, String> tableProperties = configSanitizer.sanitizeTableProperties(properties);
-    return maybeCacheSession(parent, tableProperties);
-  }
-
-  private AuthSession maybeCacheSession(AuthSession parent, Map<String, String> childProperties) {
     Map<String, String> parentProperties = ((OAuth2Session) parent).getProperties();
-    Map<String, String> mergedProperties = RESTUtil.merge(parentProperties, childProperties);
-    if (mergedProperties.equals(parentProperties)) {
+    Map<String, String> childProperties = RESTUtil.merge(parentProperties, contextProperties);
+    if (childProperties.equals(parentProperties)) {
       return parent;
     }
-    return sessionCache.cachedSession(
-        OAuth2Config.from(mergedProperties),
-        cfg -> new OAuth2Session(mergedProperties, cfg, refreshExecutor()));
+    AuthSessionCache cache = getOrCreateSessionCache(parentProperties);
+    return cache.cachedSession(
+        context.sessionId(), id -> new OAuth2Session(childProperties, refreshExecutor()));
   }
 
   @Override
   public AuthSession tableSession(RESTClient sharedClient, Map<String, String> properties) {
-    // Do NOT sanitize table properties, as they may contain credentials coming from the
-    // catalog properties.
-    OAuth2Config config = OAuth2Config.from(properties);
-    initialize(config);
-    return sessionCache.cachedSession(
-        config, cfg -> new OAuth2Session(properties, cfg, refreshExecutor()));
+    // Note: this method is invoked only from the S3 signer client.
+    // A signer client can interact with more than one signing endpoint, but there should never be
+    // more than one auth session per signing endpoint, so use that as the session key.
+    // Note: as per S3V4RestSignerClient, either 's3.signer.uri' or 'uri' must be set.
+    String key = properties.getOrDefault("s3.signer.uri", properties.get(CatalogProperties.URI));
+    AuthSessionCache cache = getOrCreateSessionCache(properties);
+    return cache.cachedSession(key, k -> new OAuth2Session(properties, refreshExecutor()));
   }
 
   @Override
   public void close() {
     AuthSession session = initSession;
-    AuthSessionCache<OAuth2Config, OAuth2Session> cache = sessionCache;
+    AuthSessionCache cache = sessionCache;
     try (session;
         cache) {
       ScheduledExecutorService executor = this.refreshExecutor;
-      if (executor != null) {
+      if (executor != null) { // Iceberg < 1.10 only
         executor.shutdown();
         try {
           if (!executor.awaitTermination(1, TimeUnit.MINUTES)) {
@@ -144,12 +120,6 @@ public class OAuth2Manager implements AuthManager {
     }
   }
 
-  private void initialize(OAuth2Config config) {
-    if (sessionCache == null) {
-      sessionCache = sessionCacheFactory.apply(name, config);
-    }
-  }
-
   private ScheduledExecutorService refreshExecutor() {
     if (refreshExecutor != null) {
       return refreshExecutor;
@@ -162,8 +132,17 @@ public class OAuth2Manager implements AuthManager {
     }
   }
 
-  private static AuthSessionCache<OAuth2Config, OAuth2Session> createSessionCache(
-      String name, OAuth2Config config) {
-    return new AuthSessionCache<>(name, config.getSystemConfig().getSessionCacheTimeout());
+  private AuthSessionCache getOrCreateSessionCache(Map<String, String> properties) {
+    AuthSessionCache cache = sessionCache;
+    if (cache == null) {
+      synchronized (this) {
+        if (sessionCache == null) {
+          OAuth2Config config = OAuth2Config.from(properties);
+          cache = new AuthSessionCache(name, config.getSystemConfig().getSessionCacheTimeout());
+          sessionCache = cache;
+        }
+      }
+    }
+    return cache;
   }
 }
