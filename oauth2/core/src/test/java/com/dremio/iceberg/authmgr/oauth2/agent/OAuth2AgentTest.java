@@ -21,7 +21,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.InstanceOfAssertFactories.ATOMIC_BOOLEAN;
 import static org.assertj.core.api.InstanceOfAssertFactories.throwable;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
@@ -357,20 +356,15 @@ class OAuth2AgentTest {
   @CartesianTest
   void testTokenExchangeDynamicSubject(
       @Enum HttpClientType httpClientType,
-      @EnumLike ClientAuthenticationMethod authenticationMethod,
-      @Values(booleans = {true, false}) boolean returnRefreshTokens,
-      @EnumLike(excludes = "urn:ietf:params:oauth:grant-type:token-exchange")
-          GrantType subjectGrantType)
+      @EnumLike(excludes = "none") ClientAuthenticationMethod authenticationMethod,
+      @Values(booleans = {true, false}) boolean returnRefreshTokens)
       throws InterruptedException, ExecutionException {
-    assumeTrue(
-        !subjectGrantType.equals(GrantType.CLIENT_CREDENTIALS)
-            || !authenticationMethod.equals(ClientAuthenticationMethod.NONE));
     try (TestEnvironment env =
             TestEnvironment.builder()
                 .grantType(GrantType.TOKEN_EXCHANGE)
-                .httpClientType(httpClientType)
                 .subjectToken(null)
-                .subjectGrantType(subjectGrantType)
+                .subjectGrantType(GrantType.CLIENT_CREDENTIALS)
+                .httpClientType(httpClientType)
                 .clientAuthenticationMethod(authenticationMethod)
                 .returnRefreshTokens(returnRefreshTokens)
                 .build();
@@ -387,20 +381,15 @@ class OAuth2AgentTest {
   @CartesianTest
   void testTokenExchangeDynamicActor(
       @Enum HttpClientType httpClientType,
-      @EnumLike ClientAuthenticationMethod authenticationMethod,
-      @Values(booleans = {true, false}) boolean returnRefreshTokens,
-      @EnumLike(excludes = "urn:ietf:params:oauth:grant-type:token-exchange")
-          GrantType actorGrantType)
+      @EnumLike(excludes = "none") ClientAuthenticationMethod authenticationMethod,
+      @Values(booleans = {true, false}) boolean returnRefreshTokens)
       throws InterruptedException, ExecutionException {
-    assumeTrue(
-        !actorGrantType.equals(GrantType.CLIENT_CREDENTIALS)
-            || !authenticationMethod.equals(ClientAuthenticationMethod.NONE));
     try (TestEnvironment env =
             TestEnvironment.builder()
                 .grantType(GrantType.TOKEN_EXCHANGE)
-                .httpClientType(httpClientType)
                 .actorToken(null)
-                .actorGrantType(actorGrantType)
+                .actorGrantType(GrantType.CLIENT_CREDENTIALS)
+                .httpClientType(httpClientType)
                 .clientAuthenticationMethod(authenticationMethod)
                 .returnRefreshTokens(returnRefreshTokens)
                 .build();

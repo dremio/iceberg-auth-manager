@@ -167,6 +167,9 @@ public abstract class TestEnvironment implements AutoCloseable {
   @Override
   public void close() {
     getUser().close();
+    if (isUnitTest()) {
+      reset();
+    }
     try {
       getExecutor().shutdown();
       if (!getExecutor().awaitTermination(10, TimeUnit.SECONDS)) {
