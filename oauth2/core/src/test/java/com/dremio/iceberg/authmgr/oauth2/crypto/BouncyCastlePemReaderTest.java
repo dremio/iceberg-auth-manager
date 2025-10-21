@@ -138,9 +138,11 @@ class BouncyCastlePemReaderTest {
     Path invalidBase64File = tempDir.resolve("invalid-base64.pem");
     Files.writeString(
         invalidBase64File,
-        "-----BEGIN PRIVATE KEY-----\n"
-            + "This is not valid base64 content!!!\n"
-            + "-----END PRIVATE KEY-----\n");
+        """
+            -----BEGIN PRIVATE KEY-----
+            This is not valid base64 content!!!
+            -----END PRIVATE KEY-----
+            """);
 
     // When - Then
     assertThatThrownBy(() -> new BouncyCastlePemReader().readPrivateKey(invalidBase64File))

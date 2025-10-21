@@ -18,7 +18,7 @@ import org.gradle.api.plugins.jvm.JvmTestSuite
 import org.gradle.kotlin.dsl.register
 
 plugins {
-  id("authmgr-java")
+  id("authmgr-java-test")
   id("authmgr-java-testing")
 }
 

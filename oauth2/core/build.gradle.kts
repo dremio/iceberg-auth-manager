@@ -18,7 +18,7 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 plugins {
-  id("authmgr-java")
+  id("authmgr-java-production")
   id("authmgr-java-testing")
   id("authmgr-maven")
 }

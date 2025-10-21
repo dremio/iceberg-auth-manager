@@ -66,7 +66,7 @@ public abstract class DeviceCodeExpectation extends InitialTokenFetchExpectation
   protected HttpResponse response(
       HttpRequest httpRequest, String accessToken, String refreshToken) {
     Map<String, List<String>> params = decodeBodyParameters(httpRequest);
-    DeviceCode deviceCode = new DeviceCode(params.get("device_code").get(0));
+    DeviceCode deviceCode = new DeviceCode(params.get("device_code").getFirst());
     PendingAuthRequest pendingAuthRequest = getPendingAuthRequests().get(deviceCode);
     if (pendingAuthRequest.isUserCodeReceived()) {
       getPendingAuthRequests().remove(pendingAuthRequest.getDeviceCode());
@@ -153,7 +153,7 @@ public abstract class DeviceCodeExpectation extends InitialTokenFetchExpectation
                 return AUTHORIZATION_SERVER_ERROR_RESPONSE;
               }
               PendingAuthRequest pendingAuthRequest =
-                  getPendingAuthRequests().get(new UserCode(userCode.get(0)));
+                  getPendingAuthRequests().get(new UserCode(userCode.getFirst()));
               if (pendingAuthRequest == null) {
                 return AUTHORIZATION_SERVER_ERROR_RESPONSE;
               }

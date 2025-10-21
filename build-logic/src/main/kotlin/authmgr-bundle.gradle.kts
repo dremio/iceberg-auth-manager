@@ -30,7 +30,7 @@ import kotlin.jvm.java
 plugins {
   id("com.gradleup.shadow")
   id("com.github.jk1.dependency-license-report")
-  id("authmgr-java")
+  id("authmgr-java-production")
 }
 
 // Create configurations to hold the core project's source and javadoc artifacts

@@ -18,18 +18,8 @@ import org.gradle.api.plugins.jvm.JvmTestSuite
 import org.gradle.kotlin.dsl.register
 
 plugins {
-  id("authmgr-java")
+  id("authmgr-java-test")
   id("authmgr-java-testing")
-}
-
-// Override Java version for this module to support Kafka 4.0.0+
-tasks.withType<JavaCompile>().configureEach { options.release.set(17) }
-
-java { toolchain { languageVersion.set(JavaLanguageVersion.of(17)) } }
-
-// Configure all test tasks to use Java 17
-tasks.withType<Test>().configureEach {
-  javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(17)) })
 }
 
 description = "Kafka Sink Connector tests for Dremio AuthManager for Apache Iceberg"
