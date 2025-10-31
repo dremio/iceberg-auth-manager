@@ -21,7 +21,7 @@ description = "Test Utilities for Dremio AuthManager for Apache Iceberg"
 dependencies {
   api(platform(libs.testcontainers.bom))
   api("org.testcontainers:testcontainers")
-  api("org.testcontainers:junit-jupiter")
+  api("org.testcontainers:testcontainers-junit-jupiter")
   api(libs.testcontainers.keycloak)
 
   implementation(libs.keycloak.admin.client)

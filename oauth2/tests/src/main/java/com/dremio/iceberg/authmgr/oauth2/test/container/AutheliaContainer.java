@@ -29,7 +29,7 @@ public class AutheliaContainer extends GenericContainer<AutheliaContainer> {
   @SuppressWarnings("resource")
   public AutheliaContainer(
       String privateKeyClasspathResource, String certificateClasspathResource) {
-    super("authelia/authelia:4.39.10");
+    super("authelia/authelia:4.39.13");
     withExposedPorts(9091);
     withEnv("X_AUTHELIA_CONFIG_FILTERS", "template");
     withEnv("AUTHMGR_LOG_LEVEL", getLogLevel());

@@ -71,10 +71,10 @@ gradle.projectsEvaluated {
           filter { includes.set(listOf("session")) }
           run.set(
             """
-        echo "### {{command}}" >> ${'$'}GITHUB_STEP_SUMMARY
-        echo "| Step | Outcome |" >> ${'$'}GITHUB_STEP_SUMMARY
-        echo "| ---- | ------- |" >> ${'$'}GITHUB_STEP_SUMMARY
-        """
+            echo "### {{command}}" >> ${'$'}GITHUB_STEP_SUMMARY
+            echo "| Step | Outcome |" >> ${'$'}GITHUB_STEP_SUMMARY
+            echo "| ---- | ------- |" >> ${'$'}GITHUB_STEP_SUMMARY
+            """
               .trimIndent()
           )
         }
@@ -82,8 +82,8 @@ gradle.projectsEvaluated {
           filter { excludes.set(listOf("session")) }
           run.set(
             """
-        echo "| {{event.name}} | :white_check_mark: |" >> ${'$'}GITHUB_STEP_SUMMARY
-        """
+            echo "| {{event.name}} | :white_check_mark: |" >> ${'$'}GITHUB_STEP_SUMMARY
+            """
               .trimIndent()
           )
         }
@@ -91,8 +91,8 @@ gradle.projectsEvaluated {
           filter { includes.set(listOf("session")) }
           run.set(
             """
-        echo "" >> ${'$'}GITHUB_STEP_SUMMARY
-        """
+            echo "" >> ${'$'}GITHUB_STEP_SUMMARY
+            """
               .trimIndent()
           )
         }
@@ -100,8 +100,8 @@ gradle.projectsEvaluated {
           filter { excludes.set(listOf("session")) }
           run.set(
             """
-        echo "| {{event.name}} | :x: |" >> ${'$'}GITHUB_STEP_SUMMARY
-        """
+            echo "| {{event.name}} | :x: |" >> ${'$'}GITHUB_STEP_SUMMARY
+            """
               .trimIndent()
           )
         }
@@ -109,12 +109,12 @@ gradle.projectsEvaluated {
           filter { includes.set(listOf("session")) }
           run.set(
             """
-        echo "" >> ${'$'}GITHUB_STEP_SUMMARY
-        echo "### Failure" >> ${'$'}GITHUB_STEP_SUMMARY
-        echo "\`\`\`" >> ${'$'}GITHUB_STEP_SUMMARY
-        echo "{{event.stacktrace}}\`\`\`" >> ${'$'}GITHUB_STEP_SUMMARY
-        echo "" >> ${'$'}GITHUB_STEP_SUMMARY
-        """
+            echo "" >> ${'$'}GITHUB_STEP_SUMMARY
+            echo "### Failure" >> ${'$'}GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> ${'$'}GITHUB_STEP_SUMMARY
+            echo "{{event.stacktrace}}\`\`\`" >> ${'$'}GITHUB_STEP_SUMMARY
+            echo "" >> ${'$'}GITHUB_STEP_SUMMARY
+            """
               .trimIndent()
           )
         }
@@ -151,18 +151,18 @@ gradle.projectsEvaluated {
           categoryTitleFormat.set("### {{categoryTitle}}")
           content.set(
             """
-          ## Try It Out
-          
-          {{projectNameCapitalized}} is available as a Maven artifact from [Maven Central](https://central.sonatype.com/namespace/com.dremio.iceberg.authmgr).
-          You can also download the latest version from the [GitHub Releases page]({{repoUrl}}/releases).
-          
-          ## Highlights
-          
-          The full changelog can be found [here]({{repoUrl}}/compare/{{previousTagName}}...{{tagName}}).
-          
-          {{changelogChanges}}
-          {{changelogContributors}}
-          """
+            ## Try It Out
+            
+            {{projectNameCapitalized}} is available as a Maven artifact from [Maven Central](https://central.sonatype.com/namespace/com.dremio.iceberg.authmgr).
+            You can also download the latest version from the [GitHub Releases page]({{repoUrl}}/releases).
+            
+            ## Highlights
+            
+            The full changelog can be found [here]({{repoUrl}}/compare/{{previousTagName}}...{{tagName}}).
+            
+            {{changelogChanges}}
+            {{changelogContributors}}
+            """
               .trimIndent()
           )
           contributors {

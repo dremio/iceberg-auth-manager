@@ -81,7 +81,7 @@ dependencies {
 
   testFixturesApi(platform(libs.testcontainers.bom))
   testFixturesApi("org.testcontainers:testcontainers")
-  testFixturesApi("org.testcontainers:junit-jupiter")
+  testFixturesApi("org.testcontainers:testcontainers-junit-jupiter")
   testFixturesApi(libs.keycloak.admin.client)
   testFixturesApi(libs.testcontainers.keycloak)
 

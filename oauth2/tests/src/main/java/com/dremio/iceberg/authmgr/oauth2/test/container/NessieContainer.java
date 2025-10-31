@@ -31,7 +31,7 @@ public class NessieContainer extends GenericContainer<NessieContainer> {
 
   @SuppressWarnings("resource")
   public NessieContainer() {
-    super("ghcr.io/projectnessie/nessie:0.105.1");
+    super("ghcr.io/projectnessie/nessie:0.105.6");
     withNetworkAliases("nessie");
     withLogConsumer(new Slf4jLogConsumer(LOGGER));
     withExposedPorts(19120, 9000);

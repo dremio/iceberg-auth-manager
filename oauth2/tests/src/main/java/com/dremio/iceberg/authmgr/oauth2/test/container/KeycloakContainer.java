@@ -70,7 +70,7 @@ public class KeycloakContainer extends ExtendableKeycloakContainer<KeycloakConta
 
   @SuppressWarnings("resource")
   public KeycloakContainer() {
-    super("keycloak/keycloak:26.3.4");
+    super("keycloak/keycloak:26.4");
     withNetworkAliases("keycloak");
     withLogConsumer(new Slf4jLogConsumer(LOGGER));
     withEnv("KC_LOG_LEVEL", getRootLoggerLevel() + ",org.keycloak:" + getKeycloakLoggerLevel());
