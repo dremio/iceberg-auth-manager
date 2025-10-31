@@ -47,7 +47,7 @@ public class PolarisContainer extends GenericContainer<PolarisContainer> {
 
   @SuppressWarnings("resource")
   public PolarisContainer() {
-    super("apache/polaris:1.0.1-incubating");
+    super("apache/polaris:1.2.0-incubating");
     withNetworkAliases("polaris");
     withLogConsumer(new Slf4jLogConsumer(LOGGER));
     withExposedPorts(8181, 8182);

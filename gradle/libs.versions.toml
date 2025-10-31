@@ -18,13 +18,13 @@
 #
 
 [versions]
-errorprone = "2.41.0"
+errorprone = "2.43.0"
 hadoop = "3.4.1"
 iceberg = "1.10.0" # When updating iceberg version, also update the iceberg test versions in gradle.properties
-immutables = "2.11.3"
-mockito = "5.19.0"
+immutables = "2.11.6"
+mockito = "5.20.0"
 mockserver = "5.15.0"
-nimbus-oauth2 = "11.28"
+nimbus-oauth2 = "11.30"
 nimbus-jose-jwt = "10.5"
 slf4j = "2.0.17"
 
@@ -36,37 +36,37 @@ slf4j = "2.0.17"
 # If a dependency is removed, check whether the LICENSE and/or NOTICE files need to be adapted
 # (aka mention of the dependency removed).
 #
-assertj-core = { module = "org.assertj:assertj-core", version = "3.27.4" }
+assertj-core = { module = "org.assertj:assertj-core", version = "3.27.6" }
 awaitility = { module = "org.awaitility:awaitility", version = "4.3.0" }
-bouncycastle-bcpkix = { module = "org.bouncycastle:bcpkix-jdk18on", version = "1.81" }
-caffeine = { module = "com.github.ben-manes.caffeine:caffeine", version = "3.2.2" }
+bouncycastle-bcpkix = { module = "org.bouncycastle:bcpkix-jdk18on", version = "1.82" }
+caffeine = { module = "com.github.ben-manes.caffeine:caffeine", version = "3.2.3" }
 errorprone = { module = "com.google.errorprone:error_prone_core", version.ref = "errorprone"  }
 errorprone-annotations = { module = "com.google.errorprone:error_prone_annotations", version.ref = "errorprone" }
-guava = { module = "com.google.guava:guava", version = "33.4.8-jre" }
+guava = { module = "com.google.guava:guava", version = "33.5.0-jre" }
 hadoop-common = { module = "org.apache.hadoop:hadoop-common", version.ref = "hadoop" }
 hadoop-hdfs-client = { module = "org.apache.hadoop:hadoop-hdfs-client", version.ref = "hadoop" }
 hadoop-mapreduce-client-core = { module = "org.apache.hadoop:hadoop-mapreduce-client-core", version.ref = "hadoop" }
-httpclient5 = { module = "org.apache.httpcomponents.client5:httpclient5", version = "5.5" }
+httpclient5 = { module = "org.apache.httpcomponents.client5:httpclient5", version = "5.5.1" }
 immutables-builder = { module = "org.immutables:builder", version.ref = "immutables" }
 immutables-value-annotations = { module = "org.immutables:value-annotations", version.ref = "immutables" }
 immutables-value-processor = { module = "org.immutables:value-processor", version.ref = "immutables" }
 iceberg-bom = { module = "org.apache.iceberg:iceberg-bom", version.ref = "iceberg" }
 jakarta-annotation-api = { module = "jakarta.annotation:jakarta.annotation-api", version = "3.0.0" }
-junit-bom = { module = "org.junit:junit-bom", version = "5.13.4" }
+junit-bom = { module = "org.junit:junit-bom", version = "6.0.0" }
 junit-pioneer = { module = "org.junit-pioneer:junit-pioneer", version = "2.3.0" }
-keycloak-admin-client = { module = "org.keycloak:keycloak-admin-client", version = "26.0.6" }
-logback-classic = { module = "ch.qos.logback:logback-classic", version = "1.5.18" }
+keycloak-admin-client = { module = "org.keycloak:keycloak-admin-client", version = "26.0.7" }
+logback-classic = { module = "ch.qos.logback:logback-classic", version = "1.5.20" }
 mockito-core = { module = "org.mockito:mockito-core", version.ref = "mockito" }
 mockito-junit-jupiter = { module = "org.mockito:mockito-junit-jupiter", version.ref = "mockito" }
 mockserver-client-java = { module = "org.mock-server:mockserver-client-java", version.ref = "mockserver" }
 mockserver-netty = { module = "org.mock-server:mockserver-netty", version.ref = "mockserver" }
 nimbus-oauth2-oidc-sdk = { module = "com.nimbusds:oauth2-oidc-sdk", version.ref = "nimbus-oauth2" }
 nimbus-jose-jwt = { module = "com.nimbusds:nimbus-jose-jwt", version.ref = "nimbus-jose-jwt" }
-s3mock-testcontainers = { module = "com.adobe.testing:s3mock-testcontainers", version = "4.8.0" }
+s3mock-testcontainers = { module = "com.adobe.testing:s3mock-testcontainers", version = "4.9.1" }
 slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
-smallrye-config = { module = "io.smallrye.config:smallrye-config", version = "3.13.4" }
-testcontainers-bom = { module = "org.testcontainers:testcontainers-bom", version = "1.21.3" }
-testcontainers-keycloak = { module = "com.github.dasniko:testcontainers-keycloak", version = "3.8.0" }
+smallrye-config = { module = "io.smallrye.config:smallrye-config", version = "3.14.1" }
+testcontainers-bom = { module = "org.testcontainers:testcontainers-bom", version = "2.0.1" }
+testcontainers-keycloak = { module = "com.github.dasniko:testcontainers-keycloak", version = "3.9.0" }
 
 [plugins]
 rat = { id = "org.nosphere.apache.rat", version = "0.8.1" }

@@ -61,7 +61,7 @@ dependencies {
 
   intTestBase(platform(libs.testcontainers.bom))
   intTestBase("org.testcontainers:testcontainers")
-  intTestBase("org.testcontainers:kafka")
+  intTestBase("org.testcontainers:testcontainers-kafka")
   intTestBase(libs.s3mock.testcontainers)
 
   intTestBase(platform(libs.junit.bom))
