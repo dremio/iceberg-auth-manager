@@ -64,7 +64,8 @@ nimbus-oauth2-oidc-sdk = { module = "com.nimbusds:oauth2-oidc-sdk", version.ref 
 nimbus-jose-jwt = { module = "com.nimbusds:nimbus-jose-jwt", version.ref = "nimbus-jose-jwt" }
 s3mock-testcontainers = { module = "com.adobe.testing:s3mock-testcontainers", version = "4.9.1" }
 slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
-smallrye-config = { module = "io.smallrye.config:smallrye-config", version = "3.14.1" }
+# Last version supporting JDK 11 https://github.com/smallrye/smallrye-config/pull/1287
+smallrye-config = { module = "io.smallrye.config:smallrye-config", version = { strictly = "3.10.2" } }
 testcontainers-bom = { module = "org.testcontainers:testcontainers-bom", version = "2.0.1" }
 testcontainers-keycloak = { module = "com.github.dasniko:testcontainers-keycloak", version = "3.9.0" }
 
