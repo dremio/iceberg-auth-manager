@@ -24,6 +24,7 @@ import com.github.jk1.license.filter.SpdxLicenseBundleNormalizer
 import com.github.jk1.license.render.ReportRenderer
 import java.io.FileWriter
 import java.time.LocalDate
+import java.util.zip.ZipFile
 import kotlin.collections.forEach
 import kotlin.jvm.java
 
@@ -207,3 +208,57 @@ class BundleLicenseGenerator() : ReportRenderer {
     return pomLicenses
   }
 }
+
+// Task to verify that the production JAR is compatible with Java 11
+val checkJava11Compatibility by
+  tasks.registering {
+    description = "Verifies that all classes in the production JAR are compatible with Java 11"
+    group = "verification"
+    dependsOn(shadowJar)
+
+    val jarFile = shadowJar.get().archiveFile
+    inputs.file(jarFile)
+
+    doLast {
+      val jar = jarFile.get().asFile
+      if (!jar.exists()) {
+        throw GradleException("JAR file not found: $jar")
+      }
+
+      val incompatibleClasses = mutableListOf<Pair<String, Int>>()
+      val maxJava11ClassVersion = 55 // Java 11 = class file version 55.0
+
+      ZipFile(jar).use { zip ->
+        zip.stream().forEach { entry ->
+          if (entry.name.endsWith(".class")) {
+            zip.getInputStream(entry).use { input ->
+              // Skip magic number (bytes 0-3) and minor version (bytes 4-5)
+              input.skipNBytes(6)
+              // Extract major version (bytes 6-7)
+              val bytes = input.readNBytes(2)
+              val majorVersion = ((bytes[0].toInt() and 0xFF) shl 8) or (bytes[1].toInt() and 0xFF)
+              if (majorVersion > maxJava11ClassVersion) {
+                incompatibleClasses.add(Pair(entry.name, majorVersion))
+              }
+            }
+          }
+        }
+      }
+
+      if (incompatibleClasses.isNotEmpty()) {
+        val errorMessage = buildString {
+          appendLine(
+            "Found ${incompatibleClasses.size} class(es) incompatible with Java 11 in ${jar.name}:"
+          )
+          incompatibleClasses
+            .sortedBy { it.first }
+            .forEach { (className, version) ->
+              appendLine("  - $className (class version $version = Java ${version - 44})")
+            }
+        }
+        throw GradleException(errorMessage)
+      }
+    }
+  }
+
+tasks.named("check") { dependsOn(checkJava11Compatibility) }
