@@ -19,7 +19,6 @@ import static java.net.HttpURLConnection.HTTP_OK;
 import static java.net.HttpURLConnection.HTTP_UNAUTHORIZED;
 
 import com.dremio.iceberg.authmgr.oauth2.config.AuthorizationCodeConfig;
-import com.dremio.iceberg.authmgr.oauth2.config.HttpConfig;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
 import com.google.errorprone.annotations.FormatMethod;
 import com.nimbusds.oauth2.sdk.AuthorizationCode;
@@ -364,12 +363,12 @@ abstract class AuthorizationCodeFlow extends AbstractFlow {
 
   private void configureSslParams(SSLContext sslContext, HttpsParameters params) {
     SSLParameters sslParameters = sslContext.getDefaultSSLParameters();
-    HttpConfig httpConfig = getConfig().getHttpConfig();
-    httpConfig
+    AuthorizationCodeConfig config = getConfig().getAuthorizationCodeConfig();
+    config
         .getSslProtocols()
         .map(list -> list.toArray(new String[0]))
         .ifPresent(sslParameters::setProtocols);
-    httpConfig
+    config
         .getSslCipherSuites()
         .map(list -> list.toArray(new String[0]))
         .ifPresent(sslParameters::setCipherSuites);

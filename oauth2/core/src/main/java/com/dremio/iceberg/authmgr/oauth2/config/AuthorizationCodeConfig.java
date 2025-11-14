@@ -24,6 +24,7 @@ import io.smallrye.config.WithName;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.stream.Collectors;
@@ -187,7 +188,7 @@ public interface AuthorizationCodeConfig {
    * a non-HTTPS URL.
    */
   @WithName(SSL_PROTOCOLS)
-  Optional<String> getSslProtocols();
+  Optional<List<String>> getSslProtocols();
 
   /**
    * A comma-separated list of SSL cipher suites to use for HTTPS requests. Optional, defaults to
@@ -197,7 +198,7 @@ public interface AuthorizationCodeConfig {
    * a non-HTTPS URL.
    */
   @WithName(SSL_CIPHER_SUITES)
-  Optional<String> getSslCipherSuites();
+  Optional<List<String>> getSslCipherSuites();
 
   default void validate() {
     ConfigValidator validator = new ConfigValidator();
