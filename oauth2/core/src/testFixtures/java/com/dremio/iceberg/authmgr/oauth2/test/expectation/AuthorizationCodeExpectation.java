@@ -21,6 +21,7 @@ import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.SCOPE1;
 import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.SCOPE2;
 import static com.dremio.iceberg.authmgr.oauth2.test.expectation.ErrorExpectation.AUTHORIZATION_SERVER_ERROR_RESPONSE;
 
+import com.dremio.iceberg.authmgr.oauth2.test.TestServer;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
 import com.google.common.collect.ImmutableMap;
 import com.nimbusds.oauth2.sdk.AuthorizationCode;
@@ -120,7 +121,7 @@ public abstract class AuthorizationCodeExpectation extends InitialTokenFetchExpe
       request.withQueryStringParameter(
           "code_challenge_method", getTestEnvironment().getCodeChallengeMethod().getValue());
     }
-    getClientAndServer()
+    TestServer.getInstance()
         .when(request)
         .respond(
             httpRequest -> {

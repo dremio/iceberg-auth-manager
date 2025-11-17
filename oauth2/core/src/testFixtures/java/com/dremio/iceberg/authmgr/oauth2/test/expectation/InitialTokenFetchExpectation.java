@@ -15,11 +15,13 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.test.expectation;
 
+import com.dremio.iceberg.authmgr.oauth2.test.TestServer;
+
 public abstract class InitialTokenFetchExpectation extends AbstractTokenEndpointExpectation {
 
   @Override
   public void create() {
-    getClientAndServer()
+    TestServer.getInstance()
         .when(request())
         .respond(httpRequest -> response(httpRequest, "access_initial", "refresh_initial"));
   }

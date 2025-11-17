@@ -13,30 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dremio.iceberg.authmgr.oauth2.test.server;
+package com.dremio.iceberg.authmgr.oauth2.test;
 
 import java.io.IOException;
-import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.mockserver.configuration.Configuration;
 import org.mockserver.integration.ClientAndServer;
+import org.mockserver.model.HttpRequest;
 
-public class UnitTestHttpServer implements HttpServer {
+public final class TestServer {
 
-  private static final AtomicInteger COUNTER = new AtomicInteger(1);
+  private static final ClientAndServer INSTANCE;
 
-  private final boolean ssl;
-  private final ClientAndServer clientAndServer;
-
-  public UnitTestHttpServer(boolean ssl) {
-    this.ssl = ssl;
+  static {
     Configuration configuration = Configuration.configuration();
     String outputDir = System.getProperty("authmgr.test.mockserver.memoryUsageCsvDirectory");
     if (outputDir != null) {
-      Path outputPath = Paths.get(outputDir).resolve("server-" + COUNTER.getAndIncrement());
+      Path outputPath = Paths.get(outputDir);
       try {
         Files.createDirectories(outputPath);
       } catch (IOException e) {
@@ -45,25 +40,18 @@ public class UnitTestHttpServer implements HttpServer {
       configuration.outputMemoryUsageCsv(true);
       configuration.memoryUsageCsvDirectory(outputPath.toString());
     }
-    clientAndServer = ClientAndServer.startClientAndServer(configuration);
+    INSTANCE = ClientAndServer.startClientAndServer(configuration);
+    Runtime.getRuntime().addShutdownHook(new Thread(INSTANCE::close));
   }
 
-  public ClientAndServer getClientAndServer() {
-    return clientAndServer;
+  private TestServer() {}
+
+  public static ClientAndServer getInstance() {
+    return INSTANCE;
   }
 
-  @Override
-  public URI getRootUrl() {
-    return URI.create((ssl ? "https" : "http") + "://localhost:" + clientAndServer.getLocalPort());
-  }
-
-  @Override
-  public void reset() {
-    clientAndServer.reset();
-  }
-
-  @Override
-  public void close() {
-    clientAndServer.close();
+  /** Clears all expectations and responses for the given test environment id. */
+  public static void clear(String testEnvironmentId) {
+    INSTANCE.clear(HttpRequest.request().withPath("/" + testEnvironmentId + "/.*"));
   }
 }

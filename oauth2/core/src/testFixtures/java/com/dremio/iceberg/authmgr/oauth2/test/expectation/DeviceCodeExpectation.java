@@ -20,6 +20,7 @@ import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.SCOPE2;
 import static com.dremio.iceberg.authmgr.oauth2.test.expectation.ErrorExpectation.AUTHORIZATION_SERVER_ERROR_RESPONSE;
 import static org.mockserver.model.Parameter.param;
 
+import com.dremio.iceberg.authmgr.oauth2.test.TestServer;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
 import com.google.common.collect.ImmutableMap;
 import com.nimbusds.oauth2.sdk.GrantType;
@@ -82,7 +83,7 @@ public abstract class DeviceCodeExpectation extends InitialTokenFetchExpectation
   }
 
   private void createDeviceAuthEndpointExpectation() {
-    getClientAndServer()
+    TestServer.getInstance()
         .when(
             HttpRequest.request()
                 .withMethod("POST")
@@ -119,7 +120,7 @@ public abstract class DeviceCodeExpectation extends InitialTokenFetchExpectation
   private void createDeviceVerificationEndpointExpectation() {
     String path = getTestEnvironment().getDeviceVerificationEndpoint().getPath();
     // Expect the device verification page to be opened in a browser
-    getClientAndServer()
+    TestServer.getInstance()
         .when(HttpRequest.request().withMethod("GET").withPath(path))
         .respond(
             HttpResponse.response()
@@ -137,7 +138,7 @@ public abstract class DeviceCodeExpectation extends InitialTokenFetchExpectation
                             + "</body></html>",
                         MediaType.TEXT_HTML)));
     // Expect the device verification code to be sent by the user after opening the page
-    getClientAndServer()
+    TestServer.getInstance()
         .when(
             HttpRequest.request()
                 .withMethod("POST")
