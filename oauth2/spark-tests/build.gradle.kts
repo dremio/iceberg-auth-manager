@@ -105,9 +105,7 @@ icebergVersions.forEach { icebergVersion ->
         "org.apache.iceberg:iceberg-spark-extensions-${sparkVersionMajorMinor}_$scalaVersion:$icebergVersion"
       )
       runtimeConfig("org.apache.iceberg:iceberg-aws-bundle:$icebergVersion")
-      runtimeConfig("org.apache.spark:spark-sql_$scalaVersion:$sparkVersion") {
-        exclude(group = "org.apache.logging.log4j")
-      }
+      runtimeConfig("org.apache.spark:spark-sql_$scalaVersion:$sparkVersion")
     }
 
     testing {
