@@ -27,6 +27,10 @@ plugins {
 
 tasks.withType(JavaCompile::class.java).configureEach {
   options.compilerArgs.addAll(listOf("-Xlint:unchecked", "-Xlint:deprecation"))
+  // Required by Error Prone 2.48.0+ on JDK 21+
+  if (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_21)) {
+    options.compilerArgs.add("-XDaddTypeAnnotationsToSymbol=true")
+  }
   options.errorprone.disableAllWarnings = true
   options.errorprone.excludedPaths =
     ".*/${project.layout.buildDirectory.get().asFile.relativeTo(projectDir)}/generated/.*"

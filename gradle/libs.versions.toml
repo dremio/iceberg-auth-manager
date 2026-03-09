@@ -18,14 +18,14 @@
 #
 
 [versions]
-errorprone = "2.43.0"
-hadoop = "3.4.1"
-iceberg = "1.10.0" # When updating iceberg version, also update the iceberg test versions in gradle.properties
-immutables = "2.11.6"
-mockito = "5.20.0"
+errorprone = "2.48.0"
+hadoop = "3.4.3"
+iceberg = "1.10.1" # When updating iceberg version, also update the iceberg test versions in gradle.properties
+immutables = "2.12.1"
+mockito = "5.22.0"
 mockserver = "5.15.0"
-nimbus-oauth2 = "11.30"
-nimbus-jose-jwt = "10.5"
+nimbus-oauth2 = "11.33"
+nimbus-jose-jwt = "10.8"
 slf4j = "2.0.17"
 
 [bundles]
@@ -36,7 +36,7 @@ slf4j = "2.0.17"
 # If a dependency is removed, check whether the LICENSE and/or NOTICE files need to be adapted
 # (aka mention of the dependency removed).
 #
-assertj-core = { module = "org.assertj:assertj-core", version = "3.27.6" }
+assertj-core = { module = "org.assertj:assertj-core", version = "3.27.7" }
 awaitility = { module = "org.awaitility:awaitility", version = "4.3.0" }
 bouncycastle-bcpkix = { module = "org.bouncycastle:bcpkix-jdk18on", version = "1.82" }
 caffeine = { module = "com.github.ben-manes.caffeine:caffeine", version = "3.2.3" }
@@ -46,7 +46,7 @@ guava = { module = "com.google.guava:guava", version = "33.5.0-jre" }
 hadoop-common = { module = "org.apache.hadoop:hadoop-common", version.ref = "hadoop" }
 hadoop-hdfs-client = { module = "org.apache.hadoop:hadoop-hdfs-client", version.ref = "hadoop" }
 hadoop-mapreduce-client-core = { module = "org.apache.hadoop:hadoop-mapreduce-client-core", version.ref = "hadoop" }
-httpclient5 = { module = "org.apache.httpcomponents.client5:httpclient5", version = "5.5.1" }
+httpclient5 = { module = "org.apache.httpcomponents.client5:httpclient5", version = "5.6" }
 immutables-builder = { module = "org.immutables:builder", version.ref = "immutables" }
 immutables-value-annotations = { module = "org.immutables:value-annotations", version.ref = "immutables" }
 immutables-value-processor = { module = "org.immutables:value-processor", version.ref = "immutables" }
@@ -54,8 +54,8 @@ iceberg-bom = { module = "org.apache.iceberg:iceberg-bom", version.ref = "iceber
 jakarta-annotation-api = { module = "jakarta.annotation:jakarta.annotation-api", version = "3.0.0" }
 junit-bom = { module = "org.junit:junit-bom", version = "6.0.0" }
 junit-pioneer = { module = "org.junit-pioneer:junit-pioneer", version = "2.3.0" }
-keycloak-admin-client = { module = "org.keycloak:keycloak-admin-client", version = "26.0.7" }
-logback-classic = { module = "ch.qos.logback:logback-classic", version = "1.5.20" }
+keycloak-admin-client = { module = "org.keycloak:keycloak-admin-client", version = "26.0.8" }
+logback-classic = { module = "ch.qos.logback:logback-classic", version = "1.5.31" }
 mockito-core = { module = "org.mockito:mockito-core", version.ref = "mockito" }
 mockito-junit-jupiter = { module = "org.mockito:mockito-junit-jupiter", version.ref = "mockito" }
 mockserver-client-java = { module = "org.mock-server:mockserver-client-java", version.ref = "mockserver" }
@@ -67,7 +67,7 @@ slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
 # Last version supporting JDK 11 https://github.com/smallrye/smallrye-config/pull/1287
 smallrye-config = { module = "io.smallrye.config:smallrye-config", version = { strictly = "3.10.2" } }
 testcontainers-bom = { module = "org.testcontainers:testcontainers-bom", version = "2.0.1" }
-testcontainers-keycloak = { module = "com.github.dasniko:testcontainers-keycloak", version = "3.9.0" }
+testcontainers-keycloak = { module = "com.github.dasniko:testcontainers-keycloak", version = "4.1.1" }
 
 [plugins]
 rat = { id = "org.nosphere.apache.rat", version = "0.8.1" }
