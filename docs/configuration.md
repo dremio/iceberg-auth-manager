@@ -315,8 +315,6 @@ If this value is present, the subject token will be used as-is. If this value is
 
 The type of the subject token. Must be a valid URN. The default is `urn:ietf:params:oauth:token-type:access_token`.
 
-If the agent is configured to dynamically fetch the subject token, this property is ignored since only access tokens can be dynamically fetched.
-
 ### `rest.auth.oauth2.token-exchange.actor-token`
 
 The actor token to exchange.
@@ -326,8 +324,6 @@ If this value is present, the actor token will be used as-is. If this value is n
 ### `rest.auth.oauth2.token-exchange.actor-token-type`
 
 The type of the actor token. Must be a valid URN. The default is `urn:ietf:params:oauth:token-type:access_token`.
-
-If the agent is configured to dynamically fetch the actor token, this property is ignored since only access tokens can be dynamically fetched.
 
 ### `rest.auth.oauth2.token-exchange.requested-token-type`
 

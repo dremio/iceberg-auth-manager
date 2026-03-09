@@ -45,7 +45,7 @@ public abstract class ActorTokenSupplier extends AbstractTokenSupplier {
   }
 
   @Override
-  protected TokenTypeURI getStaticTokenType() {
+  protected TokenTypeURI getTokenType() {
     return getMainConfig().getTokenExchangeConfig().getActorTokenType();
   }
 
