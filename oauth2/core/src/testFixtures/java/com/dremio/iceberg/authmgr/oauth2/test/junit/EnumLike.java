@@ -22,9 +22,13 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Parameter;
 import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junitpioneer.jupiter.cartesian.CartesianArgumentsSource;
@@ -35,7 +39,8 @@ import org.junitpioneer.jupiter.cartesian.CartesianParameterArgumentsProvider;
  * "Enum-like" type.
  *
  * <p>This annotation can be used with any type that exposes a set of public static final constants,
- * and has a `getValue()` method that returns the constant's canonical value.
+ * as long as their {@code toString()} method returns the constant's canonical string
+ * representation.
  *
  * <p>This is the case for many Nimbus SDK types, such as {@link GrantType} and {@link
  * ClientAuthenticationMethod}.
@@ -52,52 +57,63 @@ public @interface EnumLike {
 
 class EnumLikeMethodArgumentsProvider implements CartesianParameterArgumentsProvider<Object> {
 
+  private static final ConcurrentMap<Class<?>, List<Object>> CONSTANTS_CACHE =
+      new ConcurrentHashMap<>();
+
   @Override
   public Stream<Object> provideArguments(ExtensionContext context, Parameter parameter) {
     EnumLike ann = parameter.getAnnotation(EnumLike.class);
-    return enumLikeConstants(parameter)
-        .filter(
-            value ->
-                ann.includes().length == 0
-                    || Stream.of(ann.includes()).anyMatch(n -> nameMatches(n, value)))
-        .filter(
-            value ->
-                ann.excludes().length == 0
-                    || Stream.of(ann.excludes())
-                        .noneMatch(name -> name.equalsIgnoreCase(value.toString())));
+    return enumLikeConstants(parameter.getType()).stream()
+        .filter(constant -> applyIncludes(ann, constant))
+        .filter(constant -> applyExcludes(ann, constant));
   }
 
-  private Stream<Object> enumLikeConstants(Parameter parameter) {
-    Class<?> type = parameter.getType();
+  private List<Object> enumLikeConstants(Class<?> type) {
+    return CONSTANTS_CACHE.computeIfAbsent(type, this::computeEnumLikeConstants);
+  }
+
+  private boolean applyIncludes(EnumLike ann, Object constant) {
+    return ann.includes().length == 0
+        || Stream.of(ann.includes()).anyMatch(name -> matchByName(name, constant));
+  }
+
+  private boolean applyExcludes(EnumLike ann, Object constant) {
+    return ann.excludes().length == 0
+        || Stream.of(ann.excludes()).noneMatch(name -> matchByName(name, constant));
+  }
+
+  private boolean matchByName(String name, Object constant) {
+    // This relies on the toString() method of the constant to return its canonical string
+    // representation.
+    return name.equals(constant.toString());
+  }
+
+  private List<Object> computeEnumLikeConstants(Class<?> type) {
     if (type.equals(GrantType.class)) {
-      return ConfigUtils.SUPPORTED_INITIAL_GRANT_TYPES.stream().map(Object.class::cast);
+      return List.copyOf(ConfigUtils.SUPPORTED_INITIAL_GRANT_TYPES);
     } else if (type.equals(ClientAuthenticationMethod.class)) {
       return ConfigUtils.SUPPORTED_CLIENT_AUTH_METHODS.stream()
           // In unit tests, we don't support (yet) JWS-based authentication methods
           .filter(method -> !ConfigUtils.requiresJwsAlgorithm(method))
-          .map(Object.class::cast);
+          .map(Object.class::cast)
+          .toList();
     } else {
       return Arrays.stream(type.getFields())
-          .filter(
-              f ->
-                  f.getModifiers() == (Modifier.PUBLIC | Modifier.STATIC | Modifier.FINAL)
-                      && f.getType().equals(type))
-          .map(
-              f -> {
-                try {
-                  return f.get(null);
-                } catch (IllegalAccessException e) {
-                  throw new RuntimeException(e);
-                }
-              });
+          .filter(f -> constantField(type, f))
+          .map(this::constantValue)
+          .toList();
     }
   }
 
-  private boolean nameMatches(String s, Object constant) {
+  private boolean constantField(Class<?> type, Field field) {
+    return field.getModifiers() == (Modifier.PUBLIC | Modifier.STATIC | Modifier.FINAL)
+        && field.getType().equals(type);
+  }
+
+  private Object constantValue(Field field) {
     try {
-      String value = (String) constant.getClass().getMethod("getValue").invoke(constant);
-      return s.equals(value);
-    } catch (Exception e) {
+      return field.get(null);
+    } catch (IllegalAccessException e) {
       throw new RuntimeException(e);
     }
   }
