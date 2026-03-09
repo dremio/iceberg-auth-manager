@@ -25,33 +25,37 @@ import org.mockserver.model.HttpRequest;
 
 public final class TestServer {
 
-  private static final ClientAndServer INSTANCE;
+  private static final class Holder {
 
-  static {
-    Configuration configuration = Configuration.configuration();
-    String outputDir = System.getProperty("authmgr.test.mockserver.memoryUsageCsvDirectory");
-    if (outputDir != null) {
-      Path outputPath = Paths.get(outputDir);
-      try {
-        Files.createDirectories(outputPath);
-      } catch (IOException e) {
-        throw new RuntimeException(e);
+    private static final ClientAndServer INSTANCE;
+
+    static {
+      Configuration configuration = Configuration.configuration();
+      String outputDir = System.getProperty("authmgr.test.mockserver.memoryUsageCsvDirectory");
+      if (outputDir != null) {
+        Path outputPath = Paths.get(outputDir);
+        try {
+          Files.createDirectories(outputPath);
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
+        configuration.outputMemoryUsageCsv(true);
+        configuration.memoryUsageCsvDirectory(outputPath.toString());
       }
-      configuration.outputMemoryUsageCsv(true);
-      configuration.memoryUsageCsvDirectory(outputPath.toString());
+      INSTANCE = ClientAndServer.startClientAndServer(configuration);
+      Runtime.getRuntime().addShutdownHook(new Thread(INSTANCE::close));
     }
-    INSTANCE = ClientAndServer.startClientAndServer(configuration);
-    Runtime.getRuntime().addShutdownHook(new Thread(INSTANCE::close));
   }
 
   private TestServer() {}
 
   public static ClientAndServer getInstance() {
-    return INSTANCE;
+    return Holder.INSTANCE;
   }
 
   /** Clears all expectations and responses for the given test environment id. */
+  @SuppressWarnings("resource")
   public static void clear(String testEnvironmentId) {
-    INSTANCE.clear(HttpRequest.request().withPath("/" + testEnvironmentId + "/.*"));
+    getInstance().clear(HttpRequest.request().withPath("/" + testEnvironmentId + "/.*"));
   }
 }
