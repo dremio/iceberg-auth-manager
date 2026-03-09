@@ -16,7 +16,6 @@
 package com.dremio.iceberg.authmgr.oauth2.config;
 
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Config;
-import com.dremio.iceberg.authmgr.oauth2.config.validator.ConfigValidator;
 import com.nimbusds.oauth2.sdk.id.Audience;
 import com.nimbusds.oauth2.sdk.token.TokenTypeURI;
 import com.nimbusds.oauth2.sdk.token.TypelessAccessToken;
@@ -65,9 +64,6 @@ public interface TokenExchangeConfig {
    * The type of the subject token. Must be a valid URN. The default is {@code
    * urn:ietf:params:oauth:token-type:access_token}.
    *
-   * <p>If the agent is configured to dynamically fetch the subject token, this property is ignored
-   * since only access tokens can be dynamically fetched.
-   *
    * @see TokenExchangeConfig#SUBJECT_TOKEN_TYPE
    */
   @WithName(SUBJECT_TOKEN_TYPE)
@@ -87,9 +83,6 @@ public interface TokenExchangeConfig {
   /**
    * The type of the actor token. Must be a valid URN. The default is {@code
    * urn:ietf:params:oauth:token-type:access_token}.
-   *
-   * <p>If the agent is configured to dynamically fetch the actor token, this property is ignored
-   * since only access tokens can be dynamically fetched.
    *
    * @see TokenExchangeConfig#ACTOR_TOKEN_TYPE
    */
@@ -181,21 +174,6 @@ public interface TokenExchangeConfig {
   Optional<List<Audience>> getAudience();
 
   default void validate() {
-    ConfigValidator validator = new ConfigValidator();
-    if (getSubjectToken().isEmpty()) {
-      validator.check(
-          getSubjectTokenType().equals(TokenTypeURI.ACCESS_TOKEN),
-          PREFIX + '.' + SUBJECT_TOKEN_TYPE,
-          "subject token type must be %s when using dynamic subject token",
-          TokenTypeURI.ACCESS_TOKEN);
-    }
-    if (getActorToken().isEmpty()) {
-      validator.check(
-          getActorTokenType().equals(TokenTypeURI.ACCESS_TOKEN),
-          PREFIX + '.' + ACTOR_TOKEN_TYPE,
-          "actor token type must be %s when using dynamic actor token",
-          TokenTypeURI.ACCESS_TOKEN);
-    }
-    validator.validate();
+    // No validation needed
   }
 }

@@ -46,16 +46,20 @@ public abstract class AbstractTokenSupplier implements AutoCloseable {
    */
   public CompletionStage<AccessToken> supplyTokenAsync() {
     if (getTokenAgent() != null) {
-      return getTokenAgent().authenticateAsync();
-    }
-    if (getStaticToken().isPresent()) {
-      TypelessAccessToken token = getStaticToken().get();
-      BearerAccessToken accessToken =
-          new BearerAccessToken(token.getValue(), 0, null, getStaticTokenType());
-      return CompletableFuture.completedFuture(accessToken);
+      return getTokenAgent().authenticateAsync().thenApply(this::injectTokenType);
+    } else if (getStaticToken().isPresent()) {
+      return CompletableFuture.completedFuture(getStaticToken().get())
+          .thenApply(this::injectTokenType);
     } else {
       return CompletableFuture.completedFuture(null);
     }
+  }
+
+  /** Injects the configured token type into an existing access token. */
+  private AccessToken injectTokenType(AccessToken token) {
+    return getTokenType().equals(token.getIssuedTokenType())
+        ? token
+        : new BearerAccessToken(token.getValue(), 0, null, getTokenType());
   }
 
   /**
@@ -107,7 +111,7 @@ public abstract class AbstractTokenSupplier implements AutoCloseable {
   protected abstract Optional<TypelessAccessToken> getStaticToken();
 
   @Value.Derived
-  protected abstract TokenTypeURI getStaticTokenType();
+  protected abstract TokenTypeURI getTokenType();
 
   @Value.Derived
   protected abstract Map<String, String> getDynamicTokenConfig();

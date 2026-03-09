@@ -22,6 +22,7 @@ import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
 import com.dremio.iceberg.authmgr.oauth2.test.junit.EnumLike;
 import com.nimbusds.oauth2.sdk.GrantType;
 import com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod;
+import com.nimbusds.oauth2.sdk.token.TokenTypeURI;
 import java.util.concurrent.ExecutionException;
 import org.junitpioneer.jupiter.cartesian.CartesianTest;
 import org.junitpioneer.jupiter.cartesian.CartesianTest.Values;
@@ -31,6 +32,12 @@ class TokenExchangeFlowTest {
   @CartesianTest
   void fetchNewTokens(
       @EnumLike ClientAuthenticationMethod authenticationMethod,
+      @EnumLike(
+              includes = {
+                "urn:ietf:params:oauth:token-type:access_token",
+                "urn:ietf:params:oauth:token-type:jwt"
+              })
+          TokenTypeURI tokenType,
       @Values(booleans = {true, false}) boolean returnRefreshTokens)
       throws InterruptedException, ExecutionException {
     try (TestEnvironment env =
@@ -38,6 +45,8 @@ class TokenExchangeFlowTest {
                 .grantType(GrantType.TOKEN_EXCHANGE)
                 .clientAuthenticationMethod(authenticationMethod)
                 .returnRefreshTokens(returnRefreshTokens)
+                .subjectTokenType(tokenType)
+                .actorTokenType(tokenType)
                 .build();
         FlowFactory flowFactory = env.newFlowFactory()) {
       Flow flow = flowFactory.createInitialFlow();
@@ -52,6 +61,12 @@ class TokenExchangeFlowTest {
       @EnumLike(excludes = {"none", "client_secret_basic"})
           ClientAuthenticationMethod authenticationMethod,
       @Values(booleans = {true, false}) boolean returnRefreshTokens,
+      @EnumLike(
+              includes = {
+                "urn:ietf:params:oauth:token-type:access_token",
+                "urn:ietf:params:oauth:token-type:jwt"
+              })
+          TokenTypeURI tokenType,
       @EnumLike(includes = {"client_credentials", "authorization_code"}) GrantType subjectGrantType,
       @EnumLike(includes = {"password", "urn:ietf:params:oauth:grant-type:device_code"})
           GrantType actorGrantType)
@@ -65,8 +80,10 @@ class TokenExchangeFlowTest {
                 .returnRefreshTokens(returnRefreshTokens)
                 .subjectToken(null)
                 .subjectGrantType(subjectGrantType)
+                .subjectTokenType(tokenType)
                 .actorToken(null)
                 .actorGrantType(actorGrantType)
+                .actorTokenType(tokenType)
                 .build();
         FlowFactory flowFactory = env.newFlowFactory()) {
       Flow flow = flowFactory.createInitialFlow();
