@@ -22,12 +22,11 @@ import static org.assertj.core.api.InstanceOfAssertFactories.throwable;
 
 import com.dremio.iceberg.authmgr.oauth2.http.HttpClient;
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
-import com.dremio.iceberg.authmgr.oauth2.test.server.UnitTestHttpServer;
+import com.dremio.iceberg.authmgr.oauth2.test.TestServer;
 import com.nimbusds.oauth2.sdk.ParseException;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junitpioneer.jupiter.cartesian.CartesianTest;
+import org.junitpioneer.jupiter.cartesian.CartesianTest.Values;
 import org.mockserver.model.HttpRequest;
 import org.mockserver.model.HttpResponse;
 import org.mockserver.model.JsonBody;
@@ -50,12 +49,19 @@ class EndpointProviderTest {
     }
   }
 
-  @ParameterizedTest
-  @ValueSource(booleans = {true, false})
-  void withDiscovery(boolean includeDeviceAuthEndpoint) {
+  @CartesianTest
+  void withDiscovery(
+      @Values(booleans = {true, false}) boolean includeDeviceAuthEndpoint,
+      @Values(
+              strings = {
+                ".well-known/openid-configuration",
+                ".well-known/oauth-authorization-server"
+              })
+          String wellKnownPath) {
     try (TestEnvironment env =
         TestEnvironment.builder()
             .includeDeviceAuthEndpointInDiscoveryMetadata(includeDeviceAuthEndpoint)
+            .wellKnownPath(wellKnownPath)
             .build()) {
       EndpointProvider endpointProvider =
           EndpointProvider.create(env.getOAuth2Config(), HttpClient.DEFAULT);
@@ -71,33 +77,6 @@ class EndpointProviderTest {
             .hasMessage(
                 "OpenID provider metadata does not contain a device authorization endpoint");
       }
-    }
-  }
-
-  @ParameterizedTest
-  @CsvSource({
-    "''              , /.well-known/openid-configuration",
-    "/               , /.well-known/openid-configuration",
-    "''              , /.well-known/oauth-authorization-server",
-    "/               , /.well-known/oauth-authorization-server",
-    "/realms/master  , /realms/master/.well-known/openid-configuration",
-    "/realms/master/ , /realms/master/.well-known/openid-configuration",
-    "/realms/master  , /realms/master/.well-known/oauth-authorization-server",
-    "/realms/master/ , /realms/master/.well-known/oauth-authorization-server"
-  })
-  void fetchOpenIdProviderMetadataSuccess(String contextPath, String wellKnownPath) {
-    try (TestEnvironment env =
-        TestEnvironment.builder()
-            .authorizationServerContextPath(contextPath)
-            .wellKnownPath(wellKnownPath)
-            .build()) {
-      EndpointProvider endpointProvider =
-          EndpointProvider.create(env.getOAuth2Config(), HttpClient.DEFAULT);
-      var actual = endpointProvider.getOpenIdProviderMetadata();
-      assertThat(actual.getTokenEndpointURI()).isEqualTo(env.getTokenEndpoint());
-      assertThat(actual.getAuthorizationEndpointURI()).isEqualTo(env.getAuthorizationEndpoint());
-      assertThat(actual.getDeviceAuthorizationEndpointURI())
-          .isEqualTo(env.getDeviceAuthorizationEndpoint());
     }
   }
 
@@ -128,9 +107,8 @@ class EndpointProviderTest {
   @Test
   void fetchOpenIdProviderMetadataWrongData() {
     try (TestEnvironment env = TestEnvironment.builder().createDefaultExpectations(false).build()) {
-      ((UnitTestHttpServer) env.getServer())
-          .getClientAndServer()
-          .when(HttpRequest.request())
+      TestServer.getInstance()
+          .when(HttpRequest.request().withPath(env.getAuthorizationServerUrl().getPath() + ".*"))
           .respond(
               HttpResponse.response()
                   .withStatusCode(200)

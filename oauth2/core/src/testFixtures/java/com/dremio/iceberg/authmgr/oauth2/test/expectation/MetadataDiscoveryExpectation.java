@@ -17,6 +17,7 @@ package com.dremio.iceberg.authmgr.oauth2.test.expectation;
 
 import static com.dremio.iceberg.authmgr.oauth2.test.expectation.ExpectationUtils.getJsonBody;
 
+import com.dremio.iceberg.authmgr.oauth2.test.TestServer;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
 import com.google.common.collect.ImmutableMap;
 import java.net.URI;
@@ -43,7 +44,7 @@ public abstract class MetadataDiscoveryExpectation extends AbstractExpectation {
             "device_authorization_endpoint",
             getTestEnvironment().getDeviceAuthorizationEndpoint().toString());
       }
-      getClientAndServer()
+      TestServer.getInstance()
           .when(HttpRequest.request().withMethod("GET").withPath(discoveryEndpoint.getPath()))
           .respond(HttpResponse.response().withBody(getJsonBody(builder.build())));
     }

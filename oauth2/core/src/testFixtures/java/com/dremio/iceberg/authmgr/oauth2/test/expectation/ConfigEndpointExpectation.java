@@ -17,6 +17,7 @@ package com.dremio.iceberg.authmgr.oauth2.test.expectation;
 
 import static com.dremio.iceberg.authmgr.oauth2.test.expectation.ExpectationUtils.getJsonBody;
 
+import com.dremio.iceberg.authmgr.oauth2.test.TestServer;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
 import com.google.common.collect.ImmutableList;
 import java.util.HashMap;
@@ -61,7 +62,7 @@ public abstract class ConfigEndpointExpectation extends AbstractExpectation {
             .withOverrides(new HashMap<>())
             .withEndpoints(endpoints)
             .build();
-    getClientAndServer()
+    TestServer.getInstance()
         .when(
             HttpRequest.request()
                 .withMethod("GET")

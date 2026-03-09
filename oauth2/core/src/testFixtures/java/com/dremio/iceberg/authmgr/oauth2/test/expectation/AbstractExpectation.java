@@ -16,9 +16,7 @@
 package com.dremio.iceberg.authmgr.oauth2.test.expectation;
 
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
-import com.dremio.iceberg.authmgr.oauth2.test.server.UnitTestHttpServer;
 import org.immutables.value.Value;
-import org.mockserver.integration.ClientAndServer;
 
 public abstract class AbstractExpectation {
 
@@ -26,8 +24,4 @@ public abstract class AbstractExpectation {
   protected abstract TestEnvironment getTestEnvironment();
 
   public abstract void create();
-
-  protected ClientAndServer getClientAndServer() {
-    return ((UnitTestHttpServer) getTestEnvironment().getServer()).getClientAndServer();
-  }
 }

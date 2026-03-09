@@ -46,9 +46,6 @@ import com.dremio.iceberg.authmgr.oauth2.test.expectation.ImmutableMetadataDisco
 import com.dremio.iceberg.authmgr.oauth2.test.expectation.ImmutablePasswordExpectation;
 import com.dremio.iceberg.authmgr.oauth2.test.expectation.ImmutableRefreshTokenExpectation;
 import com.dremio.iceberg.authmgr.oauth2.test.expectation.ImmutableTokenExchangeExpectation;
-import com.dremio.iceberg.authmgr.oauth2.test.server.HttpServer;
-import com.dremio.iceberg.authmgr.oauth2.test.server.IntegrationTestHttpServer;
-import com.dremio.iceberg.authmgr.oauth2.test.server.UnitTestHttpServer;
 import com.dremio.iceberg.authmgr.oauth2.test.user.InteractiveUserEmulator;
 import com.dremio.iceberg.authmgr.oauth2.test.user.UserBehavior;
 import com.dremio.iceberg.authmgr.oauth2.test.user.UserEmulator;
@@ -79,6 +76,7 @@ import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.net.ssl.SSLContext;
 import org.apache.iceberg.CatalogProperties;
 import org.apache.iceberg.catalog.SessionCatalog.SessionContext;
@@ -94,6 +92,8 @@ import org.immutables.value.Value;
 @Value.Immutable(copy = false)
 public abstract class TestEnvironment implements AutoCloseable {
 
+  private static final AtomicInteger ID_COUNTER = new AtomicInteger();
+
   public static Builder builder() {
     return ImmutableTestEnvironment.builder();
   }
@@ -103,6 +103,11 @@ public abstract class TestEnvironment implements AutoCloseable {
     if (isCreateDefaultExpectations()) {
       createExpectations();
     }
+  }
+
+  @Value.Default
+  public String getId() {
+    return "env" + ID_COUNTER.incrementAndGet();
   }
 
   @Value.Default
@@ -140,11 +145,6 @@ public abstract class TestEnvironment implements AutoCloseable {
     return isUnitTest();
   }
 
-  @Value.Lazy
-  public HttpServer getServer() {
-    return isUnitTest() ? new UnitTestHttpServer(isSsl()) : new IntegrationTestHttpServer();
-  }
-
   @Value.Default
   public boolean isSsl() {
     return false;
@@ -161,7 +161,9 @@ public abstract class TestEnvironment implements AutoCloseable {
   }
 
   public void reset() {
-    getServer().reset();
+    if (isUnitTest()) {
+      TestServer.clear(getId());
+    }
   }
 
   @Override
@@ -175,24 +177,31 @@ public abstract class TestEnvironment implements AutoCloseable {
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
     }
-    getServer().close();
+    reset();
   }
 
   @Value.Default
   public URI getServerRootUrl() {
-    // Note: the default value is for unit tests; integration tests must provide the server root URL
-    // to avoid circular dependencies when creating the TestEnvironment instance
-    return getServer().getRootUrl();
+    if (!isUnitTest()) {
+      throw new IllegalStateException("Server root URL must be provided for integration tests");
+    }
+    return URI.create(
+        (isSsl() ? "https" : "http")
+            + "://localhost:"
+            + TestServer.getInstance().getLocalPort()
+            + "/"
+            + getId()
+            + "/");
   }
 
   @Value.Default
   public String getAuthorizationServerContextPath() {
-    return "/realms/master/";
+    return "realms/master/";
   }
 
   @Value.Default
   public String getCatalogServerContextPath() {
-    return "/api/catalog/";
+    return "api/catalog/";
   }
 
   @Value.Default

@@ -15,6 +15,7 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.test.expectation;
 
+import com.dremio.iceberg.authmgr.oauth2.test.TestServer;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
 import org.mockserver.model.HttpRequest;
 import org.mockserver.model.HttpResponse;
@@ -42,15 +43,15 @@ public abstract class ErrorExpectation extends AbstractExpectation {
 
   @Override
   public void create() {
-    getClientAndServer()
+    TestServer.getInstance()
         .when(
             HttpRequest.request()
-                .withPath(getTestEnvironment().getAuthorizationServerContextPath() + ".*"))
+                .withPath(getTestEnvironment().getAuthorizationServerUrl().getPath() + ".*"))
         .respond(AUTHORIZATION_SERVER_ERROR_RESPONSE);
-    getClientAndServer()
+    TestServer.getInstance()
         .when(
             HttpRequest.request()
-                .withPath(getTestEnvironment().getCatalogServerContextPath() + ".*"))
+                .withPath(getTestEnvironment().getCatalogServerUrl().getPath() + ".*"))
         .respond(CATALOG_SERVER_ERROR_RESPONSE);
   }
 }

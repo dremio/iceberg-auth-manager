@@ -18,6 +18,7 @@ package com.dremio.iceberg.authmgr.oauth2.test.expectation;
 import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.SCOPE1;
 import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.SCOPE2;
 
+import com.dremio.iceberg.authmgr.oauth2.test.TestServer;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
 import com.google.common.collect.ImmutableMap;
 import com.nimbusds.oauth2.sdk.GrantType;
@@ -27,7 +28,7 @@ public abstract class RefreshTokenExpectation extends AbstractTokenEndpointExpec
 
   @Override
   public void create() {
-    getClientAndServer()
+    TestServer.getInstance()
         .when(request())
         .respond(httpRequest -> response(httpRequest, "access_refreshed", "refresh_refreshed"));
   }
