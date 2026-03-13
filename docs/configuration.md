@@ -309,7 +309,11 @@ See the [Token Exchange](./token-exchange.md) section for more details.
 
 The subject token to exchange.
 
-If this value is present, the subject token will be used as-is. If this value is not present, the subject token will be dynamically fetched using the configuration provided under the `rest.auth.oauth2.token-exchange.subject-token` prefix.
+If this value is present, the subject token will be used as-is. If this value is not present, the subject token may be read from the file specified by `rest.auth.oauth2.token-exchange.subject-token-file`, or dynamically fetched using the configuration provided under the `rest.auth.oauth2.token-exchange.subject-token` prefix.
+
+### `rest.auth.oauth2.token-exchange.subject-token-file`
+
+Path to a file containing the subject token. The file content is read and trimmed to obtain the token value. Ignored if `rest.auth.oauth2.token-exchange.subject-token` is set. If this is the only static source and neither inline token nor dynamic config is provided, the file must exist and be readable at configuration load time.
 
 ### `rest.auth.oauth2.token-exchange.subject-token-type`
 
