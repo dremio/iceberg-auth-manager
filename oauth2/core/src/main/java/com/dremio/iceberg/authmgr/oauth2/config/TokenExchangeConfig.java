@@ -16,12 +16,15 @@
 package com.dremio.iceberg.authmgr.oauth2.config;
 
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Config;
+import com.dremio.iceberg.authmgr.oauth2.config.validator.ConfigValidator;
 import com.nimbusds.oauth2.sdk.id.Audience;
 import com.nimbusds.oauth2.sdk.token.TokenTypeURI;
 import com.nimbusds.oauth2.sdk.token.TypelessAccessToken;
 import io.smallrye.config.WithDefault;
 import io.smallrye.config.WithName;
 import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -41,6 +44,7 @@ public interface TokenExchangeConfig {
   String PREFIX = OAuth2Config.PREFIX + '.' + GROUP_NAME;
 
   String SUBJECT_TOKEN = "subject-token";
+  String SUBJECT_TOKEN_FILE = "subject-token-file";
   String SUBJECT_TOKEN_TYPE = "subject-token-type";
   String ACTOR_TOKEN = "actor-token";
   String ACTOR_TOKEN_TYPE = "actor-token-type";
@@ -54,11 +58,21 @@ public interface TokenExchangeConfig {
    * The subject token to exchange.
    *
    * <p>If this value is present, the subject token will be used as-is. If this value is not
-   * present, the subject token will be dynamically fetched using the configuration provided under
-   * the {@value #SUBJECT_TOKEN} prefix.
+   * present, the subject token may be read from the file specified by {@value #SUBJECT_TOKEN_FILE},
+   * or dynamically fetched using the configuration provided under the {@value #SUBJECT_TOKEN}
+   * prefix.
    */
   @WithName(SUBJECT_TOKEN)
   Optional<TypelessAccessToken> getSubjectToken();
+
+  /**
+   * Path to a file containing the subject token. The file content is read and trimmed to obtain the
+   * token value. Ignored if {@value #SUBJECT_TOKEN} is set. If this is the only static source and
+   * neither inline token nor dynamic config is provided, the file must exist and be readable at
+   * configuration load time.
+   */
+  @WithName(SUBJECT_TOKEN_FILE)
+  Optional<Path> getSubjectTokenFile();
 
   /**
    * The type of the subject token. Must be a valid URN. The default is {@code
@@ -174,6 +188,15 @@ public interface TokenExchangeConfig {
   Optional<List<Audience>> getAudience();
 
   default void validate() {
-    // No validation needed
+    ConfigValidator validator = new ConfigValidator();
+    if (getSubjectToken().isEmpty() && getSubjectTokenFile().isPresent()) {
+      Path path = getSubjectTokenFile().get();
+      validator.check(
+          Files.isReadable(path),
+          PREFIX + '.' + SUBJECT_TOKEN_FILE,
+          "token-exchange: subject token file '%s' is not a file or is not readable",
+          path);
+    }
+    validator.validate();
   }
 }
