@@ -36,8 +36,17 @@ Specifically, it enables subject and actor tokens to be provided in two methods:
 Static subject and actor tokens are provided in the configuration using the following properties,
 respectively:
 
-* `rest.auth.oauth2.token-exchange.subject-token`
-* `rest.auth.oauth2.token-exchange.actor-token`
+* `rest.auth.oauth2.token-exchange.subject-token` — the inline token value
+* `rest.auth.oauth2.token-exchange.subject-token-file` — path to a file whose content (read and
+  trimmed) is used as the subject token; ignored if `subject-token` is set
+* `rest.auth.oauth2.token-exchange.actor-token` — the inline token value
+* `rest.auth.oauth2.token-exchange.actor-token-file` — path to a file whose content (read and
+  trimmed) is used as the actor token; ignored if `actor-token` is set
+
+The subject token is taken from the inline `subject-token` if set, otherwise from the file at
+`subject-token-file` if set, otherwise from dynamic configuration under `subject-token.*`. \
+Similarly, the actor token is taken from the inline `actor-token` if set, otherwise from the file at
+`actor-token-file` if set, otherwise from dynamic configuration under `actor-token.*`.
 
 Additionally, the type of the subject and actor tokens can be specified using the following
 properties, respectively:
@@ -59,10 +68,16 @@ rest.auth.oauth2.scope=catalog1
 
 # Subject token settings
 rest.auth.oauth2.token-exchange.subject-token=$SUBJECT_TOKEN
+# Alternatively, the subject token can be read from a local file
+# (instead of subject-token=...) If both are set, subject-token takes precedence.
+rest.auth.oauth2.token-exchange.subject-token-file=/path/to/subject-token
 rest.auth.oauth2.token-exchange.subject-token-type=urn:ietf:params:oauth:token-type:jwt
 
 # Actor token settings
 rest.auth.oauth2.token-exchange.actor-token=$ACTOR_TOKEN
+# Alternatively, the actor token can be read from a local file
+# (instead of actor-token=...) If both are set, actor-token takes precedence.
+rest.auth.oauth2.token-exchange.actor-token-file=/path/to/actor-token
 rest.auth.oauth2.token-exchange.actor-token-type=urn:ietf:params:oauth:token-type:jwt
 ```
 
@@ -73,7 +88,9 @@ token exchange is performed using the primary IDP, which is configured using the
 ### Using Dynamic Tokens
 
 To enable dynamic fetching of tokens, the `rest.auth.oauth2.token-exchange.subject-token` and
-`rest.auth.oauth2.token-exchange.actor-token` properties must _not_ be set.
+`rest.auth.oauth2.token-exchange.subject-token-file` properties must _not_ be set for the subject
+token, and `rest.auth.oauth2.token-exchange.actor-token` and
+`rest.auth.oauth2.token-exchange.actor-token-file` must _not_ be set for the actor token.
 
 Then, details for the subject and actor token fetch must be provided under the following prefixes,
 respectively:

@@ -27,6 +27,10 @@ import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
 import com.nimbusds.oauth2.sdk.token.TokenTypeURI;
 import com.nimbusds.oauth2.sdk.token.TypelessAccessToken;
 import jakarta.annotation.Nullable;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -89,6 +93,23 @@ public abstract class AbstractTokenSupplier implements AutoCloseable {
     }
     OAuth2Config tokenAgentConfig = OAuth2Config.from(tokenAgentProperties);
     return new OAuth2Agent(tokenAgentConfig, getRuntime());
+  }
+
+  /**
+   * Reads a token from a file. The file content is read as UTF-8 and trimmed of leading and
+   * trailing whitespace; the result is returned as a {@link TypelessAccessToken}.
+   *
+   * @param path path to the file containing the token
+   * @return the token parsed from the file
+   * @throws UncheckedIOException if the file cannot be read
+   */
+  protected static TypelessAccessToken readTokenFromFile(Path path) {
+    try {
+      String value = Files.readString(path).strip();
+      return new TypelessAccessToken(value);
+    } catch (IOException e) {
+      throw new UncheckedIOException("Failed to read token from file: " + path, e);
+    }
   }
 
   @Override

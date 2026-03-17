@@ -29,19 +29,22 @@ import com.nimbusds.oauth2.sdk.GrantType;
 import com.nimbusds.oauth2.sdk.token.AccessToken;
 import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
 import com.nimbusds.oauth2.sdk.token.TokenTypeURI;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Map;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ScheduledExecutorService;
 import org.assertj.core.api.junit.jupiter.SoftAssertionsExtension;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 
 @ExtendWith(SoftAssertionsExtension.class)
 class SubjectTokenSupplierTest {
 
   @Test
   void testSupplyTokenAsyncStatic() {
-    OAuth2Config config = createMainConfig("subject-token", TokenTypeURI.ID_TOKEN, Map.of());
+    OAuth2Config config = createMainConfig("subject-token", null, TokenTypeURI.ID_TOKEN, Map.of());
     try (SubjectTokenSupplier supplier = createSupplier(config)) {
       CompletionStage<AccessToken> stage = supplier.supplyTokenAsync();
       assertThat(stage)
@@ -54,6 +57,7 @@ class SubjectTokenSupplierTest {
   void testSupplyTokenAsyncDynamic() {
     OAuth2Config config =
         createMainConfig(
+            null,
             null,
             TokenTypeURI.ACCESS_TOKEN,
             Map.of(
@@ -74,14 +78,30 @@ class SubjectTokenSupplierTest {
   @Test
   @SuppressWarnings("resource")
   void testValidate() {
-    OAuth2Config config = createMainConfig(null, TokenTypeURI.ACCESS_TOKEN, Map.of());
+    OAuth2Config config = createMainConfig(null, null, TokenTypeURI.ACCESS_TOKEN, Map.of());
     assertThatIllegalArgumentException()
         .isThrownBy(() -> createSupplier(config))
         .withMessage("Subject token is dynamic but no configuration is provided");
   }
 
+  @Test
+  void testSupplyTokenAsyncFromFile(@TempDir Path tempDir) throws Exception {
+    Path tokenFile = tempDir.resolve("subject-token.txt");
+    Files.writeString(tokenFile, "  subject-token-from-file  ");
+    OAuth2Config config = createMainConfig(null, tokenFile, TokenTypeURI.JWT, Map.of());
+    try (SubjectTokenSupplier supplier = createSupplier(config)) {
+      CompletionStage<AccessToken> stage = supplier.supplyTokenAsync();
+      assertThat(stage)
+          .isCompletedWithValue(
+              new BearerAccessToken("subject-token-from-file", 0, null, TokenTypeURI.JWT));
+    }
+  }
+
   private static OAuth2Config createMainConfig(
-      String subjectToken, TokenTypeURI subjectTokenType, Map<String, String> subjectTokenConfig) {
+      String subjectToken,
+      Path subjectTokenFile,
+      TokenTypeURI subjectTokenType,
+      Map<String, String> subjectTokenConfig) {
 
     ImmutableMap.Builder<String, String> builder = ImmutableMap.builder();
 
@@ -102,6 +122,11 @@ class SubjectTokenSupplierTest {
     if (subjectToken != null) {
       builder.put(
           TokenExchangeConfig.PREFIX + '.' + TokenExchangeConfig.SUBJECT_TOKEN, subjectToken);
+    }
+    if (subjectTokenFile != null) {
+      builder.put(
+          TokenExchangeConfig.PREFIX + '.' + TokenExchangeConfig.SUBJECT_TOKEN_FILE,
+          subjectTokenFile.toString());
     }
 
     return OAuth2Config.from(builder.build());

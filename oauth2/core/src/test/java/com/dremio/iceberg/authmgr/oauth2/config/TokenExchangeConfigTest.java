@@ -15,11 +15,16 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.config;
 
+import static com.dremio.iceberg.authmgr.oauth2.config.TokenExchangeConfig.ACTOR_TOKEN_FILE;
 import static com.dremio.iceberg.authmgr.oauth2.config.TokenExchangeConfig.AUDIENCE;
 import static com.dremio.iceberg.authmgr.oauth2.config.TokenExchangeConfig.PREFIX;
 import static com.dremio.iceberg.authmgr.oauth2.config.TokenExchangeConfig.SUBJECT_TOKEN;
+import static com.dremio.iceberg.authmgr.oauth2.config.TokenExchangeConfig.SUBJECT_TOKEN_FILE;
+import static java.util.Collections.singletonList;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
+import com.dremio.iceberg.authmgr.oauth2.config.validator.ConfigValidator;
 import com.google.common.collect.ImmutableMap;
 import com.nimbusds.oauth2.sdk.id.Audience;
 import io.smallrye.config.SmallRyeConfig;
@@ -27,9 +32,47 @@ import io.smallrye.config.SmallRyeConfigBuilder;
 import io.smallrye.config.common.MapBackedConfigSource;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 class TokenExchangeConfigTest {
+
+  @ParameterizedTest
+  @MethodSource
+  void testValidate(Map<String, String> properties, List<String> expected) {
+    SmallRyeConfig smallRyeConfig =
+        new SmallRyeConfigBuilder()
+            .withMapping(TokenExchangeConfig.class, PREFIX)
+            .withSources(new MapBackedConfigSource("catalog-properties", properties, 1000) {})
+            .build();
+    TokenExchangeConfig config = smallRyeConfig.getConfigMapping(TokenExchangeConfig.class, PREFIX);
+    assertThatIllegalArgumentException()
+        .isThrownBy(config::validate)
+        .withMessage(ConfigValidator.buildDescription(expected.stream()));
+  }
+
+  static Stream<Arguments> testValidate() {
+    return Stream.of(
+        Arguments.of(
+            Map.of(PREFIX + '.' + SUBJECT_TOKEN_FILE, "/invalid/subject-token-file"),
+            singletonList(
+                "token-exchange: '/invalid/subject-token-file' is not a file or is not readable ("
+                    + PREFIX
+                    + '.'
+                    + SUBJECT_TOKEN_FILE
+                    + ")")),
+        Arguments.of(
+            Map.of(PREFIX + '.' + ACTOR_TOKEN_FILE, "/invalid/actor-token-file"),
+            singletonList(
+                "token-exchange: '/invalid/actor-token-file' is not a file or is not readable ("
+                    + PREFIX
+                    + '.'
+                    + ACTOR_TOKEN_FILE
+                    + ")")));
+  }
 
   @Test
   void testAudienceEmpty() {

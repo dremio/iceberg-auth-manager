@@ -17,6 +17,7 @@ package com.dremio.iceberg.authmgr.oauth2.tokenexchange;
 
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Config;
 import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2AgentRuntime;
+import com.dremio.iceberg.authmgr.oauth2.config.TokenExchangeConfig;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
 import com.nimbusds.oauth2.sdk.token.TokenTypeURI;
 import com.nimbusds.oauth2.sdk.token.TypelessAccessToken;
@@ -41,7 +42,12 @@ public abstract class ActorTokenSupplier extends AbstractTokenSupplier {
 
   @Override
   protected Optional<TypelessAccessToken> getStaticToken() {
-    return getMainConfig().getTokenExchangeConfig().getActorToken();
+    TokenExchangeConfig tokenExchangeConfig = getMainConfig().getTokenExchangeConfig();
+    return tokenExchangeConfig
+        .getActorToken()
+        .or(
+            () ->
+                tokenExchangeConfig.getActorTokenFile().map(ActorTokenSupplier::readTokenFromFile));
   }
 
   @Override
