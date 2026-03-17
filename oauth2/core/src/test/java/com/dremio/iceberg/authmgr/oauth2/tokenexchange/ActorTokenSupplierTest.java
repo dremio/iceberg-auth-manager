@@ -28,19 +28,22 @@ import com.nimbusds.oauth2.sdk.GrantType;
 import com.nimbusds.oauth2.sdk.token.AccessToken;
 import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
 import com.nimbusds.oauth2.sdk.token.TokenTypeURI;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Map;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ScheduledExecutorService;
 import org.assertj.core.api.junit.jupiter.SoftAssertionsExtension;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 
 @ExtendWith(SoftAssertionsExtension.class)
 class ActorTokenSupplierTest {
 
   @Test
   void testSupplyActorTokenAsyncStatic() {
-    OAuth2Config config = createMainConfig("actor-token", TokenTypeURI.ID_TOKEN, Map.of());
+    OAuth2Config config = createMainConfig("actor-token", null, TokenTypeURI.ID_TOKEN, Map.of());
     try (ActorTokenSupplier supplier = createSupplier(config)) {
       CompletionStage<AccessToken> stage = supplier.supplyTokenAsync();
       assertThat(stage)
@@ -53,6 +56,7 @@ class ActorTokenSupplierTest {
   void testSupplyActorTokenAsyncDynamic() {
     OAuth2Config config =
         createMainConfig(
+            null,
             null,
             TokenTypeURI.ACCESS_TOKEN,
             Map.of(
@@ -72,15 +76,31 @@ class ActorTokenSupplierTest {
 
   @Test
   void testSupplyActorTokenAsyncNull() {
-    OAuth2Config config = createMainConfig(null, TokenTypeURI.ACCESS_TOKEN, Map.of());
+    OAuth2Config config = createMainConfig(null, null, TokenTypeURI.ACCESS_TOKEN, Map.of());
     try (ActorTokenSupplier supplier = createSupplier(config)) {
       CompletionStage<AccessToken> stage = supplier.supplyTokenAsync();
       assertThat(stage).isCompletedWithValue(null);
     }
   }
 
+  @Test
+  void testSupplyActorTokenAsyncFromFile(@TempDir Path tempDir) throws Exception {
+    Path tokenFile = tempDir.resolve("actor-token.txt");
+    Files.writeString(tokenFile, "  actor-token-from-file  ");
+    OAuth2Config config = createMainConfig(null, tokenFile, TokenTypeURI.JWT, Map.of());
+    try (ActorTokenSupplier supplier = createSupplier(config)) {
+      CompletionStage<AccessToken> stage = supplier.supplyTokenAsync();
+      assertThat(stage)
+          .isCompletedWithValue(
+              new BearerAccessToken("actor-token-from-file", 0, null, TokenTypeURI.JWT));
+    }
+  }
+
   private static OAuth2Config createMainConfig(
-      String actorToken, TokenTypeURI actorTokenType, Map<String, String> actorTokenConfig) {
+      String actorToken,
+      Path actorTokenFile,
+      TokenTypeURI actorTokenType,
+      Map<String, String> actorTokenConfig) {
 
     ImmutableMap.Builder<String, String> builder = ImmutableMap.builder();
 
@@ -102,6 +122,11 @@ class ActorTokenSupplierTest {
 
     if (actorToken != null) {
       builder.put(TokenExchangeConfig.PREFIX + '.' + TokenExchangeConfig.ACTOR_TOKEN, actorToken);
+    }
+    if (actorTokenFile != null) {
+      builder.put(
+          TokenExchangeConfig.PREFIX + '.' + TokenExchangeConfig.ACTOR_TOKEN_FILE,
+          actorTokenFile.toString());
     }
 
     return OAuth2Config.from(builder.build());

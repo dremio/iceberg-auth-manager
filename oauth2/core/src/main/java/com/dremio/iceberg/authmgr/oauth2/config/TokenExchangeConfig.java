@@ -47,6 +47,7 @@ public interface TokenExchangeConfig {
   String SUBJECT_TOKEN_FILE = "subject-token-file";
   String SUBJECT_TOKEN_TYPE = "subject-token-type";
   String ACTOR_TOKEN = "actor-token";
+  String ACTOR_TOKEN_FILE = "actor-token-file";
   String ACTOR_TOKEN_TYPE = "actor-token-type";
   String REQUESTED_TOKEN_TYPE = "requested-token-type";
   String RESOURCE = "resource";
@@ -73,6 +74,15 @@ public interface TokenExchangeConfig {
    */
   @WithName(SUBJECT_TOKEN_FILE)
   Optional<Path> getSubjectTokenFile();
+
+  /**
+   * Path to a file containing the actor token. The file content is read and trimmed to obtain the
+   * token value. Ignored if {@value #ACTOR_TOKEN} is set. If this is the only static source and
+   * neither inline token nor dynamic config is provided, the file must exist and be readable at
+   * configuration load time.
+   */
+  @WithName(ACTOR_TOKEN_FILE)
+  Optional<Path> getActorTokenFile();
 
   /**
    * The type of the subject token. Must be a valid URN. The default is {@code
@@ -189,14 +199,24 @@ public interface TokenExchangeConfig {
 
   default void validate() {
     ConfigValidator validator = new ConfigValidator();
-    if (getSubjectToken().isEmpty() && getSubjectTokenFile().isPresent()) {
-      Path path = getSubjectTokenFile().get();
-      validator.check(
-          Files.isReadable(path),
-          PREFIX + '.' + SUBJECT_TOKEN_FILE,
-          "token-exchange: subject token file '%s' is not a file or is not readable",
-          path);
-    }
+    validateTokenFile(
+        validator,
+        getSubjectToken().isEmpty(),
+        getSubjectTokenFile().orElse(null),
+        SUBJECT_TOKEN_FILE);
+    validateTokenFile(
+        validator, getActorToken().isEmpty(), getActorTokenFile().orElse(null), ACTOR_TOKEN_FILE);
     validator.validate();
+  }
+
+  private static void validateTokenFile(
+      ConfigValidator validator, boolean inlineTokenAbsent, Path tokenFilePath, String fileKey) {
+    if (inlineTokenAbsent && tokenFilePath != null) {
+      validator.check(
+          Files.isReadable(tokenFilePath),
+          PREFIX + '.' + fileKey,
+          "token-exchange: '%s' is not a file or is not readable",
+          tokenFilePath);
+    }
   }
 }

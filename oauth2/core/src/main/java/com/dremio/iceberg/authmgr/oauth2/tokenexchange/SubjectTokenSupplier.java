@@ -21,10 +21,6 @@ import com.dremio.iceberg.authmgr.oauth2.config.TokenExchangeConfig;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
 import com.nimbusds.oauth2.sdk.token.TokenTypeURI;
 import com.nimbusds.oauth2.sdk.token.TypelessAccessToken;
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.Map;
 import java.util.Optional;
 import org.immutables.value.Value;
@@ -63,15 +59,6 @@ public abstract class SubjectTokenSupplier extends AbstractTokenSupplier {
                 tokenExchangeConfig
                     .getSubjectTokenFile()
                     .map(SubjectTokenSupplier::readTokenFromFile));
-  }
-
-  private static TypelessAccessToken readTokenFromFile(Path path) {
-    try {
-      String value = Files.readString(path).strip();
-      return new TypelessAccessToken(value);
-    } catch (IOException e) {
-      throw new UncheckedIOException("Failed to read subject token from file: " + path, e);
-    }
   }
 
   @Override

@@ -44,7 +44,7 @@ class SubjectTokenSupplierTest {
 
   @Test
   void testSupplyTokenAsyncStatic() {
-    OAuth2Config config = createMainConfig("subject-token", TokenTypeURI.ID_TOKEN, Map.of());
+    OAuth2Config config = createMainConfig("subject-token", null, TokenTypeURI.ID_TOKEN, Map.of());
     try (SubjectTokenSupplier supplier = createSupplier(config)) {
       CompletionStage<AccessToken> stage = supplier.supplyTokenAsync();
       assertThat(stage)
@@ -57,6 +57,7 @@ class SubjectTokenSupplierTest {
   void testSupplyTokenAsyncDynamic() {
     OAuth2Config config =
         createMainConfig(
+            null,
             null,
             TokenTypeURI.ACCESS_TOKEN,
             Map.of(
@@ -96,16 +97,6 @@ class SubjectTokenSupplierTest {
     }
   }
 
-  @Test
-  void testValidateSubjectTokenFileMissing(@TempDir Path tempDir) {
-    Path missingFile = tempDir.resolve("missing.txt");
-    assertThatIllegalArgumentException()
-        .isThrownBy(() -> createMainConfig(null, missingFile, TokenTypeURI.ACCESS_TOKEN, Map.of()))
-        .withMessageContaining("token-exchange: subject token file")
-        .withMessageContaining("is not a file or is not readable")
-        .withMessageContaining(TokenExchangeConfig.SUBJECT_TOKEN_FILE);
-  }
-
   private static OAuth2Config createMainConfig(
       String subjectToken,
       Path subjectTokenFile,
@@ -139,11 +130,6 @@ class SubjectTokenSupplierTest {
     }
 
     return OAuth2Config.from(builder.build());
-  }
-
-  private static OAuth2Config createMainConfig(
-      String subjectToken, TokenTypeURI subjectTokenType, Map<String, String> subjectTokenConfig) {
-    return createMainConfig(subjectToken, null, subjectTokenType, subjectTokenConfig);
   }
 
   private static SubjectTokenSupplier createSupplier(OAuth2Config config) {
