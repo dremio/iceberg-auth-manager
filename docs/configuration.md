@@ -323,7 +323,11 @@ The type of the subject token. Must be a valid URN. The default is `urn:ietf:par
 
 The actor token to exchange.
 
-If this value is present, the actor token will be used as-is. If this value is not present, the actor token will be dynamically fetched using the configuration provided under the `rest.auth.oauth2.token-exchange.actor-token` prefix. If no configuration is provided, no actor token will be used.
+If this value is present, the actor token will be used as-is. If this value is not present, the actor token may be read from the file specified by `rest.auth.oauth2.token-exchange.actor-token-file`, or dynamically fetched using the configuration provided under the `rest.auth.oauth2.token-exchange.actor-token` prefix. If no configuration is provided, no actor token will be used.
+
+### `rest.auth.oauth2.token-exchange.actor-token-file`
+
+Path to a file containing the actor token. The file content is read and trimmed to obtain the token value. Ignored if `rest.auth.oauth2.token-exchange.actor-token` is set. If this is the only static source and neither inline token nor dynamic config is provided, the file must exist and be readable at configuration load time.
 
 ### `rest.auth.oauth2.token-exchange.actor-token-type`
 
@@ -357,7 +361,7 @@ The above configuration will result in a token exchange where the subject token 
 
 ### `rest.auth.oauth2.token-exchange.actor-token.*`
 
-The configuration to use for fetching the actor token. Optional; required only if `rest.auth.oauth2.token-exchange.actor-token` is not set but an actor token is required.
+The configuration to use for fetching the actor token. Optional; required only if `rest.auth.oauth2.token-exchange.actor-token` and `rest.auth.oauth2.token-exchange.actor-token-file` are not set but an actor token is required.
 
 This is a prefix property; any property that can be set under the `rest.auth.oauth2.` prefix can also be set under this prefix.
 
