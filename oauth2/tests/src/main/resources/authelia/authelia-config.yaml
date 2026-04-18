@@ -49,7 +49,7 @@ session:
   cookies:
     - name: 'authelia_session'
       domain: '127.0.0.1'
-      authelia_url: 'https://127.0.0.1/whatever'
+      authelia_url: '{{ env "AUTHELIA_URL" }}'
 
 storage:
   encryption_key: 'you_must_generate_a_random_string_of_more_than_twenty_chars_and_configure_this'

@@ -69,7 +69,7 @@ public abstract class FlinkITBase {
 
   @SuppressWarnings("resource")
   protected S3MockContainer createS3Container(Network network) {
-    return new S3MockContainer("4.9.1")
+    return new S3MockContainer("5.0.0")
         .withNetwork(network)
         .withNetworkAliases("s3")
         .withInitialBuckets("test-bucket");
