@@ -55,7 +55,7 @@ dependencies {
   implementation(libs.slf4j.api)
   implementation(libs.caffeine)
 
-  compileOnly(libs.jakarta.annotation.api)
+  implementation(libs.jakarta.annotation.api)
   compileOnly(libs.errorprone.annotations)
 
   compileOnly(project(":authmgr-immutables"))

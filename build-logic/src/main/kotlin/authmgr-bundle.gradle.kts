@@ -104,7 +104,12 @@ shadowJar.configure {
   noticeResourceTransformer.inceptionYear = "2025"
   transform(noticeResourceTransformer)
   // exclude smallrye-config from minimizing since it has generated code
-  minimize { exclude(dependency("io.smallrye.config:smallrye-config")) }
+  // exclude jakarta.annotation-api from minimizing since it is referenced only via ldc bytecode
+  // instructions in SmallRyeConfigBuilder, which the shadow minimizer does not detect as reachable.
+  minimize {
+    exclude(dependency("io.smallrye.config:smallrye-config"))
+    exclude(dependency("jakarta.annotation:jakarta.annotation-api"))
+  }
 }
 
 tasks.named("assemble").configure { dependsOn("shadowJar") }

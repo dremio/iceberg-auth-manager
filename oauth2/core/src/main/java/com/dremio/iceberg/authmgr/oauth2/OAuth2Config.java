@@ -103,6 +103,7 @@ public interface OAuth2Config {
     SmallRyeConfig smallRyeConfig =
         new SmallRyeConfigBuilder()
             .addDefaultSources()
+            .addDiscoveredInterceptors()
             .withSources(source)
             .withMapping(OAuth2Config.class)
             .build();

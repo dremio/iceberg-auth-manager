@@ -15,25 +15,112 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.config;
 
-import io.smallrye.config.RelocateConfigSourceInterceptor;
+import com.dremio.iceberg.authmgr.oauth2.OAuth2Config;
+import io.smallrye.config.ConfigSourceInterceptor;
+import io.smallrye.config.ConfigSourceInterceptorContext;
+import io.smallrye.config.ConfigValue;
+import java.util.Iterator;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ConfigRelocationInterceptor extends RelocateConfigSourceInterceptor {
+public class ConfigRelocationInterceptor implements ConfigSourceInterceptor {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ConfigRelocationInterceptor.class);
+  private static final String ROOT_PREFIX = OAuth2Config.PREFIX + '.';
 
-  public ConfigRelocationInterceptor() {
-    super(ConfigRelocationInterceptor::applyRelocations);
+  private static final List<RelocationRule> RELOCATION_RULES =
+      List.of(
+          new RelocationRule(
+              Pattern.compile("\\.callback-"),
+              ".callback.",
+              Pattern.compile("\\.callback\\."),
+              ".callback-"));
+
+  @Override
+  public Iterator<String> iterateNames(ConfigSourceInterceptorContext context) {
+    // Only include relocated (canonical) names; filter out legacy aliases
+    // to avoid mapping errors "SRCFG00050 ... does not map to any root"
+    Set<String> canonicalNames = new LinkedHashSet<>();
+    Iterator<String> names = context.iterateNames();
+    while (names.hasNext()) {
+      canonicalNames.add(toCanonicalName(names.next()));
+    }
+    return canonicalNames.iterator();
   }
 
-  private static String applyRelocations(String name) {
-    // rest.auth.oauth2.auth-code.callback- > rest.auth.oauth2.auth-code.callback.
-    if (name.startsWith(AuthorizationCodeConfig.PREFIX + ".callback-")) {
-      String replacement = name.replace(".callback-", ".callback.");
-      LOGGER.warn("Property '{}' is deprecated, use '{}' instead", name, replacement);
-      return replacement;
+  @Override
+  public ConfigValue getValue(ConfigSourceInterceptorContext context, String name) {
+    if (!name.startsWith(ROOT_PREFIX)) {
+      return context.proceed(name);
     }
-    return name;
+    String canonicalName = toCanonicalName(name);
+    Set<String> candidates = new LinkedHashSet<>();
+    candidates.add(canonicalName);
+    candidates.add(toLegacyName(canonicalName));
+    ConfigValue selected = null;
+    for (String candidate : candidates) {
+      ConfigValue value = context.proceed(candidate);
+      if (value != null
+          && (selected == null
+              || ConfigValue.CONFIG_SOURCE_COMPARATOR.compare(value, selected) >= 0)) {
+        selected = value.withName(canonicalName);
+      }
+    }
+    if (selected != null && !name.equals(canonicalName)) {
+      LOGGER.warn("Property '{}' is deprecated, use '{}' instead", name, canonicalName);
+    }
+    return selected;
+  }
+
+  public static String toCanonicalName(String name) {
+    String canonicalName = name;
+    for (RelocationRule rule : RELOCATION_RULES) {
+      canonicalName = rule.toCanonicalName(canonicalName);
+    }
+    return canonicalName;
+  }
+
+  static String toLegacyName(String name) {
+    String legacyName = name;
+    for (RelocationRule rule : RELOCATION_RULES) {
+      legacyName = rule.toLegacyName(legacyName);
+    }
+    return legacyName;
+  }
+
+  private static final class RelocationRule {
+
+    private final Pattern canonicalPattern;
+    private final String canonicalReplacement;
+
+    private final Pattern legacyPattern;
+    private final String legacyReplacement;
+
+    private RelocationRule(
+        Pattern canonicalPattern,
+        String canonicalReplacement,
+        Pattern legacyPattern,
+        String legacyReplacement) {
+      this.canonicalPattern = canonicalPattern;
+      this.canonicalReplacement = canonicalReplacement;
+      this.legacyPattern = legacyPattern;
+      this.legacyReplacement = legacyReplacement;
+    }
+
+    public String toCanonicalName(String name) {
+      return name.startsWith(ROOT_PREFIX)
+          ? canonicalPattern.matcher(name).replaceAll(canonicalReplacement)
+          : name;
+    }
+
+    public String toLegacyName(String name) {
+      return name.startsWith(ROOT_PREFIX)
+          ? legacyPattern.matcher(name).replaceAll(legacyReplacement)
+          : name;
+    }
   }
 }
