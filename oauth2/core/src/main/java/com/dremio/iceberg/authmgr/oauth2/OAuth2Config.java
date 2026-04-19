@@ -17,17 +17,18 @@ package com.dremio.iceberg.authmgr.oauth2;
 
 import static com.dremio.iceberg.authmgr.oauth2.OAuth2Config.PREFIX;
 import static com.dremio.iceberg.authmgr.oauth2.config.BasicConfig.CLIENT_AUTH;
-import static com.dremio.iceberg.authmgr.oauth2.config.ClientAssertionConfig.ALGORITHM;
-import static com.dremio.iceberg.authmgr.oauth2.config.ClientAssertionConfig.PRIVATE_KEY;
+import static com.dremio.iceberg.authmgr.oauth2.config.JwtClientAuthConfig.ALGORITHM;
+import static com.dremio.iceberg.authmgr.oauth2.config.JwtClientAuthConfig.PRIVATE_KEY;
 import static com.dremio.iceberg.authmgr.oauth2.config.ResourceOwnerConfig.PASSWORD;
 import static com.dremio.iceberg.authmgr.oauth2.config.ResourceOwnerConfig.USERNAME;
 
 import com.dremio.iceberg.authmgr.oauth2.config.AuthorizationCodeConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.BasicConfig;
-import com.dremio.iceberg.authmgr.oauth2.config.ClientAssertionConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.ConfigUtils;
 import com.dremio.iceberg.authmgr.oauth2.config.DeviceCodeConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.HttpConfig;
+import com.dremio.iceberg.authmgr.oauth2.config.JwtBearerConfig;
+import com.dremio.iceberg.authmgr.oauth2.config.JwtClientAuthConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.ResourceOwnerConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.SystemConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.TokenExchangeConfig;
@@ -68,8 +69,11 @@ public interface OAuth2Config {
   @WithName(TokenExchangeConfig.GROUP_NAME)
   TokenExchangeConfig getTokenExchangeConfig();
 
-  @WithName(ClientAssertionConfig.GROUP_NAME)
-  ClientAssertionConfig getClientAssertionConfig();
+  @WithName(JwtBearerConfig.GROUP_NAME)
+  JwtBearerConfig getJwtBearerGrantConfig();
+
+  @WithName(JwtClientAuthConfig.GROUP_NAME)
+  JwtClientAuthConfig getJwtClientAuthConfig();
 
   @WithName(SystemConfig.GROUP_NAME)
   SystemConfig getSystemConfig();
@@ -119,7 +123,8 @@ public interface OAuth2Config {
     getDeviceCodeConfig().validate();
     getTokenRefreshConfig().validate();
     getTokenExchangeConfig().validate();
-    getClientAssertionConfig().validate();
+    getJwtBearerGrantConfig().validate();
+    getJwtClientAuthConfig().validate();
     getSystemConfig().validate();
     getHttpConfig().validate();
     // Validate constraints that span multiple configuration classes
@@ -163,41 +168,52 @@ public interface OAuth2Config {
           getTokenExchangeConfig().getSubjectToken().isPresent()
               || getTokenExchangeConfig().getSubjectTokenFile().isPresent()
               || !getTokenExchangeConfig().getSubjectTokenConfig().isEmpty(),
-          TokenExchangeConfig.PREFIX + '.' + TokenExchangeConfig.SUBJECT_TOKEN,
-          "subject token must be set if grant type is '%s'",
+          List.of(
+              TokenExchangeConfig.PREFIX + '.' + TokenExchangeConfig.SUBJECT_TOKEN,
+              TokenExchangeConfig.PREFIX + '.' + TokenExchangeConfig.SUBJECT_TOKEN_FILE),
+          "either subject token, subject token file or dynamic subject token configuration must be set if grant type is '%s'",
           GrantType.TOKEN_EXCHANGE.getValue());
+    }
+    if (grantType.equals(GrantType.JWT_BEARER)) {
+      validator.check(
+          getJwtBearerGrantConfig().getAssertion().isPresent()
+              || getJwtBearerGrantConfig().getAssertionFile().isPresent()
+              || !getJwtBearerGrantConfig().getAssertionConfig().isEmpty(),
+          List.of(
+              JwtBearerConfig.PREFIX + '.' + JwtBearerConfig.ASSERTION,
+              JwtBearerConfig.PREFIX + '.' + JwtBearerConfig.ASSERTION_FILE),
+          "either assertion, assertion file or dynamic assertion configuration must be set if grant type is '%s'",
+          GrantType.JWT_BEARER.getValue());
     }
     ClientAuthenticationMethod method = getBasicConfig().getClientAuthenticationMethod();
     if (ConfigUtils.requiresJwsAlgorithm(method)) {
       if (method.equals(ClientAuthenticationMethod.CLIENT_SECRET_JWT)) {
-        if (getClientAssertionConfig().getAlgorithm().isPresent()) {
+        if (getJwtClientAuthConfig().getAlgorithm().isPresent()) {
           validator.check(
-              JWSAlgorithm.Family.HMAC_SHA.contains(
-                  getClientAssertionConfig().getAlgorithm().get()),
-              List.of(PREFIX + '.' + CLIENT_AUTH, ClientAssertionConfig.PREFIX + '.' + ALGORITHM),
+              JWSAlgorithm.Family.HMAC_SHA.contains(getJwtClientAuthConfig().getAlgorithm().get()),
+              List.of(PREFIX + '.' + CLIENT_AUTH, JwtClientAuthConfig.PREFIX + '.' + ALGORITHM),
               "client authentication method '%s' is not compatible with JWS algorithm '%s'",
               method.getValue(),
-              getClientAssertionConfig().getAlgorithm().get());
+              getJwtClientAuthConfig().getAlgorithm().get());
         }
         validator.check(
-            getClientAssertionConfig().getPrivateKey().isEmpty(),
-            List.of(PREFIX + '.' + CLIENT_AUTH, ClientAssertionConfig.PREFIX + '.' + PRIVATE_KEY),
+            getJwtClientAuthConfig().getPrivateKey().isEmpty(),
+            List.of(PREFIX + '.' + CLIENT_AUTH, JwtClientAuthConfig.PREFIX + '.' + PRIVATE_KEY),
             "client authentication method '%s' must not have a private key configured",
             method.getValue());
       }
       if (method.equals(ClientAuthenticationMethod.PRIVATE_KEY_JWT)) {
-        if (getClientAssertionConfig().getAlgorithm().isPresent()) {
+        if (getJwtClientAuthConfig().getAlgorithm().isPresent()) {
           validator.check(
-              JWSAlgorithm.Family.SIGNATURE.contains(
-                  getClientAssertionConfig().getAlgorithm().get()),
-              List.of(PREFIX + '.' + CLIENT_AUTH, ClientAssertionConfig.PREFIX + '.' + ALGORITHM),
+              JWSAlgorithm.Family.SIGNATURE.contains(getJwtClientAuthConfig().getAlgorithm().get()),
+              List.of(PREFIX + '.' + CLIENT_AUTH, JwtClientAuthConfig.PREFIX + '.' + ALGORITHM),
               "client authentication method '%s' is not compatible with JWS algorithm '%s'",
               method.getValue(),
-              getClientAssertionConfig().getAlgorithm().get());
+              getJwtClientAuthConfig().getAlgorithm().get());
         }
         validator.check(
-            getClientAssertionConfig().getPrivateKey().isPresent(),
-            List.of(PREFIX + '.' + CLIENT_AUTH, ClientAssertionConfig.PREFIX + '.' + PRIVATE_KEY),
+            getJwtClientAuthConfig().getPrivateKey().isPresent(),
+            List.of(PREFIX + '.' + CLIENT_AUTH, JwtClientAuthConfig.PREFIX + '.' + PRIVATE_KEY),
             "client authentication method '%s' requires a private key",
             method.getValue());
       }

@@ -27,27 +27,28 @@ public final class TokenAssertions {
   private TokenAssertions() {}
 
   public static void assertTokensResult(
-      TokensResult result, String accessToken, @Nullable String refreshToken) {
-    assertTokensResult(result, accessToken, refreshToken, refreshToken != null);
+      TokensResult actual, String expectedAccessToken, @Nullable String expectedRefreshToken) {
+    assertTokensResult(
+        actual, expectedAccessToken, expectedRefreshToken, expectedRefreshToken != null);
   }
 
   public static void assertTokensResult(
-      TokensResult result,
-      String accessToken,
-      @Nullable String refreshToken,
-      boolean expectRefreshTokenExp) {
+      TokensResult actual,
+      String expectedAccessToken,
+      @Nullable String expectedRefreshToken,
+      boolean expectRefreshTokenLifespan) {
     assertAccessToken(
-        result.getTokens().getAccessToken(),
-        accessToken,
+        actual.getTokens().getAccessToken(),
+        expectedAccessToken,
         TestConstants.ACCESS_TOKEN_EXPIRES_IN_SECONDS);
-    assertRefreshToken(result.getTokens().getRefreshToken(), refreshToken);
-    assertThat(result.getAccessTokenExpirationTime())
+    assertRefreshToken(actual.getTokens().getRefreshToken(), expectedRefreshToken);
+    assertThat(actual.getAccessTokenExpirationTime())
         .isEqualTo(TestConstants.ACCESS_TOKEN_EXPIRATION_TIME);
-    if (expectRefreshTokenExp) {
-      assertThat(result.getRefreshTokenExpirationTime())
+    if (expectRefreshTokenLifespan) {
+      assertThat(actual.getRefreshTokenExpirationTime())
           .isEqualTo(TestConstants.REFRESH_TOKEN_EXPIRATION_TIME);
     } else {
-      assertThat(result.getRefreshTokenExpirationTime()).isNull();
+      assertThat(actual.getRefreshTokenExpirationTime()).isNull();
     }
   }
 
@@ -56,7 +57,7 @@ public final class TokenAssertions {
     assertThat(actual.getLifetime()).isEqualTo(expiresInSeconds);
   }
 
-  public static void assertRefreshToken(RefreshToken actual, String expected) {
+  public static void assertRefreshToken(RefreshToken actual, @Nullable String expected) {
     if (expected == null) {
       assertThat(actual).isNull();
     } else {

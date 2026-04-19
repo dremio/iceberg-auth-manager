@@ -48,7 +48,12 @@ public class ConfigRelocationInterceptor implements ConfigSourceInterceptor {
               Pattern.compile("\\.token-exchange\\.audience$"),
               ".token-exchange.audiences",
               Pattern.compile("\\.token-exchange\\.audiences$"),
-              ".token-exchange.audience"));
+              ".token-exchange.audience"),
+          new RelocationRule(
+              Pattern.compile("\\.client-assertion(?=\\.|$)"),
+              ".client-auth",
+              Pattern.compile("\\.client-auth(?=\\.|$)"),
+              ".client-assertion"));
 
   @Override
   public Iterator<String> iterateNames(ConfigSourceInterceptorContext context) {

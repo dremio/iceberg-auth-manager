@@ -160,7 +160,7 @@ rest.auth.oauth2.token-exchange.actor-token.grant-type=client_credentials
 rest.auth.oauth2.token-exchange.actor-token.scope=catalog3
 rest.auth.oauth2.token-exchange.actor-token.client-id=Client3
 rest.auth.oauth2.token-exchange.actor-token.client-auth=private_key_jwt
-rest.auth.oauth2.token-exchange.actor-token.client-assertion.jwt.private-key=/path/to/private_key.pem
+rest.auth.oauth2.token-exchange.actor-token.client-auth.jwt.private-key=/path/to/private_key.pem
 ```
 
 In this example:

@@ -16,6 +16,7 @@
 package com.dremio.iceberg.authmgr.oauth2;
 
 import static com.dremio.iceberg.authmgr.oauth2.OAuth2Config.PREFIX;
+import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.ACCESS_TOKEN_INITIAL;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.map;
 import static org.mockito.Mockito.never;
@@ -87,7 +88,7 @@ class OAuth2ManagerTest {
             AuthSession session = manager.catalogSession(client, properties)) {
           HTTPRequest actual = session.authenticate(request);
           assertThat(actual.headers().entries("Authorization"))
-              .containsOnly(HTTPHeader.of("Authorization", "Bearer access_initial"));
+              .containsOnly(HTTPHeader.of("Authorization", "Bearer " + ACCESS_TOKEN_INITIAL));
         }
       }
     }
@@ -112,13 +113,13 @@ class OAuth2ManagerTest {
             AuthSession session = manager.initSession(httpClient, properties)) {
           HTTPRequest actual = session.authenticate(request);
           assertThat(actual.headers().entries("Authorization"))
-              .containsOnly(HTTPHeader.of("Authorization", "Bearer access_initial"));
+              .containsOnly(HTTPHeader.of("Authorization", "Bearer " + ACCESS_TOKEN_INITIAL));
         }
         try (HTTPClient httpClient = env.newIcebergRestClientBuilder(Map.of()).build();
             AuthSession session = manager.catalogSession(httpClient, properties)) {
           HTTPRequest actual = session.authenticate(request);
           assertThat(actual.headers().entries("Authorization"))
-              .containsOnly(HTTPHeader.of("Authorization", "Bearer access_initial"));
+              .containsOnly(HTTPHeader.of("Authorization", "Bearer " + ACCESS_TOKEN_INITIAL));
         }
       }
     }
@@ -228,10 +229,10 @@ class OAuth2ManagerTest {
           assertThat(contextualSession1).isNotSameAs(contextualSession2);
           HTTPRequest actual = contextualSession1.authenticate(request);
           assertThat(actual.headers().entries("Authorization"))
-              .containsOnly(HTTPHeader.of("Authorization", "Bearer access_initial"));
+              .containsOnly(HTTPHeader.of("Authorization", "Bearer " + ACCESS_TOKEN_INITIAL));
           actual = contextualSession2.authenticate(request);
           assertThat(actual.headers().entries("Authorization"))
-              .containsOnly(HTTPHeader.of("Authorization", "Bearer access_initial"));
+              .containsOnly(HTTPHeader.of("Authorization", "Bearer " + ACCESS_TOKEN_INITIAL));
         }
       }
     }
@@ -260,9 +261,9 @@ class OAuth2ManagerTest {
                     PREFIX + '.' + BasicConfig.CLIENT_SECRET,
                     TestConstants.CLIENT_SECRET2.getValue(),
                     TokenExchangeConfig.PREFIX + '.' + TokenExchangeConfig.SUBJECT_TOKEN,
-                    TestConstants.SUBJECT_TOKEN.getValue(),
+                    TestConstants.SUBJECT_TOKEN,
                     TokenExchangeConfig.PREFIX + '.' + TokenExchangeConfig.ACTOR_TOKEN,
-                    TestConstants.ACTOR_TOKEN.getValue()),
+                    TestConstants.ACTOR_TOKEN),
                 Map.of(
                     PREFIX + '.' + BasicConfig.GRANT_TYPE,
                     GrantType.TOKEN_EXCHANGE.getValue(),
@@ -328,7 +329,7 @@ class OAuth2ManagerTest {
             AuthSession session = manager.tableSession(client, signerProperties)) {
           HTTPRequest actual = session.authenticate(request);
           assertThat(actual.headers().entries("Authorization"))
-              .containsOnly(HTTPHeader.of("Authorization", "Bearer access_initial"));
+              .containsOnly(HTTPHeader.of("Authorization", "Bearer " + ACCESS_TOKEN_INITIAL));
         }
       }
     }

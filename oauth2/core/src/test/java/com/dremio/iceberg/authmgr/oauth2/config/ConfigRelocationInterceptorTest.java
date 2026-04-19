@@ -59,6 +59,12 @@ class ConfigRelocationInterceptorTest {
         Arguments.of(
             "rest.auth.oauth2.token-exchange.audiences",
             "rest.auth.oauth2.token-exchange.audiences"),
+        Arguments.of(
+            "rest.auth.oauth2.client-assertion.jwt.private-key",
+            "rest.auth.oauth2.client-auth.jwt.private-key"),
+        Arguments.of(
+            "rest.auth.oauth2.token-exchange.actor-token.client-assertion.jwt.private-key",
+            "rest.auth.oauth2.token-exchange.actor-token.client-auth.jwt.private-key"),
         Arguments.of("some.other.property", "some.other.property"));
   }
 
@@ -89,6 +95,12 @@ class ConfigRelocationInterceptorTest {
             "rest.auth.oauth2.token-exchange.resource", "rest.auth.oauth2.token-exchange.resource"),
         Arguments.of(
             "rest.auth.oauth2.token-exchange.audience", "rest.auth.oauth2.token-exchange.audience"),
+        Arguments.of(
+            "rest.auth.oauth2.client-auth.jwt.private-key",
+            "rest.auth.oauth2.client-assertion.jwt.private-key"),
+        Arguments.of(
+            "rest.auth.oauth2.token-exchange.actor-token.client-auth.jwt.private-key",
+            "rest.auth.oauth2.token-exchange.actor-token.client-assertion.jwt.private-key"),
         Arguments.of("some.other.property", "some.other.property"));
   }
 
@@ -107,11 +119,18 @@ class ConfigRelocationInterceptorTest {
                 new MapBackedConfigSource(
                     "catalog-properties",
                     Map.of(
-                        "rest.auth.oauth2.auth-code.callback-https", "true",
-                        "rest.auth.oauth2.auth-code.callback-bind-port", "8080",
-                        "rest.auth.oauth2.auth-code.callback-bind-host", "localhost",
-                        "rest.auth.oauth2.token-exchange.resource", "urn:resource",
-                        "rest.auth.oauth2.token-exchange.audience", "urn:audience"),
+                        "rest.auth.oauth2.auth-code.callback-https",
+                        "true",
+                        "rest.auth.oauth2.auth-code.callback-bind-port",
+                        "8080",
+                        "rest.auth.oauth2.auth-code.callback-bind-host",
+                        "localhost",
+                        "rest.auth.oauth2.token-exchange.resource",
+                        "urn:resource",
+                        "rest.auth.oauth2.token-exchange.audience",
+                        "urn:audience",
+                        "rest.auth.oauth2.client-assertion.jwt.private-key",
+                        "old"),
                     1000) {})
             .build();
     assertThat(StreamSupport.stream(config.getPropertyNames().spliterator(), false).toList())
@@ -120,7 +139,8 @@ class ConfigRelocationInterceptorTest {
             "rest.auth.oauth2.auth-code.callback.bind-port",
             "rest.auth.oauth2.auth-code.callback.bind-host",
             "rest.auth.oauth2.token-exchange.resources",
-            "rest.auth.oauth2.token-exchange.audiences");
+            "rest.auth.oauth2.token-exchange.audiences",
+            "rest.auth.oauth2.client-auth.jwt.private-key");
   }
 
   @Test
@@ -138,11 +158,18 @@ class ConfigRelocationInterceptorTest {
                 new MapBackedConfigSource(
                     "catalog-properties",
                     Map.of(
-                        "rest.auth.oauth2.auth-code.callback-https", "true",
-                        "rest.auth.oauth2.auth-code.callback-bind-port", "8080",
-                        "rest.auth.oauth2.auth-code.callback-bind-host", "localhost",
-                        "rest.auth.oauth2.token-exchange.resource", "urn:resource",
-                        "rest.auth.oauth2.token-exchange.audience", "urn:audience"),
+                        "rest.auth.oauth2.auth-code.callback-https",
+                        "true",
+                        "rest.auth.oauth2.auth-code.callback-bind-port",
+                        "8080",
+                        "rest.auth.oauth2.auth-code.callback-bind-host",
+                        "localhost",
+                        "rest.auth.oauth2.token-exchange.resource",
+                        "urn:resource",
+                        "rest.auth.oauth2.token-exchange.audience",
+                        "urn:audience",
+                        "rest.auth.oauth2.client-assertion.jwt.private-key",
+                        "old-key"),
                     1000) {})
             .build();
     assertThat(config.getRawValue("rest.auth.oauth2.auth-code.callback.https")).isEqualTo("true");
@@ -154,5 +181,7 @@ class ConfigRelocationInterceptorTest {
         .isEqualTo("urn:resource");
     assertThat(config.getRawValue("rest.auth.oauth2.token-exchange.audiences"))
         .isEqualTo("urn:audience");
+    assertThat(config.getRawValue("rest.auth.oauth2.client-auth.jwt.private-key"))
+        .isEqualTo("old-key");
   }
 }

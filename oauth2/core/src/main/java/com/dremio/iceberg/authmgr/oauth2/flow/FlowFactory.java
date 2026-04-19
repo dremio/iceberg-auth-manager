@@ -19,6 +19,7 @@ import com.dremio.iceberg.authmgr.oauth2.OAuth2Config;
 import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2AgentRuntime;
 import com.dremio.iceberg.authmgr.oauth2.endpoint.EndpointProvider;
 import com.dremio.iceberg.authmgr.oauth2.http.HttpClient;
+import com.dremio.iceberg.authmgr.oauth2.jwtbearer.AssertionSupplier;
 import com.dremio.iceberg.authmgr.oauth2.tokenexchange.ActorTokenSupplier;
 import com.dremio.iceberg.authmgr.oauth2.tokenexchange.SubjectTokenSupplier;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
@@ -64,20 +65,24 @@ public abstract class FlowFactory implements AutoCloseable {
   public void close() {
     SubjectTokenSupplier subjectTokenSupplier = getSubjectTokenSupplier();
     ActorTokenSupplier actorTokenSupplier = getActorTokenSupplier();
+    AssertionSupplier assertionSupplier = getAssertionSupplier();
     HttpClient httpClient = getHttpClient();
     try (httpClient;
         subjectTokenSupplier;
-        actorTokenSupplier) {}
+        actorTokenSupplier;
+        assertionSupplier) {}
   }
 
   public FlowFactory copy() {
     SubjectTokenSupplier subjectTokenSupplier = getSubjectTokenSupplier();
     ActorTokenSupplier actorTokenSupplier = getActorTokenSupplier();
+    AssertionSupplier assertionSupplier = getAssertionSupplier();
     return ImmutableFlowFactory.builder()
         .from(this)
-        // Copy the token suppliers to also create copies of their internal agents.
+        // Copy the suppliers to also create copies of their internal agents.
         .subjectTokenSupplier(subjectTokenSupplier == null ? null : subjectTokenSupplier.copy())
         .actorTokenSupplier(actorTokenSupplier == null ? null : actorTokenSupplier.copy())
+        .assertionSupplier(assertionSupplier == null ? null : assertionSupplier.copy())
         .build();
   }
 
@@ -94,6 +99,14 @@ public abstract class FlowFactory implements AutoCloseable {
   @Value.Default
   protected EndpointProvider getEndpointProvider() {
     return EndpointProvider.create(getConfig(), getHttpClient());
+  }
+
+  @Value.Default
+  @Nullable
+  protected AssertionSupplier getAssertionSupplier() {
+    return !getConfig().getBasicConfig().getGrantType().equals(GrantType.JWT_BEARER)
+        ? null
+        : AssertionSupplier.create(getConfig(), getRuntime());
   }
 
   @Value.Default
@@ -127,6 +140,10 @@ public abstract class FlowFactory implements AutoCloseable {
 
     } else if (grantType.equals(GrantType.DEVICE_CODE)) {
       return ImmutableDeviceCodeFlow.builder();
+
+    } else if (grantType.equals(GrantType.JWT_BEARER)) {
+      return ImmutableJwtBearerFlow.builder()
+          .assertionStage(Objects.requireNonNull(getAssertionSupplier()).supplyAssertionAsync());
 
     } else if (grantType.equals(GrantType.TOKEN_EXCHANGE)) {
       return ImmutableTokenExchangeFlow.builder()

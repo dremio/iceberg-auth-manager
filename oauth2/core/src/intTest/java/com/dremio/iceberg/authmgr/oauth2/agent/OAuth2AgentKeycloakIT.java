@@ -25,6 +25,7 @@ import static com.dremio.iceberg.authmgr.oauth2.test.junit.KeycloakExtension.SCO
 import static com.nimbusds.oauth2.sdk.GrantType.AUTHORIZATION_CODE;
 import static com.nimbusds.oauth2.sdk.GrantType.CLIENT_CREDENTIALS;
 import static com.nimbusds.oauth2.sdk.GrantType.DEVICE_CODE;
+import static com.nimbusds.oauth2.sdk.GrantType.JWT_BEARER;
 import static com.nimbusds.oauth2.sdk.GrantType.PASSWORD;
 import static com.nimbusds.oauth2.sdk.GrantType.TOKEN_EXCHANGE;
 import static com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod.CLIENT_SECRET_BASIC;
@@ -41,6 +42,7 @@ import com.dremio.iceberg.authmgr.oauth2.flow.OAuth2Exception;
 import com.dremio.iceberg.authmgr.oauth2.flow.TokensResult;
 import com.dremio.iceberg.authmgr.oauth2.http.HttpClientType;
 import com.dremio.iceberg.authmgr.oauth2.test.ImmutableTestEnvironment.Builder;
+import com.dremio.iceberg.authmgr.oauth2.test.TestConstants;
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
 import com.dremio.iceberg.authmgr.oauth2.test.junit.EnumLike;
 import com.dremio.iceberg.authmgr.oauth2.test.junit.KeycloakExtension;
@@ -103,7 +105,8 @@ public class OAuth2AgentKeycloakIT {
                 .clientAuthenticationMethod(CLIENT_SECRET_BASIC)
                 .build();
         OAuth2Agent agent = env.newAgent()) {
-      boolean expectRefreshToken = initialGrantType != CLIENT_CREDENTIALS;
+      boolean expectRefreshToken =
+          initialGrantType != CLIENT_CREDENTIALS && initialGrantType != JWT_BEARER;
       assertAgent(agent, CLIENT_ID1, expectRefreshToken);
     }
   }
@@ -122,7 +125,9 @@ public class OAuth2AgentKeycloakIT {
                 .clientAuthenticationMethod(CLIENT_SECRET_POST)
                 .build();
         OAuth2Agent agent = env.newAgent()) {
-      assertAgent(agent, CLIENT_ID1, initialGrantType != CLIENT_CREDENTIALS);
+      boolean expectRefreshToken =
+          initialGrantType != CLIENT_CREDENTIALS && initialGrantType != JWT_BEARER;
+      assertAgent(agent, CLIENT_ID1, expectRefreshToken);
     }
   }
 
@@ -130,7 +135,11 @@ public class OAuth2AgentKeycloakIT {
   void publicClient(
       @Enum HttpClientType httpClientType,
       @EnumLike(
-              excludes = {"client_credentials", "urn:ietf:params:oauth:grant-type:token-exchange"})
+              excludes = {
+                "client_credentials",
+                "urn:ietf:params:oauth:grant-type:jwt-bearer",
+                "urn:ietf:params:oauth:grant-type:token-exchange"
+              })
           GrantType initialGrantType,
       Builder envBuilder)
       throws Exception {
@@ -163,7 +172,9 @@ public class OAuth2AgentKeycloakIT {
                 .clientAuthenticationMethod(CLIENT_SECRET_JWT)
                 .build();
         OAuth2Agent agent = env.newAgent()) {
-      assertAgent(agent, CLIENT_ID3, initialGrantType != CLIENT_CREDENTIALS);
+      boolean expectRefreshToken =
+          initialGrantType != CLIENT_CREDENTIALS && initialGrantType != JWT_BEARER;
+      assertAgent(agent, CLIENT_ID3, expectRefreshToken);
     }
   }
 
@@ -196,7 +207,9 @@ public class OAuth2AgentKeycloakIT {
                 .privateKey(privateKeyPath)
                 .build();
         OAuth2Agent agent = env.newAgent()) {
-      assertAgent(agent, clientId, initialGrantType != CLIENT_CREDENTIALS);
+      boolean expectRefreshToken =
+          initialGrantType != CLIENT_CREDENTIALS && initialGrantType != JWT_BEARER;
+      assertAgent(agent, clientId, expectRefreshToken);
     }
   }
 
@@ -250,7 +263,11 @@ public class OAuth2AgentKeycloakIT {
    */
   @CartesianTest
   void impersonation1(
-      @EnumLike(excludes = "urn:ietf:params:oauth:grant-type:token-exchange")
+      @EnumLike(
+              excludes = {
+                "urn:ietf:params:oauth:grant-type:jwt-bearer",
+                "urn:ietf:params:oauth:grant-type:token-exchange"
+              })
           GrantType subjectGrantType,
       Builder envBuilder)
       throws Exception {
@@ -274,7 +291,11 @@ public class OAuth2AgentKeycloakIT {
   @CartesianTest
   void impersonation2(
       @EnumLike(
-              excludes = {"client_credentials", "urn:ietf:params:oauth:grant-type:token-exchange"})
+              excludes = {
+                "client_credentials",
+                "urn:ietf:params:oauth:grant-type:jwt-bearer",
+                "urn:ietf:params:oauth:grant-type:token-exchange"
+              })
           GrantType subjectGrantType,
       Builder envBuilder)
       throws Exception {
@@ -334,7 +355,11 @@ public class OAuth2AgentKeycloakIT {
    */
   @CartesianTest
   void delegation3(
-      @EnumLike(excludes = "urn:ietf:params:oauth:grant-type:token-exchange")
+      @EnumLike(
+              excludes = {
+                "urn:ietf:params:oauth:grant-type:jwt-bearer",
+                "urn:ietf:params:oauth:grant-type:token-exchange"
+              })
           GrantType subjectGrantType,
       Builder envBuilder)
       throws Exception {
@@ -435,6 +460,22 @@ public class OAuth2AgentKeycloakIT {
             .extracting(ErrorObject::getHTTPStatusCode, ErrorObject::getCode)
             .containsExactly(400, "access_denied");
       }
+    }
+  }
+
+  @Test
+  void jwtBearerInvalidAssertion(Builder envBuilder) {
+    try (TestEnvironment env =
+            envBuilder
+                .grantType(JWT_BEARER)
+                .assertion(TestConstants.SUBJECT_TOKEN /* invalid JWT */)
+                .build();
+        OAuth2Agent agent = env.newAgent()) {
+      soft.assertThatThrownBy(agent::authenticate)
+          .asInstanceOf(type(OAuth2Exception.class))
+          .extracting(OAuth2Exception::getErrorObject)
+          .extracting(ErrorObject::getHTTPStatusCode, ErrorObject::getCode)
+          .containsExactly(400, "invalid_grant");
     }
   }
 

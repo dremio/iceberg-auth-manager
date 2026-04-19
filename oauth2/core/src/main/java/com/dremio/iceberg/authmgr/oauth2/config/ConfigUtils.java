@@ -30,7 +30,8 @@ public final class ConfigUtils {
           GrantType.PASSWORD,
           GrantType.AUTHORIZATION_CODE,
           GrantType.DEVICE_CODE,
-          GrantType.TOKEN_EXCHANGE);
+          GrantType.TOKEN_EXCHANGE,
+          GrantType.JWT_BEARER);
 
   public static final List<ClientAuthenticationMethod> SUPPORTED_CLIENT_AUTH_METHODS =
       List.of(

@@ -15,6 +15,7 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.flow;
 
+import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.ACCESS_TOKEN_INITIAL;
 import static com.dremio.iceberg.authmgr.oauth2.test.TokenAssertions.assertTokensResult;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -35,7 +36,7 @@ class ClientCredentialsFlowTest {
       Flow flow = flowFactory.createInitialFlow();
       assertThat(flow).isInstanceOf(ClientCredentialsFlow.class);
       TokensResult tokens = flow.fetchNewTokens().toCompletableFuture().get();
-      assertTokensResult(tokens, "access_initial", null);
+      assertTokensResult(tokens, ACCESS_TOKEN_INITIAL, null);
     }
   }
 }

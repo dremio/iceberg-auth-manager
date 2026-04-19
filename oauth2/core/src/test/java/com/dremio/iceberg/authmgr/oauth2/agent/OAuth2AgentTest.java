@@ -15,6 +15,12 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.agent;
 
+import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.ACCESS_TOKEN_INITIAL;
+import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.ACCESS_TOKEN_LIFESPAN;
+import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.ACCESS_TOKEN_REFRESHED;
+import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.REFRESH_TOKEN_INITIAL;
+import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.REFRESH_TOKEN_REFRESHED;
+import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.SUBJECT_TOKEN;
 import static com.dremio.iceberg.authmgr.oauth2.test.TokenAssertions.assertAccessToken;
 import static com.dremio.iceberg.authmgr.oauth2.test.TokenAssertions.assertTokensResult;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -41,6 +47,7 @@ import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
 import com.dremio.iceberg.authmgr.oauth2.test.junit.EnumLike;
 import com.dremio.iceberg.authmgr.oauth2.test.user.UserBehavior;
 import com.nimbusds.oauth2.sdk.GrantType;
+import com.nimbusds.oauth2.sdk.ParseException;
 import com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod;
 import com.nimbusds.oauth2.sdk.auth.Secret;
 import com.nimbusds.oauth2.sdk.id.ClientID;
@@ -96,7 +103,7 @@ class OAuth2AgentTest {
         OAuth2Agent agent = env.newAgent()) {
       TokensResult currentTokens = agent.authenticateInternal();
       assertTokensResult(
-          currentTokens, "access_initial", returnRefreshTokens ? "refresh_initial" : null);
+          currentTokens, ACCESS_TOKEN_INITIAL, returnRefreshTokens ? REFRESH_TOKEN_INITIAL : null);
     }
   }
 
@@ -131,7 +138,7 @@ class OAuth2AgentTest {
         OAuth2Agent agent = env.newAgent()) {
       TokensResult currentTokens = agent.authenticateInternal();
       assertTokensResult(
-          currentTokens, "access_initial", returnRefreshTokens ? "refresh_initial" : null);
+          currentTokens, ACCESS_TOKEN_INITIAL, returnRefreshTokens ? REFRESH_TOKEN_INITIAL : null);
     }
   }
 
@@ -169,7 +176,7 @@ class OAuth2AgentTest {
         OAuth2Agent agent = env.newAgent()) {
       TokensResult currentTokens = agent.authenticateInternal();
       assertTokensResult(
-          currentTokens, "access_initial", returnRefreshTokens ? "refresh_initial" : null);
+          currentTokens, ACCESS_TOKEN_INITIAL, returnRefreshTokens ? REFRESH_TOKEN_INITIAL : null);
     }
   }
 
@@ -223,7 +230,7 @@ class OAuth2AgentTest {
         OAuth2Agent agent = env.newAgent()) {
       TokensResult currentTokens = agent.authenticateInternal();
       assertTokensResult(
-          currentTokens, "access_initial", returnRefreshTokens ? "refresh_initial" : null);
+          currentTokens, ACCESS_TOKEN_INITIAL, returnRefreshTokens ? REFRESH_TOKEN_INITIAL : null);
     }
   }
 
@@ -278,7 +285,10 @@ class OAuth2AgentTest {
       TokensResult refreshedTokens =
           agent.refreshCurrentTokens(firstTokens).toCompletableFuture().get();
       assertTokensResult(
-          refreshedTokens, "access_refreshed", "refresh_refreshed", returnRefreshTokenLifespan);
+          refreshedTokens,
+          ACCESS_TOKEN_REFRESHED,
+          REFRESH_TOKEN_REFRESHED,
+          returnRefreshTokenLifespan);
     }
   }
 
@@ -289,7 +299,7 @@ class OAuth2AgentTest {
       // no refresh token
       TokensResult currentTokens =
           TokensResult.of(
-              new Tokens(new BearerAccessToken("access_initial"), null),
+              new Tokens(new BearerAccessToken(ACCESS_TOKEN_INITIAL), null),
               TestConstants.NOW,
               Map.of());
       assertThat(agent.refreshCurrentTokens(currentTokens))
@@ -300,7 +310,8 @@ class OAuth2AgentTest {
       currentTokens =
           TokensResult.of(
               new Tokens(
-                  new BearerAccessToken("access_initial"), new RefreshToken("refresh_initial")),
+                  new BearerAccessToken(ACCESS_TOKEN_INITIAL),
+                  new RefreshToken(REFRESH_TOKEN_INITIAL)),
               TestConstants.NOW,
               Map.of());
       assertThat(agent.refreshCurrentTokens(currentTokens)).isNotCompletedExceptionally();
@@ -308,7 +319,8 @@ class OAuth2AgentTest {
       currentTokens =
           TokensResult.of(
               new Tokens(
-                  new BearerAccessToken("access_initial"), new RefreshToken("refresh_initial")),
+                  new BearerAccessToken(ACCESS_TOKEN_INITIAL),
+                  new RefreshToken(REFRESH_TOKEN_INITIAL)),
               TestConstants.NOW,
               Map.of("refresh_expires_in", 0L));
       assertThat(agent.refreshCurrentTokens(currentTokens)).isNotCompletedExceptionally();
@@ -317,7 +329,8 @@ class OAuth2AgentTest {
       currentTokens =
           TokensResult.of(
               new Tokens(
-                  new BearerAccessToken("access_initial"), new RefreshToken("refresh_initial")),
+                  new BearerAccessToken(ACCESS_TOKEN_INITIAL),
+                  new RefreshToken(REFRESH_TOKEN_INITIAL)),
               TestConstants.NOW,
               Map.of("refresh_expires_in", 5L));
       assertThat(agent.refreshCurrentTokens(currentTokens))
@@ -328,7 +341,8 @@ class OAuth2AgentTest {
       currentTokens =
           TokensResult.of(
               new Tokens(
-                  new BearerAccessToken("access_initial"), new RefreshToken("refresh_initial")),
+                  new BearerAccessToken(ACCESS_TOKEN_INITIAL),
+                  new RefreshToken(REFRESH_TOKEN_INITIAL)),
               TestConstants.NOW,
               Map.of("refresh_expires_in", 6L));
       assertThat(agent.refreshCurrentTokens(currentTokens)).isNotCompletedExceptionally();
@@ -351,10 +365,10 @@ class OAuth2AgentTest {
         OAuth2Agent agent = env.newAgent()) {
       TokensResult currentTokens = agent.authenticateInternal();
       assertTokensResult(
-          currentTokens, "access_initial", returnRefreshTokens ? "refresh_initial" : null);
+          currentTokens, ACCESS_TOKEN_INITIAL, returnRefreshTokens ? REFRESH_TOKEN_INITIAL : null);
       if (returnRefreshTokens) {
         currentTokens = agent.refreshCurrentTokens(currentTokens).toCompletableFuture().get();
-        assertTokensResult(currentTokens, "access_refreshed", "refresh_refreshed");
+        assertTokensResult(currentTokens, ACCESS_TOKEN_REFRESHED, REFRESH_TOKEN_REFRESHED);
       }
     }
   }
@@ -364,7 +378,11 @@ class OAuth2AgentTest {
       @Enum HttpClientType httpClientType,
       @EnumLike ClientAuthenticationMethod authenticationMethod,
       @Values(booleans = {true, false}) boolean returnRefreshTokens,
-      @EnumLike(excludes = "urn:ietf:params:oauth:grant-type:token-exchange")
+      @EnumLike(
+              excludes = {
+                "urn:ietf:params:oauth:grant-type:jwt-bearer",
+                "urn:ietf:params:oauth:grant-type:token-exchange"
+              })
           GrantType subjectGrantType)
       throws InterruptedException, ExecutionException {
     assumeTrue(
@@ -381,10 +399,11 @@ class OAuth2AgentTest {
                 .build();
         OAuth2Agent agent = env.newAgent()) {
       TokensResult tokens = agent.authenticateInternal();
-      assertTokensResult(tokens, "access_initial", returnRefreshTokens ? "refresh_initial" : null);
+      assertTokensResult(
+          tokens, ACCESS_TOKEN_INITIAL, returnRefreshTokens ? REFRESH_TOKEN_INITIAL : null);
       if (returnRefreshTokens) {
         tokens = agent.refreshCurrentTokens(tokens).toCompletableFuture().get();
-        assertTokensResult(tokens, "access_refreshed", "refresh_refreshed");
+        assertTokensResult(tokens, ACCESS_TOKEN_REFRESHED, REFRESH_TOKEN_REFRESHED);
       }
     }
   }
@@ -394,7 +413,11 @@ class OAuth2AgentTest {
       @Enum HttpClientType httpClientType,
       @EnumLike ClientAuthenticationMethod authenticationMethod,
       @Values(booleans = {true, false}) boolean returnRefreshTokens,
-      @EnumLike(excludes = "urn:ietf:params:oauth:grant-type:token-exchange")
+      @EnumLike(
+              excludes = {
+                "urn:ietf:params:oauth:grant-type:jwt-bearer",
+                "urn:ietf:params:oauth:grant-type:token-exchange"
+              })
           GrantType actorGrantType)
       throws InterruptedException, ExecutionException {
     assumeTrue(
@@ -411,10 +434,11 @@ class OAuth2AgentTest {
                 .build();
         OAuth2Agent agent = env.newAgent()) {
       TokensResult tokens = agent.authenticateInternal();
-      assertTokensResult(tokens, "access_initial", returnRefreshTokens ? "refresh_initial" : null);
+      assertTokensResult(
+          tokens, ACCESS_TOKEN_INITIAL, returnRefreshTokens ? REFRESH_TOKEN_INITIAL : null);
       if (returnRefreshTokens) {
         tokens = agent.refreshCurrentTokens(tokens).toCompletableFuture().get();
-        assertTokensResult(tokens, "access_refreshed", "refresh_refreshed");
+        assertTokensResult(tokens, ACCESS_TOKEN_REFRESHED, REFRESH_TOKEN_REFRESHED);
       }
     }
   }
@@ -458,16 +482,111 @@ class OAuth2AgentTest {
   }
 
   @CartesianTest
+  void testJwtBearerStaticAssertion(
+      @Enum HttpClientType httpClientType,
+      @EnumLike ClientAuthenticationMethod authenticationMethod,
+      @Values(booleans = {true, false}) boolean returnRefreshTokens)
+      throws ExecutionException, InterruptedException {
+    try (TestEnvironment env =
+            TestEnvironment.builder()
+                .grantType(GrantType.JWT_BEARER)
+                .httpClientType(httpClientType)
+                .clientAuthenticationMethod(authenticationMethod)
+                .returnRefreshTokens(returnRefreshTokens)
+                .build();
+        OAuth2Agent agent = env.newAgent()) {
+      TokensResult currentTokens = agent.authenticateInternal();
+      assertTokensResult(
+          currentTokens, ACCESS_TOKEN_INITIAL, returnRefreshTokens ? REFRESH_TOKEN_INITIAL : null);
+      if (returnRefreshTokens) {
+        currentTokens = agent.refreshCurrentTokens(currentTokens).toCompletableFuture().get();
+        assertTokensResult(currentTokens, ACCESS_TOKEN_REFRESHED, REFRESH_TOKEN_REFRESHED);
+      }
+    }
+  }
+
+  @CartesianTest
+  void testJwtBearerDynamicAssertion(
+      @Enum HttpClientType httpClientType,
+      @EnumLike ClientAuthenticationMethod authenticationMethod,
+      @Values(booleans = {true, false}) boolean returnRefreshTokens,
+      @EnumLike(
+              excludes = {
+                "urn:ietf:params:oauth:grant-type:jwt-bearer",
+                "urn:ietf:params:oauth:grant-type:token-exchange"
+              })
+          GrantType assertionGrantType)
+      throws InterruptedException, ExecutionException {
+    assumeTrue(
+        !assertionGrantType.equals(GrantType.CLIENT_CREDENTIALS)
+            || !authenticationMethod.equals(ClientAuthenticationMethod.NONE));
+    try (TestEnvironment env =
+            TestEnvironment.builder()
+                .grantType(GrantType.JWT_BEARER)
+                .httpClientType(httpClientType)
+                .assertion(null)
+                .assertionGrantType(assertionGrantType)
+                .clientAuthenticationMethod(authenticationMethod)
+                .returnRefreshTokens(returnRefreshTokens)
+                .build();
+        OAuth2Agent agent = env.newAgent()) {
+      TokensResult tokens = agent.authenticateInternal();
+      assertTokensResult(
+          tokens, ACCESS_TOKEN_INITIAL, returnRefreshTokens ? REFRESH_TOKEN_INITIAL : null);
+      if (returnRefreshTokens) {
+        tokens = agent.refreshCurrentTokens(tokens).toCompletableFuture().get();
+        assertTokensResult(tokens, ACCESS_TOKEN_REFRESHED, REFRESH_TOKEN_REFRESHED);
+      }
+    }
+  }
+
+  @Test
+  void testJwtBearerAssertionNotJwt() {
+    try (TestEnvironment env =
+            TestEnvironment.builder()
+                .grantType(GrantType.JWT_BEARER)
+                .assertion("NotAValidJWT")
+                .build();
+        OAuth2Agent agent = env.newAgent()) {
+      soft.assertThatThrownBy(agent::authenticate)
+          .isInstanceOf(RuntimeException.class)
+          .hasMessageContaining("Cannot acquire a valid OAuth2 access token")
+          .rootCause()
+          .isInstanceOf(ParseException.class)
+          .hasMessageContaining("The assertion is not a JWT");
+    }
+  }
+
+  @Test
+  void testJwtBearerAssertionInvalid() {
+    try (TestEnvironment env =
+            TestEnvironment.builder()
+                .grantType(GrantType.JWT_BEARER)
+                .assertion(SUBJECT_TOKEN /* invalid JWT */)
+                .build();
+        OAuth2Agent agent = env.newAgent()) {
+      soft.assertThatThrownBy(agent::authenticate)
+          .asInstanceOf(throwable(OAuth2Exception.class))
+          .extracting(OAuth2Exception::getErrorObject)
+          .satisfies(
+              r -> {
+                soft.assertThat(r.getCode()).isEqualTo("invalid_request");
+                soft.assertThat(r.getDescription()).contains("Invalid request");
+              });
+    }
+  }
+
+  @CartesianTest
   @EnumSource(HttpClientType.class)
   void testStaticToken(@Enum HttpClientType httpClientType) {
     try (TestEnvironment env =
             TestEnvironment.builder()
                 .httpClientType(httpClientType)
-                .token(new TypelessAccessToken("access_initial"))
+                .token(new TypelessAccessToken(ACCESS_TOKEN_INITIAL))
                 .build();
         OAuth2Agent agent = env.newAgent()) {
       TokensResult tokens = agent.authenticateInternal();
-      assertAccessToken(tokens.getTokens().getAccessToken(), "access_initial", 0);
+      assertAccessToken(tokens.getTokens().getAccessToken(), ACCESS_TOKEN_INITIAL, 0);
       // Cannot refresh a static token as there is no refresh token
       soft.assertThat(agent.refreshCurrentTokens(tokens))
           .completesExceptionallyWithin(Duration.ofSeconds(10))
@@ -533,7 +652,7 @@ class OAuth2AgentTest {
 
       try (OAuth2Agent agent = env.newAgent()) {
         TokensResult currentTokens = agent.authenticateInternal();
-        assertTokensResult(currentTokens, "access_initial", null);
+        assertTokensResult(currentTokens, ACCESS_TOKEN_INITIAL, null);
       }
 
       proxyServer.verify(request().withMethod("POST"), atLeast(1));
@@ -574,7 +693,7 @@ class OAuth2AgentTest {
 
       try (OAuth2Agent agent = env.newAgent()) {
         TokensResult currentTokens = agent.authenticateInternal();
-        assertTokensResult(currentTokens, "access_initial", null);
+        assertTokensResult(currentTokens, ACCESS_TOKEN_INITIAL, null);
       }
 
       proxyServer.verify(
@@ -599,7 +718,7 @@ class OAuth2AgentTest {
                 .build();
         OAuth2Agent agent1 = env.newAgent()) {
       TokensResult tokens = agent1.authenticateInternal();
-      assertTokensResult(tokens, "access_initial", "refresh_initial");
+      assertTokensResult(tokens, ACCESS_TOKEN_INITIAL, REFRESH_TOKEN_INITIAL);
       // 1) Test copy before close
       try (OAuth2Agent agent2 = agent1.copy()) {
         // Should have the same tokens instance
@@ -613,10 +732,10 @@ class OAuth2AgentTest {
         // Should be able to refresh tokens
         TokensResult refreshedTokens =
             agent2.refreshCurrentTokens(tokens).toCompletableFuture().get();
-        assertTokensResult(refreshedTokens, "access_refreshed", "refresh_refreshed");
+        assertTokensResult(refreshedTokens, ACCESS_TOKEN_REFRESHED, REFRESH_TOKEN_REFRESHED);
         // Should be able to fetch new tokens
         TokensResult newTokens = agent2.fetchNewTokens().toCompletableFuture().get();
-        assertTokensResult(newTokens, "access_initial", "refresh_initial");
+        assertTokensResult(newTokens, ACCESS_TOKEN_INITIAL, REFRESH_TOKEN_INITIAL);
       }
       // 2) Test copy after close
       try (OAuth2Agent agent3 = agent1.copy()) {
@@ -627,10 +746,10 @@ class OAuth2AgentTest {
         // Should be able to refresh tokens
         TokensResult refreshedTokens =
             agent3.refreshCurrentTokens(tokens).toCompletableFuture().get();
-        assertTokensResult(refreshedTokens, "access_refreshed", "refresh_refreshed");
+        assertTokensResult(refreshedTokens, ACCESS_TOKEN_REFRESHED, REFRESH_TOKEN_REFRESHED);
         // Should be able to fetch new tokens
         TokensResult newTokens = agent3.fetchNewTokens().toCompletableFuture().get();
-        assertTokensResult(newTokens, "access_initial", "refresh_initial");
+        assertTokensResult(newTokens, ACCESS_TOKEN_INITIAL, REFRESH_TOKEN_INITIAL);
       }
     }
   }
@@ -666,31 +785,31 @@ class OAuth2AgentTest {
           agent1.close();
           // Should still have tokens
           TokensResult tokens = agent2.authenticateInternal();
-          assertTokensResult(tokens, "access_initial", "refresh_initial");
+          assertTokensResult(tokens, ACCESS_TOKEN_INITIAL, REFRESH_TOKEN_INITIAL);
           soft.assertThat(tokens).isNotNull();
           // Should have a token refresh future
           soft.assertThat(agent2).extracting("tokenRefreshFuture").isNotNull();
           // Should be able to refresh tokens
           TokensResult refreshedTokens =
               agent2.refreshCurrentTokens(tokens).toCompletableFuture().get();
-          assertTokensResult(refreshedTokens, "access_refreshed", "refresh_refreshed");
+          assertTokensResult(refreshedTokens, ACCESS_TOKEN_REFRESHED, REFRESH_TOKEN_REFRESHED);
           // Should be able to fetch new tokens
           TokensResult newTokens = agent2.fetchNewTokens().toCompletableFuture().get();
-          assertTokensResult(newTokens, "access_initial", "refresh_initial");
+          assertTokensResult(newTokens, ACCESS_TOKEN_INITIAL, REFRESH_TOKEN_INITIAL);
         }
         // 2) Test copy after close
         try (OAuth2Agent agent3 = agent1.copy()) {
           // Should be able to fetch tokens even if the original agent failed
           TokensResult tokens = agent3.authenticateInternal();
-          assertTokensResult(tokens, "access_initial", "refresh_initial");
+          assertTokensResult(tokens, ACCESS_TOKEN_INITIAL, REFRESH_TOKEN_INITIAL);
           soft.assertThat(tokens).isNotNull();
           // Should be able to refresh tokens
           TokensResult refreshedTokens =
               agent3.refreshCurrentTokens(tokens).toCompletableFuture().get();
-          assertTokensResult(refreshedTokens, "access_refreshed", "refresh_refreshed");
+          assertTokensResult(refreshedTokens, ACCESS_TOKEN_REFRESHED, REFRESH_TOKEN_REFRESHED);
           // Should be able to fetch new tokens
           TokensResult newTokens = agent3.fetchNewTokens().toCompletableFuture().get();
-          assertTokensResult(newTokens, "access_initial", "refresh_initial");
+          assertTokensResult(newTokens, ACCESS_TOKEN_INITIAL, REFRESH_TOKEN_INITIAL);
         }
       }
     }
@@ -709,14 +828,14 @@ class OAuth2AgentTest {
 
       // should fetch the initial token
       AccessToken token = agent.authenticate();
-      soft.assertThat(token.getValue()).isEqualTo("access_initial");
+      soft.assertThat(token.getValue()).isEqualTo(ACCESS_TOKEN_INITIAL);
 
       // emulate executor running the scheduled renewal task
       currentRenewalTask.get().run();
 
       // should have refreshed the token
       token = agent.authenticate();
-      soft.assertThat(token.getValue()).isEqualTo("access_refreshed");
+      soft.assertThat(token.getValue()).isEqualTo(ACCESS_TOKEN_REFRESHED);
 
       Duration idleTimeout =
           env.getOAuth2Config().getTokenRefreshConfig().getIdleTimeout().plusSeconds(1);
@@ -728,7 +847,7 @@ class OAuth2AgentTest {
 
       // should exit sleeping mode on next authenticate() call and schedule a token refresh
       token = agent.authenticate();
-      soft.assertThat(token.getValue()).isEqualTo("access_refreshed");
+      soft.assertThat(token.getValue()).isEqualTo(ACCESS_TOKEN_REFRESHED);
       soft.assertThat(agent).extracting("sleeping", ATOMIC_BOOLEAN).isFalse();
 
       // emulate executor running the scheduled renewal task and detecting that the agent is idle
@@ -739,9 +858,9 @@ class OAuth2AgentTest {
 
       // should exit sleeping mode on next authenticate() call
       // and refresh tokens immediately because the current ones are expired
-      ((TestClock) env.getClock()).plus(TestConstants.ACCESS_TOKEN_LIFESPAN);
+      ((TestClock) env.getClock()).plus(ACCESS_TOKEN_LIFESPAN);
       token = agent.authenticate();
-      soft.assertThat(token.getValue()).isEqualTo("access_refreshed");
+      soft.assertThat(token.getValue()).isEqualTo(ACCESS_TOKEN_REFRESHED);
       soft.assertThat(agent).extracting("sleeping", ATOMIC_BOOLEAN).isFalse();
     }
   }
@@ -806,16 +925,16 @@ class OAuth2AgentTest {
       // then return the previously fetched token since it's still valid.
       AccessToken token = agent.authenticate();
       soft.assertThat(agent).extracting("sleeping", ATOMIC_BOOLEAN).isTrue();
-      soft.assertThat(token.getValue()).isEqualTo("access_initial");
+      soft.assertThat(token.getValue()).isEqualTo(ACCESS_TOKEN_INITIAL);
       soft.assertThat(currentRenewalTask.get()).isNull();
 
       // will wake up, then refresh the token immediately (since it's expired),
       // then reject scheduling the next refresh, then sleep again,
       // then return the newly-fetched token
-      ((TestClock) env.getClock()).plus(TestConstants.ACCESS_TOKEN_LIFESPAN);
+      ((TestClock) env.getClock()).plus(ACCESS_TOKEN_LIFESPAN);
       token = agent.authenticate();
       soft.assertThat(agent).extracting("sleeping", ATOMIC_BOOLEAN).isTrue();
-      soft.assertThat(token.getValue()).isEqualTo("access_initial");
+      soft.assertThat(token.getValue()).isEqualTo(ACCESS_TOKEN_INITIAL);
       soft.assertThat(currentRenewalTask.get()).isNull();
     }
   }
@@ -860,7 +979,7 @@ class OAuth2AgentTest {
       soft.assertThat(currentRenewalTask.get()).isNotNull().isNotSameAs(renewalTask);
       renewalTask = currentRenewalTask.get();
       AccessToken token = agent.authenticate();
-      soft.assertThat(token.getValue()).isEqualTo("access_initial");
+      soft.assertThat(token.getValue()).isEqualTo(ACCESS_TOKEN_INITIAL);
 
       // failure recovery when in sleep mode
 
@@ -879,9 +998,9 @@ class OAuth2AgentTest {
       // => should keep old tokens and schedule another refresh
       env.reset();
       env.createErrorExpectations();
-      ((TestClock) env.getClock()).plus(TestConstants.ACCESS_TOKEN_LIFESPAN);
+      ((TestClock) env.getClock()).plus(ACCESS_TOKEN_LIFESPAN);
       token = agent.authenticate();
-      soft.assertThat(token.getValue()).isEqualTo("access_refreshed"); // old tokens kept
+      soft.assertThat(token.getValue()).isEqualTo(ACCESS_TOKEN_REFRESHED); // old tokens kept
       soft.assertThat(agent).extracting("sleeping", ATOMIC_BOOLEAN).isFalse();
       soft.assertThat(currentRenewalTask.get()).isNotNull().isNotSameAs(renewalTask);
       renewalTask = currentRenewalTask.get();
@@ -893,7 +1012,7 @@ class OAuth2AgentTest {
       soft.assertThat(currentRenewalTask.get()).isSameAs(renewalTask);
       soft.assertThat(agent).extracting("sleeping", ATOMIC_BOOLEAN).isTrue();
       token = agent.getCurrentTokens().getTokens().getAccessToken();
-      soft.assertThat(token.getValue()).isEqualTo("access_refreshed"); // old tokens still kept
+      soft.assertThat(token.getValue()).isEqualTo(ACCESS_TOKEN_REFRESHED); // old tokens still kept
 
       // Emulate waking up; old tokens are available so renewal refreshes them,
       // then scheduling next refresh
@@ -901,7 +1020,7 @@ class OAuth2AgentTest {
       env.createExpectations();
       token = agent.authenticate();
       soft.assertThat(agent).extracting("sleeping", ATOMIC_BOOLEAN).isFalse();
-      soft.assertThat(token.getValue()).isEqualTo("access_refreshed");
+      soft.assertThat(token.getValue()).isEqualTo(ACCESS_TOKEN_REFRESHED);
       soft.assertThat(currentRenewalTask.get()).isNotSameAs(renewalTask);
       renewalTask = currentRenewalTask.get();
 
@@ -915,7 +1034,7 @@ class OAuth2AgentTest {
       // Emulate waking up, then rescheduling a refresh since current token is still valid
       token = agent.authenticate();
       soft.assertThat(agent).extracting("sleeping", ATOMIC_BOOLEAN).isFalse();
-      soft.assertThat(token.getValue()).isEqualTo("access_refreshed");
+      soft.assertThat(token.getValue()).isEqualTo(ACCESS_TOKEN_REFRESHED);
       soft.assertThat(currentRenewalTask.get()).isNotSameAs(renewalTask);
     }
   }
