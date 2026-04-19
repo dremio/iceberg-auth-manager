@@ -28,8 +28,8 @@ if (authMangerBuild.exists()) {
   }
 }
 
-if (!JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_11)) {
-  throw GradleException("Build requires Java 11 or later")
+if (!JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_17)) {
+  throw GradleException("Build requires Java 17 or later")
 }
 
 val baseVersion = file("version.txt").readText().trim()
