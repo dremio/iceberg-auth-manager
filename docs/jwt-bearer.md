@@ -42,13 +42,13 @@ Here is an example of using a static assertion:
 ```properties
 rest.auth.type=com.dremio.iceberg.authmgr.oauth2.OAuth2Manager
 
-rest.auth.oauth2.issuer-url=https://$IDP/realms/main
+rest.auth.oauth2.issuer-url=https://idp.example.com/realms/main
 rest.auth.oauth2.grant-type=urn:ietf:params:oauth:grant-type:jwt-bearer
-rest.auth.oauth2.client-id=Client1
-rest.auth.oauth2.client-secret=$CLIENT1_SECRET
-rest.auth.oauth2.scope=catalog1
+rest.auth.oauth2.client-id=my-client
+rest.auth.oauth2.client-secret=s3cret
+rest.auth.oauth2.scope=catalog
 
-rest.auth.oauth2.jwt-bearer.assertion=$ASSERTION
+rest.auth.oauth2.jwt-bearer.assertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.signature
 ```
 
 ### Using Dynamic Assertions
