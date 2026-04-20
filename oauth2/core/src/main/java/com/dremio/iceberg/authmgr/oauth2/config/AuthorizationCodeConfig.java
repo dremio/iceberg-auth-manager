@@ -230,6 +230,12 @@ public interface AuthorizationCodeConfig {
           "authorization code flow: SSL keystore path '%s' is not a file or is not readable",
           getSslKeyStorePath().get());
     }
+    if (getSslKeyStoreAlias().isPresent()) {
+      validator.check(
+          getSslKeyStorePath().isPresent(),
+          PREFIX + '.' + SSL_KEYSTORE_ALIAS,
+          "authorization code flow: SSL keystore alias requires a keystore path to be configured");
+    }
     validator.validate();
   }
 }

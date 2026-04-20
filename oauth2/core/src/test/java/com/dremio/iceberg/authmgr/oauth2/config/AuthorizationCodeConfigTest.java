@@ -19,6 +19,7 @@ import static com.dremio.iceberg.authmgr.oauth2.config.AuthorizationCodeConfig.C
 import static com.dremio.iceberg.authmgr.oauth2.config.AuthorizationCodeConfig.ENDPOINT;
 import static com.dremio.iceberg.authmgr.oauth2.config.AuthorizationCodeConfig.PKCE_METHOD;
 import static com.dremio.iceberg.authmgr.oauth2.config.AuthorizationCodeConfig.PREFIX;
+import static com.dremio.iceberg.authmgr.oauth2.config.AuthorizationCodeConfig.SSL_KEYSTORE_ALIAS;
 import static com.dremio.iceberg.authmgr.oauth2.config.AuthorizationCodeConfig.SSL_KEYSTORE_PATH;
 import static java.util.Collections.singletonList;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
@@ -92,6 +93,10 @@ class AuthorizationCodeConfigTest {
         Arguments.of(
             Map.of(PREFIX + '.' + SSL_KEYSTORE_PATH, "/invalid/path"),
             singletonList(
-                "authorization code flow: SSL keystore path '/invalid/path' is not a file or is not readable (rest.auth.oauth2.auth-code.ssl.key-store.path)")));
+                "authorization code flow: SSL keystore path '/invalid/path' is not a file or is not readable (rest.auth.oauth2.auth-code.ssl.key-store.path)")),
+        Arguments.of(
+            Map.of(PREFIX + '.' + SSL_KEYSTORE_ALIAS, "my-alias"),
+            singletonList(
+                "authorization code flow: SSL keystore alias requires a keystore path to be configured (rest.auth.oauth2.auth-code.ssl.key-store.alias)")));
   }
 }
