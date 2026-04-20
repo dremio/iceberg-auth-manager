@@ -157,6 +157,15 @@ public interface OAuth2Config {
           "either issuer URL or device authorization endpoint must be set if grant type is '%s'",
           GrantType.DEVICE_CODE.getValue());
     }
+    if (grantType.equals(GrantType.TOKEN_EXCHANGE)) {
+      validator.check(
+          getTokenExchangeConfig().getSubjectToken().isPresent()
+              || getTokenExchangeConfig().getSubjectTokenFile().isPresent()
+              || !getTokenExchangeConfig().getSubjectTokenConfig().isEmpty(),
+          TokenExchangeConfig.PREFIX + '.' + TokenExchangeConfig.SUBJECT_TOKEN,
+          "subject token must be set if grant type is '%s'",
+          GrantType.TOKEN_EXCHANGE.getValue());
+    }
     ClientAuthenticationMethod method = getBasicConfig().getClientAuthenticationMethod();
     if (ConfigUtils.requiresJwsAlgorithm(method)) {
       if (method.equals(ClientAuthenticationMethod.CLIENT_SECRET_JWT)) {

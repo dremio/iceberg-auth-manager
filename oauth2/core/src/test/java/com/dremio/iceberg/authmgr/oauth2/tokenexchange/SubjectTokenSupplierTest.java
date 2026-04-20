@@ -29,6 +29,9 @@ import com.nimbusds.oauth2.sdk.GrantType;
 import com.nimbusds.oauth2.sdk.token.AccessToken;
 import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
 import com.nimbusds.oauth2.sdk.token.TokenTypeURI;
+import io.smallrye.config.SmallRyeConfig;
+import io.smallrye.config.SmallRyeConfigBuilder;
+import io.smallrye.config.common.MapBackedConfigSource;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
@@ -78,7 +81,7 @@ class SubjectTokenSupplierTest {
   @Test
   @SuppressWarnings("resource")
   void testValidate() {
-    OAuth2Config config = createMainConfig(null, null, TokenTypeURI.ACCESS_TOKEN, Map.of());
+    OAuth2Config config = createInvalidMainConfig();
     assertThatIllegalArgumentException()
         .isThrownBy(() -> createSupplier(config))
         .withMessage("Subject token is dynamic but no configuration is provided");
@@ -102,7 +105,28 @@ class SubjectTokenSupplierTest {
       Path subjectTokenFile,
       TokenTypeURI subjectTokenType,
       Map<String, String> subjectTokenConfig) {
+    return OAuth2Config.from(
+        createProperties(subjectToken, subjectTokenFile, subjectTokenType, subjectTokenConfig));
+  }
 
+  private static OAuth2Config createInvalidMainConfig() {
+    SmallRyeConfig smallRyeConfig =
+        new SmallRyeConfigBuilder()
+            .withSources(
+                new MapBackedConfigSource(
+                    "catalog properties",
+                    createProperties(null, null, TokenTypeURI.ACCESS_TOKEN, Map.of()),
+                    200) {})
+            .withMapping(OAuth2Config.class)
+            .build();
+    return smallRyeConfig.getConfigMapping(OAuth2Config.class);
+  }
+
+  private static Map<String, String> createProperties(
+      String subjectToken,
+      Path subjectTokenFile,
+      TokenTypeURI subjectTokenType,
+      Map<String, String> subjectTokenConfig) {
     ImmutableMap.Builder<String, String> builder = ImmutableMap.builder();
 
     builder.put(PREFIX + '.' + BasicConfig.GRANT_TYPE, GrantType.TOKEN_EXCHANGE.getValue());
@@ -129,7 +153,7 @@ class SubjectTokenSupplierTest {
           subjectTokenFile.toString());
     }
 
-    return OAuth2Config.from(builder.build());
+    return builder.build();
   }
 
   private static SubjectTokenSupplier createSupplier(OAuth2Config config) {
