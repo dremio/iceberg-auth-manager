@@ -17,6 +17,8 @@ package com.dremio.iceberg.authmgr.oauth2.flow;
 
 import com.nimbusds.oauth2.sdk.ErrorObject;
 import com.nimbusds.oauth2.sdk.ErrorResponse;
+import java.util.stream.Collectors;
+import net.minidev.json.JSONObject;
 
 /** An exception thrown when the server replies with an OAuth2 error. */
 public final class OAuth2Exception extends RuntimeException {
@@ -28,7 +30,7 @@ public final class OAuth2Exception extends RuntimeException {
   }
 
   OAuth2Exception(ErrorObject errorObject) {
-    this("OAuth2 request failed: " + errorObject.getDescription(), errorObject);
+    this("OAuth2 request failed: " + formatErrorObject(errorObject.toJSONObject()), errorObject);
   }
 
   OAuth2Exception(String message, ErrorObject errorObject) {
@@ -38,5 +40,12 @@ public final class OAuth2Exception extends RuntimeException {
 
   public ErrorObject getErrorObject() {
     return errorObject;
+  }
+
+  private static String formatErrorObject(JSONObject jsonObject) {
+    return jsonObject.entrySet().stream()
+        .filter(entry -> entry.getValue() != null)
+        .map(entry -> entry.getKey() + ": " + entry.getValue())
+        .collect(Collectors.joining(", "));
   }
 }
