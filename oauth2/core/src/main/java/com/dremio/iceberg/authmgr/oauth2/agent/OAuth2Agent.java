@@ -43,7 +43,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
-import org.apache.iceberg.exceptions.RESTException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,9 +55,6 @@ public final class OAuth2Agent implements Closeable {
 
   private static final CompletableFuture<TokensResult> MUST_FETCH_NEW_TOKENS_FUTURE =
       CompletableFuture.failedFuture(MustFetchNewTokensException.INSTANCE);
-
-  private static final CompletableFuture<Void> DUMMY_COMPLETED_FUTURE =
-      CompletableFuture.completedFuture(null);
 
   private final OAuth2Config config;
   private final ScheduledExecutorService executor;
@@ -76,7 +72,6 @@ public final class OAuth2Agent implements Closeable {
   private volatile Instant lastAccess;
   private volatile Instant lastWarn;
 
-  @SuppressWarnings("FutureReturnValueIgnored")
   public OAuth2Agent(OAuth2Config config, OAuth2AgentRuntime runtime) {
     this.config = config;
     this.executor = runtime.getExecutor();
@@ -84,23 +79,42 @@ public final class OAuth2Agent implements Closeable {
     name = config.getSystemConfig().getAgentName();
     clock = runtime.getClock();
     lastAccess = clock.instant();
-    if (config.getBasicConfig().getToken().isPresent()) {
-      var currentTokens = TokensResult.of(config.getBasicConfig().getToken().get());
-      currentTokensFuture = CompletableFuture.completedFuture(currentTokens);
-      maybeScheduleTokensRenewal(currentTokens);
-    } else {
-      // when user interaction is not required, token fetch can happen immediately;
-      // otherwise, it will be deferred until authenticate() is called the first time,
-      // in order to avoid bothering the user with a login prompt before the agent is actually used.
-      var requiresUserInteraction =
-          ConfigUtils.requiresUserInteraction(config.getBasicConfig().getGrantType());
-      CompletableFuture<?> agentReady =
-          requiresUserInteraction ? agentAccessed : DUMMY_COMPLETED_FUTURE;
-      currentTokensFuture = agentReady.thenComposeAsync((v) -> fetchNewTokens(), executor);
-      currentTokensFuture
-          .whenComplete(this::log)
-          .whenComplete((tokens, error) -> maybeScheduleTokensRenewal(tokens));
-    }
+    config
+        .getBasicConfig()
+        .getToken()
+        .ifPresentOrElse(this::initWithStaticToken, this::initWithDynamicToken);
+  }
+
+  /**
+   * Initializes the agent with a static initial access token. In this situation, a static access
+   * token has been provided in the configuration, and it will be used as-is as the first initial
+   * token.
+   */
+  private void initWithStaticToken(AccessToken token) {
+    TokensResult currentTokens = TokensResult.of(token);
+    currentTokensFuture = CompletableFuture.completedFuture(currentTokens);
+    maybeScheduleTokensRenewal(currentTokens);
+  }
+
+  /**
+   * Initializes the agent with a dynamically-obtained initial access token.
+   *
+   * <p>This method triggers the initial token fetch operation, either immediately, or in a deferred
+   * fashion: when user interaction is not required, the initial token fetch can happen immediately;
+   * otherwise, it will be deferred until {@link #authenticate()} is called the first time, in order
+   * to avoid bothering the user with a login prompt before the agent is actually used.
+   */
+  @SuppressWarnings("FutureReturnValueIgnored")
+  private void initWithDynamicToken() {
+    boolean requiresUserInteraction =
+        ConfigUtils.requiresUserInteraction(config.getBasicConfig().getGrantType());
+    CompletableFuture<?> agentReady =
+        requiresUserInteraction ? agentAccessed : CompletableFuture.completedFuture(null);
+    currentTokensFuture =
+        agentReady
+            .thenComposeAsync(v -> fetchNewTokens(), executor)
+            .whenComplete(this::log)
+            .whenComplete((tokens, error) -> maybeScheduleTokensRenewal(tokens));
   }
 
   /** Copy constructor. */
@@ -178,16 +192,18 @@ public final class OAuth2Agent implements Closeable {
 
   TokensResult getCurrentTokens() {
     try {
-      Duration timeout = config.getBasicConfig().getTimeout();
-      return currentTokensFuture.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+      // This wait is guaranteed to never block indefinitely,
+      // because the current tokens future always completes eventually
+      // (either with tokens or with an error – including timeouts).
+      return currentTokensFuture.get();
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new RuntimeException(e);
-    } catch (TimeoutException e) {
-      throw new RuntimeException("Timed out waiting for an access token", e);
     } catch (ExecutionException e) {
       Throwable cause = e.getCause();
-      if (cause instanceof Error) {
+      if (cause instanceof TimeoutException) {
+        throw new RuntimeException("Token acquisition timed out", cause);
+      } else if (cause instanceof Error) {
         throw (Error) cause;
       } else if (cause instanceof OAuth2Exception) {
         throw (OAuth2Exception) cause;
@@ -217,13 +233,17 @@ public final class OAuth2Agent implements Closeable {
   CompletionStage<TokensResult> fetchNewTokens() {
     Flow flow = flowFactory.createInitialFlow();
     LOGGER.debug("[{}] Fetching new access token using {}", name, flow.getGrantType());
-    CompletionStage<TokensResult> newTokensStage = flow.fetchNewTokens();
+    Duration timeout = config.getBasicConfig().getTimeout();
+    CompletableFuture<TokensResult> newTokensFuture =
+        flow.fetchNewTokens()
+            .toCompletableFuture()
+            .orTimeout(timeout.toMillis(), TimeUnit.MILLISECONDS);
     // If the flow requires user interaction, update the last access time once the flow completes,
     // in order to better reflect when the agent was actually accessed for the last time.
     // This prevents the agent from going to sleep too early when the user is interacting with it.
     return ConfigUtils.requiresUserInteraction(config.getBasicConfig().getGrantType())
-        ? newTokensStage.whenComplete((tokens, error) -> lastAccess = clock.instant())
-        : newTokensStage;
+        ? newTokensFuture.whenComplete((tokens, error) -> lastAccess = clock.instant())
+        : newTokensFuture;
   }
 
   CompletionStage<TokensResult> refreshCurrentTokens(TokensResult currentTokens) {
@@ -236,28 +256,30 @@ public final class OAuth2Agent implements Closeable {
     }
     Flow flow = flowFactory.createTokenRefreshFlow(refreshToken);
     LOGGER.debug("[{}] Refreshing tokens using {}", name, flow.getGrantType());
-    return flow.fetchNewTokens();
+    Duration timeout = config.getBasicConfig().getTimeout();
+    return flow.fetchNewTokens()
+        .toCompletableFuture()
+        .orTimeout(timeout.toMillis(), TimeUnit.MILLISECONDS);
   }
 
   private void log(@Nullable TokensResult newTokens, @Nullable Throwable error) {
-    if (newTokens != null) {
-      if (LOGGER.isDebugEnabled()) {
-        LOGGER.debug("[{}] Successfully fetched new tokens", name);
-        LOGGER.debug(
-            "[{}] Access token expiration time: {}",
-            name,
-            newTokens.getAccessTokenExpirationTime());
-      }
-    } else if (!closing.get()) {
-      if (error instanceof CompletionException) {
-        error = error.getCause();
-      }
-      if (error instanceof RESTException) {
-        // Don't include the stack trace if the error is a RESTException,
-        // since it's not very useful and just clutters the logs.
-        maybeWarn("[{}] Failed to fetch new tokens: {}", name, error.toString());
-      } else {
-        maybeWarn("[{}] Failed to fetch new tokens", name, error);
+    if (!closing.get()) {
+      if (newTokens != null) {
+        if (LOGGER.isDebugEnabled()) {
+          LOGGER.debug(
+              "[{}] Successfully renewed tokens. Access token expiration time: {}",
+              name,
+              newTokens.getAccessTokenExpirationTime());
+        }
+      } else if (error != null) {
+        Throwable cause = error instanceof CompletionException ? error.getCause() : error;
+        if (cause instanceof OAuth2Exception) {
+          // Don't include the stack trace if the error is an OAuth2Exception,
+          // since it's not very useful and just clutters the logs.
+          maybeWarn("[{}] Failed to renew tokens: {}", name, cause.toString());
+        } else {
+          maybeWarn("[{}] Failed to renew tokens", name, cause);
+        }
       }
     }
   }
@@ -341,25 +363,79 @@ public final class OAuth2Agent implements Closeable {
       return;
     }
     CompletableFuture<TokensResult> oldTokensFuture = currentTokensFuture;
+    TokensResult oldTokens = Futures.getNow(oldTokensFuture);
     CompletableFuture<TokensResult> newTokensFuture =
         oldTokensFuture
-            // try refreshing the current access token, if any
+            // 1) try refreshing the current access token, if any, and if possible
             .thenCompose(this::refreshCurrentTokens)
-            // if that fails, try fetching brand-new tokens
-            // (note: exceptionallyCompose() would be better but it's Java 12+)
-            .handle(
-                (tokens, error) ->
-                    error == null ? CompletableFuture.completedFuture(tokens) : fetchNewTokens())
+            // 2) if that fails, try fetching brand-new tokens using the configured initial grant
+            .handle(this::handleRefreshResult)
+            .thenCompose(Function.identity())
+            // 3) log the result of the token renewal attempt
+            .whenComplete(this::log)
+            // 4) if the renewal attempt failed, keep the old tokens if available
+            .handle((newTokens, error) -> handleRenewalResult(oldTokens, newTokens, error))
             .thenCompose(Function.identity());
     currentTokensFuture = newTokensFuture;
     if (closing.get()) {
       // We raced with close(): cancel the future we just created.
       Futures.cancel(newTokensFuture);
     } else {
-      newTokensFuture
-          .whenComplete(this::log)
-          .whenComplete((tokens, error) -> maybeScheduleTokensRenewal(tokens));
+      // 5) schedule the next token renewal
+      newTokensFuture.whenComplete((tokens, error) -> maybeScheduleTokensRenewal(tokens));
     }
+  }
+
+  /**
+   * Handles the result of a token refresh attempt. If the refresh wasn't successful, or if the
+   * refreshed access token lifespan is too short, the refreshed token is discarded and a new token
+   * is fetched.
+   */
+  private CompletionStage<TokensResult> handleRefreshResult(
+      @Nullable TokensResult newTokens, @Nullable Throwable error) {
+    if (newTokens != null) {
+      Instant now = clock.instant();
+      Instant expirationTime = expirationTime(newTokens);
+      Duration safetyWindow = config.getTokenRefreshConfig().getSafetyWindow();
+      if (expirationTime.minus(safetyWindow).isAfter(now)) {
+        return CompletableFuture.completedFuture(newTokens);
+      } else {
+        LOGGER.debug("[{}] Refreshed access token is too short: fetching new tokens instead", name);
+      }
+    } else if (error != null) {
+      Throwable cause = error instanceof CompletionException ? error.getCause() : error;
+      if (!(cause instanceof MustFetchNewTokensException)) {
+        LOGGER.debug("[{}] Refresh failed unexpectedly, fetching new tokens instead", name, error);
+      }
+    }
+    return fetchNewTokens();
+  }
+
+  /**
+   * Handles the result of a token renewal attempt. If the renewal wasn't successful, the old tokens
+   * are kept if available; otherwise, the error is propagated.
+   */
+  private CompletionStage<TokensResult> handleRenewalResult(
+      @Nullable TokensResult oldTokens,
+      @Nullable TokensResult newTokens,
+      @Nullable Throwable error) {
+    return error == null
+        ? CompletableFuture.completedFuture(newTokens)
+        : oldTokens != null
+            ? CompletableFuture.completedFuture(oldTokens)
+            : CompletableFuture.failedFuture(error);
+  }
+
+  /**
+   * Returns the access token expiration time, based on {@link
+   * TokensResult#getAccessTokenExpirationTime()} if available, or by adding the default access
+   * token lifespan to the current time otherwise.
+   */
+  private Instant expirationTime(TokensResult currentTokens) {
+    Instant exp = currentTokens.getAccessTokenExpirationTime();
+    return exp != null
+        ? exp
+        : clock.instant().plus(config.getTokenRefreshConfig().getAccessTokenLifespan());
   }
 
   private void maybeSleep() {

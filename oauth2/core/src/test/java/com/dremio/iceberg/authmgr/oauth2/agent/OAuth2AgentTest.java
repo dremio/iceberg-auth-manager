@@ -183,7 +183,7 @@ class OAuth2AgentTest {
                 .build();
         OAuth2Agent agent = env.newAgent()) {
       soft.assertThatThrownBy(agent::authenticate)
-          .hasMessage("Timed out waiting for an access token")
+          .hasMessage("Token acquisition timed out")
           .cause()
           .isInstanceOf(TimeoutException.class);
     }
@@ -232,7 +232,7 @@ class OAuth2AgentTest {
                 .build();
         OAuth2Agent agent = env.newAgent()) {
       soft.assertThatThrownBy(agent::authenticate)
-          .hasMessage("Timed out waiting for an access token")
+          .hasMessage("Token acquisition timed out")
           .cause()
           .isInstanceOf(TimeoutException.class);
     }
@@ -249,7 +249,7 @@ class OAuth2AgentTest {
         OAuth2Agent agent = env.newAgent()) {
       // A user failure means the flow will never complete, so a timeout is expected
       soft.assertThatThrownBy(agent::authenticate)
-          .hasMessage("Timed out waiting for an access token")
+          .hasMessage("Token acquisition timed out")
           .cause()
           .isInstanceOf(TimeoutException.class);
     }
@@ -871,11 +871,12 @@ class OAuth2AgentTest {
 
       // Emulate waking up when current access token has expired,
       // then getting an error when renewing tokens immediately
-      // => should propagate the error but schedule another refresh
+      // => should keep old tokens and schedule another refresh
       env.reset();
       env.createErrorExpectations();
       ((TestClock) env.getClock()).plus(TestConstants.ACCESS_TOKEN_LIFESPAN);
-      soft.assertThatThrownBy(agent::authenticate).isInstanceOf(OAuth2Exception.class);
+      token = agent.authenticate();
+      soft.assertThat(token.getValue()).isEqualTo("access_refreshed"); // old tokens kept
       soft.assertThat(agent).extracting("sleeping", ATOMIC_BOOLEAN).isFalse();
       soft.assertThat(currentRenewalTask.get()).isNotNull().isNotSameAs(renewalTask);
       renewalTask = currentRenewalTask.get();
@@ -886,15 +887,16 @@ class OAuth2AgentTest {
       renewalTask.run();
       soft.assertThat(currentRenewalTask.get()).isSameAs(renewalTask);
       soft.assertThat(agent).extracting("sleeping", ATOMIC_BOOLEAN).isTrue();
-      soft.assertThatThrownBy(agent::getCurrentTokens).isInstanceOf(OAuth2Exception.class);
+      token = agent.getCurrentTokens().getTokens().getAccessToken();
+      soft.assertThat(token.getValue()).isEqualTo("access_refreshed"); // old tokens still kept
 
-      // Emulate waking up, then fetching tokens immediately because no tokens are available,
+      // Emulate waking up; old tokens are available so renewal refreshes them,
       // then scheduling next refresh
       env.reset();
       env.createExpectations();
       token = agent.authenticate();
       soft.assertThat(agent).extracting("sleeping", ATOMIC_BOOLEAN).isFalse();
-      soft.assertThat(token.getValue()).isEqualTo("access_initial");
+      soft.assertThat(token.getValue()).isEqualTo("access_refreshed");
       soft.assertThat(currentRenewalTask.get()).isNotSameAs(renewalTask);
       renewalTask = currentRenewalTask.get();
 
