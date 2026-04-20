@@ -198,8 +198,13 @@ class OAuth2AgentTest {
                 .build();
         OAuth2Agent agent = env.newAgent()) {
       soft.assertThatThrownBy(agent::authenticate)
-          .isInstanceOf(OAuth2Exception.class)
-          .hasMessageContaining("OAuth2 request failed: Invalid request");
+          .asInstanceOf(throwable(OAuth2Exception.class))
+          .extracting(OAuth2Exception::getErrorObject)
+          .satisfies(
+              r -> {
+                soft.assertThat(r.getCode()).isEqualTo("invalid_request");
+                soft.assertThat(r.getDescription()).contains("Invalid request");
+              });
     }
   }
 
