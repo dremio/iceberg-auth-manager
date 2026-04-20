@@ -50,8 +50,8 @@ public interface TokenExchangeConfig {
   String ACTOR_TOKEN_FILE = "actor-token-file";
   String ACTOR_TOKEN_TYPE = "actor-token-type";
   String REQUESTED_TOKEN_TYPE = "requested-token-type";
-  String RESOURCE = "resource";
-  String AUDIENCE = "audience";
+  String RESOURCES = "resources";
+  String AUDIENCES = "audiences";
 
   String DEFAULT_TOKEN_TYPE = "urn:ietf:params:oauth:token-type:access_token";
 
@@ -181,21 +181,23 @@ public interface TokenExchangeConfig {
   Map<String, String> getActorTokenConfig();
 
   /**
-   * A URI that indicates the target service or resource where the client intends to use the
-   * requested security token. Optional.
-   */
-  @WithName(RESOURCE)
-  Optional<URI> getResource();
-
-  /**
-   * The logical name of the target service where the client intends to use the requested security
-   * token. This serves a purpose similar to the resource parameter but with the client providing a
-   * logical name for the target service.
+   * One or more URIs that indicate the target service(s) or resource(s) where the client intends to
+   * use the requested security token.
    *
    * <p>Optional. Can be a single value or a comma-separated list of values.
    */
-  @WithName(AUDIENCE)
-  Optional<List<Audience>> getAudience();
+  @WithName(RESOURCES)
+  Optional<List<URI>> getResources();
+
+  /**
+   * The logical name of the target service(s) where the client intends to use the requested
+   * security token. This serves a purpose similar to the resource parameter but with the client
+   * providing a logical name for the target service.
+   *
+   * <p>Optional. Can be a single value or a comma-separated list of values.
+   */
+  @WithName(AUDIENCES)
+  Optional<List<Audience>> getAudiences();
 
   default void validate() {
     ConfigValidator validator = new ConfigValidator();

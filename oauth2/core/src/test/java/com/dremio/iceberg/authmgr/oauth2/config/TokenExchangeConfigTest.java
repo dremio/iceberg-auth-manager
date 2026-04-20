@@ -16,8 +16,9 @@
 package com.dremio.iceberg.authmgr.oauth2.config;
 
 import static com.dremio.iceberg.authmgr.oauth2.config.TokenExchangeConfig.ACTOR_TOKEN_FILE;
-import static com.dremio.iceberg.authmgr.oauth2.config.TokenExchangeConfig.AUDIENCE;
+import static com.dremio.iceberg.authmgr.oauth2.config.TokenExchangeConfig.AUDIENCES;
 import static com.dremio.iceberg.authmgr.oauth2.config.TokenExchangeConfig.PREFIX;
+import static com.dremio.iceberg.authmgr.oauth2.config.TokenExchangeConfig.RESOURCES;
 import static com.dremio.iceberg.authmgr.oauth2.config.TokenExchangeConfig.SUBJECT_TOKEN;
 import static com.dremio.iceberg.authmgr.oauth2.config.TokenExchangeConfig.SUBJECT_TOKEN_FILE;
 import static java.util.Collections.singletonList;
@@ -30,6 +31,7 @@ import com.nimbusds.oauth2.sdk.id.Audience;
 import io.smallrye.config.SmallRyeConfig;
 import io.smallrye.config.SmallRyeConfigBuilder;
 import io.smallrye.config.common.MapBackedConfigSource;
+import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -86,7 +88,7 @@ class TokenExchangeConfigTest {
             .withSources(new MapBackedConfigSource("catalog-properties", properties, 1000) {})
             .build();
     TokenExchangeConfig config = smallRyeConfig.getConfigMapping(TokenExchangeConfig.class, PREFIX);
-    assertThat(config.getAudience()).isEmpty();
+    assertThat(config.getAudiences()).isEmpty();
   }
 
   @Test
@@ -94,7 +96,7 @@ class TokenExchangeConfigTest {
     Map<String, String> properties =
         ImmutableMap.<String, String>builder()
             .put(PREFIX + '.' + SUBJECT_TOKEN, "subject-token")
-            .put(PREFIX + '.' + AUDIENCE, "https://example.com/resource")
+            .put(PREFIX + '.' + AUDIENCES, "https://example.com/resource")
             .build();
     SmallRyeConfig smallRyeConfig =
         new SmallRyeConfigBuilder()
@@ -102,17 +104,48 @@ class TokenExchangeConfigTest {
             .withSources(new MapBackedConfigSource("catalog-properties", properties, 1000) {})
             .build();
     TokenExchangeConfig config = smallRyeConfig.getConfigMapping(TokenExchangeConfig.class, PREFIX);
-    assertThat(config.getAudience())
+    assertThat(config.getAudiences())
         .contains(List.of(new Audience("https://example.com/resource")));
   }
 
   @Test
-  void testMultipleAudiences() {
+  void testResourcesEmpty() {
+    Map<String, String> properties =
+        ImmutableMap.<String, String>builder()
+            .put(PREFIX + '.' + SUBJECT_TOKEN, "subject-token")
+            .build();
+    SmallRyeConfig smallRyeConfig =
+        new SmallRyeConfigBuilder()
+            .withMapping(TokenExchangeConfig.class, PREFIX)
+            .withSources(new MapBackedConfigSource("catalog-properties", properties, 1000) {})
+            .build();
+    TokenExchangeConfig config = smallRyeConfig.getConfigMapping(TokenExchangeConfig.class, PREFIX);
+    assertThat(config.getResources()).isEmpty();
+  }
+
+  @Test
+  void testSingleResource() {
+    Map<String, String> properties =
+        ImmutableMap.<String, String>builder()
+            .put(PREFIX + '.' + SUBJECT_TOKEN, "subject-token")
+            .put(PREFIX + '.' + RESOURCES, "https://example.com/resource")
+            .build();
+    SmallRyeConfig smallRyeConfig =
+        new SmallRyeConfigBuilder()
+            .withMapping(TokenExchangeConfig.class, PREFIX)
+            .withSources(new MapBackedConfigSource("catalog-properties", properties, 1000) {})
+            .build();
+    TokenExchangeConfig config = smallRyeConfig.getConfigMapping(TokenExchangeConfig.class, PREFIX);
+    assertThat(config.getResources()).contains(List.of(URI.create("https://example.com/resource")));
+  }
+
+  @Test
+  void testMultipleResources() {
     Map<String, String> properties =
         ImmutableMap.<String, String>builder()
             .put(PREFIX + '.' + SUBJECT_TOKEN, "subject-token")
             .put(
-                PREFIX + '.' + AUDIENCE,
+                PREFIX + '.' + RESOURCES,
                 "https://example.com/resource1,https://example.com/resource2")
             .build();
     SmallRyeConfig smallRyeConfig =
@@ -121,7 +154,29 @@ class TokenExchangeConfigTest {
             .withSources(new MapBackedConfigSource("catalog-properties", properties, 1000) {})
             .build();
     TokenExchangeConfig config = smallRyeConfig.getConfigMapping(TokenExchangeConfig.class, PREFIX);
-    assertThat(config.getAudience())
+    assertThat(config.getResources())
+        .contains(
+            List.of(
+                URI.create("https://example.com/resource1"),
+                URI.create("https://example.com/resource2")));
+  }
+
+  @Test
+  void testMultipleAudiences() {
+    Map<String, String> properties =
+        ImmutableMap.<String, String>builder()
+            .put(PREFIX + '.' + SUBJECT_TOKEN, "subject-token")
+            .put(
+                PREFIX + '.' + AUDIENCES,
+                "https://example.com/resource1,https://example.com/resource2")
+            .build();
+    SmallRyeConfig smallRyeConfig =
+        new SmallRyeConfigBuilder()
+            .withMapping(TokenExchangeConfig.class, PREFIX)
+            .withSources(new MapBackedConfigSource("catalog-properties", properties, 1000) {})
+            .build();
+    TokenExchangeConfig config = smallRyeConfig.getConfigMapping(TokenExchangeConfig.class, PREFIX);
+    assertThat(config.getAudiences())
         .contains(
             List.of(
                 new Audience("https://example.com/resource1"),

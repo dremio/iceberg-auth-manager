@@ -381,13 +381,15 @@ rest.auth.oauth2.token-exchange.actor-token.client-secret=actor-client-secret
 
 The above configuration will result in a token exchange where the actor token is obtained using the client credentials grant type, with specific client ID and secret, but sharing the token endpoint, client authentication method and other settings with the main agent.
 
-### `rest.auth.oauth2.token-exchange.resource`
+### `rest.auth.oauth2.token-exchange.resources`
 
-A URI that indicates the target service or resource where the client intends to use the requested security token. Optional.
+One or more URIs that indicate the target service(s) or resource(s) where the client intends to use the requested security token.
 
-### `rest.auth.oauth2.token-exchange.audience`
+Optional. Can be a single value or a comma-separated list of values.
 
-The logical name of the target service where the client intends to use the requested security token. This serves a purpose similar to the resource parameter but with the client providing a logical name for the target service.
+### `rest.auth.oauth2.token-exchange.audiences`
+
+The logical name of the target service(s) where the client intends to use the requested security token. This serves a purpose similar to the resource parameter but with the client providing a logical name for the target service.
 
 Optional. Can be a single value or a comma-separated list of values.
 
