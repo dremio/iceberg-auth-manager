@@ -17,11 +17,8 @@ package com.dremio.iceberg.authmgr.oauth2.config;
 
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Config;
 import com.dremio.iceberg.authmgr.oauth2.config.validator.ConfigValidator;
-import com.nimbusds.oauth2.sdk.GrantType;
-import io.smallrye.config.WithDefault;
 import io.smallrye.config.WithName;
 import java.net.URI;
-import java.time.Duration;
 import java.util.Optional;
 
 /**
@@ -38,9 +35,6 @@ public interface DeviceCodeConfig {
   String PREFIX = OAuth2Config.PREFIX + '.' + GROUP_NAME;
 
   String ENDPOINT = "endpoint";
-  String POLL_INTERVAL = "poll-interval";
-
-  String DEFAULT_POLL_INTERVAL = "PT5S";
 
   /**
    * URL of the OAuth2 device authorization endpoint. For Keycloak, this is typically {@code
@@ -52,39 +46,6 @@ public interface DeviceCodeConfig {
   @WithName(ENDPOINT)
   Optional<URI> getDeviceAuthorizationEndpoint();
 
-  /**
-   * Defines how often the agent should poll the OAuth2 server for the device code flow to complete.
-   * This is only used if the grant type to use is {@link GrantType#DEVICE_CODE}. Optional, defaults
-   * to {@value #DEFAULT_POLL_INTERVAL}.
-   */
-  @WithName(POLL_INTERVAL)
-  @WithDefault(DEFAULT_POLL_INTERVAL)
-  Duration getPollInterval();
-
-  /**
-   * The minimum poll interval for the device code flow. The device code flow requires a minimum
-   * poll interval of 5 seconds.
-   *
-   * <p>This setting is not exposed as a configuration option and is intended for testing purposes.
-   *
-   * @hidden
-   */
-  @WithName("min-poll-interval")
-  @WithDefault(DEFAULT_POLL_INTERVAL) // mandated by the specs
-  Duration getMinPollInterval();
-
-  /**
-   * Whether to ignore the server-specified poll interval and always use the configured poll
-   * interval.
-   *
-   * <p>This setting is not exposed as a configuration option and is intended for testing purposes.
-   *
-   * @hidden
-   */
-  @WithName("ignore-server-poll-interval")
-  @WithDefault("false")
-  boolean ignoreServerPollInterval();
-
   default void validate() {
     ConfigValidator validator = new ConfigValidator();
     if (getDeviceAuthorizationEndpoint().isPresent()) {
@@ -93,11 +54,6 @@ public interface DeviceCodeConfig {
           PREFIX + '.' + ENDPOINT,
           "device code flow: device authorization endpoint");
     }
-    validator.check(
-        getPollInterval().compareTo(getMinPollInterval()) >= 0,
-        PREFIX + '.' + POLL_INTERVAL,
-        "device code flow: poll interval must be greater than or equal to %s",
-        getMinPollInterval());
     validator.validate();
   }
 }

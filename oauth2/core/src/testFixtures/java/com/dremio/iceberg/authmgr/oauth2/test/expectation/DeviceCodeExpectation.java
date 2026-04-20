@@ -112,8 +112,9 @@ public abstract class DeviceCodeExpectation extends InitialTokenFetchExpectation
                               getTestEnvironment().getDeviceVerificationEndpoint().toString(),
                               "expires_in",
                               300,
+                              // Zero is not a valid interval per the RFC, but speeds up unit tests
                               "interval",
-                              1)));
+                              0)));
             });
   }
 

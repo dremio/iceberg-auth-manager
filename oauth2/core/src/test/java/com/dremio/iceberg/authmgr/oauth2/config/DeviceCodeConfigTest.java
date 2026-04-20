@@ -16,7 +16,6 @@
 package com.dremio.iceberg.authmgr.oauth2.config;
 
 import static com.dremio.iceberg.authmgr.oauth2.config.DeviceCodeConfig.ENDPOINT;
-import static com.dremio.iceberg.authmgr.oauth2.config.DeviceCodeConfig.POLL_INTERVAL;
 import static com.dremio.iceberg.authmgr.oauth2.config.DeviceCodeConfig.PREFIX;
 import static java.util.Collections.singletonList;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
@@ -61,14 +60,6 @@ class DeviceCodeConfigTest {
         Arguments.of(
             Map.of(PREFIX + '.' + ENDPOINT, "https://example.com#fragment"),
             singletonList(
-                "device code flow: device authorization endpoint must not have a fragment part (rest.auth.oauth2.device-code.endpoint)")),
-        Arguments.of(
-            Map.of(
-                PREFIX + '.' + ENDPOINT,
-                "https://example.com",
-                PREFIX + '.' + POLL_INTERVAL,
-                "PT1S"),
-            singletonList(
-                "device code flow: poll interval must be greater than or equal to PT5S (rest.auth.oauth2.device-code.poll-interval)")));
+                "device code flow: device authorization endpoint must not have a fragment part (rest.auth.oauth2.device-code.endpoint)")));
   }
 }
