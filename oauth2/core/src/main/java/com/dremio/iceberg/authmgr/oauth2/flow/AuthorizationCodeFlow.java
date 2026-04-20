@@ -16,7 +16,6 @@
 package com.dremio.iceberg.authmgr.oauth2.flow;
 
 import static java.net.HttpURLConnection.HTTP_OK;
-import static java.net.HttpURLConnection.HTTP_UNAUTHORIZED;
 
 import com.dremio.iceberg.authmgr.oauth2.config.AuthorizationCodeConfig;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
@@ -266,7 +265,7 @@ abstract class AuthorizationCodeFlow extends AbstractFlow {
       if (error == null) {
         writeResponse(exchange, HTTP_OK, HTML_TEMPLATE_OK);
       } else {
-        writeResponse(exchange, HTTP_UNAUTHORIZED, HTML_TEMPLATE_FAILED, error.toString());
+        writeResponse(exchange, HTTP_OK, HTML_TEMPLATE_FAILED, error.toString());
       }
     } catch (IOException e) {
       LOGGER.debug("[{}] Authorization Code Flow: error writing response", getAgentName(), e);
