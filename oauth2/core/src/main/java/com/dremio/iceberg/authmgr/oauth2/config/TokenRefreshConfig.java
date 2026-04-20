@@ -34,7 +34,7 @@ public interface TokenRefreshConfig {
   String SAFETY_WINDOW = "safety-window";
   String IDLE_TIMEOUT = "idle-timeout";
 
-  String DEFAULT_ACCESS_TOKEN_LIFESPAN = "PT5M";
+  String DEFAULT_ACCESS_TOKEN_LIFESPAN = "PT1H";
   String DEFAULT_SAFETY_WINDOW = "PT10S";
   String DEFAULT_IDLE_TIMEOUT = "PT30S";
 
