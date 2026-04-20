@@ -37,13 +37,18 @@ import com.sun.net.httpserver.HttpsConfigurator;
 import com.sun.net.httpserver.HttpsParameters;
 import com.sun.net.httpserver.HttpsServer;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintStream;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.security.KeyStore;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Phaser;
@@ -345,18 +350,37 @@ abstract class AuthorizationCodeFlow extends AbstractFlow {
   private SSLContext createSslContext() throws Exception {
     AuthorizationCodeConfig config = getConfig().getAuthorizationCodeConfig();
     if (config.getSslKeyStorePath().isPresent()) {
+
+      // The same password is used for both the store and the key; a separate key password config
+      // is not exposed because PKCS12 keystores require them to be identical, and JKS keystores
+      // rarely use different ones in practice.
+      Optional<char[]> password = config.getSslKeyStorePassword().map(String::toCharArray);
+
+      // Note: the defaults for store and key passwords when no password is configured
+      // differ because the underlying APIs have different semantics:
+      // - KeyStore.load(): null means "no password protection"
+      // - KeyManagerFactory.init() requires a non-null password; empty array means "empty password"
+      char[] storePassword = password.orElse(null);
+      char[] keyPassword = password.orElse(new char[0]);
+
+      KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
+      try (InputStream is = Files.newInputStream(config.getSslKeyStorePath().get())) {
+        keyStore.load(is, storePassword);
+      }
+
       PrivateKeyStrategy strategy = null;
       if (config.getSslKeyStoreAlias().isPresent()) {
         String alias = config.getSslKeyStoreAlias().get();
-        strategy = (aliases, sslParameters) -> aliases.containsKey(alias) ? alias : null;
+        if (!keyStore.containsAlias(alias)) {
+          throw new IllegalArgumentException(
+              String.format(
+                  "Key alias '%s' not found in keystore. Available aliases: %s",
+                  alias, Collections.list(keyStore.aliases())));
+        }
+        strategy = (aliases, sslParameters) -> alias;
       }
-      return SSLContextBuilder.create()
-          .loadKeyMaterial(
-              config.getSslKeyStorePath().get(),
-              config.getSslKeyStorePassword().map(String::toCharArray).orElse(null),
-              config.getSslKeyStorePassword().map(String::toCharArray).orElse(new char[0]),
-              strategy)
-          .build();
+
+      return SSLContextBuilder.create().loadKeyMaterial(keyStore, keyPassword, strategy).build();
     }
     return SSLContext.getDefault();
   }
