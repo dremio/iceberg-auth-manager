@@ -165,7 +165,7 @@ Whether to enable token refresh. If enabled, the agent will automatically refres
 
 Default access token lifespan; if the OAuth2 server returns an access token without specifying its expiration time, this value will be used. Note that when this happens, a warning will be logged.
 
-Optional, defaults to `PT5M`. Must be a valid [ISO-8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations).
+Optional, defaults to `PT1H`. Must be a valid [ISO-8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations).
 
 ### `rest.auth.oauth2.token-refresh.safety-window`
 
