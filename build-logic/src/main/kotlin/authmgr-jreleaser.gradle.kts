@@ -152,14 +152,14 @@ gradle.projectsEvaluated {
           content.set(
             """
             ## Try It Out
-            
+
             {{projectNameCapitalized}} is available as a Maven artifact from [Maven Central](https://central.sonatype.com/namespace/com.dremio.iceberg.authmgr).
             You can also download the latest version from the [GitHub Releases page]({{repoUrl}}/releases).
-            
+
             ## Highlights
-            
+
             The full changelog can be found [here]({{repoUrl}}/compare/{{previousTagName}}...{{tagName}}).
-            
+
             {{changelogChanges}}
             {{changelogContributors}}
             """

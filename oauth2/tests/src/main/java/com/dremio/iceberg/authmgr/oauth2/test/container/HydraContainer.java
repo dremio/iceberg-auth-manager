@@ -47,7 +47,7 @@ public class HydraContainer extends GenericContainer<HydraContainer> {
 
   @SuppressWarnings("resource")
   public HydraContainer() {
-    super("oryd/hydra:v2.3.0");
+    super("oryd/hydra:v26.2.0");
 
     withNetworkAliases("hydra");
     withLogConsumer(new Slf4jLogConsumer(LOGGER));

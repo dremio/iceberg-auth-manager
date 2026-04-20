@@ -392,7 +392,7 @@ public class OAuth2AgentKeycloakIT {
           .asInstanceOf(type(OAuth2Exception.class))
           .extracting(OAuth2Exception::getErrorObject)
           .extracting(ErrorObject::getHTTPStatusCode, ErrorObject::getCode)
-          .containsExactly(401, "invalid_grant");
+          .containsExactly(400, "invalid_grant");
     }
   }
 
@@ -412,7 +412,7 @@ public class OAuth2AgentKeycloakIT {
             .asInstanceOf(type(OAuth2Exception.class))
             .extracting(OAuth2Exception::getErrorObject)
             .extracting(ErrorObject::getHTTPStatusCode, ErrorObject::getCode)
-            .containsExactly(400, "invalid_grant"); // Keycloak replies with 400 instead of 401
+            .containsExactly(400, "invalid_grant");
       }
     }
   }
@@ -433,7 +433,7 @@ public class OAuth2AgentKeycloakIT {
             .asInstanceOf(type(OAuth2Exception.class))
             .extracting(OAuth2Exception::getErrorObject)
             .extracting(ErrorObject::getHTTPStatusCode, ErrorObject::getCode)
-            .containsExactly(400, "access_denied"); // Keycloak replies with 400 instead of 401
+            .containsExactly(400, "access_denied");
       }
     }
   }

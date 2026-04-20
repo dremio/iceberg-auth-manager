@@ -98,10 +98,10 @@ shadowJar.configure {
   from("$projectDir/build/reports/license/LICENSE") { into("META-INF") }
   // include project's NOTICE then merge all NOTICE files
   from("${rootDir}/NOTICE") { into("META-INF") }
-  val noticeResourceTransformer = ApacheNoticeResourceTransformer()
-  noticeResourceTransformer.projectName = "Dremio AuthManager for Apache Iceberg"
-  noticeResourceTransformer.copyright = "Copyright (c) ${LocalDate.now().year} Dremio"
-  noticeResourceTransformer.inceptionYear = "2025"
+  val noticeResourceTransformer = objects.newInstance(ApacheNoticeResourceTransformer::class.java)
+  noticeResourceTransformer.projectName.set("Dremio AuthManager for Apache Iceberg")
+  noticeResourceTransformer.copyright.set("Copyright (c) ${LocalDate.now().year} Dremio")
+  noticeResourceTransformer.inceptionYear.set("2025")
   transform(noticeResourceTransformer)
   // exclude smallrye-config from minimizing since it has generated code
   // exclude jakarta.annotation-api from minimizing since it is referenced only via ldc bytecode
