@@ -20,6 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.dremio.iceberg.authmgr.oauth2.config.AuthorizationCodeConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.BasicConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.ClientAssertionConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.ResourceOwnerConfig;
@@ -95,6 +96,66 @@ class OAuth2ConfigTest {
     assertThat(config.getBasicConfig().getScope()).contains(new Scope("test"));
     assertThat(config.getBasicConfig().getExtraRequestParameters()).isEmpty();
     assertThat(config.getBasicConfig().getTimeout()).isEqualTo(Duration.ofMinutes(5));
+  }
+
+  @Test
+  void testLegacyPrefixRelocation() {
+    Map<String, String> properties =
+        ImmutableMap.<String, String>builder()
+            .put(PREFIX + '.' + BasicConfig.ISSUER_URL, "https://example.com")
+            .put(PREFIX + '.' + BasicConfig.CLIENT_ID, "Client")
+            .put(PREFIX + '.' + BasicConfig.CLIENT_SECRET, "w00t")
+            .put(PREFIX + '.' + BasicConfig.GRANT_TYPE, GrantType.AUTHORIZATION_CODE.getValue())
+            .put(PREFIX + ".auth-code.callback-https", "true")
+            .put(PREFIX + ".auth-code.callback-bind-host", "example.com")
+            .put(PREFIX + ".auth-code.callback-bind-port", "8080")
+            .put(PREFIX + ".auth-code.callback-context-path", "/context")
+            .build();
+    OAuth2Config config = OAuth2Config.from(properties);
+    assertThat(config.getAuthorizationCodeConfig().isCallbackHttps()).isTrue();
+    assertThat(config.getAuthorizationCodeConfig().getCallbackBindHost()).hasValue("example.com");
+    assertThat(config.getAuthorizationCodeConfig().getCallbackBindPort()).hasValue(8080);
+    assertThat(config.getAuthorizationCodeConfig().getCallbackContextPath()).hasValue("/context");
+  }
+
+  @Test
+  @RestoreSystemProperties
+  void testLegacyPrefixRelocationFromSystemProperties() {
+    System.setProperty(PREFIX + '.' + BasicConfig.ISSUER_URL, "https://example.com");
+    System.setProperty(PREFIX + '.' + BasicConfig.CLIENT_ID, "Client");
+    System.setProperty(PREFIX + '.' + BasicConfig.CLIENT_SECRET, "w00t");
+    System.setProperty(
+        PREFIX + '.' + BasicConfig.GRANT_TYPE, GrantType.AUTHORIZATION_CODE.getValue());
+    System.setProperty(PREFIX + ".auth-code.callback-https", "true");
+    System.setProperty(PREFIX + ".auth-code.callback-bind-host", "example.com");
+    System.setProperty(PREFIX + ".auth-code.callback-bind-port", "8080");
+    System.setProperty(PREFIX + ".auth-code.callback-context-path", "/context");
+    OAuth2Config config = OAuth2Config.from(Map.of());
+    assertThat(config.getAuthorizationCodeConfig().isCallbackHttps()).isTrue();
+    assertThat(config.getAuthorizationCodeConfig().getCallbackBindHost()).hasValue("example.com");
+    assertThat(config.getAuthorizationCodeConfig().getCallbackBindPort()).hasValue(8080);
+    assertThat(config.getAuthorizationCodeConfig().getCallbackContextPath()).hasValue("/context");
+  }
+
+  @Test
+  void testLegacyNestedPrefixRelocation() {
+    Map<String, String> properties =
+        ImmutableMap.<String, String>builder()
+            .put(PREFIX + '.' + BasicConfig.TOKEN_ENDPOINT, "https://example.com/token")
+            .put(PREFIX + '.' + BasicConfig.CLIENT_ID, "Client")
+            .put(PREFIX + '.' + BasicConfig.CLIENT_SECRET, "w00t")
+            .put(PREFIX + '.' + BasicConfig.GRANT_TYPE, GrantType.TOKEN_EXCHANGE.getValue())
+            .put(
+                "rest.auth.oauth2.token-exchange.subject-token.grant-type",
+                GrantType.AUTHORIZATION_CODE.getValue())
+            .put("rest.auth.oauth2.token-exchange.subject-token.auth-code.callback-https", "true")
+            .build();
+    OAuth2Config config = OAuth2Config.from(properties);
+    assertThat(config.getTokenExchangeConfig().getSubjectTokenConfig())
+        .containsEntry(BasicConfig.GRANT_TYPE, GrantType.AUTHORIZATION_CODE.getValue())
+        .containsEntry(
+            AuthorizationCodeConfig.GROUP_NAME + '.' + AuthorizationCodeConfig.CALLBACK_HTTPS,
+            "true");
   }
 
   @Test
