@@ -211,33 +211,25 @@ public interface BasicConfig {
   default BasicConfig validate() {
     ConfigValidator validator = new ConfigValidator();
     BasicConfig basicConfig = this;
-    validator.check(
-        getIssuerUrl().isPresent() || getTokenEndpoint().isPresent(),
-        List.of(PREFIX + '.' + ISSUER_URL, PREFIX + '.' + TOKEN_ENDPOINT),
-        "either issuer URL or token endpoint must be set");
-    if (getIssuerUrl().isPresent()) {
-      validator.checkEndpoint(getIssuerUrl().get(), PREFIX + '.' + ISSUER_URL, "Issuer URL");
-    }
-    if (getTokenEndpoint().isPresent()) {
-      validator.checkEndpoint(
-          getTokenEndpoint().get(), PREFIX + '.' + TOKEN_ENDPOINT, "Token endpoint");
-    }
-    validator.check(
-        ConfigUtils.SUPPORTED_INITIAL_GRANT_TYPES.contains(getGrantType()),
-        PREFIX + '.' + GRANT_TYPE,
-        "grant type must be one of: %s",
-        ConfigUtils.SUPPORTED_INITIAL_GRANT_TYPES.stream()
-            .map(GrantType::getValue)
-            .collect(Collectors.joining("', '", "'", "'")));
-    validator.check(
-        ConfigUtils.SUPPORTED_CLIENT_AUTH_METHODS.contains(getClientAuthenticationMethod()),
-        PREFIX + '.' + CLIENT_AUTH,
-        "client authentication method must be one of: %s",
-        ConfigUtils.SUPPORTED_CLIENT_AUTH_METHODS.stream()
-            .map(ClientAuthenticationMethod::getValue)
-            .collect(Collectors.joining("', '", "'", "'")));
-    // Only validate client ID and client secret if a token is not provided
     if (getToken().isEmpty()) {
+      validator.check(
+          ConfigUtils.SUPPORTED_INITIAL_GRANT_TYPES.contains(getGrantType()),
+          PREFIX + '.' + GRANT_TYPE,
+          "grant type must be one of: %s",
+          ConfigUtils.SUPPORTED_INITIAL_GRANT_TYPES.stream()
+              .map(GrantType::getValue)
+              .collect(Collectors.joining("', '", "'", "'")));
+      validator.check(
+          ConfigUtils.SUPPORTED_CLIENT_AUTH_METHODS.contains(getClientAuthenticationMethod()),
+          PREFIX + '.' + CLIENT_AUTH,
+          "client authentication method must be one of: %s",
+          ConfigUtils.SUPPORTED_CLIENT_AUTH_METHODS.stream()
+              .map(ClientAuthenticationMethod::getValue)
+              .collect(Collectors.joining("', '", "'", "'")));
+      validator.check(
+          getIssuerUrl().isPresent() || getTokenEndpoint().isPresent(),
+          List.of(PREFIX + '.' + ISSUER_URL, PREFIX + '.' + TOKEN_ENDPOINT),
+          "either issuer URL or token endpoint must be set");
       validator.check(
           getClientId().isPresent(), PREFIX + '.' + CLIENT_ID, "client ID must not be empty");
       if (ConfigUtils.requiresClientSecret(getClientAuthenticationMethod())) {
@@ -266,6 +258,13 @@ public interface BasicConfig {
             GrantType.CLIENT_CREDENTIALS.getValue(),
             ClientAuthenticationMethod.NONE.getValue());
       }
+    }
+    if (getIssuerUrl().isPresent()) {
+      validator.checkEndpoint(getIssuerUrl().get(), PREFIX + '.' + ISSUER_URL, "Issuer URL");
+    }
+    if (getTokenEndpoint().isPresent()) {
+      validator.checkEndpoint(
+          getTokenEndpoint().get(), PREFIX + '.' + TOKEN_ENDPOINT, "Token endpoint");
     }
     validator.check(
         getTimeout().compareTo(getMinTimeout()) >= 0,
