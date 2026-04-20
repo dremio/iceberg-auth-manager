@@ -47,6 +47,8 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Phaser;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
 import org.apache.hc.core5.ssl.PrivateKeyStrategy;
@@ -206,10 +208,22 @@ abstract class AuthorizationCodeFlow extends AbstractFlow {
   }
 
   private void stopServer() {
-    // Wait for all in-flight requests to complete before proceeding
-    // (note: this call is potentially blocking!)
-    getInflightRequestsPhaser().arriveAndAwaitAdvance();
-    LOGGER.debug("[{}] Authorization Code Flow: closing", getAgentName());
+    try {
+      int phase = getInflightRequestsPhaser().arrive();
+      getInflightRequestsPhaser().awaitAdvanceInterruptibly(phase, 30, TimeUnit.SECONDS);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      LOGGER.debug(
+          "[{}] Authorization Code Flow: interrupted waiting for in-flight requests",
+          getAgentName(),
+          e);
+    } catch (TimeoutException e) {
+      LOGGER.debug(
+          "[{}] Authorization Code Flow: timed out waiting for in-flight requests",
+          getAgentName(),
+          e);
+    }
+    LOGGER.debug("[{}] Authorization Code Flow: stopping server", getAgentName());
     getServer().stop(0);
   }
 
