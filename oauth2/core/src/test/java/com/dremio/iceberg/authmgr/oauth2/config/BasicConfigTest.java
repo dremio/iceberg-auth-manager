@@ -92,6 +92,26 @@ class BasicConfigTest {
                 "Client1",
                 PREFIX + '.' + BasicConfig.CLIENT_SECRET,
                 "s3cr3t",
+                PREFIX + '.' + BasicConfig.ISSUER_URL,
+                "https://user:pass@example.com"),
+            singletonList(
+                "Issuer URL must not have a user info part (rest.auth.oauth2.issuer-url)")),
+        Arguments.of(
+            Map.of(
+                PREFIX + '.' + BasicConfig.CLIENT_ID,
+                "Client1",
+                PREFIX + '.' + BasicConfig.CLIENT_SECRET,
+                "s3cr3t",
+                PREFIX + '.' + BasicConfig.TOKEN_ENDPOINT,
+                "https://user:pass@example.com"),
+            singletonList(
+                "Token endpoint must not have a user info part (rest.auth.oauth2.token-endpoint)")),
+        Arguments.of(
+            Map.of(
+                PREFIX + '.' + BasicConfig.CLIENT_ID,
+                "Client1",
+                PREFIX + '.' + BasicConfig.CLIENT_SECRET,
+                "s3cr3t",
                 PREFIX + '.' + BasicConfig.TOKEN_ENDPOINT,
                 "https://example.com?query"),
             singletonList(

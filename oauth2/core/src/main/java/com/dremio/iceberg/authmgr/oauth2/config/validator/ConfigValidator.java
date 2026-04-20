@@ -55,9 +55,10 @@ public final class ConfigValidator {
   }
 
   public void checkEndpoint(URI endpoint, String offendingKey, String name) {
+    check(endpoint.isAbsolute(), offendingKey, name + " must not be relative");
+    check(endpoint.getUserInfo() == null, offendingKey, name + " must not have a user info part");
     check(endpoint.getQuery() == null, offendingKey, name + " must not have a query part");
     check(endpoint.getFragment() == null, offendingKey, name + " must not have a fragment part");
-    check(endpoint.isAbsolute(), offendingKey, name + " must not be relative");
   }
 
   public void validate() {
