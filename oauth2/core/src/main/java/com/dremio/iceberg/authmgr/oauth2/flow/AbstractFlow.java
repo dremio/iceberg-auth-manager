@@ -105,8 +105,13 @@ abstract class AbstractFlow implements Flow {
   abstract EndpointProvider getEndpointProvider();
 
   CompletionStage<TokensResult> invokeTokenEndpoint(AuthorizationGrant grant) {
-    TokenRequest.Builder builder = newTokenRequestBuilder(grant);
-    HTTPRequest request = builder.build().toHTTPRequest();
+    HTTPRequest request;
+    try {
+      TokenRequest.Builder builder = newTokenRequestBuilder(grant);
+      request = builder.build().toHTTPRequest();
+    } catch (Exception e) {
+      return CompletableFuture.failedFuture(e);
+    }
     return CompletableFuture.supplyAsync(() -> sendAndReceive(request), getRuntime().getExecutor())
         .whenComplete((response, error) -> log(request, response, error))
         .thenApply(this::parseTokenResponse)
