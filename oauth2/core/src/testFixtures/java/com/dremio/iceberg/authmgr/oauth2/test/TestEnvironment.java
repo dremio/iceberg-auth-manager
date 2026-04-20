@@ -500,12 +500,12 @@ public abstract class TestEnvironment implements AutoCloseable {
     }
     if (getAudience() != null) {
       builder.put(
-          TokenExchangeConfig.PREFIX + '.' + TokenExchangeConfig.AUDIENCE,
+          TokenExchangeConfig.PREFIX + '.' + TokenExchangeConfig.AUDIENCES,
           getAudience().toString());
     }
     if (getResource() != null) {
       builder.put(
-          TokenExchangeConfig.PREFIX + '.' + TokenExchangeConfig.RESOURCE,
+          TokenExchangeConfig.PREFIX + '.' + TokenExchangeConfig.RESOURCES,
           getResource().toString());
     }
     return builder.build();

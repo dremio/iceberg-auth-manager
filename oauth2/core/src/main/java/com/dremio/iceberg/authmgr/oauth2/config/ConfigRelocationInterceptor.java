@@ -38,7 +38,17 @@ public class ConfigRelocationInterceptor implements ConfigSourceInterceptor {
               Pattern.compile("\\.callback-"),
               ".callback.",
               Pattern.compile("\\.callback\\."),
-              ".callback-"));
+              ".callback-"),
+          new RelocationRule(
+              Pattern.compile("\\.token-exchange\\.resource$"),
+              ".token-exchange.resources",
+              Pattern.compile("\\.token-exchange\\.resources$"),
+              ".token-exchange.resource"),
+          new RelocationRule(
+              Pattern.compile("\\.token-exchange\\.audience$"),
+              ".token-exchange.audiences",
+              Pattern.compile("\\.token-exchange\\.audiences$"),
+              ".token-exchange.audience"));
 
   @Override
   public Iterator<String> iterateNames(ConfigSourceInterceptorContext context) {
