@@ -21,18 +21,32 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.KeyFactory;
 import java.security.PrivateKey;
+import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import org.apache.commons.codec.binary.Base64;
 
 final class JcaPemReader implements PemReader {
 
+  private static final String[] ALGORITHMS = {"RSA", "EC"};
+
   @Override
   public PrivateKey readPrivateKey(Path file) {
     try {
       byte[] encoded = Base64.decodeBase64(readPemEncodedPrivateKey(file));
-      KeyFactory keyFactory = KeyFactory.getInstance("RSA");
       PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(encoded);
-      return keyFactory.generatePrivate(keySpec);
+      InvalidKeySpecException toThrow = null;
+      for (String algorithm : ALGORITHMS) {
+        try {
+          return KeyFactory.getInstance(algorithm).generatePrivate(keySpec);
+        } catch (InvalidKeySpecException e) {
+          if (toThrow == null) {
+            toThrow = e;
+          } else {
+            toThrow.addSuppressed(e);
+          }
+        }
+      }
+      throw toThrow;
     } catch (Exception e) {
       throw new IllegalArgumentException("Failed to read PEM file: " + file, e);
     }
