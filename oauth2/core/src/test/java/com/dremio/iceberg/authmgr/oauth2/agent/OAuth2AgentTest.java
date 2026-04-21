@@ -41,6 +41,7 @@ import static org.mockserver.verify.VerificationTimes.atLeast;
 import com.dremio.iceberg.authmgr.oauth2.flow.OAuth2Exception;
 import com.dremio.iceberg.authmgr.oauth2.flow.TokensResult;
 import com.dremio.iceberg.authmgr.oauth2.http.HttpClientType;
+import com.dremio.iceberg.authmgr.oauth2.test.TestCertificates;
 import com.dremio.iceberg.authmgr.oauth2.test.TestClock;
 import com.dremio.iceberg.authmgr.oauth2.test.TestConstants;
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
@@ -56,15 +57,10 @@ import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
 import com.nimbusds.oauth2.sdk.token.RefreshToken;
 import com.nimbusds.oauth2.sdk.token.Tokens;
 import com.nimbusds.oauth2.sdk.token.TypelessAccessToken;
-import java.io.IOException;
-import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Base64;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
@@ -76,7 +72,6 @@ import org.assertj.core.api.junit.jupiter.InjectSoftAssertions;
 import org.assertj.core.api.junit.jupiter.SoftAssertionsExtension;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junitpioneer.jupiter.cartesian.CartesianTest;
 import org.junitpioneer.jupiter.cartesian.CartesianTest.Enum;
@@ -596,17 +591,14 @@ class OAuth2AgentTest {
   }
 
   @Test
-  void testSsl(@TempDir Path tempDir) throws IOException {
-    Path trustStorePath = tempDir.resolve("truststore.p12");
-    try (InputStream is = getClass().getResourceAsStream("/openssl/mockserver.p12")) {
-      Files.copy(Objects.requireNonNull(is), trustStorePath);
-    }
+  void testSsl() {
+    TestCertificates certs = TestCertificates.instance();
     try (TestEnvironment env =
             TestEnvironment.builder()
                 .ssl(true)
                 .httpClientType(HttpClientType.APACHE)
-                .sslTrustStorePath(trustStorePath)
-                .sslTrustStorePassword("s3cr3t")
+                .sslTrustStorePath(certs.getMockServerKeyStore())
+                .sslTrustStorePassword(certs.getKeyStorePassword())
                 .sslProtocols("TLSv1.3,TLSv1.2")
                 .sslCipherSuites(
                     "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,"

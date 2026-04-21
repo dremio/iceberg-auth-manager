@@ -17,6 +17,7 @@ package com.dremio.iceberg.authmgr.oauth2.test.junit;
 
 import com.dremio.iceberg.authmgr.oauth2.http.HttpClientType;
 import com.dremio.iceberg.authmgr.oauth2.test.ImmutableTestEnvironment;
+import com.dremio.iceberg.authmgr.oauth2.test.TestCertificates;
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironmentExtension;
 import com.dremio.iceberg.authmgr.oauth2.test.container.AutheliaContainer;
@@ -36,14 +37,11 @@ public class AutheliaExtension extends TestEnvironmentExtension
   public static final String CLIENT_ID2 = "Client2";
   public static final String CLIENT_SECRET2 = "s3cr3t";
 
-  // Authelia's private key and certificate
-  // These are classpath resources in the testFixtures resources directory
-  public static final String PRIVATE_KEY = "openssl/rsa_private_key_pkcs8.pem";
-  public static final String CERTIFICATE = "openssl/rsa_certificate.pem";
-
   @Override
   public void beforeAll(ExtensionContext context) {
-    AutheliaContainer authelia = new AutheliaContainer(PRIVATE_KEY, CERTIFICATE);
+    TestCertificates certs = TestCertificates.instance();
+    AutheliaContainer authelia =
+        new AutheliaContainer(certs.getRsaPrivateKeyPkcs8Pem(), certs.getRsaCertificatePem());
     authelia.start();
     context
         .getStore(ExtensionContext.Namespace.GLOBAL)

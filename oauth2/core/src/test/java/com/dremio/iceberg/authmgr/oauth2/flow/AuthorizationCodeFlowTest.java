@@ -20,19 +20,15 @@ import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.REFRESH_TOKEN
 import static com.dremio.iceberg.authmgr.oauth2.test.TokenAssertions.assertTokensResult;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.dremio.iceberg.authmgr.oauth2.test.TestCertificates;
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
 import com.dremio.iceberg.authmgr.oauth2.test.junit.EnumLike;
 import com.nimbusds.oauth2.sdk.GrantType;
 import com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod;
 import com.nimbusds.oauth2.sdk.pkce.CodeChallengeMethod;
-import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import org.apache.http.ssl.SSLContextBuilder;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 import org.junitpioneer.jupiter.cartesian.CartesianTest;
 import org.junitpioneer.jupiter.cartesian.CartesianTest.Values;
 
@@ -63,21 +59,20 @@ class AuthorizationCodeFlowTest {
   }
 
   @Test
-  void httpsCallback(@TempDir Path tempDir) throws Exception {
-    Path keyStorePath = tempDir.resolve("keystore.p12");
-    try (InputStream is = getClass().getResourceAsStream("/openssl/mockserver.p12")) {
-      Files.copy(Objects.requireNonNull(is), keyStorePath);
-    }
+  void httpsCallback() throws Exception {
+    TestCertificates certs = TestCertificates.instance();
     try (TestEnvironment env =
             TestEnvironment.builder()
                 .grantType(GrantType.AUTHORIZATION_CODE)
                 .callbackHttps(true)
-                .sslKeyStorePath(keyStorePath)
-                .sslKeyStorePassword("s3cr3t")
+                .sslKeyStorePath(certs.getMockServerKeyStore())
+                .sslKeyStorePassword(certs.getKeyStorePassword())
                 .sslKeyStoreAlias("1")
                 .userSslContext(
                     SSLContextBuilder.create()
-                        .loadTrustMaterial(keyStorePath.toFile(), "s3cr3t".toCharArray())
+                        .loadTrustMaterial(
+                            certs.getMockServerKeyStore().toFile(),
+                            certs.getKeyStorePassword().toCharArray())
                         .build())
                 .build();
         FlowFactory flowFactory = env.newFlowFactory()) {

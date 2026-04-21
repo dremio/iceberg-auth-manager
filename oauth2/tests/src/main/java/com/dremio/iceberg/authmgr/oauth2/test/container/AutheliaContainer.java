@@ -18,6 +18,7 @@ package com.dremio.iceberg.authmgr.oauth2.test.container;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.URI;
+import java.nio.file.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.BindMode;
@@ -34,8 +35,7 @@ public class AutheliaContainer extends GenericContainer<AutheliaContainer> {
   private final int hostPort;
 
   @SuppressWarnings("resource")
-  public AutheliaContainer(
-      String privateKeyClasspathResource, String certificateClasspathResource) {
+  public AutheliaContainer(Path privateKeyPath, Path certificatePath) {
     super("authelia/authelia:4.39.19");
     this.hostPort = allocateFreePort();
     addFixedExposedPort(hostPort, 9091);
@@ -47,10 +47,10 @@ public class AutheliaContainer extends GenericContainer<AutheliaContainer> {
         "authelia/authelia-config.yaml", "/config/configuration.yml", BindMode.READ_ONLY);
     withClasspathResourceMapping(
         "authelia/authelia-users.yaml", "/config/users.yml", BindMode.READ_ONLY);
-    withClasspathResourceMapping(
-        privateKeyClasspathResource, "/config/key.pem", BindMode.READ_ONLY);
-    withClasspathResourceMapping(
-        certificateClasspathResource, "/config/cert.pem", BindMode.READ_ONLY);
+    withFileSystemBind(
+        privateKeyPath.toAbsolutePath().toString(), "/config/key.pem", BindMode.READ_ONLY);
+    withFileSystemBind(
+        certificatePath.toAbsolutePath().toString(), "/config/cert.pem", BindMode.READ_ONLY);
 
     waitingFor(Wait.forListeningPort());
   }
