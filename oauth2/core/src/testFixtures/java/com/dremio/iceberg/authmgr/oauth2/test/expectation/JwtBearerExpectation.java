@@ -15,39 +15,24 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.test.expectation;
 
-import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.ACCESS_TOKEN_REFRESHED;
-import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.REFRESH_TOKEN_REFRESHED;
-import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.SCOPE1;
-import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.SCOPE2;
-
 import com.dremio.iceberg.authmgr.oauth2.test.TestConstants;
-import com.dremio.iceberg.authmgr.oauth2.test.TestServer;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
 import com.google.common.collect.ImmutableMap;
 import com.nimbusds.oauth2.sdk.GrantType;
 import java.util.regex.Pattern;
 
 @AuthManagerImmutable
-public abstract class RefreshTokenExpectation extends AbstractTokenEndpointExpectation {
-
-  @Override
-  public void create() {
-    TestServer.getInstance()
-        .when(request())
-        .respond(
-            httpRequest -> response(httpRequest, ACCESS_TOKEN_REFRESHED, REFRESH_TOKEN_REFRESHED));
-  }
+public abstract class JwtBearerExpectation extends InitialTokenFetchExpectation {
 
   @Override
   protected ImmutableMap.Builder<String, String> requestBody() {
     return super.requestBody()
-        .put("grant_type", GrantType.REFRESH_TOKEN.toString())
+        .put("grant_type", GrantType.JWT_BEARER.toString())
         .put(
-            "refresh_token",
+            "assertion",
             String.format(
                 "(%s|%s)",
-                Pattern.quote(TestConstants.REFRESH_TOKEN_INITIAL),
-                Pattern.quote(TestConstants.REFRESH_TOKEN_REFRESHED)))
-        .put("scope", String.format("(%s|%s)", SCOPE1, SCOPE2));
+                Pattern.quote(TestConstants.ASSERTION_TOKEN),
+                Pattern.quote(TestConstants.ACCESS_TOKEN_INITIAL)));
   }
 }

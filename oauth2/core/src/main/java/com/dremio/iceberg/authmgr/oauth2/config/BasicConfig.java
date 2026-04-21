@@ -109,6 +109,7 @@ public interface BasicConfig {
    *   <li>{@link GrantType#AUTHORIZATION_CODE authorization_code}
    *   <li>{@link GrantType#DEVICE_CODE urn:ietf:params:oauth:grant-type:device_code}
    *   <li>{@link GrantType#TOKEN_EXCHANGE urn:ietf:params:oauth:grant-type:token-exchange}
+   *   <li>{@link GrantType#JWT_BEARER urn:ietf:params:oauth:grant-type:jwt-bearer}
    * </ul>
    *
    * Optional, defaults to {@code client_credentials}.

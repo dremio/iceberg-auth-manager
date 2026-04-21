@@ -103,6 +103,7 @@ The grant type to use when authenticating against the OAuth2 server. Valid value
 - `authorization_code`
 - `urn:ietf:params:oauth:grant-type:device_code`
 - `urn:ietf:params:oauth:grant-type:token-exchange`
+- `urn:ietf:params:oauth:grant-type:jwt-bearer`
 
 Optional, defaults to `client_credentials`.
 
@@ -393,35 +394,57 @@ The logical name of the target service(s) where the client intends to use the re
 
 Optional. Can be a single value or a comma-separated list of values.
 
-## Client Assertion Settings
+## Jwt Bearer Settings
+
+Configuration properties for the JWT bearer grant as specified in [RFC 7523](https://datatracker.ietf.org/doc/html/rfc7523).
+
+The assertion can be supplied statically or fetched dynamically using a nested OAuth2 configuration.
+
+### `rest.auth.oauth2.jwt-bearer.assertion`
+
+The assertion to exchange.
+
+If this value is present, the assertion is used as-is. If this value is not present, the assertion may be read from the file specified by `rest.auth.oauth2.jwt-bearer.assertion-file`, or dynamically fetched using the configuration provided under the `rest.auth.oauth2.jwt-bearer.assertion` prefix.
+
+### `rest.auth.oauth2.jwt-bearer.assertion-file`
+
+Path to a file containing the assertion. The file content is read and trimmed to obtain the assertion value. Ignored if `rest.auth.oauth2.jwt-bearer.assertion` is set.
+
+### `rest.auth.oauth2.jwt-bearer.assertion.*`
+
+The configuration to use for fetching the assertion dynamically.
+
+This is a prefix property; any property that can be set under the `rest.auth.oauth2.` prefix can also be set under this prefix.
+
+## Jwt Client Auth Settings
 
 Configuration properties for JWT client assertion as specified in [JSON Web Token (JWT) Profile for OAuth 2.0 Client Authentication and Authorization Grants](https://datatracker.ietf.org/doc/html/rfc7523).
 
 These properties allow the client to authenticate using the `client_secret_jwt` or `private_key_jwt` authentication methods.
 
-### `rest.auth.oauth2.client-assertion.jwt.issuer`
+### `rest.auth.oauth2.client-auth.jwt.issuer`
 
 The issuer of the client assertion JWT. Optional. The default is the client ID.
 
-### `rest.auth.oauth2.client-assertion.jwt.subject`
+### `rest.auth.oauth2.client-auth.jwt.subject`
 
 The subject of the client assertion JWT. Optional. The default is the client ID.
 
-### `rest.auth.oauth2.client-assertion.jwt.audience`
+### `rest.auth.oauth2.client-auth.jwt.audience`
 
 The audience of the client assertion JWT. Optional. The default is the token endpoint. Can be a single audience or a comma-separated list of audiences.
 
-### `rest.auth.oauth2.client-assertion.jwt.token-lifespan`
+### `rest.auth.oauth2.client-auth.jwt.token-lifespan`
 
 The expiration time of the client assertion JWT. Optional. The default is 5 minutes.
 
-### `rest.auth.oauth2.client-assertion.jwt.algorithm`
+### `rest.auth.oauth2.client-auth.jwt.algorithm`
 
 The signing algorithm to use for the client assertion JWT. Optional. The default is `HS512` if the authentication method is `client_secret_jwt`, or `RS512` if the authentication method is `private_key_jwt`.
 
 Algorithm names must match the "alg" Param Value as described in [RFC 7518 Section 3.1](https://datatracker.ietf.org/doc/html/rfc7518#section-3.1).
 
-### `rest.auth.oauth2.client-assertion.jwt.key-id`
+### `rest.auth.oauth2.client-auth.jwt.key-id`
 
 The key ID (kid) to include in the JWT header. Optional.
 
@@ -429,7 +452,7 @@ If specified, this will be included in the "kid" header parameter of the JWT ass
 
 This setting is only supported when using the `private_key_jwt` authentication method. It is ignored when using `client_secret_jwt`.
 
-### `rest.auth.oauth2.client-assertion.jwt.private-key`
+### `rest.auth.oauth2.client-auth.jwt.private-key`
 
 The path on the local filesystem to the private key to use for signing the client assertion JWT. Required if the authentication method is `private_key_jwt`.
 
@@ -443,7 +466,7 @@ Supported key formats are:
 
 Only unencrypted keys are supported currently.
 
-### `rest.auth.oauth2.client-assertion.jwt.extra-claims.*`
+### `rest.auth.oauth2.client-auth.jwt.extra-claims.*`
 
 Extra claims to include in the client assertion JWT. This is a prefix property, and multiple values can be set, each with a different key and value.
 

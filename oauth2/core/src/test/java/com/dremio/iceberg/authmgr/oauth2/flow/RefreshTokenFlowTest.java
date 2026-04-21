@@ -15,6 +15,9 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.flow;
 
+import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.ACCESS_TOKEN_REFRESHED;
+import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.REFRESH_TOKEN_INITIAL;
+import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.REFRESH_TOKEN_REFRESHED;
 import static com.dremio.iceberg.authmgr.oauth2.test.TokenAssertions.assertTokensResult;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
@@ -45,13 +48,13 @@ class RefreshTokenFlowTest {
                 .build();
         FlowFactory flowFactory = env.newFlowFactory()) {
       assumeTrue(returnRefreshTokens || !returnRefreshTokenLifespan);
-      Flow flow = flowFactory.createTokenRefreshFlow(new RefreshToken("refresh_initial"));
+      Flow flow = flowFactory.createTokenRefreshFlow(new RefreshToken(REFRESH_TOKEN_INITIAL));
       TokensResult tokens = flow.fetchNewTokens().toCompletableFuture().get();
       assertThat(flow).isInstanceOf(RefreshTokenFlow.class);
       assertTokensResult(
           tokens,
-          "access_refreshed",
-          returnRefreshTokens ? "refresh_refreshed" : "refresh_initial",
+          ACCESS_TOKEN_REFRESHED,
+          returnRefreshTokens ? REFRESH_TOKEN_REFRESHED : REFRESH_TOKEN_INITIAL,
           returnRefreshTokenLifespan);
     }
   }

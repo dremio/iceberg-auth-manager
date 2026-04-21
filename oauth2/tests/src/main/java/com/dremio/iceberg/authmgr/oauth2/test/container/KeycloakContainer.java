@@ -26,9 +26,14 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateException;
+import java.security.cert.CertificateFactory;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -40,6 +45,8 @@ import org.keycloak.admin.client.resource.RealmResource;
 import org.keycloak.representations.idm.ClientRepresentation;
 import org.keycloak.representations.idm.ClientScopeRepresentation;
 import org.keycloak.representations.idm.CredentialRepresentation;
+import org.keycloak.representations.idm.FederatedIdentityRepresentation;
+import org.keycloak.representations.idm.IdentityProviderRepresentation;
 import org.keycloak.representations.idm.ProtocolMapperRepresentation;
 import org.keycloak.representations.idm.RealmRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
@@ -55,8 +62,14 @@ public class KeycloakContainer extends ExtendableKeycloakContainer<KeycloakConta
 
   private static final String CONTEXT_PATH = "/realms/master/";
 
+  protected record FederatedIdentity(
+      String username, String providerAlias, String externalUserId, String externalUsername) {}
+
   private final List<ClientScopeRepresentation> scopes = new ArrayList<>();
   private final List<ClientRepresentation> clients = new ArrayList<>();
+  private final List<IdentityProviderRepresentation> identityProviders = new ArrayList<>();
+  private final List<FederatedIdentity> federatedIdentities = new ArrayList<>();
+  private final List<String> providerAliases = new ArrayList<>();
   private final List<UserRepresentation> users = new ArrayList<>();
 
   private Duration accessTokenLifespan = Duration.ofMinutes(10);
@@ -101,6 +114,23 @@ public class KeycloakContainer extends ExtendableKeycloakContainer<KeycloakConta
   }
 
   @CanIgnoreReturnValue
+  public KeycloakContainer withIdentityProvider(
+      String alias, String issuer, String verifyingCertificateResource) {
+    identityProviders.add(
+        newIdentityProvider(alias, issuer, loadPublicKey(verifyingCertificateResource)));
+    providerAliases.add(alias);
+    return this;
+  }
+
+  @CanIgnoreReturnValue
+  public KeycloakContainer withFederatedIdentity(
+      String username, String providerAlias, String externalUserId, String externalUsername) {
+    federatedIdentities.add(
+        new FederatedIdentity(username, providerAlias, externalUserId, externalUsername));
+    return this;
+  }
+
+  @CanIgnoreReturnValue
   public KeycloakContainer withAccessTokenLifespan(Duration accessTokenLifespan) {
     this.accessTokenLifespan = accessTokenLifespan;
     return this;
@@ -127,8 +157,11 @@ public class KeycloakContainer extends ExtendableKeycloakContainer<KeycloakConta
       RealmResource master = client.realms().realm("master");
       updateMasterRealm(master);
       scopes.forEach(scope -> createScope(master, scope));
+      identityProviders.forEach(
+          identityProvider -> createIdentityProvider(master, identityProvider));
       users.forEach(user -> createUser(master, user));
       clients.forEach(cl -> createClient(master, cl));
+      federatedIdentities.forEach(link -> createFederatedIdentityLink(master, link));
     }
   }
 
@@ -199,6 +232,16 @@ public class KeycloakContainer extends ExtendableKeycloakContainer<KeycloakConta
   }
 
   protected void createClient(RealmResource master, ClientRepresentation client) {
+    if (!client.isPublicClient() && !providerAliases.isEmpty()) {
+      Map<String, String> attributes =
+          client.getAttributes() == null ? new HashMap<>() : new HashMap<>(client.getAttributes());
+      attributes.put("oauth2.jwt.authorization.grant.enabled", "true");
+      String keycloakMultiValueDelimiter = "##";
+      attributes.put(
+          "oauth2.jwt.authorization.grant.idp",
+          String.join(keycloakMultiValueDelimiter, providerAliases));
+      client.setAttributes(attributes);
+    }
     client.setOptionalClientScopes(
         scopes.stream().map(ClientScopeRepresentation::getName).collect(Collectors.toList()));
     try (Response response = master.clients().create(client)) {
@@ -212,11 +255,43 @@ public class KeycloakContainer extends ExtendableKeycloakContainer<KeycloakConta
     addPrincipalRoleClaimMapper(master, client.getId());
   }
 
+  protected void createIdentityProvider(
+      RealmResource master, IdentityProviderRepresentation identityProvider) {
+    try (Response response = master.identityProviders().create(identityProvider)) {
+      if (response.getStatus() != 201) {
+        throw new IllegalStateException(
+            "Failed to create identity provider: " + response.readEntity(String.class));
+      }
+    }
+  }
+
   protected void createUser(RealmResource master, UserRepresentation user) {
     try (Response response = master.users().create(user)) {
       if (response.getStatus() != 201) {
         throw new IllegalStateException(
             "Failed to create user: " + response.readEntity(String.class));
+      }
+    }
+  }
+
+  protected void createFederatedIdentityLink(RealmResource master, FederatedIdentity link) {
+    String userId =
+        master.users().searchByUsername(link.username(), true).stream()
+            .findFirst()
+            .map(UserRepresentation::getId)
+            .orElseThrow(
+                () ->
+                    new IllegalStateException(
+                        "Failed to find user for federated identity link: " + link.username()));
+    FederatedIdentityRepresentation rep = new FederatedIdentityRepresentation();
+    rep.setIdentityProvider(link.providerAlias());
+    rep.setUserId(link.externalUserId());
+    rep.setUserName(link.externalUsername());
+    try (Response response =
+        master.users().get(userId).addFederatedIdentity(link.providerAlias(), rep)) {
+      if (response.getStatus() != 204) {
+        throw new IllegalStateException(
+            "Failed to create federated identity link: " + response.readEntity(String.class));
       }
     }
   }
@@ -277,6 +352,26 @@ public class KeycloakContainer extends ExtendableKeycloakContainer<KeycloakConta
     }
     client.setAttributes(attributes.build());
     return client;
+  }
+
+  private static IdentityProviderRepresentation newIdentityProvider(
+      String alias, String issuer, String publicKeyPem) {
+    IdentityProviderRepresentation identityProvider = new IdentityProviderRepresentation();
+    identityProvider.setAlias(alias);
+    identityProvider.setProviderId("jwt-authorization-grant");
+    identityProvider.setDisplayName(alias);
+    identityProvider.setEnabled(true);
+    identityProvider.setHideOnLogin(true);
+    identityProvider.setConfig(
+        ImmutableMap.<String, String>builder()
+            .put("issuer", issuer)
+            .put("useJwksUrl", "false")
+            .put("jwtAuthorizationGrantEnabled", "true")
+            .put("jwtAuthorizationGrantAssertionReuseAllowed", "true")
+            .put("jwtAuthorizationGrantAllowedClockSkew", "30")
+            .put("publicKeySignatureVerifier", publicKeyPem)
+            .build());
+    return identityProvider;
   }
 
   private static UserRepresentation newUser(String username, String password) {
@@ -359,6 +454,19 @@ public class KeycloakContainer extends ExtendableKeycloakContainer<KeycloakConta
           .filter(line -> !line.startsWith("-----"))
           .collect(Collectors.joining(""));
     } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  private static String loadPublicKey(String certificateResource) {
+    try (InputStream is =
+        Objects.requireNonNull(KeycloakContainer.class.getResourceAsStream(certificateResource))) {
+      Certificate certificate = CertificateFactory.getInstance("X.509").generateCertificate(is);
+      String encoded =
+          Base64.getMimeEncoder(64, "\n".getBytes(StandardCharsets.UTF_8))
+              .encodeToString(certificate.getPublicKey().getEncoded());
+      return "-----BEGIN PUBLIC KEY-----\n" + encoded + "\n-----END PUBLIC KEY-----";
+    } catch (IOException | CertificateException e) {
       throw new RuntimeException(e);
     }
   }

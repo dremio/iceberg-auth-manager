@@ -25,10 +25,11 @@ import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2Agent;
 import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2AgentRuntime;
 import com.dremio.iceberg.authmgr.oauth2.config.AuthorizationCodeConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.BasicConfig;
-import com.dremio.iceberg.authmgr.oauth2.config.ClientAssertionConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.ConfigUtils;
 import com.dremio.iceberg.authmgr.oauth2.config.DeviceCodeConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.HttpConfig;
+import com.dremio.iceberg.authmgr.oauth2.config.JwtBearerConfig;
+import com.dremio.iceberg.authmgr.oauth2.config.JwtClientAuthConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.ResourceOwnerConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.SystemConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.TokenExchangeConfig;
@@ -41,6 +42,7 @@ import com.dremio.iceberg.authmgr.oauth2.test.expectation.ImmutableClientCredent
 import com.dremio.iceberg.authmgr.oauth2.test.expectation.ImmutableConfigEndpointExpectation;
 import com.dremio.iceberg.authmgr.oauth2.test.expectation.ImmutableDeviceCodeExpectation;
 import com.dremio.iceberg.authmgr.oauth2.test.expectation.ImmutableErrorExpectation;
+import com.dremio.iceberg.authmgr.oauth2.test.expectation.ImmutableJwtBearerExpectation;
 import com.dremio.iceberg.authmgr.oauth2.test.expectation.ImmutableLoadTableEndpointExpectation;
 import com.dremio.iceberg.authmgr.oauth2.test.expectation.ImmutableMetadataDiscoveryExpectation;
 import com.dremio.iceberg.authmgr.oauth2.test.expectation.ImmutablePasswordExpectation;
@@ -267,7 +269,8 @@ public abstract class TestEnvironment implements AutoCloseable {
             .putAll(getDeviceCodeConfig())
             .putAll(getTokenRefreshConfig())
             .putAll(getTokenExchangeConfig())
-            .putAll(getClientAssertionConfig())
+            .putAll(getJwtBearerGrantConfig())
+            .putAll(getJwtClientAuthConfig())
             .putAll(getSystemConfig())
             .putAll(getHttpConfig())
             .build();
@@ -464,6 +467,67 @@ public abstract class TestEnvironment implements AutoCloseable {
   }
 
   @Value.Default
+  public Map<String, String> getJwtBearerGrantConfig() {
+    ImmutableMap.Builder<String, String> builder = ImmutableMap.builder();
+    getAssertionConfig()
+        .forEach(
+            (k, v) ->
+                builder.put(JwtBearerConfig.PREFIX + '.' + JwtBearerConfig.ASSERTION + '.' + k, v));
+    if (getAssertion() != null) {
+      builder.put(JwtBearerConfig.PREFIX + '.' + JwtBearerConfig.ASSERTION, getAssertion());
+    }
+    return builder.build();
+  }
+
+  @Value.Default
+  @Nullable
+  public String getAssertion() {
+    return TestConstants.ASSERTION_TOKEN;
+  }
+
+  @Value.Default
+  public GrantType getAssertionGrantType() {
+    return GrantType.CLIENT_CREDENTIALS;
+  }
+
+  @Value.Default
+  public ClientID getAssertionClientId() {
+    return TestConstants.CLIENT_ID2;
+  }
+
+  @Value.Default
+  public Secret getAssertionClientSecret() {
+    return TestConstants.CLIENT_SECRET2;
+  }
+
+  @Value.Default
+  public Scope getAssertionScope() {
+    return TestConstants.SCOPE2;
+  }
+
+  @Value.Default
+  public Map<String, String> getAssertionConfig() {
+    ImmutableMap.Builder<String, String> builder =
+        ImmutableMap.<String, String>builder()
+            .putAll(extractPrefixMap(getBasicConfig(), PREFIX + '.'))
+            .putAll(extractPrefixMap(getResourceOwnerConfig(), PREFIX + '.'))
+            .putAll(extractPrefixMap(getAuthorizationCodeConfig(), PREFIX + '.'))
+            .putAll(extractPrefixMap(getDeviceCodeConfig(), PREFIX + '.'))
+            .putAll(extractPrefixMap(getTokenRefreshConfig(), PREFIX + '.'))
+            .putAll(extractPrefixMap(getJwtClientAuthConfig(), PREFIX + '.'))
+            .putAll(extractPrefixMap(getSystemConfig(), PREFIX + '.'))
+            .putAll(extractPrefixMap(getHttpConfig(), PREFIX + '.'))
+            .put(BasicConfig.GRANT_TYPE, getAssertionGrantType().getValue())
+            .put(BasicConfig.CLIENT_ID, getAssertionClientId().getValue())
+            .put(BasicConfig.EXTRA_PARAMS + ".extra2", "value2")
+            .put(BasicConfig.SCOPE, getAssertionScope().toString());
+    if (ConfigUtils.requiresClientSecret(getClientAuthenticationMethod())) {
+      builder.put(BasicConfig.CLIENT_SECRET, getAssertionClientSecret().getValue());
+    }
+    return builder.buildKeepingLast();
+  }
+
+  @Value.Default
   public Map<String, String> getTokenExchangeConfig() {
     ImmutableMap.Builder<String, String> builder =
         ImmutableMap.<String, String>builder()
@@ -514,7 +578,7 @@ public abstract class TestEnvironment implements AutoCloseable {
   @Value.Default
   @Nullable
   public Token getSubjectToken() {
-    return TestConstants.SUBJECT_TOKEN;
+    return new TypelessAccessToken(TestConstants.SUBJECT_TOKEN);
   }
 
   @Value.Default
@@ -551,7 +615,7 @@ public abstract class TestEnvironment implements AutoCloseable {
             .putAll(extractPrefixMap(getAuthorizationCodeConfig(), PREFIX + '.'))
             .putAll(extractPrefixMap(getDeviceCodeConfig(), PREFIX + '.'))
             .putAll(extractPrefixMap(getTokenRefreshConfig(), PREFIX + '.'))
-            .putAll(extractPrefixMap(getClientAssertionConfig(), PREFIX + '.'))
+            .putAll(extractPrefixMap(getJwtClientAuthConfig(), PREFIX + '.'))
             .putAll(extractPrefixMap(getSystemConfig(), PREFIX + '.'))
             .putAll(extractPrefixMap(getHttpConfig(), PREFIX + '.'))
             .put(BasicConfig.GRANT_TYPE, getSubjectGrantType().getValue())
@@ -567,7 +631,7 @@ public abstract class TestEnvironment implements AutoCloseable {
   @Value.Default
   @Nullable
   public Token getActorToken() {
-    return TestConstants.ACTOR_TOKEN;
+    return new TypelessAccessToken(TestConstants.ACTOR_TOKEN);
   }
 
   @Value.Default
@@ -604,7 +668,7 @@ public abstract class TestEnvironment implements AutoCloseable {
             .putAll(extractPrefixMap(getAuthorizationCodeConfig(), PREFIX + '.'))
             .putAll(extractPrefixMap(getDeviceCodeConfig(), PREFIX + '.'))
             .putAll(extractPrefixMap(getTokenRefreshConfig(), PREFIX + '.'))
-            .putAll(extractPrefixMap(getClientAssertionConfig(), PREFIX + '.'))
+            .putAll(extractPrefixMap(getJwtClientAuthConfig(), PREFIX + '.'))
             .putAll(extractPrefixMap(getSystemConfig(), PREFIX + '.'))
             .putAll(extractPrefixMap(getHttpConfig(), PREFIX + '.'))
             .put(BasicConfig.GRANT_TYPE, getActorGrantType().getValue())
@@ -635,19 +699,18 @@ public abstract class TestEnvironment implements AutoCloseable {
   }
 
   @Value.Default
-  public Map<String, String> getClientAssertionConfig() {
+  public Map<String, String> getJwtClientAuthConfig() {
     ImmutableMap.Builder<String, String> builder = ImmutableMap.builder();
     getJwsAlgorithm()
         .ifPresent(
             v ->
                 builder.put(
-                    ClientAssertionConfig.PREFIX + '.' + ClientAssertionConfig.ALGORITHM,
-                    v.getName()));
+                    JwtClientAuthConfig.PREFIX + '.' + JwtClientAuthConfig.ALGORITHM, v.getName()));
     getPrivateKey()
         .ifPresent(
             v ->
                 builder.put(
-                    ClientAssertionConfig.PREFIX + '.' + ClientAssertionConfig.PRIVATE_KEY,
+                    JwtClientAuthConfig.PREFIX + '.' + JwtClientAuthConfig.PRIVATE_KEY,
                     v.toString()));
     return builder.build();
   }
@@ -748,12 +811,13 @@ public abstract class TestEnvironment implements AutoCloseable {
     if (isForceInactiveUser()) {
       return UserEmulator.INACTIVE;
     } else {
-      GrantType mainGrant = getGrantType();
-      GrantType subjectGrant = getSubjectGrantType();
-      GrantType actorGrant = getActorGrantType();
-      if (ConfigUtils.requiresUserInteraction(mainGrant)
-          || ConfigUtils.requiresUserInteraction(subjectGrant)
-          || ConfigUtils.requiresUserInteraction(actorGrant)) {
+      if (ConfigUtils.requiresUserInteraction(getGrantType())
+          || (getSubjectToken() == null
+              && ConfigUtils.requiresUserInteraction(getSubjectGrantType()))
+          || (getActorToken() == null //
+              && ConfigUtils.requiresUserInteraction(getActorGrantType()))
+          || (getAssertion() == null
+              && ConfigUtils.requiresUserInteraction(getAssertionGrantType()))) {
         return new InteractiveUserEmulator(getUserBehavior(), getUserSslContext());
       }
     }
@@ -869,8 +933,17 @@ public abstract class TestEnvironment implements AutoCloseable {
       ImmutableDeviceCodeExpectation.of(this).create();
     } else if (grantType.equals(GrantType.TOKEN_EXCHANGE)) {
       ImmutableTokenExchangeExpectation.of(this).create();
-      createInitialGrantExpectations(getSubjectGrantType());
-      createInitialGrantExpectations(getActorGrantType());
+      if (getSubjectToken() == null) {
+        createInitialGrantExpectations(getSubjectGrantType());
+      }
+      if (getActorToken() == null) {
+        createInitialGrantExpectations(getActorGrantType());
+      }
+    } else if (grantType.equals(GrantType.JWT_BEARER)) {
+      ImmutableJwtBearerExpectation.of(this).create();
+      if (getAssertion() == null) {
+        createInitialGrantExpectations(getAssertionGrantType());
+      }
     }
   }
 

@@ -15,7 +15,7 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.config;
 
-import static com.dremio.iceberg.authmgr.oauth2.config.ClientAssertionConfig.PREFIX;
+import static com.dremio.iceberg.authmgr.oauth2.config.JwtClientAuthConfig.PREFIX;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
@@ -37,7 +37,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-class ClientAssertionConfigTest {
+class JwtClientAuthConfigTest {
 
   static Path tempFile;
 
@@ -51,11 +51,10 @@ class ClientAssertionConfigTest {
   void testValidate(Map<String, String> properties, List<String> expected) {
     SmallRyeConfig smallRyeConfig =
         new SmallRyeConfigBuilder()
-            .withMapping(ClientAssertionConfig.class, PREFIX)
+            .withMapping(JwtClientAuthConfig.class, PREFIX)
             .withSources(new MapBackedConfigSource("catalog-properties", properties, 1000) {})
             .build();
-    ClientAssertionConfig config =
-        smallRyeConfig.getConfigMapping(ClientAssertionConfig.class, PREFIX);
+    JwtClientAuthConfig config = smallRyeConfig.getConfigMapping(JwtClientAuthConfig.class, PREFIX);
     assertThatIllegalArgumentException()
         .isThrownBy(config::validate)
         .withMessage(ConfigValidator.buildDescription(expected.stream()));
@@ -64,51 +63,50 @@ class ClientAssertionConfigTest {
   static Stream<Arguments> testValidate() {
     return Stream.of(
         Arguments.of(
-            Map.of(PREFIX + '.' + ClientAssertionConfig.ALGORITHM, "RS256"),
+            Map.of(PREFIX + '.' + JwtClientAuthConfig.ALGORITHM, "RS256"),
             List.of(
                 "client assertion: JWS signing algorithm 'RS256' requires a private key "
-                    + "(rest.auth.oauth2.client-assertion.jwt.algorithm / rest.auth.oauth2.client-assertion.jwt.private-key)")),
+                    + "(rest.auth.oauth2.client-auth.jwt.algorithm / rest.auth.oauth2.client-auth.jwt.private-key)")),
         Arguments.of(
             Map.of(
-                PREFIX + '.' + ClientAssertionConfig.ALGORITHM,
+                PREFIX + '.' + JwtClientAuthConfig.ALGORITHM,
                 "HS256",
-                PREFIX + '.' + ClientAssertionConfig.PRIVATE_KEY,
+                PREFIX + '.' + JwtClientAuthConfig.PRIVATE_KEY,
                 tempFile.toString()),
             List.of(
                 "client assertion: private key must not be set for JWS algorithm 'HS256' "
-                    + "(rest.auth.oauth2.client-assertion.jwt.algorithm / rest.auth.oauth2.client-assertion.jwt.private-key)")),
+                    + "(rest.auth.oauth2.client-auth.jwt.algorithm / rest.auth.oauth2.client-auth.jwt.private-key)")),
         Arguments.of(
             Map.of(
-                PREFIX + '.' + ClientAssertionConfig.ALGORITHM,
+                PREFIX + '.' + JwtClientAuthConfig.ALGORITHM,
                 "RSA_SHA256",
-                PREFIX + '.' + ClientAssertionConfig.PRIVATE_KEY,
+                PREFIX + '.' + JwtClientAuthConfig.PRIVATE_KEY,
                 tempFile.toString()),
             List.of(
                 "client assertion: unsupported JWS algorithm 'RSA_SHA256', must be one of: "
                     + "'HS256', 'HS384', 'HS512', 'RS256', 'RS384', 'RS512', 'PS256', 'PS384', 'PS512', 'ES256', 'ES256K', 'ES384', 'ES512', 'EdDSA', 'Ed25519', 'Ed448' "
-                    + "(rest.auth.oauth2.client-assertion.jwt.algorithm)")),
+                    + "(rest.auth.oauth2.client-auth.jwt.algorithm)")),
         Arguments.of(
-            Map.of(PREFIX + '.' + ClientAssertionConfig.PRIVATE_KEY, "/invalid/path"),
+            Map.of(PREFIX + '.' + JwtClientAuthConfig.PRIVATE_KEY, "/invalid/path"),
             List.of(
                 "client assertion: private key path '/invalid/path' is not a file or is not readable "
-                    + "(rest.auth.oauth2.client-assertion.jwt.private-key)")));
+                    + "(rest.auth.oauth2.client-auth.jwt.private-key)")));
   }
 
   @Test
   void testKeyIdOptional() {
     Map<String, String> properties =
         Map.of(
-            PREFIX + '.' + ClientAssertionConfig.ALGORITHM,
+            PREFIX + '.' + JwtClientAuthConfig.ALGORITHM,
             "RS256",
-            PREFIX + '.' + ClientAssertionConfig.PRIVATE_KEY,
+            PREFIX + '.' + JwtClientAuthConfig.PRIVATE_KEY,
             tempFile.toString());
     SmallRyeConfig smallRyeConfig =
         new SmallRyeConfigBuilder()
-            .withMapping(ClientAssertionConfig.class, PREFIX)
+            .withMapping(JwtClientAuthConfig.class, PREFIX)
             .withSources(new MapBackedConfigSource("catalog-properties", properties, 1000) {})
             .build();
-    ClientAssertionConfig config =
-        smallRyeConfig.getConfigMapping(ClientAssertionConfig.class, PREFIX);
+    JwtClientAuthConfig config = smallRyeConfig.getConfigMapping(JwtClientAuthConfig.class, PREFIX);
     assertThat(config.getKeyId()).isEmpty();
   }
 
@@ -116,30 +114,28 @@ class ClientAssertionConfigTest {
   void testKeyIdPresent() {
     Map<String, String> properties =
         Map.of(
-            PREFIX + '.' + ClientAssertionConfig.ALGORITHM, "RS256",
-            PREFIX + '.' + ClientAssertionConfig.PRIVATE_KEY, tempFile.toString(),
-            PREFIX + '.' + ClientAssertionConfig.KEY_ID, "my-key-123");
+            PREFIX + '.' + JwtClientAuthConfig.ALGORITHM, "RS256",
+            PREFIX + '.' + JwtClientAuthConfig.PRIVATE_KEY, tempFile.toString(),
+            PREFIX + '.' + JwtClientAuthConfig.KEY_ID, "my-key-123");
     SmallRyeConfig smallRyeConfig =
         new SmallRyeConfigBuilder()
-            .withMapping(ClientAssertionConfig.class, PREFIX)
+            .withMapping(JwtClientAuthConfig.class, PREFIX)
             .withSources(new MapBackedConfigSource("catalog-properties", properties, 1000) {})
             .build();
-    ClientAssertionConfig config =
-        smallRyeConfig.getConfigMapping(ClientAssertionConfig.class, PREFIX);
+    JwtClientAuthConfig config = smallRyeConfig.getConfigMapping(JwtClientAuthConfig.class, PREFIX);
     assertThat(config.getKeyId()).hasValue("my-key-123");
   }
 
   @Test
   void testAudienceSingleValue() {
     Map<String, String> properties =
-        Map.of(PREFIX + '.' + ClientAssertionConfig.AUDIENCE, "https://example.com");
+        Map.of(PREFIX + '.' + JwtClientAuthConfig.AUDIENCE, "https://example.com");
     SmallRyeConfig smallRyeConfig =
         new SmallRyeConfigBuilder()
-            .withMapping(ClientAssertionConfig.class, PREFIX)
+            .withMapping(JwtClientAuthConfig.class, PREFIX)
             .withSources(new MapBackedConfigSource("catalog-properties", properties, 1000) {})
             .build();
-    ClientAssertionConfig config =
-        smallRyeConfig.getConfigMapping(ClientAssertionConfig.class, PREFIX);
+    JwtClientAuthConfig config = smallRyeConfig.getConfigMapping(JwtClientAuthConfig.class, PREFIX);
     assertThat(config.getAudience()).contains(List.of(new Audience("https://example.com")));
   }
 
@@ -147,15 +143,14 @@ class ClientAssertionConfigTest {
   void testAudienceMultipleValues() {
     Map<String, String> properties =
         Map.of(
-            PREFIX + '.' + ClientAssertionConfig.AUDIENCE,
+            PREFIX + '.' + JwtClientAuthConfig.AUDIENCE,
             "https://auth1.example.com,https://auth2.example.com");
     SmallRyeConfig smallRyeConfig =
         new SmallRyeConfigBuilder()
-            .withMapping(ClientAssertionConfig.class, PREFIX)
+            .withMapping(JwtClientAuthConfig.class, PREFIX)
             .withSources(new MapBackedConfigSource("catalog-properties", properties, 1000) {})
             .build();
-    ClientAssertionConfig config =
-        smallRyeConfig.getConfigMapping(ClientAssertionConfig.class, PREFIX);
+    JwtClientAuthConfig config = smallRyeConfig.getConfigMapping(JwtClientAuthConfig.class, PREFIX);
     assertThat(config.getAudience())
         .contains(
             List.of(

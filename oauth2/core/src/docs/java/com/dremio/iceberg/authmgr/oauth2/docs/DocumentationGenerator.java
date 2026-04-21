@@ -62,6 +62,7 @@ public class DocumentationGenerator {
     refs.put("GrantType#AUTHORIZATION_CODE", "authorization_code");
     refs.put("GrantType#REFRESH_TOKEN", "refresh_token");
     refs.put("GrantType#DEVICE_CODE", "urn:ietf:params:oauth:grant-type:device_code");
+    refs.put("GrantType#JWT_BEARER", "urn:ietf:params:oauth:grant-type:jwt-bearer");
     refs.put("GrantType#TOKEN_EXCHANGE", "urn:ietf:params:oauth:grant-type:token-exchange");
     refs.put("JWSAlgorithm#HS512", "HS512");
     refs.put("JWSAlgorithm#RS512", "RS512");
@@ -229,7 +230,14 @@ public class DocumentationGenerator {
         String className = section.configClass.getPackageName() + "." + parts[0];
         String fieldName = parts[1];
         JavaClass classRef = builder.getClassByName(className);
+        if (classRef == null) {
+          throw new IllegalArgumentException("Unresolved documentation reference: " + ref);
+        }
         Section refSection = sections.get(classRef.getFullyQualifiedName());
+        if (refSection == null) {
+          throw new IllegalArgumentException(
+              "Unsupported external documentation reference: " + ref);
+        }
         refTarget = refSection.refs.get(fieldName);
       }
     }

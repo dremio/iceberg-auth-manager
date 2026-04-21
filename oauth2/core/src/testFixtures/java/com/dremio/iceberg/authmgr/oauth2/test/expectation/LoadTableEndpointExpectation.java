@@ -17,9 +17,11 @@ package com.dremio.iceberg.authmgr.oauth2.test.expectation;
 
 import static com.dremio.iceberg.authmgr.oauth2.test.expectation.ExpectationUtils.getJsonBody;
 
+import com.dremio.iceberg.authmgr.oauth2.test.TestConstants;
 import com.dremio.iceberg.authmgr.oauth2.test.TestServer;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
 import java.util.UUID;
+import java.util.regex.Pattern;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.SortOrder;
@@ -57,7 +59,8 @@ public abstract class LoadTableEndpointExpectation extends AbstractExpectation {
                 .withPath(getTestEnvironment().getLoadTableEndpoint().getPath())
                 .withHeader("Content-Type", "application/json")
                 .withHeader("Accept", "application/json")
-                .withHeader("Authorization", "Bearer access_initial2?"))
+                .withHeader(
+                    "Authorization", "Bearer " + Pattern.quote(TestConstants.ACCESS_TOKEN_INITIAL)))
         .respond(HttpResponse.response().withBody(getJsonBody(response)));
   }
 }

@@ -15,6 +15,9 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.test.expectation;
 
+import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.ACCESS_TOKEN_INITIAL;
+import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.REFRESH_TOKEN_INITIAL;
+
 import com.dremio.iceberg.authmgr.oauth2.test.TestServer;
 
 public abstract class InitialTokenFetchExpectation extends AbstractTokenEndpointExpectation {
@@ -23,6 +26,6 @@ public abstract class InitialTokenFetchExpectation extends AbstractTokenEndpoint
   public void create() {
     TestServer.getInstance()
         .when(request())
-        .respond(httpRequest -> response(httpRequest, "access_initial", "refresh_initial"));
+        .respond(httpRequest -> response(httpRequest, ACCESS_TOKEN_INITIAL, REFRESH_TOKEN_INITIAL));
   }
 }

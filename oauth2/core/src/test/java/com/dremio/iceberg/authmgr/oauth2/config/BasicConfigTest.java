@@ -212,7 +212,7 @@ class BasicConfigTest {
                 PREFIX + '.' + BasicConfig.TOKEN_ENDPOINT,
                 "https://example.com/token"),
             singletonList(
-                "grant type must be one of: 'client_credentials', 'password', 'authorization_code', 'urn:ietf:params:oauth:grant-type:device_code', 'urn:ietf:params:oauth:grant-type:token-exchange' (rest.auth.oauth2.grant-type)")),
+                "grant type must be one of: 'client_credentials', 'password', 'authorization_code', 'urn:ietf:params:oauth:grant-type:device_code', 'urn:ietf:params:oauth:grant-type:token-exchange', 'urn:ietf:params:oauth:grant-type:jwt-bearer' (rest.auth.oauth2.grant-type)")),
         Arguments.of(
             Map.of(
                 PREFIX + '.' + BasicConfig.CLIENT_AUTH,

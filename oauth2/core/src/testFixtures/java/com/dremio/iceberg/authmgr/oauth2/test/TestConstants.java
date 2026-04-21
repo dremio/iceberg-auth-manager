@@ -18,17 +18,23 @@ package com.dremio.iceberg.authmgr.oauth2.test;
 import static com.dremio.iceberg.authmgr.oauth2.OAuth2Config.PREFIX;
 
 import com.dremio.iceberg.authmgr.oauth2.config.BasicConfig;
+import com.nimbusds.jose.JOSEException;
+import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jose.JWSHeader;
+import com.nimbusds.jose.crypto.MACSigner;
+import com.nimbusds.jwt.JWTClaimsSet;
+import com.nimbusds.jwt.SignedJWT;
 import com.nimbusds.oauth2.sdk.Scope;
 import com.nimbusds.oauth2.sdk.auth.Secret;
 import com.nimbusds.oauth2.sdk.id.Audience;
 import com.nimbusds.oauth2.sdk.id.ClientID;
 import com.nimbusds.oauth2.sdk.token.TokenTypeURI;
-import com.nimbusds.oauth2.sdk.token.TypelessAccessToken;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
+import java.util.Date;
 import java.util.Map;
 import java.util.UUID;
 import org.apache.iceberg.catalog.SessionCatalog;
@@ -81,8 +87,18 @@ public class TestConstants {
   public static final Duration REFRESH_TOKEN_LIFESPAN =
       Duration.ofSeconds(REFRESH_TOKEN_EXPIRES_IN_SECONDS);
 
-  public static final TypelessAccessToken SUBJECT_TOKEN = new TypelessAccessToken("subject");
-  public static final TypelessAccessToken ACTOR_TOKEN = new TypelessAccessToken("actor");
+  // tokens used as configuration inputs for token exchange and jwt-bearer
+  public static final String SUBJECT_TOKEN = jwt();
+  public static final String ACTOR_TOKEN = jwt();
+  public static final String ASSERTION_TOKEN = jwt();
+
+  // access tokens returned by token endpoint expectations
+  public static final String ACCESS_TOKEN_INITIAL = jwt();
+  public static final String ACCESS_TOKEN_REFRESHED = jwt();
+
+  // refresh tokens returned by token endpoint expectations (opaque tokens)
+  public static final String REFRESH_TOKEN_INITIAL = "refresh_initial";
+  public static final String REFRESH_TOKEN_REFRESHED = "refresh_refreshed";
 
   public static final Audience AUDIENCE = new Audience("audience");
   public static final URI RESOURCE = URI.create("urn:authmgr:test:resource");
@@ -106,4 +122,23 @@ public class TestConstants {
           Map.of(PREFIX + '.' + BasicConfig.SCOPE, TestConstants.SCOPE2.toString()));
 
   private TestConstants() {}
+
+  private static String jwt() {
+    try {
+      SignedJWT jwt =
+          new SignedJWT(
+              new JWSHeader(JWSAlgorithm.HS256),
+              new JWTClaimsSet.Builder()
+                  .subject("Alice")
+                  .jwtID(UUID.randomUUID().toString())
+                  .issueTime(Date.from(NOW))
+                  .expirationTime(Date.from(ACCESS_TOKEN_EXPIRATION_TIME))
+                  .build());
+      jwt.sign(
+          new MACSigner("very-very-long-test-signing-secret".getBytes(StandardCharsets.UTF_8)));
+      return jwt.serialize();
+    } catch (JOSEException e) {
+      throw new RuntimeException("Failed to create test JWT", e);
+    }
+  }
 }

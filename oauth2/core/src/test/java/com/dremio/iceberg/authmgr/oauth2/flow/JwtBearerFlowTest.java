@@ -23,39 +23,60 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
 import com.dremio.iceberg.authmgr.oauth2.test.junit.EnumLike;
 import com.nimbusds.oauth2.sdk.GrantType;
+import com.nimbusds.oauth2.sdk.ParseException;
 import com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod;
-import com.nimbusds.oauth2.sdk.pkce.CodeChallengeMethod;
-import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.Objects;
+import java.time.Duration;
 import java.util.concurrent.ExecutionException;
-import org.apache.http.ssl.SSLContextBuilder;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 import org.junitpioneer.jupiter.cartesian.CartesianTest;
 import org.junitpioneer.jupiter.cartesian.CartesianTest.Values;
 
-class AuthorizationCodeFlowTest {
+class JwtBearerFlowTest {
 
   @CartesianTest
   void fetchNewTokens(
       @EnumLike ClientAuthenticationMethod authenticationMethod,
-      @Values(booleans = {true, false}) boolean pkceEnabled,
-      @EnumLike CodeChallengeMethod codeChallengeMethod,
       @Values(booleans = {true, false}) boolean returnRefreshTokens)
       throws InterruptedException, ExecutionException {
     try (TestEnvironment env =
             TestEnvironment.builder()
-                .grantType(GrantType.AUTHORIZATION_CODE)
+                .grantType(GrantType.JWT_BEARER)
                 .clientAuthenticationMethod(authenticationMethod)
-                .pkceEnabled(pkceEnabled)
-                .codeChallengeMethod(codeChallengeMethod)
                 .returnRefreshTokens(returnRefreshTokens)
                 .build();
         FlowFactory flowFactory = env.newFlowFactory()) {
       Flow flow = flowFactory.createInitialFlow();
-      assertThat(flow).isInstanceOf(AuthorizationCodeFlow.class);
+      assertThat(flow).isInstanceOf(JwtBearerFlow.class);
+      TokensResult tokens = flow.fetchNewTokens().toCompletableFuture().get();
+      assertTokensResult(
+          tokens, ACCESS_TOKEN_INITIAL, returnRefreshTokens ? REFRESH_TOKEN_INITIAL : null);
+    }
+  }
+
+  @CartesianTest
+  void fetchNewTokensDynamic(
+      @EnumLike(excludes = {"none", "client_secret_basic"})
+          ClientAuthenticationMethod authenticationMethod,
+      @Values(booleans = {true, false}) boolean returnRefreshTokens,
+      @EnumLike(
+              excludes = {
+                "urn:ietf:params:oauth:grant-type:jwt-bearer",
+                "urn:ietf:params:oauth:grant-type:token-exchange"
+              })
+          GrantType assertionGrantType)
+      throws InterruptedException, ExecutionException {
+    try (TestEnvironment env =
+            TestEnvironment.builder()
+                .grantType(GrantType.JWT_BEARER)
+                .clientAuthenticationMethod(authenticationMethod)
+                .executorPoolSize(2)
+                .returnRefreshTokens(returnRefreshTokens)
+                .assertion(null)
+                .assertionGrantType(assertionGrantType)
+                .build();
+        FlowFactory flowFactory = env.newFlowFactory()) {
+      Flow flow = flowFactory.createInitialFlow();
+      assertThat(flow).isInstanceOf(JwtBearerFlow.class);
       TokensResult tokens = flow.fetchNewTokens().toCompletableFuture().get();
       assertTokensResult(
           tokens, ACCESS_TOKEN_INITIAL, returnRefreshTokens ? REFRESH_TOKEN_INITIAL : null);
@@ -63,28 +84,22 @@ class AuthorizationCodeFlowTest {
   }
 
   @Test
-  void httpsCallback(@TempDir Path tempDir) throws Exception {
-    Path keyStorePath = tempDir.resolve("keystore.p12");
-    try (InputStream is = getClass().getResourceAsStream("/openssl/mockserver.p12")) {
-      Files.copy(Objects.requireNonNull(is), keyStorePath);
-    }
+  void fetchNewTokensInvalidAssertion() {
     try (TestEnvironment env =
             TestEnvironment.builder()
-                .grantType(GrantType.AUTHORIZATION_CODE)
-                .callbackHttps(true)
-                .sslKeyStorePath(keyStorePath)
-                .sslKeyStorePassword("s3cr3t")
-                .sslKeyStoreAlias("1")
-                .userSslContext(
-                    SSLContextBuilder.create()
-                        .loadTrustMaterial(keyStorePath.toFile(), "s3cr3t".toCharArray())
-                        .build())
+                .grantType(GrantType.JWT_BEARER)
+                .assertion("InvalidJWT")
                 .build();
         FlowFactory flowFactory = env.newFlowFactory()) {
       Flow flow = flowFactory.createInitialFlow();
-      assertThat(flow).isInstanceOf(AuthorizationCodeFlow.class);
-      TokensResult tokens = flow.fetchNewTokens().toCompletableFuture().get();
-      assertTokensResult(tokens, ACCESS_TOKEN_INITIAL, REFRESH_TOKEN_INITIAL);
+      assertThat(flow).isInstanceOf(JwtBearerFlow.class);
+      assertThat(flow.fetchNewTokens())
+          .completesExceptionallyWithin(Duration.ofSeconds(30))
+          .withThrowableOfType(ExecutionException.class)
+          .withCauseInstanceOf(IllegalArgumentException.class)
+          .withRootCauseInstanceOf(ParseException.class)
+          .withMessageContaining("Failed to create JWT Bearer grant")
+          .withMessageContaining("The assertion is not a JWT");
     }
   }
 }

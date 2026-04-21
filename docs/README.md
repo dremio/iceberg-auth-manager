@@ -52,11 +52,33 @@ The Dremio AuthManager for Apache Iceberg supports several client authentication
 [Client Authentication](./client-authentication.md) section for more details on how to configure
 client authentication.
 
-## Impersonation & Delegation
+## Grant Types
+
+The Dremio AuthManager for Apache Iceberg supports several OAuth2 grant types:
+
+* Client Credentials Grant ([RFC 6749, Section 4.4](https://datatracker.ietf.org/doc/html/rfc6749#section-4.4))
+* Authorization Code Grant ([RFC 6749, Section 4.1](https://datatracker.ietf.org/doc/html/rfc6749#section-4.1))
+* Device Authorization Grant ([RFC 8628](https://datatracker.ietf.org/doc/html/rfc8628))
+* [Token Exchange Grant](./token-exchange.md) ([RFC 8693](https://datatracker.ietf.org/doc/html/rfc8693))
+* [JWT Bearer Grant](./jwt-bearer.md) ([RFC 7523](https://datatracker.ietf.org/doc/html/rfc7523))
+
+The Dremio AuthManager also supports the Resource Owner Password Credentials Grant 
+([RFC 6749, Section 4.3](https://datatracker.ietf.org/doc/html/rfc6749#section-4.3)), but this grant 
+type is deprecated and should be avoided if possible.
+
+See the [Configuration](./configuration.md) section for more details on how to configure grant 
+types.
+
+### Impersonation & Delegation
 
 The Dremio AuthManager for Apache Iceberg supports impersonation and delegation using the token
 exchange grant type. See the [Token Exchange](./token-exchange.md) section for more details on how
 to configure impersonation and delegation.
+
+### Assertion Grants
+
+The Dremio AuthManager for Apache Iceberg supports JWT assertion grants with static or dynamic
+assertions. See the [JWT Bearer Grant](./jwt-bearer.md) section for more details.
 
 ## Migration From Iceberg's Built-In OAuth2 `AuthManager`
 

@@ -41,9 +41,9 @@ import java.util.stream.Stream;
  * <p>These properties allow the client to authenticate using the {@code client_secret_jwt} or
  * {@code private_key_jwt} authentication methods.
  */
-public interface ClientAssertionConfig {
+public interface JwtClientAuthConfig {
 
-  String GROUP_NAME = "client-assertion.jwt";
+  String GROUP_NAME = "client-auth.jwt";
   String PREFIX = OAuth2Config.PREFIX + '.' + GROUP_NAME;
 
   String ISSUER = "issuer";

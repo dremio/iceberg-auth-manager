@@ -89,7 +89,7 @@ Example configuration:
 rest.auth.oauth2.client-auth=client_secret_jwt
 rest.auth.oauth2.client-id=my-client
 rest.auth.oauth2.client-secret=my-secret
-rest.auth.oauth2.client-assertion.jwt.algorithm=HMAC_SHA256
+rest.auth.oauth2.client-auth.jwt.algorithm=HMAC_SHA256
 ```
 
 #### `private_key_jwt`
@@ -101,11 +101,11 @@ Example configuration:
 ```properties
 rest.auth.oauth2.client-auth=private_key_jwt
 rest.auth.oauth2.client-id=my-client
-rest.auth.oauth2.client-assertion.jwt.algorithm=RSA_SHA256
-rest.auth.oauth2.client-assertion.jwt.private-key=/path/to/private_key.pem
+rest.auth.oauth2.client-auth.jwt.algorithm=RSA_SHA256
+rest.auth.oauth2.client-auth.jwt.private-key=/path/to/private_key.pem
 ```
 
-When using this method, the private key file must be provided using the `rest.auth.oauth2.client-assertion.jwt.private-key` property. 
+When using this method, the private key file must be provided using the `rest.auth.oauth2.client-auth.jwt.private-key` property. 
 
 The file must be in PEM format. It may contain multiple objects; the first private key encountered
 in the file is used.
@@ -134,16 +134,16 @@ The JWT assertion includes the following claims:
 Each of these claims (except `iat`) can be customized using the following configuration properties:
 
 ```properties
-rest.auth.oauth2.client-assertion.jwt.issuer=my-issuer
-rest.auth.oauth2.client-assertion.jwt.subject=my-subject
-rest.auth.oauth2.client-assertion.jwt.audience=https://example.com/token
-rest.auth.oauth2.client-assertion.jwt.token-lifespan=PT10M
+rest.auth.oauth2.client-auth.jwt.issuer=my-issuer
+rest.auth.oauth2.client-auth.jwt.subject=my-subject
+rest.auth.oauth2.client-auth.jwt.audience=https://example.com/token
+rest.auth.oauth2.client-auth.jwt.token-lifespan=PT10M
 ```
 
-The signing algorithm can be specified using the `rest.auth.oauth2.client-assertion.jwt.algorithm` property. The default is `HMAC_SHA512` for `client_secret_jwt` and `RSA_SHA512` for `private_key_jwt` (algorithm names are case-insensitive). Example:
+The signing algorithm can be specified using the `rest.auth.oauth2.client-auth.jwt.algorithm` property. The default is `HMAC_SHA512` for `client_secret_jwt` and `RSA_SHA512` for `private_key_jwt` (algorithm names are case-insensitive). Example:
 
 ```properties
-rest.auth.oauth2.client-assertion.jwt.algorithm=HMAC_SHA384
+rest.auth.oauth2.client-auth.jwt.algorithm=HMAC_SHA384
 ```
 
 Supported algorithms are:
@@ -165,8 +165,8 @@ For `private_key_jwt`:
 | `RSA_SHA512` | `RS512`, `SHA512withRSA`   |
 
 
-And finally, extra claims can be added to the JWT assertion using the `rest.auth.oauth2.client-assertion.jwt.extra-claims.*` prefix property. Example:
+And finally, extra claims can be added to the JWT assertion using the `rest.auth.oauth2.client-auth.jwt.extra-claims.*` prefix property. Example:
 
 ```properties
-rest.auth.oauth2.client-assertion.jwt.extra-claims.my-claim=my-value
+rest.auth.oauth2.client-auth.jwt.extra-claims.my-claim=my-value
 ```

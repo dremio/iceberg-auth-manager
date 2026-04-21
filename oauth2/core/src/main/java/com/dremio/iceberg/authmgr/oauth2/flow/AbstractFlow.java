@@ -199,7 +199,7 @@ abstract class AbstractFlow implements Flow {
     } else if (method.equals(CLIENT_SECRET_JWT)) {
       JWTAssertionDetails details = createJwtAssertionDetails(tokenEndpoint);
       JWSAlgorithm algorithm =
-          getConfig().getClientAssertionConfig().getAlgorithm().orElse(JWSAlgorithm.HS256);
+          getConfig().getJwtClientAuthConfig().getAlgorithm().orElse(JWSAlgorithm.HS256);
       Secret secret = getConfig().getBasicConfig().getClientSecret().orElseThrow();
       try {
         SignedJWT assertion = JWTAssertionFactory.create(details, algorithm, secret);
@@ -211,11 +211,11 @@ abstract class AbstractFlow implements Flow {
     } else if (method.equals(PRIVATE_KEY_JWT)) {
       JWTAssertionDetails details = createJwtAssertionDetails(tokenEndpoint);
       JWSAlgorithm algorithm =
-          getConfig().getClientAssertionConfig().getAlgorithm().orElse(JWSAlgorithm.RS256);
-      Path privateKeyPath = getConfig().getClientAssertionConfig().getPrivateKey().orElseThrow();
+          getConfig().getJwtClientAuthConfig().getAlgorithm().orElse(JWSAlgorithm.RS256);
+      Path privateKeyPath = getConfig().getJwtClientAuthConfig().getPrivateKey().orElseThrow();
       PrivateKey privateKey = PemReader.getInstance().readPrivateKey(privateKeyPath);
       try {
-        String kid = getConfig().getClientAssertionConfig().getKeyId().orElse(null);
+        String kid = getConfig().getJwtClientAuthConfig().getKeyId().orElse(null);
         SignedJWT assertion =
             JWTAssertionFactory.create(details, algorithm, privateKey, kid, null, null, null);
         return new PrivateKeyJWT(assertion);
@@ -229,22 +229,22 @@ abstract class AbstractFlow implements Flow {
 
   private JWTAssertionDetails createJwtAssertionDetails(URI tokenEndpoint) {
     Issuer issuer =
-        getConfig().getClientAssertionConfig().getIssuer().isPresent()
-            ? getConfig().getClientAssertionConfig().getIssuer().get()
+        getConfig().getJwtClientAuthConfig().getIssuer().isPresent()
+            ? getConfig().getJwtClientAuthConfig().getIssuer().get()
             : new Issuer(getConfig().getBasicConfig().getClientId().orElseThrow());
     Subject subject =
-        getConfig().getClientAssertionConfig().getSubject().isPresent()
-            ? getConfig().getClientAssertionConfig().getSubject().get()
+        getConfig().getJwtClientAuthConfig().getSubject().isPresent()
+            ? getConfig().getJwtClientAuthConfig().getSubject().get()
             : new Subject(getConfig().getBasicConfig().getClientId().orElseThrow().getValue());
     List<Audience> audiences =
         getConfig()
-            .getClientAssertionConfig()
+            .getJwtClientAuthConfig()
             .getAudience()
             .orElseGet(() -> List.of(new Audience(tokenEndpoint)));
     Instant issuedAt = getRuntime().getClock().instant();
-    Instant expiration = issuedAt.plus(getConfig().getClientAssertionConfig().getTokenLifespan());
+    Instant expiration = issuedAt.plus(getConfig().getJwtClientAuthConfig().getTokenLifespan());
     @SuppressWarnings({"rawtypes", "unchecked"})
-    Map<String, Object> extraClaims = (Map) getConfig().getClientAssertionConfig().getExtraClaims();
+    Map<String, Object> extraClaims = (Map) getConfig().getJwtClientAuthConfig().getExtraClaims();
     return new JWTAssertionDetails(
         issuer,
         subject,

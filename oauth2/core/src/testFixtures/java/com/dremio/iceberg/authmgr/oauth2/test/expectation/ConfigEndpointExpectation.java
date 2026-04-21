@@ -17,11 +17,13 @@ package com.dremio.iceberg.authmgr.oauth2.test.expectation;
 
 import static com.dremio.iceberg.authmgr.oauth2.test.expectation.ExpectationUtils.getJsonBody;
 
+import com.dremio.iceberg.authmgr.oauth2.test.TestConstants;
 import com.dremio.iceberg.authmgr.oauth2.test.TestServer;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
 import com.google.common.collect.ImmutableList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.regex.Pattern;
 import org.apache.iceberg.rest.Endpoint;
 import org.apache.iceberg.rest.ResourcePaths;
 import org.apache.iceberg.rest.responses.ConfigResponse;
@@ -68,7 +70,8 @@ public abstract class ConfigEndpointExpectation extends AbstractExpectation {
                 .withMethod("GET")
                 .withPath(getTestEnvironment().getConfigEndpoint().getPath())
                 .withHeader("Accept", "application/json")
-                .withHeader("Authorization", "Bearer access_initial"))
+                .withHeader(
+                    "Authorization", "Bearer " + Pattern.quote(TestConstants.ACCESS_TOKEN_INITIAL)))
         .respond(HttpResponse.response().withBody(getJsonBody(response)));
   }
 }
