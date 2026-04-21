@@ -26,8 +26,11 @@ import java.nio.file.Path;
 import java.security.PrivateKey;
 import java.security.interfaces.ECPrivateKey;
 import java.security.interfaces.RSAPrivateKey;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 class BouncyCastlePemReaderTest {
 
@@ -64,7 +67,21 @@ class BouncyCastlePemReaderTest {
   }
 
   @Test
-  void testReadEcPrivateKey() {
+  void testReadEcPkcs8PrivateKey() {
+    // Given
+    Path privateKeyFile = TestCertificates.instance().getEcdsaPrivateKeyPkcs8Pem();
+
+    // When
+    PrivateKey privateKey = new BouncyCastlePemReader().readPrivateKey(privateKeyFile);
+
+    // Then
+    assertThat(privateKey).isNotNull();
+    assertThat(privateKey.getAlgorithm()).isEqualTo("EC");
+    assertThat(privateKey).isInstanceOf(ECPrivateKey.class);
+  }
+
+  @Test
+  void testReadEcSec1PrivateKey() {
     // Given
     Path privateKeyFile = TestCertificates.instance().getEcdsaPrivateKeySec1Pem();
 
@@ -73,7 +90,7 @@ class BouncyCastlePemReaderTest {
 
     // Then
     assertThat(privateKey).isNotNull();
-    assertThat(privateKey.getAlgorithm()).isIn("EC", "ECDSA"); // BouncyCastle may return "ECDSA"
+    assertThat(privateKey.getAlgorithm()).isEqualTo("EC");
     assertThat(privateKey).isInstanceOf(ECPrivateKey.class);
   }
 
@@ -104,17 +121,23 @@ class BouncyCastlePemReaderTest {
         .hasMessageContaining("No private key found in file");
   }
 
-  @Test
-  void testReadFileWithoutPrivateKey() {
-    // Given
-    Path privateKeyFile = TestCertificates.instance().getRsaCertificatePem();
-
+  @ParameterizedTest
+  @MethodSource("invalidPemFiles")
+  void testReadFileWithoutPrivateKey(Path certificateFile) {
     // When - Then
-    assertThatThrownBy(() -> new BouncyCastlePemReader().readPrivateKey(privateKeyFile))
+    assertThatThrownBy(() -> new BouncyCastlePemReader().readPrivateKey(certificateFile))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("Failed to read PEM file")
         .rootCause()
         .hasMessageContaining("No private key found in file");
+  }
+
+  static Stream<Path> invalidPemFiles() {
+    return Stream.of(
+        TestCertificates.instance().getRsaPublicKeyPem(),
+        TestCertificates.instance().getRsaCertificatePem(),
+        TestCertificates.instance().getEcdsaPublicKeyPem(),
+        TestCertificates.instance().getEcdsaCertificatePem());
   }
 
   @Test
