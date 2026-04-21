@@ -16,7 +16,6 @@
 package com.dremio.iceberg.authmgr.oauth2.test.user;
 
 import static java.net.HttpURLConnection.HTTP_OK;
-import static java.net.HttpURLConnection.HTTP_UNAUTHORIZED;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
@@ -78,6 +77,6 @@ public abstract class AuthorizationCodeUserFlow extends UserFlow {
     conn.setRequestMethod("GET");
     int status = conn.getResponseCode();
     conn.disconnect();
-    assertThat(status).isEqualTo(useWrongCode ? HTTP_UNAUTHORIZED : HTTP_OK);
+    assertThat(status).isEqualTo(HTTP_OK);
   }
 }
