@@ -83,6 +83,9 @@ public interface JwtClientAuthConfig {
    * ClientAuthenticationMethod#CLIENT_SECRET_JWT}, or {@link JWSAlgorithm#RS512} if the
    * authentication method is {@link ClientAuthenticationMethod#PRIVATE_KEY_JWT}.
    *
+   * <p>Supported algorithms are: HMAC-SHA for {@code client_secret_jwt}, and RSA or EC for {@code
+   * private_key_jwt}.
+   *
    * <p>Algorithm names must match the "alg" Param Value as described in <a
    * href="https://datatracker.ietf.org/doc/html/rfc7518#section-3.1">RFC 7518 Section 3.1</a>.
    */
@@ -133,7 +136,8 @@ public interface JwtClientAuthConfig {
   default void validate() {
     ConfigValidator validator = new ConfigValidator();
     if (getAlgorithm().isPresent()) {
-      if (JWSAlgorithm.Family.SIGNATURE.contains(getAlgorithm().get())) {
+      if (JWSAlgorithm.Family.RSA.contains(getAlgorithm().get())
+          || JWSAlgorithm.Family.EC.contains(getAlgorithm().get())) {
         validator.check(
             getPrivateKey().isPresent(),
             List.of(PREFIX + '.' + ALGORITHM, PREFIX + '.' + PRIVATE_KEY),
@@ -151,8 +155,11 @@ public interface JwtClientAuthConfig {
             PREFIX + '.' + ALGORITHM,
             "client assertion: unsupported JWS algorithm '%s', must be one of: %s",
             getAlgorithm().get().getName(),
-            Stream.concat(
-                    JWSAlgorithm.Family.HMAC_SHA.stream(), JWSAlgorithm.Family.SIGNATURE.stream())
+            Stream.of(
+                    JWSAlgorithm.Family.HMAC_SHA.stream(),
+                    JWSAlgorithm.Family.RSA.stream(),
+                    JWSAlgorithm.Family.EC.stream())
+                .flatMap(s -> s)
                 .map(JWSAlgorithm::getName)
                 .collect(Collectors.joining("', '", "'", "'")));
       }
