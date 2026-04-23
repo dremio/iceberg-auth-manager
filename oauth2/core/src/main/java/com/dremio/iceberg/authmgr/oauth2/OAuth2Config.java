@@ -26,6 +26,7 @@ import com.dremio.iceberg.authmgr.oauth2.config.AuthorizationCodeConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.BasicConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.ConfigUtils;
 import com.dremio.iceberg.authmgr.oauth2.config.DeviceCodeConfig;
+import com.dremio.iceberg.authmgr.oauth2.config.DpopConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.HttpConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.JwtBearerConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.JwtClientAuthConfig;
@@ -74,6 +75,9 @@ public interface OAuth2Config {
 
   @WithName(JwtClientAuthConfig.GROUP_NAME)
   JwtClientAuthConfig getJwtClientAuthConfig();
+
+  @WithName(DpopConfig.GROUP_NAME)
+  DpopConfig getDpopConfig();
 
   @WithName(SystemConfig.GROUP_NAME)
   SystemConfig getSystemConfig();
@@ -125,6 +129,7 @@ public interface OAuth2Config {
     getTokenExchangeConfig().validate();
     getJwtBearerGrantConfig().validate();
     getJwtClientAuthConfig().validate();
+    getDpopConfig().validate();
     getSystemConfig().validate();
     getHttpConfig().validate();
     // Validate constraints that span multiple configuration classes
