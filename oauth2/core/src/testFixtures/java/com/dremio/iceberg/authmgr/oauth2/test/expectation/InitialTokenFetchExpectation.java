@@ -19,6 +19,10 @@ import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.ACCESS_TOKEN_
 import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.REFRESH_TOKEN_INITIAL;
 
 import com.dremio.iceberg.authmgr.oauth2.test.TestServer;
+import com.nimbusds.jwt.SignedJWT;
+import java.text.ParseException;
+import org.mockserver.model.HttpRequest;
+import org.mockserver.model.HttpResponse;
 
 public abstract class InitialTokenFetchExpectation extends AbstractTokenEndpointExpectation {
 
@@ -27,5 +31,33 @@ public abstract class InitialTokenFetchExpectation extends AbstractTokenEndpoint
     TestServer.getInstance()
         .when(request())
         .respond(httpRequest -> response(httpRequest, ACCESS_TOKEN_INITIAL, REFRESH_TOKEN_INITIAL));
+  }
+
+  @Override
+  protected HttpResponse response(
+      HttpRequest httpRequest, String accessToken, String refreshToken) {
+    if (getTestEnvironment().isDpopEnabled()
+        && getTestEnvironment().isRequireDpopNonce()
+        && !hasDpopNonce(httpRequest)) {
+      // Simulate an AS that demands a DPoP nonce (RFC 9449 §8)
+      return HttpResponse.response()
+          .withStatusCode(400)
+          .withHeader("Content-Type", "application/json")
+          .withHeader("DPoP-Nonce", getTestEnvironment().getDpopNonce())
+          .withBody("{\"error\":\"use_dpop_nonce\",\"error_description\":\"nonce required\"}");
+    }
+    return super.response(httpRequest, accessToken, refreshToken);
+  }
+
+  private static boolean hasDpopNonce(HttpRequest httpRequest) {
+    String dpopHeader = httpRequest.getFirstHeader("DPoP");
+    if (dpopHeader == null || dpopHeader.isEmpty()) {
+      return false;
+    }
+    try {
+      return SignedJWT.parse(dpopHeader).getJWTClaimsSet().getStringClaim("nonce") != null;
+    } catch (ParseException e) {
+      return false;
+    }
   }
 }

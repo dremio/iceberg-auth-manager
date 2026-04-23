@@ -73,6 +73,11 @@ public class KeycloakExtension extends TestEnvironmentExtension
   public static final String CLIENT_ID5 = "Client5";
   public static final String CLIENT_AUTH5 = PRIVATE_KEY_JWT.getValue();
 
+  // Client6 is used for DPoP-bound access tokens (RFC 9449) with client_secret_basic auth
+  public static final String CLIENT_ID6 = "Client6";
+  public static final String CLIENT_SECRET6 = Strings.repeat("S6CR3T", 10);
+  public static final String CLIENT_AUTH6 = CLIENT_SECRET_BASIC.getValue();
+
   public static final String USERNAME = TestConstants.USERNAME;
   public static final String PASSWORD = TestConstants.PASSWORD.getValue();
 
@@ -121,7 +126,8 @@ public class KeycloakExtension extends TestEnvironmentExtension
             .withClient(CLIENT_ID2, null, CLIENT_AUTH2)
             .withClient(CLIENT_ID3, CLIENT_SECRET3, CLIENT_AUTH3)
             .withClient(CLIENT_ID4, certs.getRsaCertificateBase64(), CLIENT_AUTH4)
-            .withClient(CLIENT_ID5, certs.getEcdsaCertificateBase64(), CLIENT_AUTH5);
+            .withClient(CLIENT_ID5, certs.getEcdsaCertificateBase64(), CLIENT_AUTH5)
+            .withClient(CLIENT_ID6, CLIENT_SECRET6, CLIENT_AUTH6, true);
     keycloak.start();
     context
         .getStore(ExtensionContext.Namespace.GLOBAL)
