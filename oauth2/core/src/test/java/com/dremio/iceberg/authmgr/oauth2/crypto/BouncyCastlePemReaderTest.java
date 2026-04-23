@@ -24,12 +24,16 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.security.PrivateKey;
+import java.security.PublicKey;
 import java.security.interfaces.ECPrivateKey;
+import java.security.interfaces.ECPublicKey;
 import java.security.interfaces.RSAPrivateKey;
+import java.security.interfaces.RSAPublicKey;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 class BouncyCastlePemReaderTest {
@@ -138,6 +142,42 @@ class BouncyCastlePemReaderTest {
         TestCertificates.instance().getRsaCertificatePem(),
         TestCertificates.instance().getEcdsaPublicKeyPem(),
         TestCertificates.instance().getEcdsaCertificatePem());
+  }
+
+  @Test
+  void testReadRsaPublicKey() {
+    PublicKey publicKey =
+        new BouncyCastlePemReader().readPublicKey(TestCertificates.instance().getRsaPublicKeyPem());
+    assertThat(publicKey).isInstanceOf(RSAPublicKey.class);
+    assertThat(publicKey.getAlgorithm()).isEqualTo("RSA");
+  }
+
+  @Test
+  void testReadEcPublicKey() {
+    PublicKey publicKey =
+        new BouncyCastlePemReader()
+            .readPublicKey(TestCertificates.instance().getEcdsaPublicKeyPem());
+    assertThat(publicKey).isInstanceOf(ECPublicKey.class);
+    assertThat(publicKey.getAlgorithm()).isEqualTo("EC");
+  }
+
+  @ParameterizedTest
+  @MethodSource("derivableKeyPairs")
+  void testDerivePublicKey(Path privatePem, Path publicPem) {
+    BouncyCastlePemReader reader = new BouncyCastlePemReader();
+    PrivateKey privateKey = reader.readPrivateKey(privatePem);
+    PublicKey expected = reader.readPublicKey(publicPem);
+    PublicKey actual = reader.derivePublicKey(privateKey);
+    assertThat(actual).isEqualTo(expected);
+  }
+
+  static Stream<Arguments> derivableKeyPairs() {
+    TestCertificates certs = TestCertificates.instance();
+    return Stream.of(
+        Arguments.of(certs.getRsaPrivateKeyPkcs8Pem(), certs.getRsaPublicKeyPem()),
+        Arguments.of(certs.getRsaPrivateKeyPkcs1Pem(), certs.getRsaPublicKeyPem()),
+        Arguments.of(certs.getEcdsaPrivateKeyPkcs8Pem(), certs.getEcdsaPublicKeyPem()),
+        Arguments.of(certs.getEcdsaPrivateKeySec1Pem(), certs.getEcdsaPublicKeyPem()));
   }
 
   @Test

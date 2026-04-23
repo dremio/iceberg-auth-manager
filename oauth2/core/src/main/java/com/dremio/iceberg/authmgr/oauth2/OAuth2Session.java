@@ -17,12 +17,12 @@ package com.dremio.iceberg.authmgr.oauth2;
 
 import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2Agent;
 import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2AgentRuntime;
-import com.nimbusds.oauth2.sdk.token.AccessToken;
 import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
 import org.apache.iceberg.rest.HTTPHeaders;
 import org.apache.iceberg.rest.HTTPHeaders.HTTPHeader;
 import org.apache.iceberg.rest.HTTPRequest;
+import org.apache.iceberg.rest.ImmutableHTTPHeaders;
 import org.apache.iceberg.rest.ImmutableHTTPRequest;
 import org.apache.iceberg.rest.auth.AuthSession;
 
@@ -55,9 +55,12 @@ public class OAuth2Session implements AuthSession {
 
   @Override
   public HTTPRequest authenticate(HTTPRequest request) {
-    AccessToken accessToken = agent.authenticate();
-    HTTPHeader authorization = HTTPHeader.of("Authorization", "Bearer " + accessToken.getValue());
-    HTTPHeaders newHeaders = request.headers().putIfAbsent(HTTPHeaders.of(authorization));
+    ImmutableHTTPHeaders.Builder authHeaders = ImmutableHTTPHeaders.builder();
+    agent.applyAuthentication(
+        request.method().name(),
+        request.requestUri(),
+        (name, value) -> authHeaders.addEntry(HTTPHeader.of(name, value)));
+    HTTPHeaders newHeaders = request.headers().putIfAbsent(authHeaders.build());
     return newHeaders.equals(request.headers())
         ? request
         : ImmutableHTTPRequest.builder().from(request).headers(newHeaders).build();

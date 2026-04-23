@@ -23,6 +23,8 @@ import static com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod.PRIVATE_KE
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Config;
 import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2AgentRuntime;
 import com.dremio.iceberg.authmgr.oauth2.crypto.PemReader;
+import com.dremio.iceberg.authmgr.oauth2.dpop.DpopContext;
+import com.dremio.iceberg.authmgr.oauth2.dpop.DpopScope;
 import com.dremio.iceberg.authmgr.oauth2.endpoint.EndpointProvider;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import com.nimbusds.jose.JOSEException;
@@ -51,6 +53,9 @@ import com.nimbusds.oauth2.sdk.id.ClientID;
 import com.nimbusds.oauth2.sdk.id.Issuer;
 import com.nimbusds.oauth2.sdk.id.JWTID;
 import com.nimbusds.oauth2.sdk.id.Subject;
+import com.nimbusds.oauth2.sdk.token.DPoPTokenError;
+import com.nimbusds.openid.connect.sdk.Nonce;
+import jakarta.annotation.Nullable;
 import java.net.URI;
 import java.nio.file.Path;
 import java.security.PrivateKey;
@@ -93,6 +98,9 @@ abstract class AbstractFlow implements Flow {
     @CanIgnoreReturnValue
     B endpointProvider(EndpointProvider endpointProvider);
 
+    @CanIgnoreReturnValue
+    B dpopContext(@Nullable DpopContext dpopContext);
+
     F build();
   }
 
@@ -104,18 +112,28 @@ abstract class AbstractFlow implements Flow {
 
   abstract EndpointProvider getEndpointProvider();
 
+  @Nullable
+  abstract DpopContext getDpopContext();
+
   CompletionStage<TokensResult> invokeTokenEndpoint(AuthorizationGrant grant) {
     HTTPRequest request;
     try {
       TokenRequest.Builder builder = newTokenRequestBuilder(grant);
       request = builder.build().toHTTPRequest();
+      addDpopHeader(request);
     } catch (Exception e) {
       return CompletableFuture.failedFuture(e);
     }
-    return CompletableFuture.supplyAsync(() -> sendAndReceive(request), getRuntime().getExecutor())
-        .whenComplete((response, error) -> log(request, response, error))
+    return sendTokenRequest(request)
+        .thenCompose(response -> handleDpopNonceChallenge(request, response))
         .thenApply(this::parseTokenResponse)
         .thenApply(this::toTokensResult);
+  }
+
+  private CompletionStage<HTTPResponse> sendTokenRequest(HTTPRequest request) {
+    return CompletableFuture.supplyAsync(() -> sendAndReceive(request), getRuntime().getExecutor())
+        .whenComplete((response, error) -> log(request, response, error))
+        .thenApply(response -> handleDpopNonceHeader(request, response));
   }
 
   TokenRequest.Builder newTokenRequestBuilder(AuthorizationGrant grant) {
@@ -254,5 +272,52 @@ abstract class AbstractFlow implements Flow {
         Date.from(issuedAt),
         new JWTID(),
         extraClaims);
+  }
+
+  private void addDpopHeader(HTTPRequest request) {
+    DpopContext dpop = getDpopContext();
+    if (dpop != null) {
+      String method = request.getMethod() == null ? "POST" : request.getMethod().name();
+      // When used for token-endpoint requests, no access token should be included in the proof
+      SignedJWT proof = dpop.createProof(DpopScope.AS, method, request.getURI(), null);
+      request.setDPoP(proof);
+    }
+  }
+
+  private HTTPResponse handleDpopNonceHeader(HTTPRequest request, HTTPResponse response) {
+    DpopContext dpop = getDpopContext();
+    if (dpop != null) {
+      Nonce nonce = response.getDPoPNonce();
+      if (nonce != null && !nonce.getValue().isEmpty()) {
+        dpop.captureNonce(DpopScope.AS, nonce);
+      }
+    }
+    return response;
+  }
+
+  private CompletionStage<HTTPResponse> handleDpopNonceChallenge(
+      HTTPRequest request, HTTPResponse response) {
+    DpopContext dpop = getDpopContext();
+    if (dpop == null || !isUseDpopNonceError(response)) {
+      return CompletableFuture.completedFuture(response);
+    }
+    // Re-sign the proof with the new nonce and retry once.
+    addDpopHeader(request);
+    return sendTokenRequest(request);
+  }
+
+  private static boolean isUseDpopNonceError(HTTPResponse response) {
+    if (response.getStatusCode() != 400) {
+      return false;
+    }
+    try {
+      TokenResponse parsed = TokenResponse.parse(response);
+      return !parsed.indicatesSuccess()
+          && DPoPTokenError.USE_DPOP_NONCE
+              .getCode()
+              .equals(parsed.toErrorResponse().getErrorObject().getCode());
+    } catch (ParseException e) {
+      return false;
+    }
   }
 }

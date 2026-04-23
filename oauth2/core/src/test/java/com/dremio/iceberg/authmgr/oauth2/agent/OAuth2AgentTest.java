@@ -47,6 +47,10 @@ import com.dremio.iceberg.authmgr.oauth2.test.TestConstants;
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
 import com.dremio.iceberg.authmgr.oauth2.test.junit.EnumLike;
 import com.dremio.iceberg.authmgr.oauth2.test.user.UserBehavior;
+import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jose.util.Base64URL;
+import com.nimbusds.jwt.JWTClaimsSet;
+import com.nimbusds.jwt.SignedJWT;
 import com.nimbusds.oauth2.sdk.GrantType;
 import com.nimbusds.oauth2.sdk.ParseException;
 import com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod;
@@ -57,9 +61,12 @@ import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
 import com.nimbusds.oauth2.sdk.token.RefreshToken;
 import com.nimbusds.oauth2.sdk.token.Tokens;
 import com.nimbusds.oauth2.sdk.token.TypelessAccessToken;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.Duration;
 import java.util.Base64;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RejectedExecutionException;
@@ -1028,6 +1035,46 @@ class OAuth2AgentTest {
       soft.assertThat(agent).extracting("sleeping", ATOMIC_BOOLEAN).isFalse();
       soft.assertThat(token.getValue()).isEqualTo(ACCESS_TOKEN_REFRESHED);
       soft.assertThat(currentRenewalTask.get()).isNotSameAs(renewalTask);
+    }
+  }
+
+  @Test
+  void testApplyAuthenticationBearer() {
+    try (TestEnvironment env = TestEnvironment.builder().build();
+        OAuth2Agent agent = env.newAgent()) {
+
+      Map<String, String> headers = new LinkedHashMap<>();
+      agent.applyAuthentication(
+          "GET", URI.create("https://rs.example.com/warehouse1"), headers::put);
+
+      soft.assertThat(headers).containsOnlyKeys("Authorization");
+      soft.assertThat(headers).containsEntry("Authorization", "Bearer " + ACCESS_TOKEN_INITIAL);
+    }
+  }
+
+  @Test
+  void testApplyAuthenticationDpop() throws Exception {
+    try (TestEnvironment env =
+            TestEnvironment.builder().dpopEnabled(true).dpopAlgorithm(JWSAlgorithm.ES256).build();
+        OAuth2Agent agent = env.newAgent()) {
+
+      URI rsUri = URI.create("https://rs.example.com/warehouse1");
+      Map<String, String> headers = new LinkedHashMap<>();
+      agent.applyAuthentication("GET", rsUri, headers::put);
+
+      soft.assertThat(headers).containsOnlyKeys("Authorization", "DPoP");
+      soft.assertThat(headers).containsEntry("Authorization", "DPoP " + ACCESS_TOKEN_INITIAL);
+
+      SignedJWT proof = SignedJWT.parse(headers.get("DPoP"));
+      JWTClaimsSet claims = proof.getJWTClaimsSet();
+      soft.assertThat(claims.getStringClaim("htm")).isEqualTo("GET");
+      soft.assertThat(claims.getStringClaim("htu")).isEqualTo(rsUri.toString());
+
+      byte[] expectedHash =
+          MessageDigest.getInstance("SHA-256")
+              .digest(ACCESS_TOKEN_INITIAL.getBytes(StandardCharsets.US_ASCII));
+      soft.assertThat(claims.getStringClaim("ath"))
+          .isEqualTo(Base64URL.encode(expectedHash).toString());
     }
   }
 

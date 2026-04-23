@@ -20,15 +20,20 @@ import static com.dremio.iceberg.authmgr.oauth2.concurrent.AutoCloseables.cancel
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Config;
 import com.dremio.iceberg.authmgr.oauth2.concurrent.Futures;
 import com.dremio.iceberg.authmgr.oauth2.config.ConfigUtils;
+import com.dremio.iceberg.authmgr.oauth2.dpop.DpopContext;
+import com.dremio.iceberg.authmgr.oauth2.dpop.DpopScope;
 import com.dremio.iceberg.authmgr.oauth2.flow.Flow;
 import com.dremio.iceberg.authmgr.oauth2.flow.FlowFactory;
 import com.dremio.iceberg.authmgr.oauth2.flow.OAuth2Exception;
 import com.dremio.iceberg.authmgr.oauth2.flow.TokensResult;
+import com.nimbusds.jwt.SignedJWT;
 import com.nimbusds.oauth2.sdk.token.AccessToken;
+import com.nimbusds.oauth2.sdk.token.DPoPAccessToken;
 import com.nimbusds.oauth2.sdk.token.RefreshToken;
 import com.nimbusds.oauth2.sdk.token.Tokens;
 import jakarta.annotation.Nullable;
 import java.io.Closeable;
+import java.net.URI;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -42,6 +47,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -149,6 +155,31 @@ public final class OAuth2Agent implements Closeable {
    */
   public OAuth2Agent copy() {
     return new OAuth2Agent(this);
+  }
+
+  /**
+   * Emits the authentication headers that should be applied to an outgoing request.
+   *
+   * <p>At minimum, this emits an {@code Authorization} header whose scheme matches the current
+   * access token's type (e.g. {@code Bearer} for standard tokens, {@code DPoP} for DPoP-bound
+   * tokens). When DPoP is enabled and the token is DPoP-bound, an additional {@code DPoP} header
+   * carries a fresh proof JWT bound to {@code httpMethod}, {@code requestUri}, and the access
+   * token.
+   *
+   * @param httpMethod the HTTP method of the outgoing request (e.g. {@code GET}, {@code POST}).
+   * @param requestUri the full URI of the outgoing request (used to populate the DPoP proof's
+   *     {@code htu} claim when applicable).
+   * @param headerConsumer the callback invoked once per header to apply.
+   */
+  public void applyAuthentication(
+      String httpMethod, URI requestUri, BiConsumer<String, String> headerConsumer) {
+    AccessToken token = authenticate();
+    headerConsumer.accept("Authorization", token.toAuthorizationHeader());
+    DpopContext dpop = flowFactory.getDpopContext();
+    if (dpop != null && token instanceof DPoPAccessToken) {
+      SignedJWT proof = dpop.createProof(DpopScope.RS, httpMethod, requestUri, token);
+      headerConsumer.accept("DPoP", proof.serialize());
+    }
   }
 
   /**

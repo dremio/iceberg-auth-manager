@@ -15,11 +15,14 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.config;
 
+import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jose.jwk.Curve;
 import com.nimbusds.oauth2.sdk.GrantType;
 import com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod;
 import com.nimbusds.oauth2.sdk.pkce.CodeChallengeMethod;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 public final class ConfigUtils {
@@ -43,6 +46,20 @@ public final class ConfigUtils {
 
   public static final List<CodeChallengeMethod> SUPPORTED_CODE_CHALLENGE_METHODS =
       List.of(CodeChallengeMethod.PLAIN, CodeChallengeMethod.S256);
+
+  /**
+   * EC algorithms supported for DPoP proof signing, each pinned to its unambiguous curve.
+   *
+   * <p>Nimbus's {@link Curve#forJWSAlgorithm(JWSAlgorithm)} returns a {@link Set} and can yield
+   * multiple entries (e.g. for {@code ES256K}), so we keep an explicit mapping here.
+   */
+  public static final Map<JWSAlgorithm, Curve> SUPPORTED_DPOP_EC_ALGORITHMS =
+      Map.of(
+          JWSAlgorithm.ES256, Curve.P_256,
+          JWSAlgorithm.ES384, Curve.P_384,
+          JWSAlgorithm.ES512, Curve.P_521);
+
+  public static final Set<JWSAlgorithm> SUPPORTED_DPOP_RSA_ALGORITHMS = JWSAlgorithm.Family.RSA;
 
   public static boolean requiresClientSecret(ClientAuthenticationMethod method) {
     return method.equals(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)

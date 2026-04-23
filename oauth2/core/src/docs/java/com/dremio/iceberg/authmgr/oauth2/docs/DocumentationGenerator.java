@@ -292,7 +292,12 @@ public class DocumentationGenerator {
     }
 
     private String sanitizeSectionName(String className) {
-      return className.replace("Config", "").replaceAll("([A-Z])", " $1").trim() + " Settings";
+      return className
+              .replace("Config", "")
+              .replaceAll("([A-Z])", " $1")
+              .replace("Dpop", "DPoP")
+              .trim()
+          + " Settings";
     }
 
     private String resolvePrefix() {
