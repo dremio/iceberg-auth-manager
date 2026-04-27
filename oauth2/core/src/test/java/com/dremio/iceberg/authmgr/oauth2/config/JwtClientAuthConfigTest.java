@@ -84,7 +84,17 @@ class JwtClientAuthConfigTest {
                 tempFile.toString()),
             List.of(
                 "client assertion: unsupported JWS algorithm 'RSA_SHA256', must be one of: "
-                    + "'HS256', 'HS384', 'HS512', 'RS256', 'RS384', 'RS512', 'PS256', 'PS384', 'PS512', 'ES256', 'ES256K', 'ES384', 'ES512', 'EdDSA', 'Ed25519', 'Ed448' "
+                    + "'HS256', 'HS384', 'HS512', 'RS256', 'RS384', 'RS512', 'PS256', 'PS384', 'PS512', 'ES256', 'ES256K', 'ES384', 'ES512' "
+                    + "(rest.auth.oauth2.client-auth.jwt.algorithm)")),
+        Arguments.of(
+            Map.of(
+                PREFIX + '.' + JwtClientAuthConfig.ALGORITHM,
+                "EdDSA",
+                PREFIX + '.' + JwtClientAuthConfig.PRIVATE_KEY,
+                tempFile.toString()),
+            List.of(
+                "client assertion: unsupported JWS algorithm 'EdDSA', must be one of: "
+                    + "'HS256', 'HS384', 'HS512', 'RS256', 'RS384', 'RS512', 'PS256', 'PS384', 'PS512', 'ES256', 'ES256K', 'ES384', 'ES512' "
                     + "(rest.auth.oauth2.client-auth.jwt.algorithm)")),
         Arguments.of(
             Map.of(PREFIX + '.' + JwtClientAuthConfig.PRIVATE_KEY, "/invalid/path"),
