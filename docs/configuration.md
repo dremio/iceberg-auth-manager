@@ -462,15 +462,61 @@ The file must be in PEM format; it may contain a private key, or a private key a
 
 Supported key formats are:
 
-- RSA PKCS#8 (`BEGIN PRIVATE KEY`): always supported
-- RSA PKCS#1 (`BEGIN RSA PRIVATE KEY`): requires the BouncyCastle library
-- ECDSA (`BEGIN EC PRIVATE KEY`): requires the BouncyCastle library
+- RSA & ECDSA in PKCS#8 format (`BEGIN PRIVATE KEY`): always supported
+- RSA in PKCS#1 format (`BEGIN RSA PRIVATE KEY`): requires the BouncyCastle library
+- ECDSA in EC SEC 1 format (`BEGIN EC PRIVATE KEY`): requires the BouncyCastle library
 
 Only unencrypted keys are supported currently.
 
 ### `rest.auth.oauth2.client-auth.jwt.extra-claims.*`
 
 Extra claims to include in the client assertion JWT. This is a prefix property, and multiple values can be set, each with a different key and value.
+
+## Dpop Settings
+
+Configuration properties for [RFC 9449: OAuth 2.0 Demonstrating Proof of Possession (DPoP)](https://datatracker.ietf.org/doc/html/rfc9449).
+
+When enabled, the agent generates or loads an asymmetric keypair and attaches a signed DPoP proof JWT to every request sent to the authorization server's token endpoint, as well as to every authenticated request sent to the protected resource server.
+
+DPoP is disabled by default. To enable it, set `rest.auth.oauth2.dpop.enabled=true`.
+
+### `rest.auth.oauth2.dpop.enabled`
+
+Whether DPoP support is enabled. Defaults to `false`.
+
+When enabled, every request to the token endpoint and every authenticated request to the resource server will carry a `DPoP` header with a signed proof JWT, and the `Authorization` header scheme for resource-server requests will switch from `Bearer` to `DPoP`.
+
+### `rest.auth.oauth2.dpop.algorithm`
+
+The JWS algorithm to use for signing DPoP proof JWTs. Defaults to `ES256`.
+
+Per RFC 9449, the signing key MUST be asymmetric; thus only asymmetric algorithms are accepted (e.g. `ES256`, `ES384`, `ES512`, `RS256`, `PS256`, etc.). `ES256K` and the `EdDSA` family are not currently supported.
+
+Algorithm names must match the "alg" Param Value as described in [RFC 7518 Section 3.1](https://datatracker.ietf.org/doc/html/rfc7518#section-3.1).
+
+### `rest.auth.oauth2.dpop.private-key`
+
+The path on the local filesystem to the private key to use for signing DPoP proofs. Optional.
+
+If not set, a fresh ephemeral keypair matching the configured `rest.auth.oauth2.dpop.algorithm` is generated when the agent starts and discarded on shutdown.
+
+If set, the file must be in PEM format; it may contain a private key, or a private key and a certificate chain. Only the private key is used.
+
+Supported key formats are:
+
+- RSA & ECDSA in PKCS#8 format (`BEGIN PRIVATE KEY`): always supported
+- RSA in PKCS#1 format (`BEGIN RSA PRIVATE KEY`): requires the BouncyCastle library
+- ECDSA in EC SEC 1 format (`BEGIN EC PRIVATE KEY`): requires the BouncyCastle library
+
+Only unencrypted keys are supported currently.
+
+### `rest.auth.oauth2.dpop.public-key`
+
+The path on the local filesystem to an optional public key PEM file accompanying `rest.auth.oauth2.dpop.private-key`. Optional.
+
+When set, the file must contain a `-----BEGIN PUBLIC KEY-----` block (X.509 SubjectPublicKeyInfo, as produced by `openssl pkey -pubout`) for the public counterpart of the configured private key. When not set, the public key is derived from the private key automatically; this always works for RSA keys but requires BouncyCastle on the runtime classpath for EC keys.
+
+Ignored when `rest.auth.oauth2.dpop.private-key` is not set (ephemeral mode).
 
 ## System Settings
 

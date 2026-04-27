@@ -116,9 +116,10 @@ public interface JwtClientAuthConfig {
    * <p>Supported key formats are:
    *
    * <ul>
-   *   <li>RSA PKCS#8 ({@code BEGIN PRIVATE KEY}): always supported
-   *   <li>RSA PKCS#1 ({@code BEGIN RSA PRIVATE KEY}): requires the BouncyCastle library
-   *   <li>ECDSA ({@code BEGIN EC PRIVATE KEY}): requires the BouncyCastle library
+   *   <li>RSA & ECDSA in PKCS#8 format ({@code BEGIN PRIVATE KEY}): always supported
+   *   <li>RSA in PKCS#1 format ({@code BEGIN RSA PRIVATE KEY}): requires the BouncyCastle library
+   *   <li>ECDSA in EC SEC 1 format ({@code BEGIN EC PRIVATE KEY}): requires the BouncyCastle
+   *       library
    * </ul>
    *
    * Only unencrypted keys are supported currently.

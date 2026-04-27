@@ -17,6 +17,7 @@ package com.dremio.iceberg.authmgr.oauth2.flow;
 
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Config;
 import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2AgentRuntime;
+import com.dremio.iceberg.authmgr.oauth2.dpop.DpopContext;
 import com.dremio.iceberg.authmgr.oauth2.endpoint.EndpointProvider;
 import com.dremio.iceberg.authmgr.oauth2.http.HttpClient;
 import com.dremio.iceberg.authmgr.oauth2.jwtbearer.AssertionSupplier;
@@ -43,6 +44,7 @@ public abstract class FlowFactory implements AutoCloseable {
         .runtime(getRuntime())
         .endpointProvider(getEndpointProvider())
         .requestSender(getHttpClient())
+        .dpopContext(getDpopContext())
         .build();
   }
 
@@ -56,6 +58,7 @@ public abstract class FlowFactory implements AutoCloseable {
         .runtime(getRuntime())
         .endpointProvider(getEndpointProvider())
         .requestSender(getHttpClient())
+        .dpopContext(getDpopContext())
         .refreshToken(currentRefreshToken)
         .build();
   }
@@ -77,12 +80,14 @@ public abstract class FlowFactory implements AutoCloseable {
     SubjectTokenSupplier subjectTokenSupplier = getSubjectTokenSupplier();
     ActorTokenSupplier actorTokenSupplier = getActorTokenSupplier();
     AssertionSupplier assertionSupplier = getAssertionSupplier();
+    DpopContext dpopContext = getDpopContext();
     return ImmutableFlowFactory.builder()
         .from(this)
-        // Copy the suppliers to also create copies of their internal agents.
+        // Copy the suppliers and DPoP context to give the copy its own internal state.
         .subjectTokenSupplier(subjectTokenSupplier == null ? null : subjectTokenSupplier.copy())
         .actorTokenSupplier(actorTokenSupplier == null ? null : actorTokenSupplier.copy())
         .assertionSupplier(assertionSupplier == null ? null : assertionSupplier.copy())
+        .dpopContext(dpopContext == null ? null : dpopContext.copy())
         .build();
   }
 
@@ -123,6 +128,14 @@ public abstract class FlowFactory implements AutoCloseable {
     return !getConfig().getBasicConfig().getGrantType().equals(GrantType.TOKEN_EXCHANGE)
         ? null
         : ActorTokenSupplier.create(getConfig(), getRuntime());
+  }
+
+  @Value.Default
+  @Nullable
+  public DpopContext getDpopContext() {
+    return getConfig().getDpopConfig().isEnabled()
+        ? DpopContext.create(getConfig().getDpopConfig(), getRuntime().getClock())
+        : null;
   }
 
   private AbstractFlow.Builder<? extends Flow, ?> newInitialFlowBuilder() {

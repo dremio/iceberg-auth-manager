@@ -20,7 +20,9 @@ import static com.dremio.iceberg.authmgr.oauth2.test.junit.KeycloakExtension.CLI
 import static com.dremio.iceberg.authmgr.oauth2.test.junit.KeycloakExtension.CLIENT_ID3;
 import static com.dremio.iceberg.authmgr.oauth2.test.junit.KeycloakExtension.CLIENT_ID4;
 import static com.dremio.iceberg.authmgr.oauth2.test.junit.KeycloakExtension.CLIENT_ID5;
+import static com.dremio.iceberg.authmgr.oauth2.test.junit.KeycloakExtension.CLIENT_ID6;
 import static com.dremio.iceberg.authmgr.oauth2.test.junit.KeycloakExtension.CLIENT_SECRET3;
+import static com.dremio.iceberg.authmgr.oauth2.test.junit.KeycloakExtension.CLIENT_SECRET6;
 import static com.dremio.iceberg.authmgr.oauth2.test.junit.KeycloakExtension.JWT_BEARER_ECDSA_ASSERTION_ISSUER;
 import static com.dremio.iceberg.authmgr.oauth2.test.junit.KeycloakExtension.SCOPE1;
 import static com.dremio.iceberg.authmgr.oauth2.test.junit.KeycloakExtension.createJwtBearerAssertion;
@@ -60,9 +62,12 @@ import com.nimbusds.oauth2.sdk.auth.Secret;
 import com.nimbusds.oauth2.sdk.id.ClientID;
 import com.nimbusds.oauth2.sdk.pkce.CodeChallengeMethod;
 import com.nimbusds.oauth2.sdk.token.AccessToken;
+import com.nimbusds.oauth2.sdk.token.AccessTokenType;
 import java.nio.file.Path;
 import java.text.ParseException;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.http.ssl.SSLContextBuilder;
 import org.assertj.core.api.SoftAssertions;
 import org.assertj.core.api.junit.jupiter.InjectSoftAssertions;
@@ -170,11 +175,14 @@ public class OAuth2AgentKeycloakIT {
   void privateKeyJwt(
       @EnumLike(excludes = "urn:ietf:params:oauth:grant-type:token-exchange")
           GrantType initialGrantType,
-      @Values(strings = {"rsa_pkcs8", "rsa_pkcs1", "ecdsa_sec1"}) String keyType,
+      @Values(strings = {"rsa_pkcs8", "rsa_pkcs1", "ecdsa_pkcs8", "ecdsa_sec1"}) String keyType,
       Builder envBuilder)
       throws Exception {
     TestCertificates certs = TestCertificates.instance();
-    assumeThat(certs.isBouncyCastleAvailable() || keyType.equals("rsa_pkcs8"))
+    assumeThat(
+            certs.isBouncyCastleAvailable()
+                || keyType.equals("rsa_pkcs8")
+                || keyType.equals("ecdsa_pkcs8"))
         .as("BouncyCastle is required for RSA PKCS#1 and ECDSA SEC 1 keys")
         .isTrue();
     Path privateKeyPath;
@@ -191,6 +199,11 @@ public class OAuth2AgentKeycloakIT {
         algorithm = JWSAlgorithm.RS256;
         clientId = CLIENT_ID4;
         break;
+      case "ecdsa_pkcs8":
+        privateKeyPath = certs.getEcdsaPrivateKeyPkcs8Pem();
+        algorithm = JWSAlgorithm.ES256;
+        clientId = CLIENT_ID5;
+        break;
       case "ecdsa_sec1":
         privateKeyPath = certs.getEcdsaPrivateKeySec1Pem();
         algorithm = JWSAlgorithm.ES256;
@@ -204,8 +217,8 @@ public class OAuth2AgentKeycloakIT {
                 .grantType(initialGrantType)
                 .clientId(new ClientID(clientId))
                 .clientAuthenticationMethod(PRIVATE_KEY_JWT)
-                .jwsAlgorithm(algorithm)
-                .privateKey(privateKeyPath)
+                .jwtClientAuthAlgorithm(algorithm)
+                .jwtClientAuthPrivateKey(privateKeyPath)
                 .build();
         OAuth2Agent agent = env.newAgent()) {
       boolean expectRefreshToken =
@@ -494,6 +507,77 @@ public class OAuth2AgentKeycloakIT {
     }
   }
 
+  @CartesianTest
+  void dpop(
+      @Enum HttpClientType httpClientType,
+      @EnumLike(includes = {"client_credentials", "authorization_code"}) GrantType initialGrantType,
+      @EnumLike(includes = {"ES256", "RS256", "PS256"}) JWSAlgorithm dpopAlgorithm,
+      Builder envBuilder)
+      throws Exception {
+    try (TestEnvironment env =
+            envBuilder
+                .httpClientType(httpClientType)
+                .grantType(initialGrantType)
+                .clientAuthenticationMethod(CLIENT_SECRET_BASIC)
+                .clientId(new ClientID(CLIENT_ID6))
+                .clientSecret(new Secret(CLIENT_SECRET6))
+                .dpopEnabled(true)
+                .dpopAlgorithm(dpopAlgorithm)
+                .build();
+        OAuth2Agent agent = env.newAgent()) {
+      AtomicReference<String> expectedJkt = new AtomicReference<>();
+      assertAgent(
+          agent,
+          tokens -> {
+            // RFC 9449 §5: all three flows (initial, refresh, renew) must emit a DPoP-bound token
+            // pinned to the same JWK the agent owns.
+            AccessToken accessToken = tokens.getTokens().getAccessToken();
+            soft.assertThat(accessToken.getType()).isEqualTo(AccessTokenType.DPOP);
+            JWT jwt = introspectToken(accessToken, CLIENT_ID6);
+            // Keycloak signals DPoP-bound tokens via token_type=DPoP on the token response.
+            // The access token itself (JWT) carries a cnf.jkt claim per RFC 9449 §6.
+            Map<String, Object> cnf = jwt.getJWTClaimsSet().getJSONObjectClaim("cnf");
+            soft.assertThat(cnf)
+                .as("cnf claim must be present on DPoP-bound access token")
+                .isNotNull();
+            String jkt = (String) cnf.get("jkt");
+            // SHA-256 in base64url is always 43 characters (32 bytes, no padding).
+            soft.assertThat(jkt)
+                .as("cnf.jkt must be a base64url-encoded SHA-256 JWK thumbprint")
+                .isNotNull()
+                .hasSize(43)
+                .matches("[A-Za-z0-9_-]+");
+            if (!expectedJkt.compareAndSet(null, jkt)) {
+              soft.assertThat(jkt).isEqualTo(expectedJkt.get());
+            }
+          },
+          initialGrantType != CLIENT_CREDENTIALS);
+    }
+  }
+
+  /**
+   * A bearer-only agent (no DPoP config) must fail against the DPoP-bound client: Keycloak rejects
+   * the token request for lack of a DPoP proof.
+   */
+  @Test
+  void dpopInvalidRequest(Builder envBuilder) {
+    try (TestEnvironment env =
+            envBuilder
+                .grantType(PASSWORD)
+                .clientAuthenticationMethod(CLIENT_SECRET_BASIC)
+                .clientId(new ClientID(CLIENT_ID6))
+                .clientSecret(new Secret(CLIENT_SECRET6))
+                .dpopEnabled(false)
+                .build();
+        OAuth2Agent agent = env.newAgent()) {
+      soft.assertThatThrownBy(agent::authenticate)
+          .asInstanceOf(type(OAuth2Exception.class))
+          .extracting(OAuth2Exception::getErrorObject)
+          .extracting(ErrorObject::getHTTPStatusCode, ErrorObject::getCode)
+          .containsExactly(400, "invalid_request");
+    }
+  }
+
   @Test
   void agentCopy(Builder envBuilder) throws Exception {
     try (TestEnvironment env = envBuilder.build();
@@ -508,23 +592,34 @@ public class OAuth2AgentKeycloakIT {
     }
   }
 
+  @FunctionalInterface
+  private interface TokensVerifier {
+    void verify(TokensResult tokens) throws Exception;
+  }
+
   private void assertAgent(OAuth2Agent agent, String clientId, boolean expectRefreshToken)
       throws Exception {
-    // initial grant
+    assertAgent(
+        agent,
+        tokens -> introspectToken(tokens.getTokens().getAccessToken(), clientId),
+        expectRefreshToken);
+  }
+
+  /** Walks an agent through its three token-producing flows: initial grant, refresh, and renew. */
+  private void assertAgent(OAuth2Agent agent, TokensVerifier verifier, boolean expectRefreshToken)
+      throws Exception {
     TokensResult initial = agent.authenticateInternal();
-    introspectToken(initial.getTokens().getAccessToken(), clientId);
-    // token refresh
+    verifier.verify(initial);
     if (expectRefreshToken) {
       soft.assertThat(initial.getTokens().getRefreshToken()).isNotNull();
       TokensResult refreshed = agent.refreshCurrentTokens(initial).toCompletableFuture().get();
-      introspectToken(refreshed.getTokens().getAccessToken(), clientId);
+      verifier.verify(refreshed);
       soft.assertThat(refreshed.getTokens().getRefreshToken()).isNotNull();
     } else {
       soft.assertThat(initial.getTokens().getRefreshToken()).isNull();
     }
-    // fetch new tokens
     TokensResult renewed = agent.fetchNewTokens().toCompletableFuture().get();
-    introspectToken(renewed.getTokens().getAccessToken(), clientId);
+    verifier.verify(renewed);
     if (expectRefreshToken) {
       soft.assertThat(renewed.getTokens().getRefreshToken()).isNotNull();
     } else {
@@ -532,11 +627,12 @@ public class OAuth2AgentKeycloakIT {
     }
   }
 
-  private void introspectToken(AccessToken accessToken, String clientId) throws ParseException {
+  private JWT introspectToken(AccessToken accessToken, String clientId) throws ParseException {
     soft.assertThat(accessToken).isNotNull();
     JWT jwt = JWTParser.parse(accessToken.getValue());
     soft.assertThat(jwt).isNotNull();
     soft.assertThat(jwt.getJWTClaimsSet().getStringClaim("azp")).isEqualTo(clientId);
     soft.assertThat(jwt.getJWTClaimsSet().getStringClaim("scope")).contains(SCOPE1);
+    return jwt;
   }
 }

@@ -112,12 +112,12 @@ in the file is used.
 
 The following format is always supported:
 
-1. RSA keys in PKCS#8 format (`BEGIN PRIVATE KEY`)
+1. RSA or EC (Elliptic Curve) keys in PKCS#8 format (`BEGIN PRIVATE KEY`)
 
 If the BouncyCastle library is available at runtime, the following formats are also supported:
 
 2. RSA keys in PKCS#1 format (`BEGIN RSA PRIVATE KEY`)
-3. EC (Elliptic Curve) keys (`BEGIN EC PRIVATE KEY`)
+3. EC (Elliptic Curve) keys in EC SEC 1 format (`BEGIN EC PRIVATE KEY`)
 
 Only unencrypted private keys are supported.
 

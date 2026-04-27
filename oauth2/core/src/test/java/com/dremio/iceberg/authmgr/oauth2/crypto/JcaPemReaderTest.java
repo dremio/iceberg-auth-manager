@@ -24,9 +24,16 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.interfaces.ECPrivateKey;
+import java.security.interfaces.ECPublicKey;
 import java.security.interfaces.RSAPrivateKey;
+import java.security.interfaces.RSAPublicKey;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 class JcaPemReaderTest {
 
@@ -45,6 +52,20 @@ class JcaPemReaderTest {
     assertThat(privateKey.getAlgorithm()).isEqualTo("RSA");
     assertThat(privateKey).isInstanceOf(RSAPrivateKey.class);
     assertThat(((RSAPrivateKey) privateKey).getModulus().bitLength()).isEqualTo(2048);
+  }
+
+  @Test
+  void testReadEcPkcs8PrivateKey() {
+    // Given
+    Path privateKeyFile = TestCertificates.instance().getEcdsaPrivateKeyPkcs8Pem();
+
+    // When
+    PrivateKey privateKey = new JcaPemReader().readPrivateKey(privateKeyFile);
+
+    // Then
+    assertThat(privateKey).isNotNull();
+    assertThat(privateKey.getAlgorithm()).isEqualTo("EC");
+    assertThat(privateKey).isInstanceOf(ECPrivateKey.class);
   }
 
   @Test
@@ -74,17 +95,23 @@ class JcaPemReaderTest {
         .hasMessageContaining("No private key found in file");
   }
 
-  @Test
-  void testReadFileWithoutPrivateKey() {
-    // Given
-    Path certificateFile = TestCertificates.instance().getRsaCertificatePem();
-
+  @ParameterizedTest
+  @MethodSource("invalidPemFiles")
+  void testReadFileWithoutPrivateKey(Path certificateFile) {
     // When - Then
     assertThatThrownBy(() -> new JcaPemReader().readPrivateKey(certificateFile))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("Failed to read PEM file")
         .rootCause()
         .hasMessageContaining("No private key found in file");
+  }
+
+  static Stream<Path> invalidPemFiles() {
+    return Stream.of(
+        TestCertificates.instance().getRsaPublicKeyPem(),
+        TestCertificates.instance().getRsaCertificatePem(),
+        TestCertificates.instance().getEcdsaPublicKeyPem(),
+        TestCertificates.instance().getEcdsaCertificatePem());
   }
 
   @Test
@@ -99,6 +126,42 @@ class JcaPemReaderTest {
         .hasMessageContaining("Failed to read PEM file")
         .rootCause()
         .hasMessageContaining("No private key found in file");
+  }
+
+  @Test
+  void testReadRsaPublicKey() {
+    Path file = TestCertificates.instance().getRsaPublicKeyPem();
+    PublicKey publicKey = new JcaPemReader().readPublicKey(file);
+    assertThat(publicKey).isInstanceOf(RSAPublicKey.class);
+    assertThat(publicKey.getAlgorithm()).isEqualTo("RSA");
+  }
+
+  @Test
+  void testReadEcPublicKey() {
+    Path file = TestCertificates.instance().getEcdsaPublicKeyPem();
+    PublicKey publicKey = new JcaPemReader().readPublicKey(file);
+    assertThat(publicKey).isInstanceOf(ECPublicKey.class);
+    assertThat(publicKey.getAlgorithm()).isEqualTo("EC");
+  }
+
+  @Test
+  void testDeriveRsaPublicKey() {
+    JcaPemReader reader = new JcaPemReader();
+    PrivateKey privateKey =
+        reader.readPrivateKey(TestCertificates.instance().getRsaPrivateKeyPkcs8Pem());
+    PublicKey expected = reader.readPublicKey(TestCertificates.instance().getRsaPublicKeyPem());
+    PublicKey actual = reader.derivePublicKey(privateKey);
+    assertThat(actual).isEqualTo(expected);
+  }
+
+  @Test
+  void testDeriveEcPublicKeyRejected() {
+    JcaPemReader reader = new JcaPemReader();
+    PrivateKey privateKey =
+        reader.readPrivateKey(TestCertificates.instance().getEcdsaPrivateKeyPkcs8Pem());
+    assertThatThrownBy(() -> reader.derivePublicKey(privateKey))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("requires BouncyCastle");
   }
 
   @Test
