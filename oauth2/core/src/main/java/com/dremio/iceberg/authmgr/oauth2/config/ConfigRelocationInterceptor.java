@@ -32,6 +32,9 @@ public class ConfigRelocationInterceptor implements ConfigSourceInterceptor {
   private static final Logger LOGGER = LoggerFactory.getLogger(ConfigRelocationInterceptor.class);
   private static final String ROOT_PREFIX = OAuth2Config.PREFIX + '.';
 
+  private static final Set<String> REMOVED_PROPERTIES =
+      Set.of(DeviceCodeConfig.PREFIX + ".poll-interval");
+
   private static final List<RelocationRule> RELOCATION_RULES =
       List.of(
           new RelocationRule(
@@ -57,12 +60,17 @@ public class ConfigRelocationInterceptor implements ConfigSourceInterceptor {
 
   @Override
   public Iterator<String> iterateNames(ConfigSourceInterceptorContext context) {
-    // Only include relocated (canonical) names; filter out legacy aliases
+    // Only include relocated (canonical) names; filter out legacy aliases and removed properties
     // to avoid mapping errors "SRCFG00050 ... does not map to any root"
     Set<String> canonicalNames = new LinkedHashSet<>();
     Iterator<String> names = context.iterateNames();
     while (names.hasNext()) {
-      canonicalNames.add(toCanonicalName(names.next()));
+      String canonical = toCanonicalName(names.next());
+      if (REMOVED_PROPERTIES.contains(canonical)) {
+        LOGGER.warn("Property '{}' has been removed and will be ignored", canonical);
+        continue;
+      }
+      canonicalNames.add(canonical);
     }
     return canonicalNames.iterator();
   }

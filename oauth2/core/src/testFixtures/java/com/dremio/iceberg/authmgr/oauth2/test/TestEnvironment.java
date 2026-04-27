@@ -452,12 +452,6 @@ public abstract class TestEnvironment implements AutoCloseable {
   @Value.Default
   public Map<String, String> getDeviceCodeConfig() {
     ImmutableMap.Builder<String, String> builder = ImmutableMap.builder();
-    builder
-        .put(DeviceCodeConfig.PREFIX + '.' + DeviceCodeConfig.POLL_INTERVAL, "PT0.01S")
-        .put(DeviceCodeConfig.PREFIX + '.' + "min-poll-interval", "PT0.01S")
-        .put(
-            DeviceCodeConfig.PREFIX + '.' + "ignore-server-poll-interval",
-            isUnitTest() ? "true" : "false");
     if (!isDiscoveryEnabled()) {
       builder.put(
           DeviceCodeConfig.PREFIX + '.' + DeviceCodeConfig.ENDPOINT,

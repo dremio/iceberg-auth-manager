@@ -177,6 +177,18 @@ class OAuth2ConfigTest {
             PREFIX + ".unknown in catalog session properties does not map to any root");
   }
 
+  @Test
+  void testFromRemovedProperties() {
+    Map<String, String> properties =
+        ImmutableMap.<String, String>builder()
+            .put(PREFIX + '.' + BasicConfig.TOKEN_ENDPOINT, "https://example.com/token")
+            .put(PREFIX + '.' + BasicConfig.CLIENT_ID, "my-client")
+            .put(PREFIX + '.' + BasicConfig.CLIENT_SECRET, "s3cr3t")
+            .put(PREFIX + ".device-code.poll-interval", "PT10S")
+            .build();
+    assertThat(OAuth2Config.from(properties)).isNotNull();
+  }
+
   @ParameterizedTest
   @MethodSource
   void testValidate(Map<String, String> properties, List<String> expected) {

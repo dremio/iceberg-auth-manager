@@ -169,16 +169,7 @@ abstract class DeviceCodeFlow extends AbstractFlow {
     private volatile Future<?> pollFuture;
 
     void start(long serverPollInterval, DeviceCode deviceCode) {
-      pollInterval = getConfig().getDeviceCodeConfig().getPollInterval();
-      boolean ignoreServerPollInterval =
-          getConfig().getDeviceCodeConfig().ignoreServerPollInterval();
-      if (!ignoreServerPollInterval && serverPollInterval > pollInterval.getSeconds()) {
-        LOGGER.debug(
-            "[{}] Device Auth Flow: server requested minimum poll interval of {} seconds",
-            getAgentName(),
-            serverPollInterval);
-        pollInterval = Duration.ofSeconds(serverPollInterval);
-      }
+      pollInterval = Duration.ofSeconds(serverPollInterval);
       scheduleNextPoll(deviceCode);
     }
 
@@ -220,12 +211,8 @@ abstract class DeviceCodeFlow extends AbstractFlow {
                       case "slow_down":
                         LOGGER.debug(
                             "[{}] Device Auth Flow: server requested to slow down", getAgentName());
-                        boolean ignoreServerPollInterval =
-                            getConfig().getDeviceCodeConfig().ignoreServerPollInterval();
-                        if (!ignoreServerPollInterval) {
-                          Duration interval = pollInterval;
-                          pollInterval = interval.plus(interval);
-                        }
+                        Duration interval = pollInterval;
+                        pollInterval = interval.plus(interval);
                         scheduleNextPoll(deviceCode);
                         break;
                       default:
