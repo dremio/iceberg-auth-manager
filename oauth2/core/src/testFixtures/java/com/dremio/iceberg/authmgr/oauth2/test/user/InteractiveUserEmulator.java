@@ -148,7 +148,10 @@ public class InteractiveUserEmulator implements UserEmulator, Runnable {
   }
 
   private void recordFailure(Throwable t) {
-    if (!closing.get()) {
+    // AssertionErrors are always genuine test failures and are never produced by
+    // shutdown I/O noise, so record them unconditionally even after close() has
+    // set closing=true.
+    if (t instanceof AssertionError || !closing.get()) {
       error.accumulateAndGet(
           t,
           (t1, t2) -> {
@@ -159,6 +162,8 @@ public class InteractiveUserEmulator implements UserEmulator, Runnable {
               return t1;
             }
           });
+    }
+    if (!closing.get()) {
       for (Consumer<Throwable> l : errorListeners) {
         try {
           l.accept(t);
