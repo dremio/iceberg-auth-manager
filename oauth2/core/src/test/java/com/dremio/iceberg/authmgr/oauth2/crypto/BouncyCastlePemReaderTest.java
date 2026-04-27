@@ -18,15 +18,14 @@ package com.dremio.iceberg.authmgr.oauth2.crypto;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.dremio.iceberg.authmgr.oauth2.test.TestCertificates;
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.security.PrivateKey;
 import java.security.interfaces.ECPrivateKey;
 import java.security.interfaces.RSAPrivateKey;
-import java.util.Objects;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -35,9 +34,9 @@ class BouncyCastlePemReaderTest {
   @TempDir Path tempDir;
 
   @Test
-  void testReadPkcs8RsaPrivateKey() throws IOException {
+  void testReadPkcs8RsaPrivateKey() {
     // Given
-    Path privateKeyFile = copyPemFile("/openssl/rsa_private_key_pkcs8.pem");
+    Path privateKeyFile = TestCertificates.instance().getRsaPrivateKeyPkcs8Pem();
 
     // When
     PrivateKey privateKey = new BouncyCastlePemReader().readPrivateKey(privateKeyFile);
@@ -50,9 +49,9 @@ class BouncyCastlePemReaderTest {
   }
 
   @Test
-  void testReadPkcs1RsaPrivateKey() throws IOException {
+  void testReadPkcs1RsaPrivateKey() {
     // Given
-    Path privateKeyFile = copyPemFile("/openssl/rsa_private_key_pkcs1.pem");
+    Path privateKeyFile = TestCertificates.instance().getRsaPrivateKeyPkcs1Pem();
 
     // When
     PrivateKey privateKey = new BouncyCastlePemReader().readPrivateKey(privateKeyFile);
@@ -65,9 +64,9 @@ class BouncyCastlePemReaderTest {
   }
 
   @Test
-  void testReadEcPrivateKey() throws IOException {
+  void testReadEcPrivateKey() {
     // Given
-    Path privateKeyFile = copyPemFile("/openssl/ecdsa_private_key.pem");
+    Path privateKeyFile = TestCertificates.instance().getEcdsaPrivateKeySec1Pem();
 
     // When
     PrivateKey privateKey = new BouncyCastlePemReader().readPrivateKey(privateKeyFile);
@@ -106,9 +105,9 @@ class BouncyCastlePemReaderTest {
   }
 
   @Test
-  void testReadFileWithoutPrivateKey() throws IOException {
+  void testReadFileWithoutPrivateKey() {
     // Given
-    Path privateKeyFile = copyPemFile("/openssl/rsa_certificate.pem");
+    Path privateKeyFile = TestCertificates.instance().getRsaCertificatePem();
 
     // When - Then
     assertThatThrownBy(() -> new BouncyCastlePemReader().readPrivateKey(privateKeyFile))
@@ -150,13 +149,5 @@ class BouncyCastlePemReaderTest {
         .hasMessageContaining("Failed to read PEM file")
         .rootCause()
         .hasMessageContaining("invalid characters encountered in base64 data");
-  }
-
-  private Path copyPemFile(String resource) throws IOException {
-    try (InputStream is = getClass().getResourceAsStream(resource)) {
-      Path dest = tempDir.resolve("test.pem");
-      Files.copy(Objects.requireNonNull(is), dest);
-      return dest;
-    }
   }
 }

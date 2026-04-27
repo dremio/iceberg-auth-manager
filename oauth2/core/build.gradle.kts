@@ -85,6 +85,8 @@ dependencies {
   testFixturesApi(libs.keycloak.admin.client)
   testFixturesApi(libs.testcontainers.keycloak)
 
+  testFixturesImplementation(libs.bouncycastle.bcpkix)
+
   // Required to compile expectation classes
   testFixturesCompileOnly(libs.mockserver.netty)
   testFixturesCompileOnly(libs.mockserver.client.java)

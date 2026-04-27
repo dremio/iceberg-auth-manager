@@ -21,6 +21,7 @@ import static com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod.NONE;
 import static com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod.PRIVATE_KEY_JWT;
 
 import com.dremio.iceberg.authmgr.oauth2.test.ImmutableTestEnvironment;
+import com.dremio.iceberg.authmgr.oauth2.test.TestCertificates;
 import com.dremio.iceberg.authmgr.oauth2.test.TestConstants;
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironmentExtension;
@@ -29,26 +30,23 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSHeader;
+import com.nimbusds.jose.JWSSigner;
+import com.nimbusds.jose.crypto.ECDSASigner;
 import com.nimbusds.jose.crypto.RSASSASigner;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
-import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
-import java.security.KeyFactory;
 import java.security.PrivateKey;
-import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.interfaces.ECPrivateKey;
+import java.security.interfaces.RSAPrivateKey;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Base64;
 import java.util.Date;
-import java.util.Objects;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
+import org.junit.jupiter.api.extension.ParameterContext;
+import org.junit.jupiter.api.extension.ParameterResolutionException;
 
 public class KeycloakExtension extends TestEnvironmentExtension
     implements BeforeAllCallback, AfterAllCallback {
@@ -69,12 +67,10 @@ public class KeycloakExtension extends TestEnvironmentExtension
 
   // Client4 is used for private_key_jwt authentication (RSA)
   public static final String CLIENT_ID4 = "Client4";
-  public static final String CLIENT_SECRET4 = "/openssl/rsa_certificate.pem";
   public static final String CLIENT_AUTH4 = PRIVATE_KEY_JWT.getValue();
 
   // Client5 is used for private_key_jwt authentication (ECDSA)
   public static final String CLIENT_ID5 = "Client5";
-  public static final String CLIENT_SECRET5 = "/openssl/ecdsa_certificate.pem";
   public static final String CLIENT_AUTH5 = PRIVATE_KEY_JWT.getValue();
 
   public static final String USERNAME = TestConstants.USERNAME;
@@ -82,19 +78,21 @@ public class KeycloakExtension extends TestEnvironmentExtension
 
   public static final String SCOPE1 = TestConstants.SCOPE1.toString();
 
-  public static final String JWT_BEARER_IDENTITY_PROVIDER_ALIAS = "jwt-bearer";
-  public static final String JWT_BEARER_ASSERTION_ISSUER = "https://jwt-idp.example.com";
+  public static final String JWT_BEARER_RSA_IDENTITY_PROVIDER_ALIAS = "jwt-bearer-rsa";
+  public static final String JWT_BEARER_ECDSA_IDENTITY_PROVIDER_ALIAS = "jwt-bearer-ecdsa";
+
+  public static final String JWT_BEARER_RSA_ASSERTION_ISSUER = "https://jwt-idp-rsa.example.com";
+  public static final String JWT_BEARER_ECDSA_ASSERTION_ISSUER =
+      "https://jwt-idp-ecdsa.example.com";
+
   public static final String JWT_BEARER_ASSERTION_SUBJECT = "alice-external";
-  public static final String JWT_BEARER_ASSERTION_PRIVATE_KEY_RESOURCE =
-      "/openssl/rsa_private_key_pkcs8.pem";
-  public static final String JWT_BEARER_ASSERTION_CERTIFICATE_RESOURCE =
-      "/openssl/rsa_certificate.pem";
 
   public static final Duration ACCESS_TOKEN_LIFESPAN = Duration.ofSeconds(15);
   public static final Duration REFRESH_TOKEN_LIFESPAN = Duration.ofSeconds(20);
 
   @Override
   public void beforeAll(ExtensionContext context) {
+    TestCertificates certs = TestCertificates.instance();
     KeycloakContainer keycloak =
         new KeycloakContainer()
             .withScope(SCOPE1)
@@ -102,23 +100,52 @@ public class KeycloakExtension extends TestEnvironmentExtension
             .withRefreshTokenLifespan(REFRESH_TOKEN_LIFESPAN)
             .withUser(USERNAME, PASSWORD)
             .withIdentityProvider(
-                JWT_BEARER_IDENTITY_PROVIDER_ALIAS,
-                JWT_BEARER_ASSERTION_ISSUER,
-                JWT_BEARER_ASSERTION_CERTIFICATE_RESOURCE)
+                JWT_BEARER_RSA_IDENTITY_PROVIDER_ALIAS,
+                JWT_BEARER_RSA_ASSERTION_ISSUER,
+                certs.getRsaPublicKeyPem())
+            .withIdentityProvider(
+                JWT_BEARER_ECDSA_IDENTITY_PROVIDER_ALIAS,
+                JWT_BEARER_ECDSA_ASSERTION_ISSUER,
+                certs.getEcdsaPublicKeyPem())
             .withFederatedIdentity(
                 USERNAME,
-                JWT_BEARER_IDENTITY_PROVIDER_ALIAS,
+                JWT_BEARER_RSA_IDENTITY_PROVIDER_ALIAS,
+                JWT_BEARER_ASSERTION_SUBJECT,
+                USERNAME)
+            .withFederatedIdentity(
+                USERNAME,
+                JWT_BEARER_ECDSA_IDENTITY_PROVIDER_ALIAS,
                 JWT_BEARER_ASSERTION_SUBJECT,
                 USERNAME)
             .withClient(CLIENT_ID1, CLIENT_SECRET1, CLIENT_AUTH1)
             .withClient(CLIENT_ID2, null, CLIENT_AUTH2)
             .withClient(CLIENT_ID3, CLIENT_SECRET3, CLIENT_AUTH3)
-            .withClient(CLIENT_ID4, CLIENT_SECRET4, CLIENT_AUTH4)
-            .withClient(CLIENT_ID5, CLIENT_SECRET5, CLIENT_AUTH5);
+            .withClient(CLIENT_ID4, certs.getRsaCertificateBase64(), CLIENT_AUTH4)
+            .withClient(CLIENT_ID5, certs.getEcdsaCertificateBase64(), CLIENT_AUTH5);
     keycloak.start();
     context
         .getStore(ExtensionContext.Namespace.GLOBAL)
         .put(KeycloakContainer.class.getName(), keycloak);
+  }
+
+  @Override
+  public boolean supportsParameter(
+      ParameterContext parameterContext, ExtensionContext extensionContext)
+      throws ParameterResolutionException {
+    return parameterContext.getParameter().getType().equals(KeycloakContainer.class)
+        || super.supportsParameter(parameterContext, extensionContext);
+  }
+
+  @Override
+  public Object resolveParameter(
+      ParameterContext parameterContext, ExtensionContext extensionContext)
+      throws ParameterResolutionException {
+    if (parameterContext.getParameter().getType().equals(KeycloakContainer.class)) {
+      return extensionContext
+          .getStore(ExtensionContext.Namespace.GLOBAL)
+          .get(KeycloakContainer.class.getName(), KeycloakContainer.class);
+    }
+    return super.resolveParameter(parameterContext, extensionContext);
   }
 
   @Override
@@ -155,49 +182,49 @@ public class KeycloakExtension extends TestEnvironmentExtension
         .actorClientId(TestConstants.CLIENT_ID1)
         .actorClientSecret(TestConstants.CLIENT_SECRET1)
         .actorScope(TestConstants.SCOPE1)
-        .assertion(createJwtBearerAssertion(keycloak))
+        // By default, use an RSA-signed JWT assertion
+        .assertion(
+            createJwtBearerAssertion(
+                keycloak,
+                JWT_BEARER_RSA_ASSERTION_ISSUER,
+                JWSAlgorithm.RS256,
+                TestCertificates.instance().getRsaPrivateKey()))
         // Unused
         .audience(null)
         .resource(null);
   }
 
-  private static String createJwtBearerAssertion(KeycloakContainer keycloak) {
+  /**
+   * Creates a JWT bearer assertion signed with the given algorithm and private key, suitable for
+   * use with the JWT bearer grant against this Keycloak instance.
+   */
+  public static String createJwtBearerAssertion(
+      KeycloakContainer keycloak, String issuer, JWSAlgorithm algorithm, PrivateKey privateKey) {
     try {
       Instant now = Instant.now();
       JWTClaimsSet claims =
           new JWTClaimsSet.Builder()
               .jwtID(UUID.randomUUID().toString())
-              .issuer(JWT_BEARER_ASSERTION_ISSUER)
+              .issuer(issuer)
               .subject(JWT_BEARER_ASSERTION_SUBJECT)
               .audience(keycloak.getIssuerClaim())
               .issueTime(Date.from(now))
               .expirationTime(Date.from(now.plusSeconds(120)))
               .claim("preferred_username", USERNAME)
               .build();
-      SignedJWT jwt = new SignedJWT(new JWSHeader.Builder(JWSAlgorithm.RS256).build(), claims);
-      jwt.sign(new RSASSASigner(loadJwtBearerAssertionPrivateKey()));
+      JWSSigner signer;
+      if (privateKey instanceof RSAPrivateKey) {
+        signer = new RSASSASigner(privateKey);
+      } else if (privateKey instanceof ECPrivateKey) {
+        signer = new ECDSASigner((ECPrivateKey) privateKey);
+      } else {
+        throw new IllegalArgumentException("Unsupported key type: " + privateKey.getAlgorithm());
+      }
+      SignedJWT jwt = new SignedJWT(new JWSHeader.Builder(algorithm).build(), claims);
+      jwt.sign(signer);
       return jwt.serialize();
     } catch (Exception e) {
       throw new RuntimeException("Failed to create JWT bearer assertion for Keycloak tests", e);
-    }
-  }
-
-  private static PrivateKey loadJwtBearerAssertionPrivateKey() {
-    try (InputStream is =
-            Objects.requireNonNull(
-                KeycloakExtension.class.getResourceAsStream(
-                    JWT_BEARER_ASSERTION_PRIVATE_KEY_RESOURCE));
-        BufferedReader reader =
-            new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
-      String encoded =
-          reader.lines().filter(line -> !line.startsWith("-----")).collect(Collectors.joining());
-      byte[] decoded = Base64.getDecoder().decode(encoded);
-      return KeyFactory.getInstance("RSA").generatePrivate(new PKCS8EncodedKeySpec(decoded));
-    } catch (Exception e) {
-      throw new RuntimeException(
-          "Failed to load JWT bearer assertion private key resource "
-              + JWT_BEARER_ASSERTION_PRIVATE_KEY_RESOURCE,
-          e);
     }
   }
 }

@@ -21,7 +21,9 @@ import static com.dremio.iceberg.authmgr.oauth2.test.junit.KeycloakExtension.CLI
 import static com.dremio.iceberg.authmgr.oauth2.test.junit.KeycloakExtension.CLIENT_ID4;
 import static com.dremio.iceberg.authmgr.oauth2.test.junit.KeycloakExtension.CLIENT_ID5;
 import static com.dremio.iceberg.authmgr.oauth2.test.junit.KeycloakExtension.CLIENT_SECRET3;
+import static com.dremio.iceberg.authmgr.oauth2.test.junit.KeycloakExtension.JWT_BEARER_ECDSA_ASSERTION_ISSUER;
 import static com.dremio.iceberg.authmgr.oauth2.test.junit.KeycloakExtension.SCOPE1;
+import static com.dremio.iceberg.authmgr.oauth2.test.junit.KeycloakExtension.createJwtBearerAssertion;
 import static com.nimbusds.oauth2.sdk.GrantType.AUTHORIZATION_CODE;
 import static com.nimbusds.oauth2.sdk.GrantType.CLIENT_CREDENTIALS;
 import static com.nimbusds.oauth2.sdk.GrantType.DEVICE_CODE;
@@ -42,8 +44,10 @@ import com.dremio.iceberg.authmgr.oauth2.flow.OAuth2Exception;
 import com.dremio.iceberg.authmgr.oauth2.flow.TokensResult;
 import com.dremio.iceberg.authmgr.oauth2.http.HttpClientType;
 import com.dremio.iceberg.authmgr.oauth2.test.ImmutableTestEnvironment.Builder;
+import com.dremio.iceberg.authmgr.oauth2.test.TestCertificates;
 import com.dremio.iceberg.authmgr.oauth2.test.TestConstants;
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
+import com.dremio.iceberg.authmgr.oauth2.test.container.KeycloakContainer;
 import com.dremio.iceberg.authmgr.oauth2.test.junit.EnumLike;
 import com.dremio.iceberg.authmgr.oauth2.test.junit.KeycloakExtension;
 import com.dremio.iceberg.authmgr.oauth2.test.user.UserBehavior;
@@ -56,20 +60,15 @@ import com.nimbusds.oauth2.sdk.auth.Secret;
 import com.nimbusds.oauth2.sdk.id.ClientID;
 import com.nimbusds.oauth2.sdk.pkce.CodeChallengeMethod;
 import com.nimbusds.oauth2.sdk.token.AccessToken;
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.text.ParseException;
-import java.util.Objects;
+import java.util.List;
 import org.apache.http.ssl.SSLContextBuilder;
 import org.assertj.core.api.SoftAssertions;
 import org.assertj.core.api.junit.jupiter.InjectSoftAssertions;
 import org.assertj.core.api.junit.jupiter.SoftAssertionsExtension;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.api.io.TempDir;
 import org.junitpioneer.jupiter.cartesian.CartesianTest;
 import org.junitpioneer.jupiter.cartesian.CartesianTest.Enum;
 import org.junitpioneer.jupiter.cartesian.CartesianTest.Values;
@@ -78,18 +77,7 @@ import org.junitpioneer.jupiter.cartesian.CartesianTest.Values;
 @ExtendWith(SoftAssertionsExtension.class)
 public class OAuth2AgentKeycloakIT {
 
-  private static boolean bouncyCastleAvailable;
-
   @InjectSoftAssertions private SoftAssertions soft;
-
-  @BeforeAll
-  static void probeForBouncyCastle() {
-    try {
-      Class.forName("org.bouncycastle.jce.provider.BouncyCastleProvider");
-      bouncyCastleAvailable = true;
-    } catch (ClassNotFoundException ignored) {
-    }
-  }
 
   @CartesianTest
   void clientSecretBasic(
@@ -182,22 +170,35 @@ public class OAuth2AgentKeycloakIT {
   void privateKeyJwt(
       @EnumLike(excludes = "urn:ietf:params:oauth:grant-type:token-exchange")
           GrantType initialGrantType,
-      @Values(
-              strings = {
-                "/openssl/rsa_private_key_pkcs8.pem",
-                "/openssl/rsa_private_key_pkcs1.pem",
-                "/openssl/ecdsa_private_key.pem"
-              })
-          String resource,
-      Builder envBuilder,
-      @TempDir Path tempDir)
+      @Values(strings = {"rsa_pkcs8", "rsa_pkcs1", "ecdsa_sec1"}) String keyType,
+      Builder envBuilder)
       throws Exception {
-    assumeThat(bouncyCastleAvailable || resource.contains("pkcs8"))
-        .as("BouncyCastle is required for RSA PKCS#1 and ECDSA keys")
+    TestCertificates certs = TestCertificates.instance();
+    assumeThat(certs.isBouncyCastleAvailable() || keyType.equals("rsa_pkcs8"))
+        .as("BouncyCastle is required for RSA PKCS#1 and ECDSA SEC 1 keys")
         .isTrue();
-    Path privateKeyPath = copyPrivateKey(resource, tempDir);
-    JWSAlgorithm algorithm = resource.contains("rsa") ? JWSAlgorithm.RS256 : JWSAlgorithm.ES256;
-    String clientId = resource.contains("rsa") ? CLIENT_ID4 : CLIENT_ID5;
+    Path privateKeyPath;
+    JWSAlgorithm algorithm;
+    String clientId;
+    switch (keyType) {
+      case "rsa_pkcs8":
+        privateKeyPath = certs.getRsaPrivateKeyPkcs8Pem();
+        algorithm = JWSAlgorithm.RS256;
+        clientId = CLIENT_ID4;
+        break;
+      case "rsa_pkcs1":
+        privateKeyPath = certs.getRsaPrivateKeyPkcs1Pem();
+        algorithm = JWSAlgorithm.RS256;
+        clientId = CLIENT_ID4;
+        break;
+      case "ecdsa_sec1":
+        privateKeyPath = certs.getEcdsaPrivateKeySec1Pem();
+        algorithm = JWSAlgorithm.ES256;
+        clientId = CLIENT_ID5;
+        break;
+      default:
+        throw new IllegalArgumentException("Unknown key type: " + keyType);
+    }
     try (TestEnvironment env =
             envBuilder
                 .grantType(initialGrantType)
@@ -231,28 +232,26 @@ public class OAuth2AgentKeycloakIT {
   }
 
   @CartesianTest
-  void httpsCallback(
-      @EnumLike CodeChallengeMethod method, Builder envBuilder, @TempDir Path tempDir)
-      throws Exception {
-    Path keyStorePath = tempDir.resolve("keystore.p12");
-    try (InputStream is = getClass().getResourceAsStream("/openssl/keystore.p12")) {
-      Files.copy(Objects.requireNonNull(is), keyStorePath);
-    }
-    try (TestEnvironment env =
-            envBuilder
-                .grantType(AUTHORIZATION_CODE)
-                .codeChallengeMethod(method)
-                .callbackHttps(true)
-                .sslKeyStorePath(keyStorePath)
-                .sslKeyStorePassword("s3cr3t")
-                .sslKeyStoreAlias("1")
-                .userSslContext(
-                    SSLContextBuilder.create()
-                        .loadTrustMaterial(keyStorePath.toFile(), "s3cr3t".toCharArray())
-                        .build())
-                .build();
-        OAuth2Agent agent = env.newAgent()) {
-      assertAgent(agent, CLIENT_ID1, true);
+  void httpsCallback(@EnumLike CodeChallengeMethod method, Builder envBuilder) throws Exception {
+    TestCertificates certs = TestCertificates.instance();
+    for (Path keyStore : List.of(certs.getRsaKeyStore(), certs.getEcdsaKeyStore())) {
+      try (TestEnvironment env =
+              envBuilder
+                  .grantType(AUTHORIZATION_CODE)
+                  .codeChallengeMethod(method)
+                  .callbackHttps(true)
+                  .sslKeyStorePath(keyStore)
+                  .sslKeyStorePassword(certs.getKeyStorePassword())
+                  .sslKeyStoreAlias("1")
+                  .userSslContext(
+                      SSLContextBuilder.create()
+                          .loadTrustMaterial(
+                              keyStore.toFile(), certs.getKeyStorePassword().toCharArray())
+                          .build())
+                  .build();
+          OAuth2Agent agent = env.newAgent()) {
+        assertAgent(agent, CLIENT_ID1, true);
+      }
     }
   }
 
@@ -463,6 +462,22 @@ public class OAuth2AgentKeycloakIT {
     }
   }
 
+  /** Tests a JWT bearer grant with an ECDSA-signed JWT assertion. */
+  @Test
+  void jwtBearerEcdsa(Builder envBuilder, KeycloakContainer keycloak) throws Exception {
+    TestCertificates certs = TestCertificates.instance();
+    String assertion =
+        createJwtBearerAssertion(
+            keycloak,
+            JWT_BEARER_ECDSA_ASSERTION_ISSUER,
+            JWSAlgorithm.ES256,
+            certs.getEcdsaPrivateKey());
+    try (TestEnvironment env = envBuilder.grantType(JWT_BEARER).assertion(assertion).build();
+        OAuth2Agent agent = env.newAgent()) {
+      assertAgent(agent, CLIENT_ID1, false);
+    }
+  }
+
   @Test
   void jwtBearerInvalidAssertion(Builder envBuilder) {
     try (TestEnvironment env =
@@ -523,13 +538,5 @@ public class OAuth2AgentKeycloakIT {
     soft.assertThat(jwt).isNotNull();
     soft.assertThat(jwt.getJWTClaimsSet().getStringClaim("azp")).isEqualTo(clientId);
     soft.assertThat(jwt.getJWTClaimsSet().getStringClaim("scope")).contains(SCOPE1);
-  }
-
-  private Path copyPrivateKey(String resource, Path tempDir) throws IOException {
-    try (InputStream src = Objects.requireNonNull(getClass().getResource(resource)).openStream()) {
-      Path dest = tempDir.resolve("private-key.pem");
-      Files.copy(src, dest);
-      return dest;
-    }
   }
 }

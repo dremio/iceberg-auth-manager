@@ -26,6 +26,7 @@ import static org.assertj.core.api.InstanceOfAssertFactories.type;
 import com.dremio.iceberg.authmgr.oauth2.flow.OAuth2Exception;
 import com.dremio.iceberg.authmgr.oauth2.flow.TokensResult;
 import com.dremio.iceberg.authmgr.oauth2.test.ImmutableTestEnvironment.Builder;
+import com.dremio.iceberg.authmgr.oauth2.test.TestCertificates;
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
 import com.dremio.iceberg.authmgr.oauth2.test.junit.AutheliaExtension;
 import com.nimbusds.jwt.JWT;
@@ -35,19 +36,13 @@ import com.nimbusds.oauth2.sdk.GrantType;
 import com.nimbusds.oauth2.sdk.auth.Secret;
 import com.nimbusds.oauth2.sdk.id.ClientID;
 import com.nimbusds.oauth2.sdk.token.AccessToken;
-import java.io.InputStream;
 import java.net.URI;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.text.ParseException;
-import java.util.Objects;
 import org.assertj.core.api.SoftAssertions;
 import org.assertj.core.api.junit.jupiter.InjectSoftAssertions;
 import org.assertj.core.api.junit.jupiter.SoftAssertionsExtension;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.api.io.TempDir;
 
 @ExtendWith(AutheliaExtension.class)
 @ExtendWith(SoftAssertionsExtension.class)
@@ -55,16 +50,7 @@ public class OAuth2AgentAutheliaIT {
 
   @InjectSoftAssertions private SoftAssertions soft;
 
-  private static Path keyStorePath;
-
-  @BeforeAll
-  static void beforeAll(@TempDir Path tempDir) throws Exception {
-    keyStorePath = tempDir.resolve("keystore.p12");
-    try (InputStream is =
-        OAuth2AgentAutheliaIT.class.getResourceAsStream("/openssl/keystore.p12")) {
-      Files.copy(Objects.requireNonNull(is), keyStorePath);
-    }
-  }
+  private static final TestCertificates CERTS = TestCertificates.instance();
 
   @Test
   void clientSecretBasic(Builder envBuilder) throws Exception {
@@ -75,8 +61,8 @@ public class OAuth2AgentAutheliaIT {
                 .clientId(new ClientID(CLIENT_ID1))
                 .clientSecret(new Secret(CLIENT_SECRET1))
                 .sslTrustAll(false)
-                .sslTrustStorePath(keyStorePath)
-                .sslTrustStorePassword("s3cr3t")
+                .sslTrustStorePath(CERTS.getRsaKeyStore())
+                .sslTrustStorePassword(CERTS.getKeyStorePassword())
                 .build();
         OAuth2Agent agent = env.newAgent()) {
       assertAgent(agent, CLIENT_ID1, env.getAuthorizationServerUrl());
@@ -92,8 +78,8 @@ public class OAuth2AgentAutheliaIT {
                 .clientId(new ClientID(CLIENT_ID2))
                 .clientSecret(new Secret(CLIENT_SECRET2))
                 .sslTrustAll(false)
-                .sslTrustStorePath(keyStorePath)
-                .sslTrustStorePassword("s3cr3t")
+                .sslTrustStorePath(CERTS.getRsaKeyStore())
+                .sslTrustStorePassword(CERTS.getKeyStorePassword())
                 .build();
         OAuth2Agent agent = env.newAgent()) {
       assertAgent(agent, CLIENT_ID2, env.getAuthorizationServerUrl());
@@ -106,8 +92,8 @@ public class OAuth2AgentAutheliaIT {
             envBuilder
                 .clientSecret(new Secret("BAD SECRET"))
                 .sslTrustAll(false)
-                .sslTrustStorePath(keyStorePath)
-                .sslTrustStorePassword("s3cr3t")
+                .sslTrustStorePath(CERTS.getRsaKeyStore())
+                .sslTrustStorePassword(CERTS.getKeyStorePassword())
                 .build();
         OAuth2Agent agent = env.newAgent()) {
       soft.assertThatThrownBy(agent::authenticate)

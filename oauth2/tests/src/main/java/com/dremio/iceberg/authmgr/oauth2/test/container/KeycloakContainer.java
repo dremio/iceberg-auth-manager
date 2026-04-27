@@ -20,24 +20,17 @@ import com.google.common.collect.ImmutableMap;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import dasniko.testcontainers.keycloak.ExtendableKeycloakContainer;
 import jakarta.ws.rs.core.Response;
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.net.URI;
-import java.nio.charset.StandardCharsets;
-import java.security.cert.Certificate;
-import java.security.cert.CertificateException;
-import java.security.cert.CertificateFactory;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.keycloak.admin.client.Keycloak;
@@ -114,10 +107,8 @@ public class KeycloakContainer extends ExtendableKeycloakContainer<KeycloakConta
   }
 
   @CanIgnoreReturnValue
-  public KeycloakContainer withIdentityProvider(
-      String alias, String issuer, String verifyingCertificateResource) {
-    identityProviders.add(
-        newIdentityProvider(alias, issuer, loadPublicKey(verifyingCertificateResource)));
+  public KeycloakContainer withIdentityProvider(String alias, String issuer, Path publicKeyPem) {
+    identityProviders.add(newIdentityProvider(alias, issuer, publicKeyPem));
     providerAliases.add(alias);
     return this;
   }
@@ -341,7 +332,8 @@ public class KeycloakContainer extends ExtendableKeycloakContainer<KeycloakConta
         client.setClientAuthenticatorType("client-secret-jwt");
         break;
       case "private_key_jwt":
-        attributes.put("jwt.credential.certificate", loadCertificate(clientSecret));
+        // clientSecret is expected to be the base64-encoded certificate (no PEM headers)
+        attributes.put("jwt.credential.certificate", clientSecret);
         client.setClientAuthenticatorType("client-jwt");
         break;
     }
@@ -355,13 +347,19 @@ public class KeycloakContainer extends ExtendableKeycloakContainer<KeycloakConta
   }
 
   private static IdentityProviderRepresentation newIdentityProvider(
-      String alias, String issuer, String publicKeyPem) {
+      String alias, String issuer, Path publicKeyPem) {
     IdentityProviderRepresentation identityProvider = new IdentityProviderRepresentation();
     identityProvider.setAlias(alias);
     identityProvider.setProviderId("jwt-authorization-grant");
     identityProvider.setDisplayName(alias);
     identityProvider.setEnabled(true);
     identityProvider.setHideOnLogin(true);
+    String publicKeyPemEncoded;
+    try {
+      publicKeyPemEncoded = Files.readString(publicKeyPem);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
     identityProvider.setConfig(
         ImmutableMap.<String, String>builder()
             .put("issuer", issuer)
@@ -369,7 +367,7 @@ public class KeycloakContainer extends ExtendableKeycloakContainer<KeycloakConta
             .put("jwtAuthorizationGrantEnabled", "true")
             .put("jwtAuthorizationGrantAssertionReuseAllowed", "true")
             .put("jwtAuthorizationGrantAllowedClockSkew", "30")
-            .put("publicKeySignatureVerifier", publicKeyPem)
+            .put("publicKeySignatureVerifier", publicKeyPemEncoded)
             .build());
     return identityProvider;
   }
@@ -437,37 +435,6 @@ public class KeycloakContainer extends ExtendableKeycloakContainer<KeycloakConta
         throw new IllegalStateException(
             "Failed to create role claim mapper: " + response.readEntity(String.class));
       }
-    }
-  }
-
-  /**
-   * Loads a certificate from the classpath and returns it as a string in the format expected by
-   * Keycloak (i.e. without the BEGIN/END markers and with all line breaks removed).
-   */
-  private static String loadCertificate(String resource) {
-    try (InputStream is =
-            Objects.requireNonNull(KeycloakContainer.class.getResourceAsStream(resource));
-        BufferedReader reader =
-            new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
-      return reader
-          .lines()
-          .filter(line -> !line.startsWith("-----"))
-          .collect(Collectors.joining(""));
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-  }
-
-  private static String loadPublicKey(String certificateResource) {
-    try (InputStream is =
-        Objects.requireNonNull(KeycloakContainer.class.getResourceAsStream(certificateResource))) {
-      Certificate certificate = CertificateFactory.getInstance("X.509").generateCertificate(is);
-      String encoded =
-          Base64.getMimeEncoder(64, "\n".getBytes(StandardCharsets.UTF_8))
-              .encodeToString(certificate.getPublicKey().getEncoded());
-      return "-----BEGIN PUBLIC KEY-----\n" + encoded + "\n-----END PUBLIC KEY-----";
-    } catch (IOException | CertificateException e) {
-      throw new RuntimeException(e);
     }
   }
 
