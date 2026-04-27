@@ -41,8 +41,8 @@ import java.util.UUID;
  * Generates test certificates and keystores at runtime. All materials are generated lazily (once
  * per JVM) and stored in a temp directory.
  *
- * <p>The material is divided in 2 main groups: one is based on RSA keys, the second on ECDSA keys.
- * Each group exposes: a key pair, a self-signed certificate, PEM-encoded files, and a PKCS#12
+ * <p>The material is divided in 2 main groups: one is based on RSA-PSS keys, the second on ECDSA
+ * keys. Each group exposes: a key pair, a self-signed certificate, PEM-encoded files, and a PKCS#12
  * keystore containing all the material.
  *
  * <p>Most of the material (RSA/ECDSA key pairs, PKCS#8 PEM, PKCS#12 keystores) is generated using
@@ -120,7 +120,7 @@ public final class TestCertificates {
 
       // Generate RSA material
       rsaKeyStoreP12 = baseDir.resolve("keystore.p12");
-      runKeytool(rsaKeyStoreP12, "RSA", "2048", "SHA256withRSA");
+      runKeytool(rsaKeyStoreP12, "RSA", "2048", "RSASSA-PSS");
       KeyStore rsaKs = loadKeyStore(rsaKeyStoreP12);
 
       rsaCertificate = (X509Certificate) rsaKs.getCertificate(ALIAS);
@@ -364,9 +364,9 @@ public final class TestCertificates {
     command.add("BC=ca:true");
 
     Process process = new ProcessBuilder(command).redirectErrorStream(true).start();
-    String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
     int exitCode = process.waitFor();
     if (exitCode != 0) {
+      String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
       throw new RuntimeException("keytool failed (exit code " + exitCode + "): " + output);
     }
   }

@@ -65,7 +65,7 @@ public class DocumentationGenerator {
     refs.put("GrantType#JWT_BEARER", "urn:ietf:params:oauth:grant-type:jwt-bearer");
     refs.put("GrantType#TOKEN_EXCHANGE", "urn:ietf:params:oauth:grant-type:token-exchange");
     refs.put("JWSAlgorithm#HS512", "HS512");
-    refs.put("JWSAlgorithm#RS512", "RS512");
+    refs.put("JWSAlgorithm#PS512", "PS512");
     refs.put("ClientAuthenticationMethod#NONE", "none");
     refs.put("ClientAuthenticationMethod#CLIENT_SECRET_BASIC", "client_secret_basic");
     refs.put("ClientAuthenticationMethod#CLIENT_SECRET_POST", "client_secret_post");
