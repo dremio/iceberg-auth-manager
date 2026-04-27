@@ -42,9 +42,9 @@ final class BouncyCastlePemReader implements PemReader {
    * Reads a private key from a PEM file. Supported key formats:
    *
    * <ul>
+   *   <li>RSA or EC PKCS#8 (BEGIN PRIVATE KEY)
    *   <li>RSA PKCS#1 (BEGIN RSA PRIVATE KEY)
-   *   <li>RSA PKCS#8 (BEGIN PRIVATE KEY)
-   *   <li>EC (BEGIN EC PRIVATE KEY)
+   *   <li>EC SEC 1 (BEGIN EC PRIVATE KEY)
    * </ul>
    *
    * <p>Only unencrypted keys are supported.
@@ -72,16 +72,16 @@ final class BouncyCastlePemReader implements PemReader {
   }
 
   private static PrivateKey extractPrivateKey(Object pemObject) throws PEMException {
+    // Nimbus JOSE JWT uses "EC" as the algorithm name for EC keys,
+    // but BouncyCastle uses "ECDSA"; normalize to "EC" for compatibility.
+    JcaPEMKeyConverter converter =
+        new JcaPEMKeyConverter().setAlgorithmMapping(X9ObjectIdentifiers.id_ecPublicKey, "EC");
     if (pemObject instanceof PEMKeyPair) {
-      // Handle PKCS#1 format (BEGIN RSA PRIVATE KEY) or EC (BEGIN EC PRIVATE KEY)
-      return new JcaPEMKeyConverter()
-          // Nimbus JOSE JWT uses "EC" as the algorithm name for EC keys,
-          // but BouncyCastle uses "ECDSA"
-          .setAlgorithmMapping(X9ObjectIdentifiers.id_ecPublicKey, "EC")
-          .getPrivateKey(((PEMKeyPair) pemObject).getPrivateKeyInfo());
+      // Handle PKCS#1 format (BEGIN RSA PRIVATE KEY) or SEC 1 (BEGIN EC PRIVATE KEY)
+      return converter.getPrivateKey(((PEMKeyPair) pemObject).getPrivateKeyInfo());
     } else if (pemObject instanceof PrivateKeyInfo) {
       // Handle PKCS#8 format (BEGIN PRIVATE KEY)
-      return new JcaPEMKeyConverter().getPrivateKey((PrivateKeyInfo) pemObject);
+      return converter.getPrivateKey((PrivateKeyInfo) pemObject);
     }
     return null;
   }

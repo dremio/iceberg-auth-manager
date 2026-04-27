@@ -170,11 +170,14 @@ public class OAuth2AgentKeycloakIT {
   void privateKeyJwt(
       @EnumLike(excludes = "urn:ietf:params:oauth:grant-type:token-exchange")
           GrantType initialGrantType,
-      @Values(strings = {"rsa_pkcs8", "rsa_pkcs1", "ecdsa_sec1"}) String keyType,
+      @Values(strings = {"rsa_pkcs8", "rsa_pkcs1", "ecdsa_pkcs8", "ecdsa_sec1"}) String keyType,
       Builder envBuilder)
       throws Exception {
     TestCertificates certs = TestCertificates.instance();
-    assumeThat(certs.isBouncyCastleAvailable() || keyType.equals("rsa_pkcs8"))
+    assumeThat(
+            certs.isBouncyCastleAvailable()
+                || keyType.equals("rsa_pkcs8")
+                || keyType.equals("ecdsa_pkcs8"))
         .as("BouncyCastle is required for RSA PKCS#1 and ECDSA SEC 1 keys")
         .isTrue();
     Path privateKeyPath;
@@ -190,6 +193,11 @@ public class OAuth2AgentKeycloakIT {
         privateKeyPath = certs.getRsaPrivateKeyPkcs1Pem();
         algorithm = JWSAlgorithm.RS256;
         clientId = CLIENT_ID4;
+        break;
+      case "ecdsa_pkcs8":
+        privateKeyPath = certs.getEcdsaPrivateKeyPkcs8Pem();
+        algorithm = JWSAlgorithm.ES256;
+        clientId = CLIENT_ID5;
         break;
       case "ecdsa_sec1":
         privateKeyPath = certs.getEcdsaPrivateKeySec1Pem();
