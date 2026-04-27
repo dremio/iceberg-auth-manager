@@ -199,7 +199,7 @@ abstract class AbstractFlow implements Flow {
     } else if (method.equals(CLIENT_SECRET_JWT)) {
       JWTAssertionDetails details = createJwtAssertionDetails(tokenEndpoint);
       JWSAlgorithm algorithm =
-          getConfig().getJwtClientAuthConfig().getAlgorithm().orElse(JWSAlgorithm.HS256);
+          getConfig().getJwtClientAuthConfig().getAlgorithm().orElse(JWSAlgorithm.HS512);
       Secret secret = getConfig().getBasicConfig().getClientSecret().orElseThrow();
       try {
         SignedJWT assertion = JWTAssertionFactory.create(details, algorithm, secret);
@@ -211,7 +211,7 @@ abstract class AbstractFlow implements Flow {
     } else if (method.equals(PRIVATE_KEY_JWT)) {
       JWTAssertionDetails details = createJwtAssertionDetails(tokenEndpoint);
       JWSAlgorithm algorithm =
-          getConfig().getJwtClientAuthConfig().getAlgorithm().orElse(JWSAlgorithm.RS256);
+          getConfig().getJwtClientAuthConfig().getAlgorithm().orElse(JWSAlgorithm.PS512);
       Path privateKeyPath = getConfig().getJwtClientAuthConfig().getPrivateKey().orElseThrow();
       PrivateKey privateKey = PemReader.getInstance().readPrivateKey(privateKeyPath);
       try {

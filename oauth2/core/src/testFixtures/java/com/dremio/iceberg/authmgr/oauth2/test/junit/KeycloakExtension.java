@@ -27,7 +27,6 @@ import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironmentExtension;
 import com.dremio.iceberg.authmgr.oauth2.test.container.KeycloakContainer;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSHeader;
 import com.nimbusds.jose.JWSSigner;
@@ -36,10 +35,12 @@ import com.nimbusds.jose.crypto.RSASSASigner;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import java.security.PrivateKey;
+import java.security.SecureRandom;
 import java.security.interfaces.ECPrivateKey;
 import java.security.interfaces.RSAPrivateKey;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Base64;
 import java.util.Date;
 import java.util.UUID;
 import org.junit.jupiter.api.extension.AfterAllCallback;
@@ -62,7 +63,7 @@ public class KeycloakExtension extends TestEnvironmentExtension
 
   // Client3 is used for client_secret_jwt authentication
   public static final String CLIENT_ID3 = "Client3";
-  public static final String CLIENT_SECRET3 = Strings.repeat("S3CR3T", 10);
+  public static final String CLIENT_SECRET3 = generateSecret();
   public static final String CLIENT_AUTH3 = CLIENT_SECRET_JWT.getValue();
 
   // Client4 is used for private_key_jwt authentication (RSA)
@@ -192,6 +193,12 @@ public class KeycloakExtension extends TestEnvironmentExtension
         // Unused
         .audience(null)
         .resource(null);
+  }
+
+  private static String generateSecret() {
+    byte[] raw = new byte[64];
+    new SecureRandom().nextBytes(raw);
+    return Base64.getUrlEncoder().withoutPadding().encodeToString(raw);
   }
 
   /**
