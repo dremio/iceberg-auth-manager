@@ -90,7 +90,7 @@ public abstract class TokensResult {
     return exp != null ? exp : getAccessTokenJwtExpirationTime();
   }
 
-  @Value.Derived
+  @Value.Lazy
   @Nullable
   public Instant getRefreshTokenExpirationTime() {
     Instant exp = getRefreshTokenResponseExpirationTime();

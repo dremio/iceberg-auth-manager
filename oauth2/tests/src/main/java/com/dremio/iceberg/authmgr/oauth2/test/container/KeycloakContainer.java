@@ -234,7 +234,10 @@ public class KeycloakContainer extends ExtendableKeycloakContainer<KeycloakConta
       client.setAttributes(attributes);
     }
     client.setOptionalClientScopes(
-        scopes.stream().map(ClientScopeRepresentation::getName).collect(Collectors.toList()));
+        ImmutableList.<String>builder()
+            .addAll(scopes.stream().map(ClientScopeRepresentation::getName).iterator())
+            .add("offline_access")
+            .build());
     try (Response response = master.clients().create(client)) {
       if (response.getStatus() != 201) {
         throw new IllegalStateException(
