@@ -294,10 +294,6 @@ URL of the OAuth2 device authorization endpoint. For Keycloak, this is typically
 
 If using the "Device Code" grant type, either this property or `rest.auth.oauth2.issuer-url` must be set.
 
-### `rest.auth.oauth2.device-code.poll-interval`
-
-Defines how often the agent should poll the OAuth2 server for the device code flow to complete. This is only used if the grant type to use is `urn:ietf:params:oauth:grant-type:device_code`. Optional, defaults to `PT5S`.
-
 ## Token Exchange Settings
 
 Configuration properties for the [Token Exchange](https://datatracker.ietf.org/doc/html/rfc8693) flow.

@@ -144,6 +144,27 @@ class ConfigRelocationInterceptorTest {
   }
 
   @Test
+  void testIterateNamesFiltersRemovedProperties() {
+    SmallRyeConfig config =
+        new SmallRyeConfigBuilder()
+            .setAddDefaultSources(false)
+            .setAddDiscoveredSources(false)
+            .setAddDiscoveredConverters(false)
+            .setAddDiscoveredInterceptors(false)
+            .setAddDiscoveredSecretKeysHandlers(false)
+            .setAddDiscoveredValidator(false)
+            .withInterceptors(new ConfigRelocationInterceptor())
+            .withSources(
+                new MapBackedConfigSource(
+                    "catalog-properties",
+                    Map.of("rest.auth.oauth2.device-code.poll-interval", "PT5S"),
+                    1000) {})
+            .build();
+    assertThat(StreamSupport.stream(config.getPropertyNames().spliterator(), false).toList())
+        .isEmpty();
+  }
+
+  @Test
   void testCanonicalLookupsResolveLegacyAliases() {
     SmallRyeConfig config =
         new SmallRyeConfigBuilder()
