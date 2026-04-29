@@ -458,9 +458,9 @@ The file must be in PEM format; it may contain a private key, or a private key a
 
 Supported key formats are:
 
-- RSA PKCS#8 (`BEGIN PRIVATE KEY`): always supported
-- RSA PKCS#1 (`BEGIN RSA PRIVATE KEY`): requires the BouncyCastle library
-- ECDSA (`BEGIN EC PRIVATE KEY`): requires the BouncyCastle library
+- RSA & ECDSA in PKCS#8 format (`BEGIN PRIVATE KEY`): always supported
+- RSA in PKCS#1 format (`BEGIN RSA PRIVATE KEY`): requires the BouncyCastle library
+- ECDSA in EC SEC 1 format (`BEGIN EC PRIVATE KEY`): requires the BouncyCastle library
 
 Only unencrypted keys are supported currently.
 

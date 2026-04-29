@@ -28,10 +28,10 @@ public interface PemReader {
   /**
    * Reads a private key from a PEM file.
    *
-   * <p>RSA keys in the PKCS#8 format are always supported.
+   * <p>RSA and ECDSA keys in the PKCS#8 format are always supported.
    *
-   * <p>Support for additional key formats, such as RSA in the PKCS#1 format or ECDSA keys, is
-   * supported if the BouncyCastle library is available.
+   * <p>Support for additional key formats, such as RSA in the PKCS#1 format or ECDSA keys in SEC 1
+   * format, is supported if the BouncyCastle library is available.
    *
    * <p>Only unencrypted keys are supported.
    *
