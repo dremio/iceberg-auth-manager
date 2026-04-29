@@ -436,9 +436,11 @@ The expiration time of the client assertion JWT. Optional. The default is 5 minu
 
 ### `rest.auth.oauth2.client-auth.jwt.algorithm`
 
-The signing algorithm to use for the client assertion JWT. Optional. The default is `HS512` if the authentication method is `client_secret_jwt`, or `RS512` if the authentication method is `private_key_jwt`.
+The signing algorithm to use for the client assertion JWT. Optional. The default is `HS512` if the authentication method is `client_secret_jwt`, or `PS512` if the authentication method is `private_key_jwt`.
 
-Supported algorithms are: HMAC-SHA for `client_secret_jwt`, and RSA or EC for `private_key_jwt`.
+Supported algorithms are: HMAC-SHA for `client_secret_jwt`, and RSA, RSA-PSS, or EC for `private_key_jwt`.
+
+Note: legacy PKCS#1 v1.5 RSA algorithms (`RS256`, `RS384`, `RS512`) are supported but deprecated; prefer the equivalent RSASSA-PSS algorithms (`PS256`, `PS384`, `PS512`).
 
 Algorithm names must match the "alg" Param Value as described in [RFC 7518 Section 3.1](https://datatracker.ietf.org/doc/html/rfc7518#section-3.1).
 

@@ -65,7 +65,7 @@ class JwtClientAuthConfigTest {
         Arguments.of(
             Map.of(PREFIX + '.' + JwtClientAuthConfig.ALGORITHM, "RS256"),
             List.of(
-                "client assertion: JWS signing algorithm 'RS256' requires a private key "
+                "client-auth.jwt: JWS signing algorithm 'RS256' requires a private key "
                     + "(rest.auth.oauth2.client-auth.jwt.algorithm / rest.auth.oauth2.client-auth.jwt.private-key)")),
         Arguments.of(
             Map.of(
@@ -74,7 +74,7 @@ class JwtClientAuthConfigTest {
                 PREFIX + '.' + JwtClientAuthConfig.PRIVATE_KEY,
                 tempFile.toString()),
             List.of(
-                "client assertion: private key must not be set for JWS algorithm 'HS256' "
+                "client-auth.jwt: private key must not be set for JWS algorithm 'HS256' "
                     + "(rest.auth.oauth2.client-auth.jwt.algorithm / rest.auth.oauth2.client-auth.jwt.private-key)")),
         Arguments.of(
             Map.of(
@@ -83,7 +83,7 @@ class JwtClientAuthConfigTest {
                 PREFIX + '.' + JwtClientAuthConfig.PRIVATE_KEY,
                 tempFile.toString()),
             List.of(
-                "client assertion: unsupported JWS algorithm 'RSA_SHA256', must be one of: "
+                "client-auth.jwt: unsupported JWS algorithm 'RSA_SHA256', must be one of: "
                     + "'HS256', 'HS384', 'HS512', 'RS256', 'RS384', 'RS512', 'PS256', 'PS384', 'PS512', 'ES256', 'ES256K', 'ES384', 'ES512' "
                     + "(rest.auth.oauth2.client-auth.jwt.algorithm)")),
         Arguments.of(
@@ -93,13 +93,13 @@ class JwtClientAuthConfigTest {
                 PREFIX + '.' + JwtClientAuthConfig.PRIVATE_KEY,
                 tempFile.toString()),
             List.of(
-                "client assertion: unsupported JWS algorithm 'EdDSA', must be one of: "
+                "client-auth.jwt: unsupported JWS algorithm 'EdDSA', must be one of: "
                     + "'HS256', 'HS384', 'HS512', 'RS256', 'RS384', 'RS512', 'PS256', 'PS384', 'PS512', 'ES256', 'ES256K', 'ES384', 'ES512' "
                     + "(rest.auth.oauth2.client-auth.jwt.algorithm)")),
         Arguments.of(
             Map.of(PREFIX + '.' + JwtClientAuthConfig.PRIVATE_KEY, "/invalid/path"),
             List.of(
-                "client assertion: private key path '/invalid/path' is not a file or is not readable "
+                "client-auth.jwt: private key path '/invalid/path' is not a file or is not readable "
                     + "(rest.auth.oauth2.client-auth.jwt.private-key)")));
   }
 

@@ -17,13 +17,18 @@ package com.dremio.iceberg.authmgr.oauth2.config.validator;
 
 import com.google.errorprone.annotations.FormatMethod;
 import com.google.errorprone.annotations.FormatString;
+import com.nimbusds.jose.JWSAlgorithm;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class ConfigValidator {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(ConfigValidator.class);
 
   private final List<ConfigViolation> violations = new ArrayList<>();
 
@@ -59,6 +64,17 @@ public final class ConfigValidator {
     check(endpoint.getUserInfo() == null, offendingKey, name + " must not have a user info part");
     check(endpoint.getQuery() == null, offendingKey, name + " must not have a query part");
     check(endpoint.getFragment() == null, offendingKey, name + " must not have a fragment part");
+  }
+
+  public void checkAlgorithm(JWSAlgorithm algorithm) {
+    if (algorithm.equals(JWSAlgorithm.RS256)
+        || algorithm.equals(JWSAlgorithm.RS384)
+        || algorithm.equals(JWSAlgorithm.RS512)) {
+      LOGGER.warn(
+          "JWS algorithm '{}' uses legacy PKCS#1 v1.5 RSA padding; "
+              + "consider using PS256, PS384, or PS512 (RSASSA-PSS) instead",
+          algorithm.getName());
+    }
   }
 
   public void validate() {

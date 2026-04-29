@@ -80,11 +80,15 @@ public interface JwtClientAuthConfig {
   /**
    * The signing algorithm to use for the client assertion JWT. Optional. The default is {@link
    * JWSAlgorithm#HS512} if the authentication method is {@link
-   * ClientAuthenticationMethod#CLIENT_SECRET_JWT}, or {@link JWSAlgorithm#RS512} if the
+   * ClientAuthenticationMethod#CLIENT_SECRET_JWT}, or {@link JWSAlgorithm#PS512} if the
    * authentication method is {@link ClientAuthenticationMethod#PRIVATE_KEY_JWT}.
    *
-   * <p>Supported algorithms are: HMAC-SHA for {@code client_secret_jwt}, and RSA or EC for {@code
-   * private_key_jwt}.
+   * <p>Supported algorithms are: HMAC-SHA for {@code client_secret_jwt}, and RSA, RSA-PSS, or EC
+   * for {@code private_key_jwt}.
+   *
+   * <p>Note: legacy PKCS#1 v1.5 RSA algorithms ({@code RS256}, {@code RS384}, {@code RS512}) are
+   * supported but deprecated; prefer the equivalent RSASSA-PSS algorithms ({@code PS256}, {@code
+   * PS384}, {@code PS512}).
    *
    * <p>Algorithm names must match the "alg" Param Value as described in <a
    * href="https://datatracker.ietf.org/doc/html/rfc7518#section-3.1">RFC 7518 Section 3.1</a>.
@@ -137,25 +141,26 @@ public interface JwtClientAuthConfig {
   default void validate() {
     ConfigValidator validator = new ConfigValidator();
     if (getAlgorithm().isPresent()) {
-      if (JWSAlgorithm.Family.RSA.contains(getAlgorithm().get())
-          || JWSAlgorithm.Family.EC.contains(getAlgorithm().get())) {
+      JWSAlgorithm algorithm = getAlgorithm().get();
+      if (JWSAlgorithm.Family.RSA.contains(algorithm)
+          || JWSAlgorithm.Family.EC.contains(algorithm)) {
         validator.check(
             getPrivateKey().isPresent(),
             List.of(PREFIX + '.' + ALGORITHM, PREFIX + '.' + PRIVATE_KEY),
-            "client assertion: JWS signing algorithm '%s' requires a private key",
-            getAlgorithm().get().getName());
-      } else if (JWSAlgorithm.Family.HMAC_SHA.contains(getAlgorithm().get())) {
+            "client-auth.jwt: JWS signing algorithm '%s' requires a private key",
+            algorithm.getName());
+      } else if (JWSAlgorithm.Family.HMAC_SHA.contains(algorithm)) {
         validator.check(
             getPrivateKey().isEmpty(),
             List.of(PREFIX + '.' + ALGORITHM, PREFIX + '.' + PRIVATE_KEY),
-            "client assertion: private key must not be set for JWS algorithm '%s'",
-            getAlgorithm().get().getName());
+            "client-auth.jwt: private key must not be set for JWS algorithm '%s'",
+            algorithm.getName());
       } else {
         validator.check(
             false,
             PREFIX + '.' + ALGORITHM,
-            "client assertion: unsupported JWS algorithm '%s', must be one of: %s",
-            getAlgorithm().get().getName(),
+            "client-auth.jwt: unsupported JWS algorithm '%s', must be one of: %s",
+            algorithm.getName(),
             Stream.of(
                     JWSAlgorithm.Family.HMAC_SHA.stream(),
                     JWSAlgorithm.Family.RSA.stream(),
@@ -164,12 +169,13 @@ public interface JwtClientAuthConfig {
                 .map(JWSAlgorithm::getName)
                 .collect(Collectors.joining("', '", "'", "'")));
       }
+      validator.checkAlgorithm(algorithm);
     }
     if (getPrivateKey().isPresent()) {
       validator.check(
           Files.isReadable(getPrivateKey().get()),
           PREFIX + '.' + PRIVATE_KEY,
-          "client assertion: private key path '%s' is not a file or is not readable",
+          "client-auth.jwt: private key path '%s' is not a file or is not readable",
           getPrivateKey().get());
     }
     validator.validate();
