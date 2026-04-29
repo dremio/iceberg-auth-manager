@@ -56,6 +56,7 @@ import com.nimbusds.jwt.JWT;
 import com.nimbusds.jwt.JWTParser;
 import com.nimbusds.oauth2.sdk.ErrorObject;
 import com.nimbusds.oauth2.sdk.GrantType;
+import com.nimbusds.oauth2.sdk.Scope;
 import com.nimbusds.oauth2.sdk.auth.Secret;
 import com.nimbusds.oauth2.sdk.id.ClientID;
 import com.nimbusds.oauth2.sdk.pkce.CodeChallengeMethod;
@@ -284,8 +285,8 @@ public class OAuth2AgentKeycloakIT {
   /**
    * Tests a simple impersonation scenario with the agent using its own token as the subject token,
    * and no actor token. The agent swaps its token for another one, roughly equivalent. Refresh
-   * tokens are present, which is why the client credentials grant cannot be used for the subject
-   * token.
+   * tokens are present, which is why the client credentials or jwt-bearer grant cannot be used for
+   * the subject token.
    */
   @CartesianTest
   void impersonation2(
@@ -508,6 +509,77 @@ public class OAuth2AgentKeycloakIT {
     }
   }
 
+  /**
+   * Tests that requesting the offline_access scope in interactive grants returns an offline refresh
+   * token (one that is not bound to the SSO session lifetime).
+   */
+  @CartesianTest
+  void offlineAccess(
+      @EnumLike(
+              excludes = {
+                "client_credentials",
+                "urn:ietf:params:oauth:grant-type:jwt-bearer",
+                "urn:ietf:params:oauth:grant-type:token-exchange"
+              })
+          GrantType grantType,
+      Builder envBuilder)
+      throws Exception {
+    try (TestEnvironment env =
+            envBuilder.grantType(grantType).scope(Scope.parse(SCOPE1 + " offline_access")).build();
+        OAuth2Agent agent = env.newAgent()) {
+      TokensResult tokens = agent.authenticateInternal();
+      JWT jwt = introspectToken(tokens.getTokens().getAccessToken(), CLIENT_ID1);
+      soft.assertThat(jwt.getJWTClaimsSet().getStringClaim("scope")).contains("offline_access");
+      soft.assertThat(tokens.getTokens().getRefreshToken()).isNotNull();
+      // Keycloak does not include an expiration time for
+      // refresh tokens with offline_access
+      soft.assertThat(tokens.getRefreshTokenExpirationTime()).isNull();
+    }
+  }
+
+  /**
+   * Tests token exchange where the subject token was obtained with offline_access scope. Requesting
+   * an access token should succeed, but requesting a refresh token should fail, as keycloak does
+   * not issue refresh tokens for offline sessions.
+   */
+  @CartesianTest
+  void offlineAccessImpersonation(
+      @EnumLike(
+              excludes = {
+                "client_credentials",
+                "urn:ietf:params:oauth:grant-type:jwt-bearer",
+                "urn:ietf:params:oauth:grant-type:token-exchange"
+              })
+          GrantType subjectGrantType,
+      Builder envBuilder)
+      throws Exception {
+    Scope offlineScope = Scope.parse(SCOPE1 + " offline_access");
+    try (TestEnvironment env =
+            envBuilder
+                .grantType(TOKEN_EXCHANGE)
+                .requestedTokenType(ACCESS_TOKEN)
+                .subjectGrantType(subjectGrantType)
+                .subjectScope(offlineScope)
+                .build();
+        OAuth2Agent agent = env.newAgent()) {
+      assertAgent(agent, CLIENT_ID1, false);
+    }
+    try (TestEnvironment env =
+            envBuilder
+                .grantType(TOKEN_EXCHANGE)
+                .requestedTokenType(REFRESH_TOKEN)
+                .subjectGrantType(subjectGrantType)
+                .subjectScope(offlineScope)
+                .build();
+        OAuth2Agent agent = env.newAgent()) {
+      soft.assertThatThrownBy(agent::authenticate)
+          .asInstanceOf(type(OAuth2Exception.class))
+          .extracting(OAuth2Exception::getErrorObject)
+          .extracting(ErrorObject::getHTTPStatusCode, ErrorObject::getCode)
+          .containsExactly(400, "invalid_request");
+    }
+  }
+
   private void assertAgent(OAuth2Agent agent, String clientId, boolean expectRefreshToken)
       throws Exception {
     // initial grant
@@ -515,10 +587,14 @@ public class OAuth2AgentKeycloakIT {
     introspectToken(initial.getTokens().getAccessToken(), clientId);
     // token refresh
     if (expectRefreshToken) {
+      // Refresh tokens without offline_access are bound by the user session;
+      // Keycloak returns the refresh token expiration time in these cases.
       soft.assertThat(initial.getTokens().getRefreshToken()).isNotNull();
+      soft.assertThat(initial.getRefreshTokenExpirationTime()).isNotNull();
       TokensResult refreshed = agent.refreshCurrentTokens(initial).toCompletableFuture().get();
       introspectToken(refreshed.getTokens().getAccessToken(), clientId);
       soft.assertThat(refreshed.getTokens().getRefreshToken()).isNotNull();
+      soft.assertThat(refreshed.getRefreshTokenExpirationTime()).isNotNull();
     } else {
       soft.assertThat(initial.getTokens().getRefreshToken()).isNull();
     }
@@ -527,16 +603,18 @@ public class OAuth2AgentKeycloakIT {
     introspectToken(renewed.getTokens().getAccessToken(), clientId);
     if (expectRefreshToken) {
       soft.assertThat(renewed.getTokens().getRefreshToken()).isNotNull();
+      soft.assertThat(renewed.getRefreshTokenExpirationTime()).isNotNull();
     } else {
       soft.assertThat(renewed.getTokens().getRefreshToken()).isNull();
     }
   }
 
-  private void introspectToken(AccessToken accessToken, String clientId) throws ParseException {
+  private JWT introspectToken(AccessToken accessToken, String clientId) throws ParseException {
     soft.assertThat(accessToken).isNotNull();
     JWT jwt = JWTParser.parse(accessToken.getValue());
     soft.assertThat(jwt).isNotNull();
     soft.assertThat(jwt.getJWTClaimsSet().getStringClaim("azp")).isEqualTo(clientId);
     soft.assertThat(jwt.getJWTClaimsSet().getStringClaim("scope")).contains(SCOPE1);
+    return jwt;
   }
 }
