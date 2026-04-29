@@ -80,6 +80,8 @@ public class KeycloakContainer extends ExtendableKeycloakContainer<KeycloakConta
     withNetworkAliases("keycloak");
     withLogConsumer(new Slf4jLogConsumer(LOGGER));
     withEnv("KC_LOG_LEVEL", getRootLoggerLevel() + ",org.keycloak:" + getKeycloakLoggerLevel());
+    // DPoP is still a preview feature in Keycloak 26.x and must be enabled explicitly.
+    withFeaturesEnabled("dpop");
     // Useful when debugging Keycloak REST endpoints:
     addExposedPorts(5005);
     withEnv(
@@ -96,7 +98,13 @@ public class KeycloakContainer extends ExtendableKeycloakContainer<KeycloakConta
   @CanIgnoreReturnValue
   public KeycloakContainer withClient(
       String clientId, String clientSecret, String authenticationMethod) {
-    clients.add(newClient(clientId, clientSecret, authenticationMethod));
+    return withClient(clientId, clientSecret, authenticationMethod, false);
+  }
+
+  @CanIgnoreReturnValue
+  public KeycloakContainer withClient(
+      String clientId, String clientSecret, String authenticationMethod, boolean dpopBound) {
+    clients.add(newClient(clientId, clientSecret, authenticationMethod, dpopBound));
     return this;
   }
 
@@ -304,7 +312,7 @@ public class KeycloakContainer extends ExtendableKeycloakContainer<KeycloakConta
   }
 
   private static ClientRepresentation newClient(
-      String clientId, String clientSecret, String authenticationMethod) {
+      String clientId, String clientSecret, String authenticationMethod, boolean dpopBound) {
     ClientRepresentation client = new ClientRepresentation();
     String clientUuid = UUID.randomUUID().toString();
     client.setId(clientUuid);
@@ -322,6 +330,9 @@ public class KeycloakContainer extends ExtendableKeycloakContainer<KeycloakConta
             .put("oauth2.device.authorization.grant.enabled", "true")
             .put("standard.token.exchange.enabled", "true")
             .put("standard.token.exchange.enableRefreshRequestedTokenType", "SAME_SESSION");
+    if (dpopBound) {
+      attributes.put("dpop.bound.access.tokens", "true");
+    }
     switch (authenticationMethod) {
       case "client_secret_basic":
       case "client_secret_post":

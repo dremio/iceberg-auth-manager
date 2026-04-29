@@ -55,8 +55,14 @@ public abstract class AbstractTokenEndpointExpectation extends AbstractExpectati
 
   protected HttpResponse response(
       HttpRequest httpRequest, String accessToken, String refreshToken) {
-    return HttpResponse.response()
-        .withBody(getJsonBody(responseBody(accessToken, refreshToken).build()));
+    HttpResponse response =
+        HttpResponse.response()
+            .withBody(getJsonBody(responseBody(accessToken, refreshToken).build()));
+    if (getTestEnvironment().isDpopEnabled()) {
+      // Simulate an AS that always advertises a fresh DPoP nonce (RFC 9449 §8).
+      response.withHeader("DPoP-Nonce", getTestEnvironment().getDpopNonce());
+    }
+    return response;
   }
 
   protected ImmutableList.Builder<Header> requestHeaders() {
@@ -94,10 +100,11 @@ public abstract class AbstractTokenEndpointExpectation extends AbstractExpectati
 
   protected ImmutableMap.Builder<String, Object> responseBody(
       String accessToken, String refreshToken) {
+    String tokenType = getTestEnvironment().isDpopEnabled() ? "DPoP" : "bearer";
     ImmutableMap.Builder<String, Object> builder =
         ImmutableMap.<String, Object>builder()
             .put("access_token", accessToken)
-            .put("token_type", "bearer")
+            .put("token_type", tokenType)
             .put("expires_in", getTestEnvironment().getAccessTokenLifespan().toSeconds());
     if (getTestEnvironment().isReturnRefreshTokens()) {
       builder.put("refresh_token", refreshToken);
