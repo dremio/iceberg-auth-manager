@@ -146,19 +146,19 @@ public interface JwtClientAuthConfig {
         validator.check(
             getPrivateKey().isPresent(),
             List.of(PREFIX + '.' + ALGORITHM, PREFIX + '.' + PRIVATE_KEY),
-            "client assertion: JWS signing algorithm '%s' requires a private key",
+            "client-auth.jwt: JWS signing algorithm '%s' requires a private key",
             algorithm.getName());
       } else if (JWSAlgorithm.Family.HMAC_SHA.contains(algorithm)) {
         validator.check(
             getPrivateKey().isEmpty(),
             List.of(PREFIX + '.' + ALGORITHM, PREFIX + '.' + PRIVATE_KEY),
-            "client assertion: private key must not be set for JWS algorithm '%s'",
+            "client-auth.jwt: private key must not be set for JWS algorithm '%s'",
             algorithm.getName());
       } else {
         validator.check(
             false,
             PREFIX + '.' + ALGORITHM,
-            "client assertion: unsupported JWS algorithm '%s', must be one of: %s",
+            "client-auth.jwt: unsupported JWS algorithm '%s', must be one of: %s",
             algorithm.getName(),
             Stream.of(
                     JWSAlgorithm.Family.HMAC_SHA.stream(),
@@ -174,7 +174,7 @@ public interface JwtClientAuthConfig {
       validator.check(
           Files.isReadable(getPrivateKey().get()),
           PREFIX + '.' + PRIVATE_KEY,
-          "client assertion: private key path '%s' is not a file or is not readable",
+          "client-auth.jwt: private key path '%s' is not a file or is not readable",
           getPrivateKey().get());
     }
     validator.validate();
