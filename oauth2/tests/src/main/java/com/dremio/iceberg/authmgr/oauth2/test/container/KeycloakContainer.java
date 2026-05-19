@@ -32,7 +32,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import org.keycloak.admin.client.Keycloak;
 import org.keycloak.admin.client.resource.RealmResource;
 import org.keycloak.representations.idm.ClientRepresentation;
@@ -234,7 +233,10 @@ public class KeycloakContainer extends ExtendableKeycloakContainer<KeycloakConta
       client.setAttributes(attributes);
     }
     client.setOptionalClientScopes(
-        scopes.stream().map(ClientScopeRepresentation::getName).collect(Collectors.toList()));
+        ImmutableList.<String>builder()
+            .addAll(scopes.stream().map(ClientScopeRepresentation::getName).iterator())
+            .add("offline_access")
+            .build());
     try (Response response = master.clients().create(client)) {
       if (response.getStatus() != 201) {
         throw new IllegalStateException(
