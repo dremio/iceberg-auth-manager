@@ -27,7 +27,7 @@ the private key.
 
 When DPoP is enabled, the AuthManager:
 
-* Generates or loads an asymmetric keypair on startup.
+* Generates an ephemeral asymmetric keypair on startup.
 * Attaches a `DPoP` header carrying a signed proof JWT to every request sent to the authorization
   server's token endpoint.
 * Requests a DPoP-bound access token from the authorization server (`token_type=DPoP` per RFC 9449
@@ -63,52 +63,15 @@ enabling the `dpop` feature and setting `dpop.bound.access.tokens=true` on the c
 
 ## Key Management
 
-### Ephemeral Keys
-
-When no private key path is configured, the AuthManager generates a new keypair each time the agent
-starts. The key lives entirely in memory and never leaves the process. This is the simplest and
-recommended mode for most deployments, especially short-lived processes such as Spark jobs.
+The AuthManager generates a fresh keypair each time the agent starts. The key lives entirely in
+memory and never leaves the process. This is the simplest and most secure approach: a stolen access
+token cannot be replayed without the private key, and the private key never leaves the agent's
+memory.
 
 A new key means a new `cnf.jkt` thumbprint on every fresh access token — any tokens issued to a
 previous agent instance are no longer refreshable once that agent shuts down, since refresh requires
 signing with the same key the original token was bound to (RFC 9449 §5). The AuthManager satisfies
 this implicitly: it reuses a single key for the lifetime of the agent.
-
-### Static Keys from a PEM File
-
-For deployments that need a stable `cnf.jkt` thumbprint across process restarts, provide a 
-PEM-encoded private key:
-
-```properties
-rest.auth.oauth2.dpop.enabled=true
-rest.auth.oauth2.dpop.algorithm=ES256
-rest.auth.oauth2.dpop.private-key=/etc/authmgr/dpop-key.pem
-```
-
-The file must be in PEM format. The following formats are always supported:
-
-1. RSA or EC (Elliptic Curve) keys in PKCS#8 format (`BEGIN PRIVATE KEY`)
-
-If the BouncyCastle library is available at runtime, the following formats are also supported:
-
-2. RSA keys in PKCS#1 format (`BEGIN RSA PRIVATE KEY`)
-3. EC (Elliptic Curve) keys in EC SEC 1 format (`BEGIN EC PRIVATE KEY`)
-
-Only unencrypted private keys are supported.
-
-By default, the public key is derived from the private key at load time; this always works for RSA
-keys but requires BouncyCastle on the classpath for EC keys. To avoid the BouncyCastle dependency,
-supply the public key explicitly via `rest.auth.oauth2.dpop.public-key`:
-
-```properties
-rest.auth.oauth2.dpop.enabled=true
-rest.auth.oauth2.dpop.algorithm=ES256
-rest.auth.oauth2.dpop.private-key=/etc/authmgr/dpop-key.pem
-rest.auth.oauth2.dpop.public-key=/etc/authmgr/dpop-key.pub.pem
-```
-
-The public-key file must contain an X.509 `SubjectPublicKeyInfo` block
-(`-----BEGIN PUBLIC KEY-----`), as produced by `openssl pkey -pubout`.
 
 ## Signing Algorithms
 
@@ -130,8 +93,7 @@ which produces the smallest proofs.
 
 `ES256K` (secp256k1) and the `EdDSA` family (Ed25519 / Ed448) are not currently supported.
 
-For an ephemeral keypair the AuthManager generates a key matching the configured algorithm. For a
-static PEM key, the key type must match the algorithm family (EC for `ES*`, RSA for `RS*`/`PS*`).
+The AuthManager generates a key matching the configured algorithm.
 
 ## Nonce Handling
 
@@ -154,9 +116,7 @@ No configuration is needed — nonce challenges are handled automatically for th
   Iceberg HTTPClient grows an interception hook. (Token-endpoint nonce challenges — which go through
   the AuthManager's own HTTP client — *are* supported.)
 
-* **No key rotation.** An ephemeral key lives as long as the agent; a static key lives as long as
-  the PEM file points at it. To rotate, restart the process (for ephemeral keys) or replace the PEM
-  file and restart (for static keys).
+* **No key rotation.** The key lives as long as the agent. To rotate, restart the process.
 
 ## Full Configuration Reference
 
