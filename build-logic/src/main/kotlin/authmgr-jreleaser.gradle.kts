@@ -60,8 +60,10 @@ gradle.projectsEvaluated {
 
     signing {
       active.set(Active.ALWAYS)
-      verify.set(false) // requires the GPG public key to be set up
-      armored.set(true)
+      pgp {
+        verify.set(false) // requires the GPG public key to be set up
+        armored.set(true)
+      }
     }
 
     hooks {

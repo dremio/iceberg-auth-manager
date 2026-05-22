@@ -44,7 +44,7 @@ if (System.getProperty("idea.sync.active").toBoolean()) {
 
 eclipse { project { name = ideName } }
 
-tasks.withType(JavaCompile::class.java).configureEach { options.release = 11 }
+tasks.withType(JavaCompile::class.java).configureEach { options.release = 17 }
 
 tasks.named<RatTask>("rat").configure {
   // These are Gradle file pattern syntax
