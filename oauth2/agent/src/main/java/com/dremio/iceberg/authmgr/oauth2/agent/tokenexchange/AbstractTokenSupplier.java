@@ -1,0 +1,142 @@
+/*
+ * Copyright (C) 2025 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.dremio.iceberg.authmgr.oauth2.agent.tokenexchange;
+
+import static com.dremio.iceberg.authmgr.oauth2.agent.config.ConfigUtils.prefixedMap;
+
+import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2Agent;
+import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2AgentConfig;
+import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2AgentRuntime;
+import com.dremio.iceberg.authmgr.oauth2.agent.config.SystemConfig;
+import com.nimbusds.oauth2.sdk.GrantType;
+import com.nimbusds.oauth2.sdk.token.AccessToken;
+import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
+import com.nimbusds.oauth2.sdk.token.TokenTypeURI;
+import com.nimbusds.oauth2.sdk.token.TypelessAccessToken;
+import jakarta.annotation.Nullable;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+import org.immutables.value.Value;
+
+public abstract class AbstractTokenSupplier implements AutoCloseable {
+
+  /**
+   * Returns a stage that will supply the requested token when completed.
+   *
+   * <p>If the token is static, the returned stage will be already completed with the token to use.
+   * Otherwise, the stage will complete when the underlying agent has completed its authentication.
+   *
+   * <p>If no token is configured, the returned stage will be already completed, with a null value.
+   */
+  public CompletionStage<AccessToken> supplyTokenAsync() {
+    if (getTokenAgent() != null) {
+      return getTokenAgent().authenticateAsync().thenApply(this::injectTokenType);
+    } else if (getStaticToken().isPresent()) {
+      return CompletableFuture.completedFuture(getStaticToken().get())
+          .thenApply(this::injectTokenType);
+    } else {
+      return CompletableFuture.completedFuture(null);
+    }
+  }
+
+  /** Injects the configured token type into an existing access token. */
+  private AccessToken injectTokenType(AccessToken token) {
+    return getTokenType().equals(token.getIssuedTokenType())
+        ? token
+        : new BearerAccessToken(token.getValue(), 0, null, getTokenType());
+  }
+
+  /**
+   * Returns a copy of this token supplier. The copy will share the same spec, executor and REST
+   * client supplier as the original supplier, as well as its static token, if any. If the token is
+   * dynamic, the original agent will be copied.
+   */
+  public abstract AbstractTokenSupplier copy();
+
+  /**
+   * Returns the agent to use for fetching the token. Returns null if the token is static or not
+   * configured.
+   */
+  @Value.Default
+  @Nullable
+  protected OAuth2Agent getTokenAgent() {
+    if (!getMainConfig().getBasicConfig().getGrantType().equals(GrantType.TOKEN_EXCHANGE)
+        || getStaticToken().isPresent()
+        || getTokenAgentConfig().isEmpty()) {
+      return null;
+    }
+    Map<String, String> tokenAgentProperties = getTokenAgentConfig();
+    if (!tokenAgentProperties.containsKey(SystemConfig.PREFIX + '.' + SystemConfig.AGENT_NAME)) {
+      tokenAgentProperties = new HashMap<>(tokenAgentProperties);
+      tokenAgentProperties.put(
+          SystemConfig.PREFIX + '.' + SystemConfig.AGENT_NAME, getDefaultAgentName());
+    }
+    OAuth2AgentConfig tokenAgentConfig = OAuth2AgentConfig.from(tokenAgentProperties);
+    return new OAuth2Agent(tokenAgentConfig, getRuntime());
+  }
+
+  /**
+   * Reads a token from a file. The file content is read as UTF-8 and trimmed of leading and
+   * trailing whitespace; the result is returned as a {@link TypelessAccessToken}.
+   *
+   * @param path path to the file containing the token
+   * @return the token parsed from the file
+   * @throws UncheckedIOException if the file cannot be read
+   */
+  protected static TypelessAccessToken readTokenFromFile(Path path) {
+    try {
+      String value = Files.readString(path).strip();
+      return new TypelessAccessToken(value);
+    } catch (IOException e) {
+      throw new UncheckedIOException("Failed to read token from file: " + path, e);
+    }
+  }
+
+  @Override
+  public void close() {
+    if (getTokenAgent() != null) {
+      getTokenAgent().close();
+    }
+  }
+
+  @Value.Derived
+  protected Map<String, String> getTokenAgentConfig() {
+    return prefixedMap(getDynamicTokenConfig(), OAuth2AgentConfig.PREFIX);
+  }
+
+  protected abstract OAuth2AgentConfig getMainConfig();
+
+  protected abstract OAuth2AgentRuntime getRuntime();
+
+  @Value.Derived
+  protected abstract Optional<TypelessAccessToken> getStaticToken();
+
+  @Value.Derived
+  protected abstract TokenTypeURI getTokenType();
+
+  @Value.Derived
+  protected abstract Map<String, String> getDynamicTokenConfig();
+
+  @Value.Derived
+  protected abstract String getDefaultAgentName();
+}

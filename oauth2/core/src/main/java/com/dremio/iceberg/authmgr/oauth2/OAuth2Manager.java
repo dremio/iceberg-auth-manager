@@ -15,6 +15,7 @@
  */
 package com.dremio.iceberg.authmgr.oauth2;
 
+import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2AgentConfig;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
@@ -137,7 +138,7 @@ public class OAuth2Manager implements AuthManager {
     if (cache == null) {
       synchronized (this) {
         if (sessionCache == null) {
-          OAuth2Config config = OAuth2Config.from(properties);
+          OAuth2AgentConfig config = OAuth2AgentConfig.from(properties);
           cache = new AuthSessionCache(name, config.getSystemConfig().getSessionCacheTimeout());
           sessionCache = cache;
         }

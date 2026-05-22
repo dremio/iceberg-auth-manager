@@ -34,9 +34,8 @@ plugins {
   id("authmgr-java-production")
 }
 
-// Create configurations to hold the core project's source and javadoc artifacts
-// These will be used to copy the core project's source and javadoc jars into this project's
-// artifacts
+// Create configurations to hold the core and agent projects' source and javadoc artifacts.
+// These will be used to copy those projects' source and javadoc jars into this project's artifacts.
 val coreSources by
   configurations.creating {
     isCanBeConsumed = false
@@ -59,6 +58,28 @@ val coreJavadoc by
     }
   }
 
+val agentSources by
+  configurations.creating {
+    isCanBeConsumed = false
+    isCanBeResolved = true
+    attributes {
+      attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category.DOCUMENTATION))
+      attribute(Bundling.BUNDLING_ATTRIBUTE, objects.named(Bundling.EXTERNAL))
+      attribute(DocsType.DOCS_TYPE_ATTRIBUTE, objects.named(DocsType.SOURCES))
+    }
+  }
+
+val agentJavadoc by
+  configurations.creating {
+    isCanBeConsumed = false
+    isCanBeResolved = true
+    attributes {
+      attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category.DOCUMENTATION))
+      attribute(Bundling.BUNDLING_ATTRIBUTE, objects.named(Bundling.EXTERNAL))
+      attribute(DocsType.DOCS_TYPE_ATTRIBUTE, objects.named(DocsType.JAVADOC))
+    }
+  }
+
 dependencies {
   api(project(":authmgr-oauth2-core")) {
     // exclude dependencies that are already provided by Iceberg
@@ -69,6 +90,8 @@ dependencies {
   }
   coreSources(project(":authmgr-oauth2-core", "sourcesElements"))
   coreJavadoc(project(":authmgr-oauth2-core", "javadocElements"))
+  agentSources(project(":authmgr-oauth2-agent", "sourcesElements"))
+  agentJavadoc(project(":authmgr-oauth2-agent", "javadocElements"))
 }
 
 val shadowJar = tasks.named<ShadowJar>("shadowJar")
@@ -114,18 +137,20 @@ shadowJar.configure {
 
 tasks.named("assemble").configure { dependsOn("shadowJar") }
 
-// Configure the source jar to copy from the core project's source jar
+// Configure the source jar to copy from both the core and agent projects' source jars
 tasks.named<Jar>("sourcesJar") {
-  dependsOn(":authmgr-oauth2-core:sourcesJar")
+  dependsOn(":authmgr-oauth2-core:sourcesJar", ":authmgr-oauth2-agent:sourcesJar")
   duplicatesStrategy = DuplicatesStrategy.INCLUDE // LICENSE files may be duplicated
   from({ coreSources.incoming.artifactView { lenient(true) }.files.map { zipTree(it) } })
+  from({ agentSources.incoming.artifactView { lenient(true) }.files.map { zipTree(it) } })
 }
 
-// Configure the javadoc jar to copy from the core project's javadoc jar
+// Configure the javadoc jar to copy from both the core and agent projects' javadoc jars
 tasks.named<Jar>("javadocJar") {
-  dependsOn(":authmgr-oauth2-core:javadocJar")
+  dependsOn(":authmgr-oauth2-core:javadocJar", ":authmgr-oauth2-agent:javadocJar")
   duplicatesStrategy = DuplicatesStrategy.INCLUDE // LICENSE files may be duplicated
   from({ coreJavadoc.incoming.artifactView { lenient(true) }.files.map { zipTree(it) } })
+  from({ agentJavadoc.incoming.artifactView { lenient(true) }.files.map { zipTree(it) } })
 }
 
 // Skip the javadoc generation task as we'll copy from the core project

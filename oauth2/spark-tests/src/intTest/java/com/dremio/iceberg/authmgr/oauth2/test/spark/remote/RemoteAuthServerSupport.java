@@ -15,10 +15,10 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.test.spark.remote;
 
-import com.dremio.iceberg.authmgr.oauth2.OAuth2Config;
 import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2Agent;
+import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2AgentConfig;
 import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2AgentRuntime;
-import com.dremio.iceberg.authmgr.oauth2.config.TokenRefreshConfig;
+import com.dremio.iceberg.authmgr.oauth2.agent.config.TokenRefreshConfig;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import java.io.IOException;
@@ -100,7 +100,7 @@ public final class RemoteAuthServerSupport {
       Map<String, String> agentConfig = new HashMap<>(getAgentConfig());
       agentConfig.put(TokenRefreshConfig.PREFIX + '.' + TokenRefreshConfig.ENABLED, "false");
       try (var agent =
-          new OAuth2Agent(OAuth2Config.from(agentConfig), OAuth2AgentRuntime.of(executor))) {
+          new OAuth2Agent(OAuth2AgentConfig.from(agentConfig), OAuth2AgentRuntime.of(executor))) {
         return agent.authenticate().getValue();
       }
     } finally {

@@ -1,0 +1,185 @@
+/*
+ * Copyright (C) 2025 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.dremio.iceberg.authmgr.oauth2.agent.config;
+
+import static com.dremio.iceberg.authmgr.oauth2.agent.config.TokenExchangeConfig.ACTOR_TOKEN_FILE;
+import static com.dremio.iceberg.authmgr.oauth2.agent.config.TokenExchangeConfig.AUDIENCES;
+import static com.dremio.iceberg.authmgr.oauth2.agent.config.TokenExchangeConfig.PREFIX;
+import static com.dremio.iceberg.authmgr.oauth2.agent.config.TokenExchangeConfig.RESOURCES;
+import static com.dremio.iceberg.authmgr.oauth2.agent.config.TokenExchangeConfig.SUBJECT_TOKEN;
+import static com.dremio.iceberg.authmgr.oauth2.agent.config.TokenExchangeConfig.SUBJECT_TOKEN_FILE;
+import static java.util.Collections.singletonList;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
+
+import com.dremio.iceberg.authmgr.oauth2.agent.config.validator.ConfigValidator;
+import com.google.common.collect.ImmutableMap;
+import com.nimbusds.oauth2.sdk.id.Audience;
+import io.smallrye.config.SmallRyeConfig;
+import io.smallrye.config.SmallRyeConfigBuilder;
+import io.smallrye.config.common.MapBackedConfigSource;
+import java.net.URI;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Stream;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+
+class TokenExchangeConfigTest {
+
+  @ParameterizedTest
+  @MethodSource
+  void testValidate(Map<String, String> properties, List<String> expected) {
+    SmallRyeConfig smallRyeConfig =
+        new SmallRyeConfigBuilder()
+            .withMapping(TokenExchangeConfig.class, PREFIX)
+            .withSources(new MapBackedConfigSource("catalog-properties", properties, 1000) {})
+            .build();
+    TokenExchangeConfig config = smallRyeConfig.getConfigMapping(TokenExchangeConfig.class, PREFIX);
+    assertThatIllegalArgumentException()
+        .isThrownBy(config::validate)
+        .withMessage(ConfigValidator.buildDescription(expected.stream()));
+  }
+
+  static Stream<Arguments> testValidate() {
+    return Stream.of(
+        Arguments.of(
+            Map.of(PREFIX + '.' + SUBJECT_TOKEN_FILE, "/invalid/subject-token-file"),
+            singletonList(
+                "token-exchange: '/invalid/subject-token-file' is not a file or is not readable ("
+                    + PREFIX
+                    + '.'
+                    + SUBJECT_TOKEN_FILE
+                    + ")")),
+        Arguments.of(
+            Map.of(PREFIX + '.' + ACTOR_TOKEN_FILE, "/invalid/actor-token-file"),
+            singletonList(
+                "token-exchange: '/invalid/actor-token-file' is not a file or is not readable ("
+                    + PREFIX
+                    + '.'
+                    + ACTOR_TOKEN_FILE
+                    + ")")));
+  }
+
+  @Test
+  void testAudienceEmpty() {
+    Map<String, String> properties =
+        ImmutableMap.<String, String>builder()
+            .put(PREFIX + '.' + SUBJECT_TOKEN, "subject-token")
+            .build();
+    SmallRyeConfig smallRyeConfig =
+        new SmallRyeConfigBuilder()
+            .withMapping(TokenExchangeConfig.class, PREFIX)
+            .withSources(new MapBackedConfigSource("catalog-properties", properties, 1000) {})
+            .build();
+    TokenExchangeConfig config = smallRyeConfig.getConfigMapping(TokenExchangeConfig.class, PREFIX);
+    assertThat(config.getAudiences()).isEmpty();
+  }
+
+  @Test
+  void testSingleAudience() {
+    Map<String, String> properties =
+        ImmutableMap.<String, String>builder()
+            .put(PREFIX + '.' + SUBJECT_TOKEN, "subject-token")
+            .put(PREFIX + '.' + AUDIENCES, "https://example.com/resource")
+            .build();
+    SmallRyeConfig smallRyeConfig =
+        new SmallRyeConfigBuilder()
+            .withMapping(TokenExchangeConfig.class, PREFIX)
+            .withSources(new MapBackedConfigSource("catalog-properties", properties, 1000) {})
+            .build();
+    TokenExchangeConfig config = smallRyeConfig.getConfigMapping(TokenExchangeConfig.class, PREFIX);
+    assertThat(config.getAudiences())
+        .contains(List.of(new Audience("https://example.com/resource")));
+  }
+
+  @Test
+  void testResourcesEmpty() {
+    Map<String, String> properties =
+        ImmutableMap.<String, String>builder()
+            .put(PREFIX + '.' + SUBJECT_TOKEN, "subject-token")
+            .build();
+    SmallRyeConfig smallRyeConfig =
+        new SmallRyeConfigBuilder()
+            .withMapping(TokenExchangeConfig.class, PREFIX)
+            .withSources(new MapBackedConfigSource("catalog-properties", properties, 1000) {})
+            .build();
+    TokenExchangeConfig config = smallRyeConfig.getConfigMapping(TokenExchangeConfig.class, PREFIX);
+    assertThat(config.getResources()).isEmpty();
+  }
+
+  @Test
+  void testSingleResource() {
+    Map<String, String> properties =
+        ImmutableMap.<String, String>builder()
+            .put(PREFIX + '.' + SUBJECT_TOKEN, "subject-token")
+            .put(PREFIX + '.' + RESOURCES, "https://example.com/resource")
+            .build();
+    SmallRyeConfig smallRyeConfig =
+        new SmallRyeConfigBuilder()
+            .withMapping(TokenExchangeConfig.class, PREFIX)
+            .withSources(new MapBackedConfigSource("catalog-properties", properties, 1000) {})
+            .build();
+    TokenExchangeConfig config = smallRyeConfig.getConfigMapping(TokenExchangeConfig.class, PREFIX);
+    assertThat(config.getResources()).contains(List.of(URI.create("https://example.com/resource")));
+  }
+
+  @Test
+  void testMultipleResources() {
+    Map<String, String> properties =
+        ImmutableMap.<String, String>builder()
+            .put(PREFIX + '.' + SUBJECT_TOKEN, "subject-token")
+            .put(
+                PREFIX + '.' + RESOURCES,
+                "https://example.com/resource1,https://example.com/resource2")
+            .build();
+    SmallRyeConfig smallRyeConfig =
+        new SmallRyeConfigBuilder()
+            .withMapping(TokenExchangeConfig.class, PREFIX)
+            .withSources(new MapBackedConfigSource("catalog-properties", properties, 1000) {})
+            .build();
+    TokenExchangeConfig config = smallRyeConfig.getConfigMapping(TokenExchangeConfig.class, PREFIX);
+    assertThat(config.getResources())
+        .contains(
+            List.of(
+                URI.create("https://example.com/resource1"),
+                URI.create("https://example.com/resource2")));
+  }
+
+  @Test
+  void testMultipleAudiences() {
+    Map<String, String> properties =
+        ImmutableMap.<String, String>builder()
+            .put(PREFIX + '.' + SUBJECT_TOKEN, "subject-token")
+            .put(
+                PREFIX + '.' + AUDIENCES,
+                "https://example.com/resource1,https://example.com/resource2")
+            .build();
+    SmallRyeConfig smallRyeConfig =
+        new SmallRyeConfigBuilder()
+            .withMapping(TokenExchangeConfig.class, PREFIX)
+            .withSources(new MapBackedConfigSource("catalog-properties", properties, 1000) {})
+            .build();
+    TokenExchangeConfig config = smallRyeConfig.getConfigMapping(TokenExchangeConfig.class, PREFIX);
+    assertThat(config.getAudiences())
+        .contains(
+            List.of(
+                new Audience("https://example.com/resource1"),
+                new Audience("https://example.com/resource2")));
+  }
+}

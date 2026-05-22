@@ -15,10 +15,11 @@
  */
 package com.dremio.iceberg.authmgr.oauth2;
 
-import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.ACCESS_TOKEN_INITIAL;
+import static com.dremio.iceberg.authmgr.oauth2.agent.TestConstants.ACCESS_TOKEN_INITIAL;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
+import com.dremio.iceberg.authmgr.oauth2.agent.ImmutableTestEnvironment;
+import com.dremio.iceberg.authmgr.oauth2.agent.TestEnvironment;
 import com.nimbusds.jose.util.Base64URL;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
@@ -35,7 +36,7 @@ class OAuth2SessionTest {
 
   @Test
   void testDpop() throws Exception {
-    try (TestEnvironment env = TestEnvironment.builder().dpopEnabled(true).build();
+    try (TestEnvironment env = ImmutableTestEnvironment.builder().dpopEnabled(true).build();
         OAuth2Session session = new OAuth2Session(env.getProperties(), env.getExecutor())) {
 
       URI rsUri = env.getCatalogServerUrl().resolve("v1/namespaces/ns/tables");

@@ -1,0 +1,102 @@
+/*
+ * Copyright (C) 2025 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.dremio.iceberg.authmgr.oauth2.agent.config;
+
+import static com.dremio.iceberg.authmgr.oauth2.agent.config.AuthorizationCodeConfig.CALLBACK_BIND_PORT;
+import static com.dremio.iceberg.authmgr.oauth2.agent.config.AuthorizationCodeConfig.ENDPOINT;
+import static com.dremio.iceberg.authmgr.oauth2.agent.config.AuthorizationCodeConfig.PKCE_METHOD;
+import static com.dremio.iceberg.authmgr.oauth2.agent.config.AuthorizationCodeConfig.PREFIX;
+import static com.dremio.iceberg.authmgr.oauth2.agent.config.AuthorizationCodeConfig.SSL_KEYSTORE_ALIAS;
+import static com.dremio.iceberg.authmgr.oauth2.agent.config.AuthorizationCodeConfig.SSL_KEYSTORE_PATH;
+import static java.util.Collections.singletonList;
+import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
+
+import com.dremio.iceberg.authmgr.oauth2.agent.config.validator.ConfigValidator;
+import io.smallrye.config.SmallRyeConfig;
+import io.smallrye.config.SmallRyeConfigBuilder;
+import io.smallrye.config.common.MapBackedConfigSource;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Stream;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+
+class AuthorizationCodeConfigTest {
+
+  static Path tempFile;
+
+  @BeforeAll
+  static void createFile(@TempDir Path tempDir) throws IOException {
+    tempFile = Files.createTempFile(tempDir, "private-key", ".pem");
+  }
+
+  @ParameterizedTest
+  @MethodSource
+  void testValidate(Map<String, String> properties, List<String> expected) {
+    SmallRyeConfig smallRyeConfig =
+        new SmallRyeConfigBuilder()
+            .withMapping(AuthorizationCodeConfig.class, PREFIX)
+            .withSources(new MapBackedConfigSource("catalog-properties", properties, 1000) {})
+            .build();
+    AuthorizationCodeConfig config =
+        smallRyeConfig.getConfigMapping(AuthorizationCodeConfig.class, PREFIX);
+    assertThatIllegalArgumentException()
+        .isThrownBy(config::validate)
+        .withMessage(ConfigValidator.buildDescription(expected.stream()));
+  }
+
+  static Stream<Arguments> testValidate() {
+    return Stream.of(
+        Arguments.of(
+            Map.of(PREFIX + '.' + ENDPOINT, "/auth"),
+            singletonList(
+                "authorization code flow: authorization endpoint must not be relative (rest.auth.oauth2.auth-code.endpoint)")),
+        Arguments.of(
+            Map.of(PREFIX + '.' + ENDPOINT, "https://example.com?query"),
+            singletonList(
+                "authorization code flow: authorization endpoint must not have a query part (rest.auth.oauth2.auth-code.endpoint)")),
+        Arguments.of(
+            Map.of(PREFIX + '.' + ENDPOINT, "https://example.com#fragment"),
+            singletonList(
+                "authorization code flow: authorization endpoint must not have a fragment part (rest.auth.oauth2.auth-code.endpoint)")),
+        Arguments.of(
+            Map.of(
+                PREFIX + '.' + ENDPOINT,
+                "https://example.com",
+                PREFIX + '.' + CALLBACK_BIND_PORT,
+                "-1"),
+            singletonList(
+                "authorization code flow: callback bind port must be between 0 and 65535 (inclusive) (rest.auth.oauth2.auth-code.callback.bind-port)")),
+        Arguments.of(
+            Map.of(PREFIX + '.' + PKCE_METHOD, "PLAIN"),
+            singletonList(
+                "authorization code flow: code challenge method must be one of: 'plain', 'S256' (rest.auth.oauth2.auth-code.pkce.method)")),
+        Arguments.of(
+            Map.of(PREFIX + '.' + SSL_KEYSTORE_PATH, "/invalid/path"),
+            singletonList(
+                "authorization code flow: SSL keystore path '/invalid/path' is not a file or is not readable (rest.auth.oauth2.auth-code.ssl.key-store.path)")),
+        Arguments.of(
+            Map.of(PREFIX + '.' + SSL_KEYSTORE_ALIAS, "my-alias"),
+            singletonList(
+                "authorization code flow: SSL keystore alias requires a keystore path to be configured (rest.auth.oauth2.auth-code.ssl.key-store.alias)")));
+  }
+}

@@ -66,7 +66,6 @@ dependencies {
 
   intTestBase(platform(libs.junit.bom))
   intTestBase("org.junit.jupiter:junit-jupiter")
-  intTestBase("org.junit.jupiter:junit-jupiter-api")
   intTestBase("org.junit.platform:junit-platform-launcher")
 
   intTestBase(libs.httpclient5)

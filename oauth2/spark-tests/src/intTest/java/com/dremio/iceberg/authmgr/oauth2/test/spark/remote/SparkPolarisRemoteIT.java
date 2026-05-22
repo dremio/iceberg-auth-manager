@@ -17,7 +17,7 @@ package com.dremio.iceberg.authmgr.oauth2.test.spark.remote;
 
 import static com.dremio.iceberg.authmgr.oauth2.test.spark.remote.RemoteAuthServerSupport.OAUTH2_AGENT_CONFIG_ENV;
 
-import com.dremio.iceberg.authmgr.oauth2.config.BasicConfig;
+import com.dremio.iceberg.authmgr.oauth2.agent.config.BasicConfig;
 import com.dremio.iceberg.authmgr.oauth2.test.spark.SparkITBase;
 import com.google.common.collect.ImmutableMap;
 import java.net.URI;
