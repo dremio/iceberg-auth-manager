@@ -80,6 +80,14 @@ to configure impersonation and delegation.
 The Dremio AuthManager for Apache Iceberg supports JWT assertion grants with static or dynamic
 assertions. See the [JWT Bearer Grant](./jwt-bearer.md) section for more details.
 
+## Sender-Constrained Access Tokens (DPoP)
+
+The Dremio AuthManager for Apache Iceberg supports
+[Demonstrating Proof of Possession (DPoP)](./dpop.md)
+([RFC 9449](https://datatracker.ietf.org/doc/html/rfc9449)), which binds access tokens to an
+asymmetric keypair held by the client so that stolen tokens cannot be replayed. DPoP is opt-in; see
+the [DPoP](./dpop.md) section for details on how to enable and configure it.
+
 ## Migration From Iceberg's Built-In OAuth2 `AuthManager`
 
 Migrating from Iceberg's built-in OAuth2 `AuthManager` to the Dremio AuthManager for Apache Iceberg

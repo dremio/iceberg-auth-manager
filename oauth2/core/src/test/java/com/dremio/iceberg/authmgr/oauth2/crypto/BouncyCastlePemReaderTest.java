@@ -24,8 +24,11 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.security.PrivateKey;
+import java.security.PublicKey;
 import java.security.interfaces.ECPrivateKey;
+import java.security.interfaces.ECPublicKey;
 import java.security.interfaces.RSAPrivateKey;
+import java.security.interfaces.RSAPublicKey;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -138,6 +141,23 @@ class BouncyCastlePemReaderTest {
         TestCertificates.instance().getRsaCertificatePem(),
         TestCertificates.instance().getEcdsaPublicKeyPem(),
         TestCertificates.instance().getEcdsaCertificatePem());
+  }
+
+  @Test
+  void testReadRsaPublicKey() {
+    PublicKey publicKey =
+        new BouncyCastlePemReader().readPublicKey(TestCertificates.instance().getRsaPublicKeyPem());
+    assertThat(publicKey).isInstanceOf(RSAPublicKey.class);
+    assertThat(publicKey.getAlgorithm()).isEqualTo("RSA");
+  }
+
+  @Test
+  void testReadEcPublicKey() {
+    PublicKey publicKey =
+        new BouncyCastlePemReader()
+            .readPublicKey(TestCertificates.instance().getEcdsaPublicKeyPem());
+    assertThat(publicKey).isInstanceOf(ECPublicKey.class);
+    assertThat(publicKey.getAlgorithm()).isEqualTo("EC");
   }
 
   @Test

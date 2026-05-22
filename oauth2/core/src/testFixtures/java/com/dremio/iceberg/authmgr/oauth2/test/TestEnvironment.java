@@ -27,6 +27,7 @@ import com.dremio.iceberg.authmgr.oauth2.config.AuthorizationCodeConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.BasicConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.ConfigUtils;
 import com.dremio.iceberg.authmgr.oauth2.config.DeviceCodeConfig;
+import com.dremio.iceberg.authmgr.oauth2.config.DpopConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.HttpConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.JwtBearerConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.JwtClientAuthConfig;
@@ -260,21 +261,52 @@ public abstract class TestEnvironment implements AutoCloseable {
   }
 
   @Value.Default
+  public Map<String, String> getProperties() {
+    return ImmutableMap.<String, String>builder()
+        .putAll(getBasicConfig())
+        .putAll(getResourceOwnerConfig())
+        .putAll(getAuthorizationCodeConfig())
+        .putAll(getDeviceCodeConfig())
+        .putAll(getTokenRefreshConfig())
+        .putAll(getTokenExchangeConfig())
+        .putAll(getJwtBearerGrantConfig())
+        .putAll(getJwtClientAuthConfig())
+        .putAll(getDpopConfig())
+        .putAll(getSystemConfig())
+        .putAll(getHttpConfig())
+        .build();
+  }
+
+  @Value.Default
   public OAuth2Config getOAuth2Config() {
-    Map<String, String> properties =
-        ImmutableMap.<String, String>builder()
-            .putAll(getBasicConfig())
-            .putAll(getResourceOwnerConfig())
-            .putAll(getAuthorizationCodeConfig())
-            .putAll(getDeviceCodeConfig())
-            .putAll(getTokenRefreshConfig())
-            .putAll(getTokenExchangeConfig())
-            .putAll(getJwtBearerGrantConfig())
-            .putAll(getJwtClientAuthConfig())
-            .putAll(getSystemConfig())
-            .putAll(getHttpConfig())
-            .build();
-    return OAuth2Config.from(properties);
+    return OAuth2Config.from(getProperties());
+  }
+
+  @Value.Default
+  public Map<String, String> getDpopConfig() {
+    return Map.of(
+        DpopConfig.PREFIX + '.' + DpopConfig.ENABLED, String.valueOf(isDpopEnabled()),
+        DpopConfig.PREFIX + '.' + DpopConfig.ALGORITHM, getDpopAlgorithm().getName());
+  }
+
+  @Value.Default
+  public boolean isDpopEnabled() {
+    return false;
+  }
+
+  @Value.Default
+  public JWSAlgorithm getDpopAlgorithm() {
+    return JWSAlgorithm.ES256;
+  }
+
+  @Value.Default
+  public String getDpopNonce() {
+    return "test-dpop-nonce";
+  }
+
+  @Value.Default
+  public boolean isRequireDpopNonce() {
+    return false;
   }
 
   @Value.Default
@@ -695,12 +727,12 @@ public abstract class TestEnvironment implements AutoCloseable {
   @Value.Default
   public Map<String, String> getJwtClientAuthConfig() {
     ImmutableMap.Builder<String, String> builder = ImmutableMap.builder();
-    getJwsAlgorithm()
+    getJwtClientAuthAlgorithm()
         .ifPresent(
             v ->
                 builder.put(
                     JwtClientAuthConfig.PREFIX + '.' + JwtClientAuthConfig.ALGORITHM, v.getName()));
-    getPrivateKey()
+    getJwtClientAuthPrivateKey()
         .ifPresent(
             v ->
                 builder.put(
@@ -709,9 +741,9 @@ public abstract class TestEnvironment implements AutoCloseable {
     return builder.build();
   }
 
-  public abstract Optional<JWSAlgorithm> getJwsAlgorithm();
+  public abstract Optional<JWSAlgorithm> getJwtClientAuthAlgorithm();
 
-  public abstract Optional<Path> getPrivateKey();
+  public abstract Optional<Path> getJwtClientAuthPrivateKey();
 
   @Value.Default
   public Map<String, String> getSystemConfig() {

@@ -470,6 +470,28 @@ Only unencrypted keys are supported currently.
 
 Extra claims to include in the client assertion JWT. This is a prefix property, and multiple values can be set, each with a different key and value.
 
+## DPoP Settings
+
+Configuration properties for [RFC 9449: OAuth 2.0 Demonstrating Proof of Possession (DPoP)](https://datatracker.ietf.org/doc/html/rfc9449).
+
+When enabled, the agent generates an ephemeral asymmetric keypair and attaches a signed DPoP proof JWT to every request sent to the authorization server's token endpoint, as well as to every authenticated request sent to the protected resource server.
+
+DPoP is disabled by default. To enable it, set `rest.auth.oauth2.dpop.enabled=true`.
+
+### `rest.auth.oauth2.dpop.enabled`
+
+Whether DPoP support is enabled. Defaults to `false`.
+
+When enabled, every request to the token endpoint and every authenticated request to the resource server will carry a `DPoP` header with a signed proof JWT, and the `Authorization` header scheme for resource-server requests will switch from `Bearer` to `DPoP`.
+
+### `rest.auth.oauth2.dpop.algorithm`
+
+The JWS algorithm to use for signing DPoP proof JWTs. Defaults to `ES256`.
+
+Per RFC 9449, the signing key MUST be asymmetric; thus only asymmetric algorithms are accepted (e.g. `ES256`, `ES384`, `ES512`, `RS256`, `PS256`, etc.). `ES256K` and the `EdDSA` family are not currently supported.
+
+Algorithm names must match the "alg" Param Value as described in [RFC 7518 Section 3.1](https://datatracker.ietf.org/doc/html/rfc7518#section-3.1).
+
 ## System Settings
 
 Configuration properties for the whole system.

@@ -24,8 +24,11 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.security.PrivateKey;
+import java.security.PublicKey;
 import java.security.interfaces.ECPrivateKey;
+import java.security.interfaces.ECPublicKey;
 import java.security.interfaces.RSAPrivateKey;
+import java.security.interfaces.RSAPublicKey;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -123,6 +126,22 @@ class JcaPemReaderTest {
         .hasMessageContaining("Failed to read PEM file")
         .rootCause()
         .hasMessageContaining("No private key found in file");
+  }
+
+  @Test
+  void testReadRsaPublicKey() {
+    Path file = TestCertificates.instance().getRsaPublicKeyPem();
+    PublicKey publicKey = new JcaPemReader().readPublicKey(file);
+    assertThat(publicKey).isInstanceOf(RSAPublicKey.class);
+    assertThat(publicKey.getAlgorithm()).isEqualTo("RSA");
+  }
+
+  @Test
+  void testReadEcPublicKey() {
+    Path file = TestCertificates.instance().getEcdsaPublicKeyPem();
+    PublicKey publicKey = new JcaPemReader().readPublicKey(file);
+    assertThat(publicKey).isInstanceOf(ECPublicKey.class);
+    assertThat(publicKey.getAlgorithm()).isEqualTo("EC");
   }
 
   @Test

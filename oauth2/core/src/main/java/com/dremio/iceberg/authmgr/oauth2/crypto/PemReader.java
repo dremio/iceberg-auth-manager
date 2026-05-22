@@ -17,6 +17,7 @@ package com.dremio.iceberg.authmgr.oauth2.crypto;
 
 import java.nio.file.Path;
 import java.security.PrivateKey;
+import java.security.PublicKey;
 
 /** A reader for PEM files. */
 public interface PemReader {
@@ -38,9 +39,22 @@ public interface PemReader {
    * @param file the path to the PEM file containing the private key
    * @return the private key
    * @throws IllegalArgumentException if the file cannot be read, parsed, or doesn't contain a valid
-   *     RSA private key
+   *     private key
    */
   PrivateKey readPrivateKey(Path file);
+
+  /**
+   * Reads a public key from a PEM file.
+   *
+   * <p>RSA and ECDSA public keys in X.509 SubjectPublicKeyInfo format ({@code -----BEGIN PUBLIC
+   * KEY-----}, as produced by {@code openssl pkey -pubout}) are always supported.
+   *
+   * @param file the path to the PEM file containing the public key
+   * @return the public key
+   * @throws IllegalArgumentException if the file cannot be read or parsed, or doesn't contain a
+   *     valid public key
+   */
+  PublicKey readPublicKey(Path file);
 }
 
 final class PemReaderInternal {

@@ -19,8 +19,10 @@ import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.PrivateKey;
+import java.security.PublicKey;
 import java.security.Security;
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
+import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.bouncycastle.asn1.x9.X9ObjectIdentifiers;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openssl.PEMException;
@@ -69,6 +71,46 @@ final class BouncyCastlePemReader implements PemReader {
     } catch (Exception e) {
       throw new IllegalArgumentException("Failed to read PEM file: " + file, e);
     }
+  }
+
+  /**
+   * Reads a public key from a PEM file. Supported key formats:
+   *
+   * <ul>
+   *   <li>RSA or EC X.509 SubjectPublicKeyInfo (BEGIN PUBLIC KEY)
+   * </ul>
+   *
+   * @param file the path to the PEM file containing the public key
+   * @return the public key
+   * @throws IllegalArgumentException if the file cannot be read or parsed, or doesn't contain a
+   *     valid public key
+   */
+  @Override
+  public PublicKey readPublicKey(Path file) {
+    try (Reader reader = Files.newBufferedReader(file);
+        PEMParser pemParser = new PEMParser(reader)) {
+      Object pemObject;
+      while ((pemObject = pemParser.readObject()) != null) {
+        PublicKey publicKey = extractPublicKey(pemObject);
+        if (publicKey != null) {
+          return publicKey;
+        }
+      }
+      throw new IllegalArgumentException("No public key found in file: " + file);
+    } catch (Exception e) {
+      throw new IllegalArgumentException("Failed to read PEM file: " + file, e);
+    }
+  }
+
+  private static PublicKey extractPublicKey(Object pemObject) throws PEMException {
+    // Nimbus JOSE JWT uses "EC" as the algorithm name for EC keys,
+    // but BouncyCastle uses "ECDSA"; normalize to "EC" for compatibility.
+    JcaPEMKeyConverter converter =
+        new JcaPEMKeyConverter().setAlgorithmMapping(X9ObjectIdentifiers.id_ecPublicKey, "EC");
+    if (pemObject instanceof SubjectPublicKeyInfo) {
+      return converter.getPublicKey((SubjectPublicKeyInfo) pemObject);
+    }
+    return null;
   }
 
   private static PrivateKey extractPrivateKey(Object pemObject) throws PEMException {
