@@ -34,6 +34,7 @@ import java.util.concurrent.TimeoutException;
 import org.apache.iceberg.CatalogProperties;
 import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.DataFile;
+import org.apache.iceberg.SnapshotChanges;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.TableIdentifier;
@@ -173,7 +174,12 @@ public class KafkaKeycloakIT {
                 () -> icebergClient.loadTable(TableIdentifier.of(TEST_DB, TEST_TABLE)),
                 t -> t.snapshots().iterator().hasNext());
 
-    List<DataFile> files = Lists.newArrayList(table.currentSnapshot().addedDataFiles(table.io()));
+    List<DataFile> files =
+        Lists.newArrayList(
+            SnapshotChanges.builderFor(table)
+                .snapshot(table.currentSnapshot())
+                .build()
+                .addedDataFiles());
     assertThat(files).hasSize(2);
     assertThat(files.get(0).recordCount()).isEqualTo(1);
     assertThat(files.get(1).recordCount()).isEqualTo(1);

@@ -25,11 +25,11 @@ dependencies {
   implementation(baselibs.spotless)
   implementation(baselibs.jreleaser)
 
-  // JReleaser 1.23.0 still references GpgObjectSigner, removed in JGit 7.x;
-  // Spotless 8.4.0 pulls JGit 7.x onto the same classpath. Force JGit to 5.13.x
+  // JReleaser still references GpgObjectSigner, removed in JGit 7.x;
+  // Spotless 8.5.1 pulls JGit 7.x onto the same classpath. Force JGit to 5.13.x
   // until JReleaser upgrades (https://github.com/jreleaser/jreleaser/issues/1846).
   implementation("org.eclipse.jgit:org.eclipse.jgit") {
     version { strictly("5.13.5.202508271544-r") }
-    because("JReleaser 1.23.0 references GpgObjectSigner removed in JGit 7.x")
+    because("JReleaser references GpgObjectSigner removed in JGit 7.x")
   }
 }

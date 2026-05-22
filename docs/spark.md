@@ -18,7 +18,7 @@ limitations under the License.
 ## Prerequisites
 
 * Apache Iceberg 1.9.0 or later is required.
-* Dremio AuthManager for Apache Iceberg requires Java 11 or later for runtime.
+* Dremio AuthManager for Apache Iceberg requires Java 17 or later for runtime.
 * Dremio AuthManager for Apache Iceberg is meant to be used in conjunction with an Iceberg engine
   runtime jar, e.g. `iceberg-spark-runtime-3.5_2.12`.
 

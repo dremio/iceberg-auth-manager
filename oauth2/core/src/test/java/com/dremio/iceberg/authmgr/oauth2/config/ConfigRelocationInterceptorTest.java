@@ -193,16 +193,17 @@ class ConfigRelocationInterceptorTest {
                         "old-key"),
                     1000) {})
             .build();
-    assertThat(config.getRawValue("rest.auth.oauth2.auth-code.callback.https")).isEqualTo("true");
-    assertThat(config.getRawValue("rest.auth.oauth2.auth-code.callback.bind-port"))
+    assertThat(config.getConfigValue("rest.auth.oauth2.auth-code.callback.https").getValue())
+        .isEqualTo("true");
+    assertThat(config.getConfigValue("rest.auth.oauth2.auth-code.callback.bind-port").getValue())
         .isEqualTo("8080");
-    assertThat(config.getRawValue("rest.auth.oauth2.auth-code.callback.bind-host"))
+    assertThat(config.getConfigValue("rest.auth.oauth2.auth-code.callback.bind-host").getValue())
         .isEqualTo("localhost");
-    assertThat(config.getRawValue("rest.auth.oauth2.token-exchange.resources"))
+    assertThat(config.getConfigValue("rest.auth.oauth2.token-exchange.resources").getValue())
         .isEqualTo("urn:resource");
-    assertThat(config.getRawValue("rest.auth.oauth2.token-exchange.audiences"))
+    assertThat(config.getConfigValue("rest.auth.oauth2.token-exchange.audiences").getValue())
         .isEqualTo("urn:audience");
-    assertThat(config.getRawValue("rest.auth.oauth2.client-auth.jwt.private-key"))
+    assertThat(config.getConfigValue("rest.auth.oauth2.client-auth.jwt.private-key").getValue())
         .isEqualTo("old-key");
   }
 }

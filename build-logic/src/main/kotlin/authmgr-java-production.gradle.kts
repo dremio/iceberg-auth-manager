@@ -19,9 +19,9 @@ import org.gradle.api.tasks.compile.JavaCompile
 plugins { id("authmgr-java") }
 
 tasks.withType(JavaCompile::class.java).configureEach {
-  // Default to Java 11 for main sources, Java 21 for test sources
+  // Default to Java 17 for main sources, Java 21 for test sources
   if (name == "compileJava") {
-    options.release = 11
+    options.release = 17
   } else {
     options.release = 21
   }

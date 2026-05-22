@@ -214,10 +214,10 @@ class BundleLicenseGenerator() : ReportRenderer {
   }
 }
 
-// Task to verify that the production JAR is compatible with Java 11
-val checkJava11Compatibility by
+// Task to verify that the production JAR is compatible with Java 17
+val checkJava17Compatibility by
   tasks.registering {
-    description = "Verifies that all classes in the production JAR are compatible with Java 11"
+    description = "Verifies that all classes in the production JAR are compatible with Java 17"
     group = "verification"
     dependsOn(shadowJar)
 
@@ -231,7 +231,7 @@ val checkJava11Compatibility by
       }
 
       val incompatibleClasses = mutableListOf<Pair<String, Int>>()
-      val maxJava11ClassVersion = 55 // Java 11 = class file version 55.0
+      val maxJava17ClassVersion = 61 // Java 17 = class file version 61.0
 
       ZipFile(jar).use { zip ->
         zip.stream().forEach { entry ->
@@ -242,7 +242,7 @@ val checkJava11Compatibility by
               // Extract major version (bytes 6-7)
               val bytes = input.readNBytes(2)
               val majorVersion = ((bytes[0].toInt() and 0xFF) shl 8) or (bytes[1].toInt() and 0xFF)
-              if (majorVersion > maxJava11ClassVersion) {
+              if (majorVersion > maxJava17ClassVersion) {
                 incompatibleClasses.add(Pair(entry.name, majorVersion))
               }
             }
@@ -253,7 +253,7 @@ val checkJava11Compatibility by
       if (incompatibleClasses.isNotEmpty()) {
         val errorMessage = buildString {
           appendLine(
-            "Found ${incompatibleClasses.size} class(es) incompatible with Java 11 in ${jar.name}:"
+            "Found ${incompatibleClasses.size} class(es) incompatible with Java 17 in ${jar.name}:"
           )
           incompatibleClasses
             .sortedBy { it.first }
@@ -266,4 +266,4 @@ val checkJava11Compatibility by
     }
   }
 
-tasks.named("check") { dependsOn(checkJava11Compatibility) }
+tasks.named("check") { dependsOn(checkJava17Compatibility) }
