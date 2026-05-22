@@ -29,7 +29,7 @@ import com.nimbusds.jwt.SignedJWT;
 import com.nimbusds.oauth2.sdk.dpop.DPoPProofFactory;
 import com.nimbusds.oauth2.sdk.dpop.DefaultDPoPProofFactory;
 import com.nimbusds.oauth2.sdk.id.JWTID;
-import com.nimbusds.oauth2.sdk.token.AccessToken;
+import com.nimbusds.oauth2.sdk.token.DPoPAccessToken;
 import com.nimbusds.openid.connect.sdk.Nonce;
 import jakarta.annotation.Nullable;
 import java.net.URI;
@@ -115,7 +115,7 @@ public abstract class DpopContext {
    * or fragment).
    */
   public SignedJWT createProof(
-      DpopScope scope, String method, URI uri, @Nullable AccessToken accessToken) {
+      DpopScope scope, String method, URI uri, DPoPAccessToken accessToken) {
     // RFC 9449 §7 requires proofs for resource-server requests to bind the access token via `ath`;
     // conversely, token-endpoint requests have no access token yet (§4.2).
     if (scope == DpopScope.RS && accessToken == null) {

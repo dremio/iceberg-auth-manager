@@ -177,7 +177,8 @@ public final class OAuth2Agent implements Closeable {
     headerConsumer.accept("Authorization", token.toAuthorizationHeader());
     DpopContext dpop = flowFactory.getDpopContext();
     if (dpop != null && token instanceof DPoPAccessToken) {
-      SignedJWT proof = dpop.createProof(DpopScope.RS, httpMethod, requestUri, token);
+      SignedJWT proof =
+          dpop.createProof(DpopScope.RS, httpMethod, requestUri, (DPoPAccessToken) token);
       headerConsumer.accept("DPoP", proof.serialize());
     }
   }
