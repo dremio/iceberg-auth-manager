@@ -284,19 +284,9 @@ public abstract class TestEnvironment implements AutoCloseable {
 
   @Value.Default
   public Map<String, String> getDpopConfig() {
-    if (!isDpopEnabled()) {
-      return Map.of();
-    }
-    ImmutableMap.Builder<String, String> builder =
-        ImmutableMap.<String, String>builder()
-            .put(DpopConfig.PREFIX + '.' + DpopConfig.ENABLED, "true")
-            .put(DpopConfig.PREFIX + '.' + DpopConfig.ALGORITHM, getDpopAlgorithm().getName());
-    getDpopPrivateKey()
-        .ifPresent(
-            v -> builder.put(DpopConfig.PREFIX + '.' + DpopConfig.PRIVATE_KEY, v.toString()));
-    getDpopPublicKey()
-        .ifPresent(v -> builder.put(DpopConfig.PREFIX + '.' + DpopConfig.PUBLIC_KEY, v.toString()));
-    return builder.build();
+    return Map.of(
+        DpopConfig.PREFIX + '.' + DpopConfig.ENABLED, String.valueOf(isDpopEnabled()),
+        DpopConfig.PREFIX + '.' + DpopConfig.ALGORITHM, getDpopAlgorithm().getName());
   }
 
   @Value.Default
@@ -308,10 +298,6 @@ public abstract class TestEnvironment implements AutoCloseable {
   public JWSAlgorithm getDpopAlgorithm() {
     return JWSAlgorithm.ES256;
   }
-
-  public abstract Optional<Path> getDpopPrivateKey();
-
-  public abstract Optional<Path> getDpopPublicKey();
 
   @Value.Default
   public String getDpopNonce() {

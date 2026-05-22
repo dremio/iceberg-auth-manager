@@ -20,15 +20,12 @@ import com.dremio.iceberg.authmgr.oauth2.config.validator.ConfigValidator;
 import com.nimbusds.jose.JWSAlgorithm;
 import io.smallrye.config.WithDefault;
 import io.smallrye.config.WithName;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.Optional;
 
 /**
  * Configuration properties for <a href="https://datatracker.ietf.org/doc/html/rfc9449">RFC 9449:
  * OAuth 2.0 Demonstrating Proof of Possession (DPoP)</a>.
  *
- * <p>When enabled, the agent generates or loads an asymmetric keypair and attaches a signed DPoP
+ * <p>When enabled, the agent generates an ephemeral asymmetric keypair and attaches a signed DPoP
  * proof JWT to every request sent to the authorization server's token endpoint, as well as to every
  * authenticated request sent to the protected resource server.
  *
@@ -41,8 +38,6 @@ public interface DpopConfig {
 
   String ENABLED = "enabled";
   String ALGORITHM = "algorithm";
-  String PRIVATE_KEY = "private-key";
-  String PUBLIC_KEY = "public-key";
 
   String DEFAULT_ALGORITHM = "ES256";
 
@@ -72,44 +67,6 @@ public interface DpopConfig {
   @WithDefault(DEFAULT_ALGORITHM)
   JWSAlgorithm getAlgorithm();
 
-  /**
-   * The path on the local filesystem to the private key to use for signing DPoP proofs. Optional.
-   *
-   * <p>If not set, a fresh ephemeral keypair matching the configured {@value #ALGORITHM} is
-   * generated when the agent starts and discarded on shutdown.
-   *
-   * <p>If set, the file must be in PEM format; it may contain a private key, or a private key and a
-   * certificate chain. Only the private key is used.
-   *
-   * <p>Supported key formats are:
-   *
-   * <ul>
-   *   <li>RSA & ECDSA in PKCS#8 format ({@code BEGIN PRIVATE KEY}): always supported
-   *   <li>RSA in PKCS#1 format ({@code BEGIN RSA PRIVATE KEY}): requires the BouncyCastle library
-   *   <li>ECDSA in EC SEC 1 format ({@code BEGIN EC PRIVATE KEY}): requires the BouncyCastle
-   *       library
-   * </ul>
-   *
-   * Only unencrypted keys are supported currently.
-   */
-  @WithName(PRIVATE_KEY)
-  Optional<Path> getPrivateKey();
-
-  /**
-   * The path on the local filesystem to an optional public key PEM file accompanying {@value
-   * #PRIVATE_KEY}. Optional.
-   *
-   * <p>When set, the file must contain a {@code -----BEGIN PUBLIC KEY-----} block (X.509
-   * SubjectPublicKeyInfo, as produced by {@code openssl pkey -pubout}) for the public counterpart
-   * of the configured private key. When not set, the public key is derived from the private key
-   * automatically; this always works for RSA keys but requires BouncyCastle on the runtime
-   * classpath for EC keys.
-   *
-   * <p>Ignored when {@value #PRIVATE_KEY} is not set (ephemeral mode).
-   */
-  @WithName(PUBLIC_KEY)
-  Optional<Path> getPublicKey();
-
   default void validate() {
     if (!isEnabled()) {
       return;
@@ -123,20 +80,6 @@ public interface DpopConfig {
         "DPoP: unsupported JWS algorithm '%s', must be an RSA or EC algorithm",
         algorithm.getName());
     validator.checkAlgorithm(algorithm);
-    if (getPrivateKey().isPresent()) {
-      validator.check(
-          Files.isRegularFile(getPrivateKey().get()) && Files.isReadable(getPrivateKey().get()),
-          PREFIX + '.' + PRIVATE_KEY,
-          "DPoP: private key path '%s' is not a file or is not readable",
-          getPrivateKey().get());
-    }
-    if (getPublicKey().isPresent()) {
-      validator.check(
-          Files.isRegularFile(getPublicKey().get()) && Files.isReadable(getPublicKey().get()),
-          PREFIX + '.' + PUBLIC_KEY,
-          "DPoP: public key path '%s' is not a file or is not readable",
-          getPublicKey().get());
-    }
     validator.validate();
   }
 }

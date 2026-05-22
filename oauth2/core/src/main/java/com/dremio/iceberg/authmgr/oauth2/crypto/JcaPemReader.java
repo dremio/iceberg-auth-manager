@@ -20,14 +20,10 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.KeyFactory;
-import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
-import java.security.interfaces.ECPrivateKey;
-import java.security.interfaces.RSAPrivateCrtKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
-import java.security.spec.RSAPublicKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import org.apache.commons.codec.binary.Base64;
 
@@ -81,19 +77,6 @@ final class JcaPemReader implements PemReader {
     }
   }
 
-  @Override
-  public PublicKey derivePublicKey(PrivateKey privateKey) {
-    if (privateKey instanceof RSAPrivateCrtKey) {
-      return deriveRsaPublicKey((RSAPrivateCrtKey) privateKey);
-    }
-    if (privateKey instanceof ECPrivateKey) {
-      throw new IllegalStateException(
-          "Deriving an EC public key from a private key requires BouncyCastle on the classpath");
-    }
-    throw new IllegalArgumentException(
-        "Unsupported private key type: " + privateKey.getClass().getName());
-  }
-
   private static String readPemEncodedPrivateKey(Path file) throws IOException {
     StringBuilder keyBuilder = new StringBuilder();
     try (BufferedReader reader = Files.newBufferedReader(file)) {
@@ -134,15 +117,5 @@ final class JcaPemReader implements PemReader {
       throw new IllegalArgumentException("No public key found in file: " + file);
     }
     return keyBuilder.toString();
-  }
-
-  static PublicKey deriveRsaPublicKey(RSAPrivateCrtKey privateKey) {
-    try {
-      return KeyFactory.getInstance("RSA")
-          .generatePublic(
-              new RSAPublicKeySpec(privateKey.getModulus(), privateKey.getPublicExponent()));
-    } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
-      throw new IllegalStateException("Failed to derive RSA public key", e);
-    }
   }
 }

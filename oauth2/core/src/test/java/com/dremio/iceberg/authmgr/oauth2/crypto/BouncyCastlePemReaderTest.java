@@ -33,7 +33,6 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 class BouncyCastlePemReaderTest {
@@ -159,25 +158,6 @@ class BouncyCastlePemReaderTest {
             .readPublicKey(TestCertificates.instance().getEcdsaPublicKeyPem());
     assertThat(publicKey).isInstanceOf(ECPublicKey.class);
     assertThat(publicKey.getAlgorithm()).isEqualTo("EC");
-  }
-
-  @ParameterizedTest
-  @MethodSource("derivableKeyPairs")
-  void testDerivePublicKey(Path privatePem, Path publicPem) {
-    BouncyCastlePemReader reader = new BouncyCastlePemReader();
-    PrivateKey privateKey = reader.readPrivateKey(privatePem);
-    PublicKey expected = reader.readPublicKey(publicPem);
-    PublicKey actual = reader.derivePublicKey(privateKey);
-    assertThat(actual).isEqualTo(expected);
-  }
-
-  static Stream<Arguments> derivableKeyPairs() {
-    TestCertificates certs = TestCertificates.instance();
-    return Stream.of(
-        Arguments.of(certs.getRsaPrivateKeyPkcs8Pem(), certs.getRsaPublicKeyPem()),
-        Arguments.of(certs.getRsaPrivateKeyPkcs1Pem(), certs.getRsaPublicKeyPem()),
-        Arguments.of(certs.getEcdsaPrivateKeyPkcs8Pem(), certs.getEcdsaPublicKeyPem()),
-        Arguments.of(certs.getEcdsaPrivateKeySec1Pem(), certs.getEcdsaPublicKeyPem()));
   }
 
   @Test

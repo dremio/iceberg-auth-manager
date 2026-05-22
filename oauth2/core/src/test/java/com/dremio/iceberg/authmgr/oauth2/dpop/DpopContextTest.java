@@ -19,7 +19,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.dremio.iceberg.authmgr.oauth2.config.DpopConfig;
-import com.dremio.iceberg.authmgr.oauth2.test.TestCertificates;
 import com.dremio.iceberg.authmgr.oauth2.test.TestConstants;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSVerifier;
@@ -37,7 +36,6 @@ import io.smallrye.config.SmallRyeConfigBuilder;
 import io.smallrye.config.common.MapBackedConfigSource;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.time.Clock;
 import java.time.ZoneOffset;
@@ -74,69 +72,6 @@ class DpopContextTest {
         Arguments.of(JWSAlgorithm.ES512),
         Arguments.of(JWSAlgorithm.RS256),
         Arguments.of(JWSAlgorithm.PS256));
-  }
-
-  @Test
-  void testLoadRsaPkcs8() throws Exception {
-    Path pem = TestCertificates.instance().getRsaPrivateKeyPkcs8Pem();
-    DpopContext ctx =
-        DpopContext.create(
-            loadConfig(
-                Map.of(
-                    DpopConfig.PREFIX + '.' + DpopConfig.ENABLED, "true",
-                    DpopConfig.PREFIX + '.' + DpopConfig.ALGORITHM, "RS256",
-                    DpopConfig.PREFIX + '.' + DpopConfig.PRIVATE_KEY, pem.toString())),
-            Clock.systemUTC());
-    assertSignAndVerify(ctx);
-  }
-
-  @Test
-  void testLoadEcPkcs8() throws Exception {
-    Path pem = TestCertificates.instance().getEcdsaPrivateKeyPkcs8Pem();
-    DpopContext ctx =
-        DpopContext.create(
-            loadConfig(
-                Map.of(
-                    DpopConfig.PREFIX + '.' + DpopConfig.ENABLED, "true",
-                    DpopConfig.PREFIX + '.' + DpopConfig.ALGORITHM, "ES256",
-                    DpopConfig.PREFIX + '.' + DpopConfig.PRIVATE_KEY, pem.toString())),
-            Clock.systemUTC());
-    assertSignAndVerify(ctx);
-  }
-
-  @Test
-  void testLoadEcPkcs8WithExplicitPublicKey() throws Exception {
-    Path privPem = TestCertificates.instance().getEcdsaPrivateKeyPkcs8Pem();
-    Path pubPem = TestCertificates.instance().getEcdsaPublicKeyPem();
-    DpopContext ctx =
-        DpopContext.create(
-            loadConfig(
-                Map.of(
-                    DpopConfig.PREFIX + '.' + DpopConfig.ENABLED,
-                    "true",
-                    DpopConfig.PREFIX + '.' + DpopConfig.ALGORITHM,
-                    "ES256",
-                    DpopConfig.PREFIX + '.' + DpopConfig.PRIVATE_KEY,
-                    privPem.toString(),
-                    DpopConfig.PREFIX + '.' + DpopConfig.PUBLIC_KEY,
-                    pubPem.toString())),
-            Clock.systemUTC());
-    assertSignAndVerify(ctx);
-  }
-
-  @Test
-  void testAlgorithmKeyMismatch() {
-    Path rsaPem = TestCertificates.instance().getRsaPrivateKeyPkcs8Pem();
-    DpopConfig config =
-        loadConfig(
-            Map.of(
-                DpopConfig.PREFIX + '.' + DpopConfig.ENABLED, "true",
-                DpopConfig.PREFIX + '.' + DpopConfig.ALGORITHM, "ES256",
-                DpopConfig.PREFIX + '.' + DpopConfig.PRIVATE_KEY, rsaPem.toString()));
-
-    assertThatThrownBy(() -> DpopContext.create(config, Clock.systemUTC()))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("not compatible with algorithm ES256");
   }
 
   @Test

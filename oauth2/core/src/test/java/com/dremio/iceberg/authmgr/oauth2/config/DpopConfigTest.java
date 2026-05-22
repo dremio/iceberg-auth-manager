@@ -24,27 +24,15 @@ import com.nimbusds.jose.JWSAlgorithm;
 import io.smallrye.config.SmallRyeConfig;
 import io.smallrye.config.SmallRyeConfigBuilder;
 import io.smallrye.config.common.MapBackedConfigSource;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 class DpopConfigTest {
-
-  static Path tempFile;
-
-  @BeforeAll
-  static void createFile(@TempDir Path tempDir) throws IOException {
-    tempFile = Files.createTempFile(tempDir, "dpop-key", ".pem");
-  }
 
   private static DpopConfig load(Map<String, String> properties) {
     SmallRyeConfig smallRyeConfig =
@@ -60,46 +48,12 @@ class DpopConfigTest {
     DpopConfig config = load(Map.of());
     assertThat(config.isEnabled()).isFalse();
     assertThat(config.getAlgorithm()).isEqualTo(JWSAlgorithm.ES256);
-    assertThat(config.getPrivateKey()).isEmpty();
-    assertThat(config.getPublicKey()).isEmpty();
   }
 
   @Test
-  void testEnabledEphemeral() {
+  void testEnabled() {
     DpopConfig config = load(Map.of(PREFIX + '.' + DpopConfig.ENABLED, "true"));
     assertThat(config.isEnabled()).isTrue();
-    assertThat(config.getPrivateKey()).isEmpty();
-    config.validate();
-  }
-
-  @Test
-  void testEnabledWithPrivateKey() {
-    DpopConfig config =
-        load(
-            Map.of(
-                PREFIX + '.' + DpopConfig.ENABLED, "true",
-                PREFIX + '.' + DpopConfig.ALGORITHM, "RS256",
-                PREFIX + '.' + DpopConfig.PRIVATE_KEY, tempFile.toString()));
-    assertThat(config.getAlgorithm()).isEqualTo(JWSAlgorithm.RS256);
-    assertThat(config.getPrivateKey()).hasValue(tempFile);
-    config.validate();
-  }
-
-  @Test
-  void testEnabledWithPrivateAndPublicKey() {
-    DpopConfig config =
-        load(
-            Map.of(
-                PREFIX + '.' + DpopConfig.ENABLED,
-                "true",
-                PREFIX + '.' + DpopConfig.ALGORITHM,
-                "ES256",
-                PREFIX + '.' + DpopConfig.PRIVATE_KEY,
-                tempFile.toString(),
-                PREFIX + '.' + DpopConfig.PUBLIC_KEY,
-                tempFile.toString()));
-    assertThat(config.getPrivateKey()).hasValue(tempFile);
-    assertThat(config.getPublicKey()).hasValue(tempFile);
     config.validate();
   }
 
@@ -108,9 +62,10 @@ class DpopConfigTest {
     DpopConfig config =
         load(
             Map.of(
-                PREFIX + '.' + DpopConfig.ENABLED, "false",
-                PREFIX + '.' + DpopConfig.ALGORITHM, "HS256",
-                PREFIX + '.' + DpopConfig.PRIVATE_KEY, "/nonexistent"));
+                PREFIX + '.' + DpopConfig.ENABLED,
+                "false",
+                PREFIX + '.' + DpopConfig.ALGORITHM,
+                "HS256"));
     config.validate();
   }
 
@@ -138,20 +93,6 @@ class DpopConfigTest {
                 PREFIX + '.' + DpopConfig.ALGORITHM, "EdDSA"),
             List.of(
                 "DPoP: unsupported JWS algorithm 'EdDSA', must be an RSA or EC algorithm "
-                    + "(rest.auth.oauth2.dpop.algorithm)")),
-        Arguments.of(
-            Map.of(
-                PREFIX + '.' + DpopConfig.ENABLED, "true",
-                PREFIX + '.' + DpopConfig.PRIVATE_KEY, "/invalid/path"),
-            List.of(
-                "DPoP: private key path '/invalid/path' is not a file or is not readable "
-                    + "(rest.auth.oauth2.dpop.private-key)")),
-        Arguments.of(
-            Map.of(
-                PREFIX + '.' + DpopConfig.ENABLED, "true",
-                PREFIX + '.' + DpopConfig.PUBLIC_KEY, "/invalid/pub"),
-            List.of(
-                "DPoP: public key path '/invalid/pub' is not a file or is not readable "
-                    + "(rest.auth.oauth2.dpop.public-key)")));
+                    + "(rest.auth.oauth2.dpop.algorithm)")));
   }
 }

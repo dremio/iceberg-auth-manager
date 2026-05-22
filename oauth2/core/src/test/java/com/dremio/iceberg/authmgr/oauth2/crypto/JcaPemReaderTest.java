@@ -145,26 +145,6 @@ class JcaPemReaderTest {
   }
 
   @Test
-  void testDeriveRsaPublicKey() {
-    JcaPemReader reader = new JcaPemReader();
-    PrivateKey privateKey =
-        reader.readPrivateKey(TestCertificates.instance().getRsaPrivateKeyPkcs8Pem());
-    PublicKey expected = reader.readPublicKey(TestCertificates.instance().getRsaPublicKeyPem());
-    PublicKey actual = reader.derivePublicKey(privateKey);
-    assertThat(actual).isEqualTo(expected);
-  }
-
-  @Test
-  void testDeriveEcPublicKeyRejected() {
-    JcaPemReader reader = new JcaPemReader();
-    PrivateKey privateKey =
-        reader.readPrivateKey(TestCertificates.instance().getEcdsaPrivateKeyPkcs8Pem());
-    assertThatThrownBy(() -> reader.derivePublicKey(privateKey))
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessageContaining("requires BouncyCastle");
-  }
-
-  @Test
   void testReadPemWithInvalidBase64() throws IOException {
     // Given
     Path invalidBase64File = tempDir.resolve("invalid-base64.pem");

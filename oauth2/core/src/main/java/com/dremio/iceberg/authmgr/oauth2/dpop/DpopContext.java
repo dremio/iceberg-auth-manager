@@ -17,7 +17,6 @@ package com.dremio.iceberg.authmgr.oauth2.dpop;
 
 import com.dremio.iceberg.authmgr.oauth2.config.ConfigUtils;
 import com.dremio.iceberg.authmgr.oauth2.config.DpopConfig;
-import com.dremio.iceberg.authmgr.oauth2.crypto.PemReader;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JWSAlgorithm;
@@ -31,12 +30,9 @@ import com.nimbusds.oauth2.sdk.dpop.DefaultDPoPProofFactory;
 import com.nimbusds.oauth2.sdk.id.JWTID;
 import com.nimbusds.oauth2.sdk.token.DPoPAccessToken;
 import com.nimbusds.openid.connect.sdk.Nonce;
-import jakarta.annotation.Nullable;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.nio.file.Path;
 import java.security.InvalidAlgorithmParameterException;
-import java.security.Key;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
@@ -69,11 +65,7 @@ public abstract class DpopContext {
 
   public static DpopContext create(DpopConfig config, Clock clock) {
     JWSAlgorithm algorithm = config.getAlgorithm();
-    KeyPair keyPair =
-        config
-            .getPrivateKey()
-            .map(path -> loadKeyPair(path, config.getPublicKey().orElse(null), algorithm))
-            .orElseGet(() -> generateKeyPair(algorithm));
+    KeyPair keyPair = generateKeyPair(algorithm);
     JWK jwk = toJwk(algorithm, keyPair.getPublic(), keyPair.getPrivate());
     return ImmutableDpopContext.builder().jwk(jwk).algorithm(algorithm).clock(clock).build();
   }
@@ -162,32 +154,6 @@ public abstract class DpopContext {
     throw unsupportedAlgorithm(algorithm);
   }
 
-  private static KeyPair loadKeyPair(
-      Path privateKeyPath, @Nullable Path publicKeyPath, JWSAlgorithm algorithm) {
-    PemReader reader = PemReader.getInstance();
-    PrivateKey privateKey = reader.readPrivateKey(privateKeyPath);
-    checkKeyMatchesAlgorithm(privateKey, algorithm);
-    PublicKey publicKey;
-    if (publicKeyPath != null) {
-      publicKey = reader.readPublicKey(publicKeyPath);
-      checkKeyMatchesAlgorithm(publicKey, algorithm);
-    } else {
-      try {
-        publicKey = reader.derivePublicKey(privateKey);
-      } catch (IllegalStateException e) {
-        throw new IllegalStateException(
-            "DPoP: could not derive public key from private key. "
-                + "Either add BouncyCastle to the runtime classpath, or set "
-                + DpopConfig.PREFIX
-                + '.'
-                + DpopConfig.PUBLIC_KEY
-                + " to point at the public key PEM file.",
-            e);
-      }
-    }
-    return new KeyPair(publicKey, privateKey);
-  }
-
   private static JWK toJwk(JWSAlgorithm algorithm, PublicKey publicKey, PrivateKey privateKey) {
     Curve curve = ConfigUtils.SUPPORTED_DPOP_EC_ALGORITHMS.get(algorithm);
     if (curve != null) {
@@ -201,21 +167,6 @@ public abstract class DpopContext {
           .build();
     }
     throw unsupportedAlgorithm(algorithm);
-  }
-
-  private static void checkKeyMatchesAlgorithm(Key key, JWSAlgorithm algorithm) {
-    boolean rsaKey = key instanceof java.security.interfaces.RSAKey;
-    boolean ecKey = key instanceof java.security.interfaces.ECKey;
-    boolean rsaAlg = ConfigUtils.SUPPORTED_DPOP_RSA_ALGORITHMS.contains(algorithm);
-    boolean ecAlg = ConfigUtils.SUPPORTED_DPOP_EC_ALGORITHMS.containsKey(algorithm);
-    if (!((rsaKey && rsaAlg) || (ecKey && ecAlg))) {
-      throw new IllegalArgumentException(
-          String.format(
-              "DPoP: loaded %s key type %s is not compatible with algorithm %s",
-              key instanceof PrivateKey ? "private" : "public",
-              key.getClass().getSimpleName(),
-              algorithm.getName()));
-    }
   }
 
   private static IllegalArgumentException unsupportedAlgorithm(JWSAlgorithm algorithm) {

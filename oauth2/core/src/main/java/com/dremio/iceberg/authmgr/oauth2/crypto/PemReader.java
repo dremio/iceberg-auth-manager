@@ -55,25 +55,6 @@ public interface PemReader {
    *     valid public key
    */
   PublicKey readPublicKey(Path file);
-
-  /**
-   * Derives the public key corresponding to the given private key.
-   *
-   * <p>For RSA keys, derivation is possible with any JCA-compliant runtime: the modulus and public
-   * exponent are available from a standard PKCS#8-loaded {@link
-   * java.security.interfaces.RSAPrivateCrtKey}.
-   *
-   * <p>For EC keys, derivation requires elliptic-curve point multiplication, which the standard JCA
-   * API does not expose. Implementations that do not have access to an EC arithmetic library MUST
-   * throw {@link IllegalStateException}.
-   *
-   * @param privateKey the private key
-   * @return the corresponding public key
-   * @throws IllegalStateException if the public key cannot be derived (e.g. EC without a suitable
-   *     library)
-   * @throws IllegalArgumentException if the private key type is not supported
-   */
-  PublicKey derivePublicKey(PrivateKey privateKey);
 }
 
 final class PemReaderInternal {
