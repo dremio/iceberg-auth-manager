@@ -15,9 +15,9 @@
  */
 package com.dremio.iceberg.authmgr.oauth2;
 
-import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2Agent;
-import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2AgentConfig;
-import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2AgentRuntime;
+import com.dremio.oauth2.agent.OAuth2Agent;
+import com.dremio.oauth2.agent.OAuth2AgentConfig;
+import com.dremio.oauth2.agent.OAuth2AgentRuntime;
 import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
 import org.apache.iceberg.rest.HTTPHeaders;

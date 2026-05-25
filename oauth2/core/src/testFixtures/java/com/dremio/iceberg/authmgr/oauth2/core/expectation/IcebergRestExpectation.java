@@ -15,8 +15,8 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.core.expectation;
 
-import com.dremio.iceberg.authmgr.oauth2.agent.expectation.AbstractExpectation;
 import com.dremio.iceberg.authmgr.oauth2.core.IcebergTestEnvironment;
+import com.dremio.oauth2.agent.expectation.AbstractExpectation;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.iceberg.rest.RESTResponse;

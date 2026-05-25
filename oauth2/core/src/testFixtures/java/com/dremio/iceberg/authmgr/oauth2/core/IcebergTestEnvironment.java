@@ -15,17 +15,17 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.core;
 
-import static com.dremio.iceberg.authmgr.oauth2.agent.OAuth2AgentConfig.PREFIX;
+import static com.dremio.oauth2.agent.OAuth2AgentConfig.PREFIX;
 
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Manager;
-import com.dremio.iceberg.authmgr.oauth2.agent.TestConstants;
-import com.dremio.iceberg.authmgr.oauth2.agent.TestEnvironment;
-import com.dremio.iceberg.authmgr.oauth2.agent.config.BasicConfig;
-import com.dremio.iceberg.authmgr.oauth2.agent.config.SystemConfig;
-import com.dremio.iceberg.authmgr.oauth2.agent.user.UserEmulator;
 import com.dremio.iceberg.authmgr.oauth2.core.expectation.ImmutableConfigEndpointExpectation;
 import com.dremio.iceberg.authmgr.oauth2.core.expectation.ImmutableLoadTableEndpointExpectation;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
+import com.dremio.oauth2.agent.TestConstants;
+import com.dremio.oauth2.agent.TestEnvironment;
+import com.dremio.oauth2.agent.config.BasicConfig;
+import com.dremio.oauth2.agent.config.SystemConfig;
+import com.dremio.oauth2.agent.user.UserEmulator;
 import com.google.common.collect.ImmutableMap;
 import com.google.errorprone.annotations.MustBeClosed;
 import java.io.IOException;

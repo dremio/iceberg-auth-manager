@@ -22,8 +22,9 @@ Maven Central and GitHub Releases. You can choose the method that best fits your
 
 ### Maven Artifacts
 
-Maven artifacts are published to 
-[Maven Central](https://central.sonatype.com/namespace/com.dremio.iceberg.authmgr).
+Maven artifacts are published to Maven Central
+([com.dremio.iceberg.authmgr](https://central.sonatype.com/namespace/com.dremio.iceberg.authmgr),
+[com.dremio.oauth2](https://central.sonatype.com/namespace/com.dremio.oauth2)).
 
 If you intend to simply download the artifacts for usage with Spark or other
 engines, make sure to download the `authmgr-oauth2-runtime` artifact. This

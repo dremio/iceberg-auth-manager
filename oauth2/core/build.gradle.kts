@@ -29,12 +29,12 @@ dependencies {
   api("org.apache.iceberg:iceberg-api")
   api("org.apache.iceberg:iceberg-core")
 
-  api(project(":authmgr-oauth2-agent"))
+  api(project(":oauth2-agent"))
 
   compileOnly(project(":authmgr-immutables"))
   annotationProcessor(project(":authmgr-immutables", configuration = "processor"))
 
-  testFixturesApi(testFixtures(project(":authmgr-oauth2-agent")))
+  testFixturesApi(testFixtures(project(":oauth2-agent")))
 
   testFixturesApi(platform(libs.iceberg.bom))
   testFixturesApi("org.apache.iceberg:iceberg-api")

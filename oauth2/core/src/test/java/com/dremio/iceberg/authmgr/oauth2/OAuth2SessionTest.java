@@ -15,11 +15,11 @@
  */
 package com.dremio.iceberg.authmgr.oauth2;
 
-import static com.dremio.iceberg.authmgr.oauth2.agent.TestConstants.ACCESS_TOKEN_INITIAL;
+import static com.dremio.oauth2.agent.TestConstants.ACCESS_TOKEN_INITIAL;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.dremio.iceberg.authmgr.oauth2.agent.ImmutableTestEnvironment;
-import com.dremio.iceberg.authmgr.oauth2.agent.TestEnvironment;
+import com.dremio.oauth2.agent.ImmutableTestEnvironment;
+import com.dremio.oauth2.agent.TestEnvironment;
 import com.nimbusds.jose.util.Base64URL;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;

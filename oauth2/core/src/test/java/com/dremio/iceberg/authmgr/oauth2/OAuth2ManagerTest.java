@@ -15,18 +15,18 @@
  */
 package com.dremio.iceberg.authmgr.oauth2;
 
-import static com.dremio.iceberg.authmgr.oauth2.agent.OAuth2AgentConfig.PREFIX;
-import static com.dremio.iceberg.authmgr.oauth2.agent.TestConstants.ACCESS_TOKEN_INITIAL;
+import static com.dremio.oauth2.agent.OAuth2AgentConfig.PREFIX;
+import static com.dremio.oauth2.agent.TestConstants.ACCESS_TOKEN_INITIAL;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.map;
 import static org.mockito.Mockito.never;
 
-import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2AgentConfig;
-import com.dremio.iceberg.authmgr.oauth2.agent.TestConstants;
-import com.dremio.iceberg.authmgr.oauth2.agent.config.BasicConfig;
-import com.dremio.iceberg.authmgr.oauth2.agent.config.TokenExchangeConfig;
 import com.dremio.iceberg.authmgr.oauth2.core.IcebergTestEnvironment;
 import com.dremio.iceberg.authmgr.oauth2.core.ImmutableIcebergTestEnvironment;
+import com.dremio.oauth2.agent.OAuth2AgentConfig;
+import com.dremio.oauth2.agent.TestConstants;
+import com.dremio.oauth2.agent.config.BasicConfig;
+import com.dremio.oauth2.agent.config.TokenExchangeConfig;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.google.common.collect.ImmutableMap;
 import com.nimbusds.oauth2.sdk.GrantType;

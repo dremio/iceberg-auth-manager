@@ -32,7 +32,7 @@ provided by the REST catalog.
 
 ## Public API
 
-The OAuth2 Agent is implemented in the `com.dremio.iceberg.authmgr.oauth2.agent.OAuth2Agent` class.
+The OAuth2 Agent is implemented in the `com.dremio.oauth2.agent.OAuth2Agent` class.
 
 The public API of the agent is as follows:
 

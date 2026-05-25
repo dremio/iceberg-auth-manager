@@ -1,0 +1,126 @@
+/*
+ * Copyright (C) 2025 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.dremio.oauth2.agent;
+
+import com.nimbusds.jose.JOSEException;
+import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jose.JWSHeader;
+import com.nimbusds.jose.crypto.MACSigner;
+import com.nimbusds.jwt.JWTClaimsSet;
+import com.nimbusds.jwt.SignedJWT;
+import com.nimbusds.oauth2.sdk.Scope;
+import com.nimbusds.oauth2.sdk.auth.Secret;
+import com.nimbusds.oauth2.sdk.id.Audience;
+import com.nimbusds.oauth2.sdk.id.ClientID;
+import com.nimbusds.oauth2.sdk.token.TokenTypeURI;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Base64;
+import java.util.Date;
+import java.util.UUID;
+
+public class TestConstants {
+
+  public static final ClientID CLIENT_ID1 = new ClientID("Client1");
+  public static final ClientID CLIENT_ID2 = new ClientID("Client2");
+
+  public static final Secret CLIENT_SECRET1 = new Secret("s3cr3t");
+  public static final Secret CLIENT_SECRET2 = new Secret("sEcrEt");
+
+  public static final String USERNAME = "Alice";
+  public static final Secret PASSWORD = new Secret("s3cr3t");
+
+  public static final Scope SCOPE1 = new Scope("catalog");
+  public static final Scope SCOPE2 = new Scope("session");
+  public static final Scope SCOPE3 = new Scope("table");
+
+  public static final String CLIENT1_AUTH_HEADER =
+      "Basic "
+          + Base64.getEncoder()
+              .encodeToString(
+                  (CLIENT_ID1.getValue() + ":" + CLIENT_SECRET1.getValue())
+                      .getBytes(StandardCharsets.UTF_8));
+
+  public static final String CLIENT2_AUTH_HEADER =
+      "Basic "
+          + Base64.getEncoder()
+              .encodeToString(
+                  (CLIENT_ID2.getValue() + ":" + CLIENT_SECRET2.getValue())
+                      .getBytes(StandardCharsets.UTF_8));
+
+  public static final Instant NOW = Instant.parse("2025-01-01T00:00:00Z");
+
+  public static final int ACCESS_TOKEN_EXPIRES_IN_SECONDS = 3600;
+
+  public static final Instant ACCESS_TOKEN_EXPIRATION_TIME =
+      NOW.plusSeconds(ACCESS_TOKEN_EXPIRES_IN_SECONDS);
+
+  public static final Duration ACCESS_TOKEN_LIFESPAN =
+      Duration.ofSeconds(ACCESS_TOKEN_EXPIRES_IN_SECONDS);
+
+  public static final int REFRESH_TOKEN_EXPIRES_IN_SECONDS = 86400;
+
+  public static final Instant REFRESH_TOKEN_EXPIRATION_TIME =
+      NOW.plusSeconds(REFRESH_TOKEN_EXPIRES_IN_SECONDS);
+
+  public static final Duration REFRESH_TOKEN_LIFESPAN =
+      Duration.ofSeconds(REFRESH_TOKEN_EXPIRES_IN_SECONDS);
+
+  // tokens used as configuration inputs for token exchange and jwt-bearer
+  public static final String SUBJECT_TOKEN = jwt();
+  public static final String ACTOR_TOKEN = jwt();
+  public static final String ASSERTION_TOKEN = jwt();
+
+  // access tokens returned by token endpoint expectations
+  public static final String ACCESS_TOKEN_INITIAL = jwt();
+  public static final String ACCESS_TOKEN_REFRESHED = jwt();
+
+  // refresh tokens returned by token endpoint expectations (opaque tokens)
+  public static final String REFRESH_TOKEN_INITIAL = "refresh_initial";
+  public static final String REFRESH_TOKEN_REFRESHED = "refresh_refreshed";
+
+  public static final Audience AUDIENCE = new Audience("audience");
+  public static final URI RESOURCE = URI.create("urn:authmgr:test:resource");
+
+  public static final TokenTypeURI SUBJECT_TOKEN_TYPE = TokenTypeURI.ACCESS_TOKEN;
+  public static final TokenTypeURI ACTOR_TOKEN_TYPE = TokenTypeURI.ACCESS_TOKEN;
+  public static final TokenTypeURI REQUESTED_TOKEN_TYPE = TokenTypeURI.ACCESS_TOKEN;
+
+  public static final String WAREHOUSE = "warehouse1";
+
+  private TestConstants() {}
+
+  private static String jwt() {
+    try {
+      SignedJWT jwt =
+          new SignedJWT(
+              new JWSHeader(JWSAlgorithm.HS256),
+              new JWTClaimsSet.Builder()
+                  .subject("Alice")
+                  .jwtID(UUID.randomUUID().toString())
+                  .issueTime(Date.from(NOW))
+                  .expirationTime(Date.from(ACCESS_TOKEN_EXPIRATION_TIME))
+                  .build());
+      jwt.sign(
+          new MACSigner("very-very-long-test-signing-secret".getBytes(StandardCharsets.UTF_8)));
+      return jwt.serialize();
+    } catch (JOSEException e) {
+      throw new RuntimeException("Failed to create test JWT", e);
+    }
+  }
+}

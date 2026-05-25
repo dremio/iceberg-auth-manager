@@ -15,9 +15,9 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.core.expectation;
 
-import com.dremio.iceberg.authmgr.oauth2.agent.TestConstants;
-import com.dremio.iceberg.authmgr.oauth2.agent.TestServer;
 import com.dremio.iceberg.authmgr.tools.immutables.AuthManagerImmutable;
+import com.dremio.oauth2.agent.TestConstants;
+import com.dremio.oauth2.agent.TestServer;
 import java.util.UUID;
 import java.util.regex.Pattern;
 import org.apache.iceberg.PartitionSpec;

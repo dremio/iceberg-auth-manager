@@ -1,0 +1,183 @@
+/*
+ * Copyright (C) 2025 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.dremio.oauth2.agent.config;
+
+import com.dremio.oauth2.agent.OAuth2AgentConfig;
+import com.dremio.oauth2.agent.config.validator.ConfigValidator;
+import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod;
+import com.nimbusds.oauth2.sdk.id.Audience;
+import com.nimbusds.oauth2.sdk.id.Issuer;
+import com.nimbusds.oauth2.sdk.id.Subject;
+import io.smallrye.config.WithDefault;
+import io.smallrye.config.WithName;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.Duration;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+/**
+ * Configuration properties for JWT client assertion as specified in <a
+ * href="https://datatracker.ietf.org/doc/html/rfc7523">JSON Web Token (JWT) Profile for OAuth 2.0
+ * Client Authentication and Authorization Grants</a>.
+ *
+ * <p>These properties allow the client to authenticate using the {@code client_secret_jwt} or
+ * {@code private_key_jwt} authentication methods.
+ */
+public interface JwtClientAuthConfig {
+
+  String GROUP_NAME = "client-auth.jwt";
+  String PREFIX = OAuth2AgentConfig.PREFIX + '.' + GROUP_NAME;
+
+  String ISSUER = "issuer";
+  String SUBJECT = "subject";
+  String AUDIENCE = "audience";
+  String TOKEN_LIFESPAN = "token-lifespan";
+  String ALGORITHM = "algorithm";
+  String PRIVATE_KEY = "private-key";
+  String EXTRA_CLAIMS = "extra-claims";
+  String KEY_ID = "key-id";
+
+  String DEFAULT_TOKEN_LIFESPAN = "PT5M";
+
+  /** The issuer of the client assertion JWT. Optional. The default is the client ID. */
+  @WithName(ISSUER)
+  Optional<Issuer> getIssuer();
+
+  /** The subject of the client assertion JWT. Optional. The default is the client ID. */
+  @WithName(SUBJECT)
+  Optional<Subject> getSubject();
+
+  /**
+   * The audience of the client assertion JWT. Optional. The default is the token endpoint. Can be a
+   * single audience or a comma-separated list of audiences.
+   */
+  @WithName(AUDIENCE)
+  Optional<List<Audience>> getAudience();
+
+  /** The expiration time of the client assertion JWT. Optional. The default is 5 minutes. */
+  @WithName(TOKEN_LIFESPAN)
+  @WithDefault(DEFAULT_TOKEN_LIFESPAN)
+  Duration getTokenLifespan();
+
+  /**
+   * The signing algorithm to use for the client assertion JWT. Optional. The default is {@link
+   * JWSAlgorithm#HS512} if the authentication method is {@link
+   * ClientAuthenticationMethod#CLIENT_SECRET_JWT}, or {@link JWSAlgorithm#PS512} if the
+   * authentication method is {@link ClientAuthenticationMethod#PRIVATE_KEY_JWT}.
+   *
+   * <p>Supported algorithms are: HMAC-SHA for {@code client_secret_jwt}, and RSA, RSA-PSS, or EC
+   * for {@code private_key_jwt}.
+   *
+   * <p>Note: legacy PKCS#1 v1.5 RSA algorithms ({@code RS256}, {@code RS384}, {@code RS512}) are
+   * supported but deprecated; prefer the equivalent RSASSA-PSS algorithms ({@code PS256}, {@code
+   * PS384}, {@code PS512}).
+   *
+   * <p>Algorithm names must match the "alg" Param Value as described in <a
+   * href="https://datatracker.ietf.org/doc/html/rfc7518#section-3.1">RFC 7518 Section 3.1</a>.
+   */
+  @WithName(ALGORITHM)
+  Optional<JWSAlgorithm> getAlgorithm();
+
+  /**
+   * The key ID (kid) to include in the JWT header. Optional.
+   *
+   * <p>If specified, this will be included in the "kid" header parameter of the JWT assertion. This
+   * is useful when the authorization server needs to identify which key to use for verification
+   * from a set of keys.
+   *
+   * <p>This setting is only supported when using the {@code private_key_jwt} authentication method.
+   * It is ignored when using {@code client_secret_jwt}.
+   */
+  @WithName(KEY_ID)
+  Optional<String> getKeyId();
+
+  /**
+   * The path on the local filesystem to the private key to use for signing the client assertion
+   * JWT. Required if the authentication method is {@link
+   * ClientAuthenticationMethod#PRIVATE_KEY_JWT}.
+   *
+   * <p>The file must be in PEM format; it may contain a private key, or a private key and a
+   * certificate chain. Only the private key is used.
+   *
+   * <p>Supported key formats are:
+   *
+   * <ul>
+   *   <li>RSA and ECDSA in PKCS#8 format ({@code BEGIN PRIVATE KEY}): always supported
+   *   <li>RSA in PKCS#1 format ({@code BEGIN RSA PRIVATE KEY}): requires the BouncyCastle library
+   *   <li>ECDSA in EC SEC 1 format ({@code BEGIN EC PRIVATE KEY}): requires the BouncyCastle
+   *       library
+   * </ul>
+   *
+   * Only unencrypted keys are supported currently.
+   */
+  @WithName(PRIVATE_KEY)
+  Optional<Path> getPrivateKey();
+
+  /**
+   * Extra claims to include in the client assertion JWT. This is a prefix property, and multiple
+   * values can be set, each with a different key and value.
+   */
+  @WithName(EXTRA_CLAIMS)
+  Map<String, String> getExtraClaims();
+
+  default void validate() {
+    ConfigValidator validator = new ConfigValidator();
+    if (getAlgorithm().isPresent()) {
+      JWSAlgorithm algorithm = getAlgorithm().get();
+      if (JWSAlgorithm.Family.RSA.contains(algorithm)
+          || JWSAlgorithm.Family.EC.contains(algorithm)) {
+        validator.check(
+            getPrivateKey().isPresent(),
+            List.of(PREFIX + '.' + ALGORITHM, PREFIX + '.' + PRIVATE_KEY),
+            "client-auth.jwt: JWS signing algorithm '%s' requires a private key",
+            algorithm.getName());
+      } else if (JWSAlgorithm.Family.HMAC_SHA.contains(algorithm)) {
+        validator.check(
+            getPrivateKey().isEmpty(),
+            List.of(PREFIX + '.' + ALGORITHM, PREFIX + '.' + PRIVATE_KEY),
+            "client-auth.jwt: private key must not be set for JWS algorithm '%s'",
+            algorithm.getName());
+      } else {
+        validator.check(
+            false,
+            PREFIX + '.' + ALGORITHM,
+            "client-auth.jwt: unsupported JWS algorithm '%s', must be one of: %s",
+            algorithm.getName(),
+            Stream.of(
+                    JWSAlgorithm.Family.HMAC_SHA.stream(),
+                    JWSAlgorithm.Family.RSA.stream(),
+                    JWSAlgorithm.Family.EC.stream())
+                .flatMap(s -> s)
+                .map(JWSAlgorithm::getName)
+                .collect(Collectors.joining("', '", "'", "'")));
+      }
+      validator.checkAlgorithm(algorithm);
+    }
+    if (getPrivateKey().isPresent()) {
+      validator.check(
+          Files.isReadable(getPrivateKey().get()),
+          PREFIX + '.' + PRIVATE_KEY,
+          "client-auth.jwt: private key path '%s' is not a file or is not readable",
+          getPrivateKey().get());
+    }
+    validator.validate();
+  }
+}

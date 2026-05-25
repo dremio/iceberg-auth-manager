@@ -17,7 +17,7 @@ package com.dremio.iceberg.authmgr.oauth2.test.flink;
 
 import static com.dremio.iceberg.authmgr.oauth2.test.flink.RemoteAuthServerSupport.OAUTH2_AGENT_CONFIG_ENV;
 
-import com.dremio.iceberg.authmgr.oauth2.agent.config.BasicConfig;
+import com.dremio.oauth2.agent.config.BasicConfig;
 import com.google.common.collect.ImmutableMap;
 import java.util.Map;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;

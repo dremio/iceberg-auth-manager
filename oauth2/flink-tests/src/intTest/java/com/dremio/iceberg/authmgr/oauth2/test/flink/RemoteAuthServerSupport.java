@@ -15,10 +15,10 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.test.flink;
 
-import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2Agent;
-import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2AgentConfig;
-import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2AgentRuntime;
-import com.dremio.iceberg.authmgr.oauth2.agent.config.TokenRefreshConfig;
+import com.dremio.oauth2.agent.OAuth2Agent;
+import com.dremio.oauth2.agent.OAuth2AgentConfig;
+import com.dremio.oauth2.agent.OAuth2AgentRuntime;
+import com.dremio.oauth2.agent.config.TokenRefreshConfig;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import java.io.IOException;

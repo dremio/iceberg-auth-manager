@@ -90,8 +90,8 @@ dependencies {
   }
   coreSources(project(":authmgr-oauth2-core", "sourcesElements"))
   coreJavadoc(project(":authmgr-oauth2-core", "javadocElements"))
-  agentSources(project(":authmgr-oauth2-agent", "sourcesElements"))
-  agentJavadoc(project(":authmgr-oauth2-agent", "javadocElements"))
+  agentSources(project(":oauth2-agent", "sourcesElements"))
+  agentJavadoc(project(":oauth2-agent", "javadocElements"))
 }
 
 val shadowJar = tasks.named<ShadowJar>("shadowJar")
@@ -104,12 +104,15 @@ shadowJar.configure {
   archiveClassifier = "" // replace original jar
   duplicatesStrategy = DuplicatesStrategy.INCLUDE
   // relocations specific to the AuthManager dependencies
-  relocate("com.nimbusds", "com.dremio.iceberg.authmgr.shaded.com.nimbusds")
-  relocate("net.minidev", "com.dremio.iceberg.authmgr.shaded.net.minidev")
-  relocate("org.objectweb.asm", "com.dremio.iceberg.authmgr.shaded.org.objectweb.asm")
-  relocate("io.smallrye", "com.dremio.iceberg.authmgr.shaded.io.smallrye")
-  relocate("org.eclipse.microprofile", "com.dremio.iceberg.authmgr.shaded.org.eclipse.microprofile")
-  relocate("org.jboss", "com.dremio.iceberg.authmgr.shaded.org.jboss")
+  relocate("com.nimbusds", "com.dremio.iceberg.authmgr.oauth2.shaded.com.nimbusds")
+  relocate("net.minidev", "com.dremio.iceberg.authmgr.oauth2.shaded.net.minidev")
+  relocate("org.objectweb.asm", "com.dremio.iceberg.authmgr.oauth2.shaded.org.objectweb.asm")
+  relocate("io.smallrye", "com.dremio.iceberg.authmgr.oauth2.shaded.io.smallrye")
+  relocate(
+    "org.eclipse.microprofile",
+    "com.dremio.iceberg.authmgr.oauth2.shaded.org.eclipse.microprofile",
+  )
+  relocate("org.jboss", "com.dremio.iceberg.authmgr.oauth2.shaded.org.jboss")
   // exclude unnecessary files from Nimbus OIDC SDK and JoSE JWT
   exclude("META-INF/**/module-info.class")
   exclude("META-INF/maven/com.github.stephenc.jcip/**")
@@ -139,7 +142,7 @@ tasks.named("assemble").configure { dependsOn("shadowJar") }
 
 // Configure the source jar to copy from both the core and agent projects' source jars
 tasks.named<Jar>("sourcesJar") {
-  dependsOn(":authmgr-oauth2-core:sourcesJar", ":authmgr-oauth2-agent:sourcesJar")
+  dependsOn(":authmgr-oauth2-core:sourcesJar", ":oauth2-agent:sourcesJar")
   duplicatesStrategy = DuplicatesStrategy.INCLUDE // LICENSE files may be duplicated
   from({ coreSources.incoming.artifactView { lenient(true) }.files.map { zipTree(it) } })
   from({ agentSources.incoming.artifactView { lenient(true) }.files.map { zipTree(it) } })
@@ -147,7 +150,7 @@ tasks.named<Jar>("sourcesJar") {
 
 // Configure the javadoc jar to copy from both the core and agent projects' javadoc jars
 tasks.named<Jar>("javadocJar") {
-  dependsOn(":authmgr-oauth2-core:javadocJar", ":authmgr-oauth2-agent:javadocJar")
+  dependsOn(":authmgr-oauth2-core:javadocJar", ":oauth2-agent:javadocJar")
   duplicatesStrategy = DuplicatesStrategy.INCLUDE // LICENSE files may be duplicated
   from({ coreJavadoc.incoming.artifactView { lenient(true) }.files.map { zipTree(it) } })
   from({ agentJavadoc.incoming.artifactView { lenient(true) }.files.map { zipTree(it) } })
@@ -167,6 +170,7 @@ licenseReport {
     rootProject.projectDir.resolve("gradle/license/allowed-licenses.json5").absoluteFile
   renderers = arrayOf<ReportRenderer>(BundleLicenseGenerator())
   excludeOwnGroup = true
+  excludeGroups = arrayOf("com.dremio.oauth2")
 }
 
 tasks.named("checkLicense") {

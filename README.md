@@ -24,6 +24,16 @@ general-purpose implementation that is compatible with any Apache Iceberg REST c
 providing a more flexible and extensible OAuth2 manager than the one bundled with Iceberg REST,
 while strictly adhering to the OAuth2 standards.
 
+## Project structure
+
+This project is organized around two main components:
+
+- `oauth2-agent` (`com.dremio.oauth2:oauth2-agent`): a standalone OAuth2 client engine with no
+  Apache Iceberg dependency. It handles token acquisition, refresh, and lifecycle management and can
+  be used independently by any Java application.
+- `authmgr-oauth2-core` (`com.dremio.iceberg.authmgr:authmgr-oauth2-core`): a thin adapter
+  that wraps the agent as an Apache Iceberg `AuthManager` / `AuthSession` SPI implementation.
+
 ## Getting Started
 
 To get started with Dremio AuthManager for Apache Iceberg, you can follow the instructions in the
