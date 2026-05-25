@@ -15,16 +15,18 @@
  */
 package com.dremio.iceberg.authmgr.oauth2;
 
-import static com.dremio.iceberg.authmgr.oauth2.OAuth2Config.PREFIX;
-import static com.dremio.iceberg.authmgr.oauth2.test.TestConstants.ACCESS_TOKEN_INITIAL;
+import static com.dremio.oauth2.agent.OAuth2AgentConfig.PREFIX;
+import static com.dremio.oauth2.agent.TestConstants.ACCESS_TOKEN_INITIAL;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.map;
 import static org.mockito.Mockito.never;
 
-import com.dremio.iceberg.authmgr.oauth2.config.BasicConfig;
-import com.dremio.iceberg.authmgr.oauth2.config.TokenExchangeConfig;
-import com.dremio.iceberg.authmgr.oauth2.test.TestConstants;
-import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
+import com.dremio.iceberg.authmgr.oauth2.core.IcebergTestEnvironment;
+import com.dremio.iceberg.authmgr.oauth2.core.ImmutableIcebergTestEnvironment;
+import com.dremio.oauth2.agent.OAuth2AgentConfig;
+import com.dremio.oauth2.agent.TestConstants;
+import com.dremio.oauth2.agent.config.BasicConfig;
+import com.dremio.oauth2.agent.config.TokenExchangeConfig;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.google.common.collect.ImmutableMap;
 import com.nimbusds.oauth2.sdk.GrantType;
@@ -70,7 +72,7 @@ class OAuth2ManagerTest {
 
     @Test
     void catalogSessionWithoutInit() throws IOException {
-      try (TestEnvironment env = TestEnvironment.builder().build();
+      try (IcebergTestEnvironment env = ImmutableIcebergTestEnvironment.builder().build();
           OAuth2Manager manager = new OAuth2Manager("test")) {
         Map<String, String> properties =
             Map.of(
@@ -95,7 +97,7 @@ class OAuth2ManagerTest {
 
     @Test
     void catalogSessionWithInit() throws IOException {
-      try (TestEnvironment env = TestEnvironment.builder().build();
+      try (IcebergTestEnvironment env = ImmutableIcebergTestEnvironment.builder().build();
           OAuth2Manager manager = new OAuth2Manager("test")) {
         Map<String, String> properties =
             Map.of(
@@ -126,7 +128,7 @@ class OAuth2ManagerTest {
 
     @Test
     void contextualSessionEmptyContext() throws IOException {
-      try (TestEnvironment env = TestEnvironment.builder().build();
+      try (IcebergTestEnvironment env = ImmutableIcebergTestEnvironment.builder().build();
           OAuth2Manager manager = new OAuth2Manager("test")) {
         Map<String, String> properties =
             Map.of(
@@ -149,7 +151,7 @@ class OAuth2ManagerTest {
 
     @Test
     void contextualSessionNotCached() throws IOException {
-      try (TestEnvironment env = TestEnvironment.builder().build();
+      try (IcebergTestEnvironment env = ImmutableIcebergTestEnvironment.builder().build();
           OAuth2Manager manager = new OAuth2Manager("test")) {
         Map<String, String> properties =
             Map.of(
@@ -178,7 +180,7 @@ class OAuth2ManagerTest {
 
     @Test
     void contextualSessionCacheMiss() throws IOException {
-      try (TestEnvironment env = TestEnvironment.builder().build();
+      try (IcebergTestEnvironment env = ImmutableIcebergTestEnvironment.builder().build();
           OAuth2Manager manager = new OAuth2Manager("test")) {
         Map<String, String> catalogProperties =
             Map.of(
@@ -239,7 +241,7 @@ class OAuth2ManagerTest {
 
     @Test
     void contextualSessionCacheHit() throws IOException {
-      try (TestEnvironment env = TestEnvironment.builder().build();
+      try (IcebergTestEnvironment env = ImmutableIcebergTestEnvironment.builder().build();
           OAuth2Manager manager = new OAuth2Manager("test")) {
         Map<String, String> catalogProperties =
             Map.of(
@@ -282,7 +284,7 @@ class OAuth2ManagerTest {
 
     @Test
     void tableSessionUnsupported() throws IOException {
-      try (TestEnvironment env = TestEnvironment.builder().build();
+      try (IcebergTestEnvironment env = ImmutableIcebergTestEnvironment.builder().build();
           OAuth2Manager manager = new OAuth2Manager("test")) {
         Map<String, String> catalogProperties =
             Map.of(
@@ -307,7 +309,7 @@ class OAuth2ManagerTest {
 
     @Test
     void signerSession() throws IOException {
-      try (TestEnvironment env = TestEnvironment.builder().build();
+      try (IcebergTestEnvironment env = ImmutableIcebergTestEnvironment.builder().build();
           OAuth2Manager manager = new OAuth2Manager("test")) {
         Map<String, String> signerProperties =
             Map.of(
@@ -336,7 +338,7 @@ class OAuth2ManagerTest {
 
     @Test
     void signerSessionCacheMiss() throws IOException {
-      try (TestEnvironment env = TestEnvironment.builder().build();
+      try (IcebergTestEnvironment env = ImmutableIcebergTestEnvironment.builder().build();
           OAuth2Manager manager = new OAuth2Manager("test")) {
         Map<String, String> signerProperties1 =
             Map.of(
@@ -370,7 +372,7 @@ class OAuth2ManagerTest {
 
     @Test
     void signerSessionCacheHit() throws IOException {
-      try (TestEnvironment env = TestEnvironment.builder().build();
+      try (IcebergTestEnvironment env = ImmutableIcebergTestEnvironment.builder().build();
           OAuth2Manager manager = new OAuth2Manager("test")) {
         Map<String, String> signerProperties =
             Map.of(
@@ -407,7 +409,7 @@ class OAuth2ManagerTest {
         assertThat(manager).extracting("sessionCache").isNull();
       }
 
-      try (TestEnvironment env = TestEnvironment.builder().build();
+      try (IcebergTestEnvironment env = ImmutableIcebergTestEnvironment.builder().build();
           OAuth2Manager manager = new OAuth2Manager("test")) {
 
         AuthSessionCache spyingCache =
@@ -492,11 +494,12 @@ class OAuth2ManagerTest {
 
     @Test
     void testCatalogProperties() throws IOException {
-      try (TestEnvironment env = TestEnvironment.builder().build();
+      try (IcebergTestEnvironment env = ImmutableIcebergTestEnvironment.builder().build();
           RESTCatalog catalog = env.newCatalog()) {
-        Table table = catalog.loadTable(TestConstants.TABLE_IDENTIFIER);
+        Table table = catalog.loadTable(IcebergTestEnvironment.TABLE_IDENTIFIER);
         assertThat(table).isNotNull();
-        assertThat(table.name()).isEqualTo(catalog.name() + "." + TestConstants.TABLE_IDENTIFIER);
+        assertThat(table.name())
+            .isEqualTo(catalog.name() + "." + IcebergTestEnvironment.TABLE_IDENTIFIER);
         assertThat(catalog)
             .extracting(CATALOG_PROPERTIES, map(String.class, String.class))
             .satisfies(this::assertCatalogProperties);
@@ -506,12 +509,15 @@ class OAuth2ManagerTest {
 
     @Test
     void testCatalogAndContextProperties() throws IOException {
-      try (TestEnvironment env =
-              TestEnvironment.builder().sessionContext(TestConstants.SESSION_CONTEXT).build();
+      try (IcebergTestEnvironment env =
+              ImmutableIcebergTestEnvironment.builder()
+                  .sessionContext(IcebergTestEnvironment.SESSION_CONTEXT)
+                  .build();
           RESTCatalog catalog = env.newCatalog()) {
-        Table table = catalog.loadTable(TestConstants.TABLE_IDENTIFIER);
+        Table table = catalog.loadTable(IcebergTestEnvironment.TABLE_IDENTIFIER);
         assertThat(table).isNotNull();
-        assertThat(table.name()).isEqualTo(catalog.name() + "." + TestConstants.TABLE_IDENTIFIER);
+        assertThat(table.name())
+            .isEqualTo(catalog.name() + "." + IcebergTestEnvironment.TABLE_IDENTIFIER);
         assertThat(catalog)
             .extracting(CATALOG_PROPERTIES, map(String.class, String.class))
             .satisfies(this::assertCatalogProperties);
@@ -521,22 +527,23 @@ class OAuth2ManagerTest {
                 cache -> {
                   assertThat(cache).hasSize(1);
                   String key = cache.keySet().iterator().next();
-                  assertThat(key).isEqualTo(TestConstants.SESSION_CONTEXT.sessionId());
+                  assertThat(key).isEqualTo(IcebergTestEnvironment.SESSION_CONTEXT.sessionId());
                 });
       }
     }
 
     @Test
     void testCatalogAndTableProperties() throws IOException {
-      try (TestEnvironment env =
-              TestEnvironment.builder()
+      try (IcebergTestEnvironment env =
+              ImmutableIcebergTestEnvironment.builder()
                   .tableProperties(
                       Map.of(PREFIX + '.' + BasicConfig.SCOPE, TestConstants.SCOPE2.toString()))
                   .build();
           RESTCatalog catalog = env.newCatalog()) {
-        Table table = catalog.loadTable(TestConstants.TABLE_IDENTIFIER);
+        Table table = catalog.loadTable(IcebergTestEnvironment.TABLE_IDENTIFIER);
         assertThat(table).isNotNull();
-        assertThat(table.name()).isEqualTo(catalog.name() + "." + TestConstants.TABLE_IDENTIFIER);
+        assertThat(table.name())
+            .isEqualTo(catalog.name() + "." + IcebergTestEnvironment.TABLE_IDENTIFIER);
         assertThat(catalog)
             .extracting(CATALOG_PROPERTIES, map(String.class, String.class))
             .satisfies(this::assertCatalogProperties);
@@ -547,16 +554,17 @@ class OAuth2ManagerTest {
 
     @Test
     void testCatalogAndContextAndTableProperties() throws IOException {
-      try (TestEnvironment env =
-              TestEnvironment.builder()
-                  .sessionContext(TestConstants.SESSION_CONTEXT)
+      try (IcebergTestEnvironment env =
+              ImmutableIcebergTestEnvironment.builder()
+                  .sessionContext(IcebergTestEnvironment.SESSION_CONTEXT)
                   .tableProperties(
                       Map.of(PREFIX + '.' + BasicConfig.SCOPE, TestConstants.SCOPE3.toString()))
                   .build();
           RESTCatalog catalog = env.newCatalog()) {
-        Table table = catalog.loadTable(TestConstants.TABLE_IDENTIFIER);
+        Table table = catalog.loadTable(IcebergTestEnvironment.TABLE_IDENTIFIER);
         assertThat(table).isNotNull();
-        assertThat(table.name()).isEqualTo(catalog.name() + "." + TestConstants.TABLE_IDENTIFIER);
+        assertThat(table.name())
+            .isEqualTo(catalog.name() + "." + IcebergTestEnvironment.TABLE_IDENTIFIER);
         assertThat(catalog)
             .extracting(CATALOG_PROPERTIES, map(String.class, String.class))
             .satisfies(this::assertCatalogProperties);
@@ -566,7 +574,7 @@ class OAuth2ManagerTest {
                 cache -> {
                   assertThat(cache).hasSize(1);
                   String key = cache.keySet().iterator().next();
-                  assertThat(key).isEqualTo(TestConstants.SESSION_CONTEXT.sessionId());
+                  assertThat(key).isEqualTo(IcebergTestEnvironment.SESSION_CONTEXT.sessionId());
                 });
       }
     }
@@ -575,15 +583,15 @@ class OAuth2ManagerTest {
       assertThat(properties).isNotNull();
       assertThat(properties)
           .containsEntry(
-              OAuth2Config.PREFIX + '.' + BasicConfig.CLIENT_ID,
+              OAuth2AgentConfig.PREFIX + '.' + BasicConfig.CLIENT_ID,
               TestConstants.CLIENT_ID1.getValue());
       assertThat(properties)
           .containsEntry(
-              OAuth2Config.PREFIX + '.' + BasicConfig.CLIENT_SECRET,
+              OAuth2AgentConfig.PREFIX + '.' + BasicConfig.CLIENT_SECRET,
               TestConstants.CLIENT_SECRET1.getValue());
       assertThat(properties)
           .containsEntry(
-              OAuth2Config.PREFIX + '.' + BasicConfig.SCOPE, TestConstants.SCOPE1.toString());
+              OAuth2AgentConfig.PREFIX + '.' + BasicConfig.SCOPE, TestConstants.SCOPE1.toString());
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})

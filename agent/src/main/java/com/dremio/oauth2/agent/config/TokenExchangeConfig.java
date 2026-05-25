@@ -1,0 +1,224 @@
+/*
+ * Copyright (C) 2025 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.dremio.oauth2.agent.config;
+
+import com.dremio.oauth2.agent.OAuth2AgentConfig;
+import com.dremio.oauth2.agent.config.validator.ConfigValidator;
+import com.nimbusds.oauth2.sdk.id.Audience;
+import com.nimbusds.oauth2.sdk.token.TokenTypeURI;
+import com.nimbusds.oauth2.sdk.token.TypelessAccessToken;
+import io.smallrye.config.WithDefault;
+import io.smallrye.config.WithName;
+import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+/**
+ * Configuration properties for the <a href="https://datatracker.ietf.org/doc/html/rfc8693">Token
+ * Exchange</a> flow.
+ *
+ * <p>This flow allows a client to exchange one token for another, typically to obtain a token that
+ * is more suitable for the target resource or service.
+ *
+ * <p>See the <a href="./token-exchange.md">Token Exchange</a> section for more details.
+ */
+public interface TokenExchangeConfig {
+
+  String GROUP_NAME = "token-exchange";
+  String PREFIX = OAuth2AgentConfig.PREFIX + '.' + GROUP_NAME;
+
+  String SUBJECT_TOKEN = "subject-token";
+  String SUBJECT_TOKEN_FILE = "subject-token-file";
+  String SUBJECT_TOKEN_TYPE = "subject-token-type";
+  String ACTOR_TOKEN = "actor-token";
+  String ACTOR_TOKEN_FILE = "actor-token-file";
+  String ACTOR_TOKEN_TYPE = "actor-token-type";
+  String REQUESTED_TOKEN_TYPE = "requested-token-type";
+  String RESOURCES = "resources";
+  String AUDIENCES = "audiences";
+
+  String DEFAULT_TOKEN_TYPE = "urn:ietf:params:oauth:token-type:access_token";
+
+  /**
+   * The subject token to exchange.
+   *
+   * <p>If this value is present, the subject token will be used as-is. If this value is not
+   * present, the subject token may be read from the file specified by {@value #SUBJECT_TOKEN_FILE},
+   * or dynamically fetched using the configuration provided under the {@value #SUBJECT_TOKEN}
+   * prefix.
+   */
+  @WithName(SUBJECT_TOKEN)
+  Optional<TypelessAccessToken> getSubjectToken();
+
+  /**
+   * Path to a file containing the subject token. The file content is read and trimmed to obtain the
+   * token value. Ignored if {@value #SUBJECT_TOKEN} is set. If this is the only static source and
+   * neither inline token nor dynamic config is provided, the file must exist and be readable at
+   * configuration load time.
+   */
+  @WithName(SUBJECT_TOKEN_FILE)
+  Optional<Path> getSubjectTokenFile();
+
+  /**
+   * Path to a file containing the actor token. The file content is read and trimmed to obtain the
+   * token value. Ignored if {@value #ACTOR_TOKEN} is set. If this is the only static source and
+   * neither inline token nor dynamic config is provided, the file must exist and be readable at
+   * configuration load time.
+   */
+  @WithName(ACTOR_TOKEN_FILE)
+  Optional<Path> getActorTokenFile();
+
+  /**
+   * The type of the subject token. Must be a valid URN. The default is {@code
+   * urn:ietf:params:oauth:token-type:access_token}.
+   *
+   * @see TokenExchangeConfig#SUBJECT_TOKEN_TYPE
+   */
+  @WithName(SUBJECT_TOKEN_TYPE)
+  @WithDefault(DEFAULT_TOKEN_TYPE)
+  TokenTypeURI getSubjectTokenType();
+
+  /**
+   * The actor token to exchange.
+   *
+   * <p>If this value is present, the actor token will be used as-is. If this value is not present,
+   * the actor token will be dynamically fetched using the configuration provided under the {@value
+   * #ACTOR_TOKEN} prefix. If no configuration is provided, no actor token will be used.
+   */
+  @WithName(ACTOR_TOKEN)
+  Optional<TypelessAccessToken> getActorToken();
+
+  /**
+   * The type of the actor token. Must be a valid URN. The default is {@code
+   * urn:ietf:params:oauth:token-type:access_token}.
+   *
+   * @see TokenExchangeConfig#ACTOR_TOKEN_TYPE
+   */
+  @WithName(ACTOR_TOKEN_TYPE)
+  @WithDefault(DEFAULT_TOKEN_TYPE)
+  TokenTypeURI getActorTokenType();
+
+  /**
+   * The type of the requested security token. Must be a valid URN. The default is {@code
+   * urn:ietf:params:oauth:token-type:access_token}.
+   */
+  @WithName(REQUESTED_TOKEN_TYPE)
+  @WithDefault(DEFAULT_TOKEN_TYPE)
+  TokenTypeURI getRequestedTokenType();
+
+  /**
+   * The configuration to use for fetching the subject token. Required if {@value #SUBJECT_TOKEN} is
+   * not set.
+   *
+   * <p>This is a prefix property; any property that can be set under the {@value
+   * OAuth2AgentConfig#PREFIX} prefix can also be set under this prefix.
+   *
+   * <p>The effective subject token fetch configuration will be the result of merging the
+   * subject-specific configuration with the main configuration.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * rest.auth.oauth2.grant-type=urn:ietf:params:oauth:grant-type:token-exchange
+   * rest.auth.oauth2.token-endpoint=https://main-token-endpoint.com/token
+   * rest.auth.oauth2.client-id=main-client-id
+   * rest.auth.oauth2.client-secret=main-client-secret
+   * rest.auth.oauth2.token-exchange.subject-token.grant-type=client_credentials
+   * rest.auth.oauth2.token-exchange.subject-token.client-id=subject-client-id
+   * rest.auth.oauth2.token-exchange.subject-token.client-secret=subject-client-secret
+   * }</pre>
+   *
+   * The above configuration will result in a token exchange where the subject token is obtained
+   * using the client credentials grant type, with specific client ID and secret, but sharing the
+   * token endpoint, client authentication method and other settings with the main agent.
+   */
+  @WithName(SUBJECT_TOKEN)
+  Map<String, String> getSubjectTokenConfig();
+
+  /**
+   * The configuration to use for fetching the actor token. Optional; required only if {@value
+   * #ACTOR_TOKEN} is not set but an actor token is required.
+   *
+   * <p>This is a prefix property; any property that can be set under the {@value
+   * OAuth2AgentConfig#PREFIX} prefix can also be set under this prefix.
+   *
+   * <p>The effective actor token fetch configuration will be the result of merging the
+   * actor-specific configuration with the main configuration.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * rest.auth.oauth2.grant-type=urn:ietf:params:oauth:grant-type:token-exchange
+   * rest.auth.oauth2.token-endpoint=https://main-token-endpoint.com/token
+   * rest.auth.oauth2.client-id=main-client-id
+   * rest.auth.oauth2.client-secret=main-client-secret
+   * rest.auth.oauth2.token-exchange.actor-token.grant-type=client_credentials
+   * rest.auth.oauth2.token-exchange.actor-token.client-id=actor-client-id
+   * rest.auth.oauth2.token-exchange.actor-token.client-secret=actor-client-secret
+   * }</pre>
+   *
+   * The above configuration will result in a token exchange where the actor token is obtained using
+   * the client credentials grant type, with specific client ID and secret, but sharing the token
+   * endpoint, client authentication method and other settings with the main agent.
+   */
+  @WithName(ACTOR_TOKEN)
+  Map<String, String> getActorTokenConfig();
+
+  /**
+   * One or more URIs that indicate the target service(s) or resource(s) where the client intends to
+   * use the requested security token.
+   *
+   * <p>Optional. Can be a single value or a comma-separated list of values.
+   */
+  @WithName(RESOURCES)
+  Optional<List<URI>> getResources();
+
+  /**
+   * The logical name of the target service(s) where the client intends to use the requested
+   * security token. This serves a purpose similar to the resource parameter but with the client
+   * providing a logical name for the target service.
+   *
+   * <p>Optional. Can be a single value or a comma-separated list of values.
+   */
+  @WithName(AUDIENCES)
+  Optional<List<Audience>> getAudiences();
+
+  default void validate() {
+    ConfigValidator validator = new ConfigValidator();
+    validateTokenFile(
+        validator,
+        getSubjectToken().isEmpty(),
+        getSubjectTokenFile().orElse(null),
+        SUBJECT_TOKEN_FILE);
+    validateTokenFile(
+        validator, getActorToken().isEmpty(), getActorTokenFile().orElse(null), ACTOR_TOKEN_FILE);
+    validator.validate();
+  }
+
+  private static void validateTokenFile(
+      ConfigValidator validator, boolean inlineTokenAbsent, Path tokenFilePath, String fileKey) {
+    if (inlineTokenAbsent && tokenFilePath != null) {
+      validator.check(
+          Files.isReadable(tokenFilePath),
+          PREFIX + '.' + fileKey,
+          "token-exchange: '%s' is not a file or is not readable",
+          tokenFilePath);
+    }
+  }
+}

@@ -26,7 +26,7 @@ plugins {
 spotless {
   java {
     target("**/*.java")
-    googleJavaFormat()
+    googleJavaFormat("1.25.2")
     licenseHeaderFile(rootProject.file("codestyle/copyright-header-java.txt"))
     endWithNewline()
   }
