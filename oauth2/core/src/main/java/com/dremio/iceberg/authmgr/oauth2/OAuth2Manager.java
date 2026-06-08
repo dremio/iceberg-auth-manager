@@ -136,7 +136,8 @@ public class OAuth2Manager implements AuthManager {
     AuthSessionCache cache = sessionCache;
     if (cache == null) {
       synchronized (this) {
-        if (sessionCache == null) {
+        cache = sessionCache;
+        if (cache == null) {
           OAuth2Config config = OAuth2Config.from(properties);
           cache = new AuthSessionCache(name, config.getSystemConfig().getSessionCacheTimeout());
           sessionCache = cache;
