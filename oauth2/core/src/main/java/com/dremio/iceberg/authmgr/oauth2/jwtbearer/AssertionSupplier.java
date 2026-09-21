@@ -114,7 +114,12 @@ public abstract class AssertionSupplier implements AutoCloseable {
         getMainConfig().getJwtBearerGrantConfig().getAssertionConfig(), OAuth2Config.PREFIX);
   }
 
-  @Value.Derived
+  /**
+   * Returns the static assertion to use, if any (either inline, or read from an assertion file).
+   *
+   * @implNote This method should not be interned by {@code @Value.Derived} or similar annotations
+   *     because it may be called multiple times and the assertion file may change between calls.
+   */
   protected Optional<String> getStaticAssertion() {
     JwtBearerConfig jwtBearerConfig = getMainConfig().getJwtBearerGrantConfig();
     return jwtBearerConfig

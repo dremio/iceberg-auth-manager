@@ -100,6 +100,45 @@ class SubjectTokenSupplierTest {
     }
   }
 
+  /**
+   * Guards against {@code getStaticToken()} being interned by {@code @Value.Derived}: the token
+   * file must be re-read on every call, so that a file rotated in place by an external process is
+   * picked up without restarting the agent.
+   */
+  @Test
+  void testSupplyTokenAsyncFromRotatedFile(@TempDir Path tempDir) throws Exception {
+    Path tokenFile = tempDir.resolve("subject-token.txt");
+    Files.writeString(tokenFile, "subject-token-v1");
+    OAuth2Config config = createMainConfig(null, tokenFile, TokenTypeURI.JWT, Map.of());
+    try (SubjectTokenSupplier supplier = createSupplier(config)) {
+      assertThat(supplier.supplyTokenAsync())
+          .isCompletedWithValue(
+              new BearerAccessToken("subject-token-v1", 0, null, TokenTypeURI.JWT));
+
+      Files.writeString(tokenFile, "  subject-token-v2  ");
+
+      assertThat(supplier.supplyTokenAsync())
+          .isCompletedWithValue(
+              new BearerAccessToken("subject-token-v2", 0, null, TokenTypeURI.JWT));
+    }
+  }
+
+  @Test
+  void testSupplyTokenAsyncInlineTokenTakesPrecedenceOverFile(@TempDir Path tempDir)
+      throws Exception {
+    Path tokenFile = tempDir.resolve("subject-token.txt");
+    Files.writeString(tokenFile, "subject-token-from-file");
+    OAuth2Config config =
+        createMainConfig("inline-subject-token", tokenFile, TokenTypeURI.JWT, Map.of());
+    try (SubjectTokenSupplier supplier = createSupplier(config)) {
+      // rotating or removing the file must not matter: the inline token wins
+      Files.delete(tokenFile);
+      assertThat(supplier.supplyTokenAsync())
+          .isCompletedWithValue(
+              new BearerAccessToken("inline-subject-token", 0, null, TokenTypeURI.JWT));
+    }
+  }
+
   private static OAuth2Config createMainConfig(
       String subjectToken,
       Path subjectTokenFile,

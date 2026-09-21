@@ -23,6 +23,7 @@ import com.nimbusds.oauth2.sdk.token.TokenTypeURI;
 import com.nimbusds.oauth2.sdk.token.TypelessAccessToken;
 import java.util.Map;
 import java.util.Optional;
+import org.immutables.value.Value;
 
 /** A component that centralizes the logic for supplying the actor token for token exchanges. */
 @AuthManagerImmutable
@@ -50,16 +51,19 @@ public abstract class ActorTokenSupplier extends AbstractTokenSupplier {
                 tokenExchangeConfig.getActorTokenFile().map(ActorTokenSupplier::readTokenFromFile));
   }
 
+  @Value.Derived
   @Override
   protected TokenTypeURI getTokenType() {
     return getMainConfig().getTokenExchangeConfig().getActorTokenType();
   }
 
+  @Value.Derived
   @Override
   protected Map<String, String> getDynamicTokenConfig() {
     return getMainConfig().getTokenExchangeConfig().getActorTokenConfig();
   }
 
+  @Value.Derived
   @Override
   protected String getDefaultAgentName() {
     return getMainConfig().getSystemConfig().getAgentName() + "-actor";

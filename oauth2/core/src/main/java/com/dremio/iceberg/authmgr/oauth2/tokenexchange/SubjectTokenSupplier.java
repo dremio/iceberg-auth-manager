@@ -61,16 +61,19 @@ public abstract class SubjectTokenSupplier extends AbstractTokenSupplier {
                     .map(SubjectTokenSupplier::readTokenFromFile));
   }
 
+  @Value.Derived
   @Override
   protected TokenTypeURI getTokenType() {
     return getMainConfig().getTokenExchangeConfig().getSubjectTokenType();
   }
 
+  @Value.Derived
   @Override
   protected Map<String, String> getDynamicTokenConfig() {
     return getMainConfig().getTokenExchangeConfig().getSubjectTokenConfig();
   }
 
+  @Value.Derived
   @Override
   protected String getDefaultAgentName() {
     return getMainConfig().getSystemConfig().getAgentName() + "-subject";

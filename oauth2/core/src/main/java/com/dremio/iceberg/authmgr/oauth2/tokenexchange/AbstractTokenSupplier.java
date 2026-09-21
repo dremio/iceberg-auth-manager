@@ -128,15 +128,17 @@ public abstract class AbstractTokenSupplier implements AutoCloseable {
 
   protected abstract OAuth2AgentRuntime getRuntime();
 
-  @Value.Derived
+  /**
+   * Returns the static token to use, if any (either inline, or read from a token file).
+   *
+   * @implNote This method should not be interned by {@code @Value.Derived} or similar annotations
+   *     because it may be called multiple times and the token file may change between calls.
+   */
   protected abstract Optional<TypelessAccessToken> getStaticToken();
 
-  @Value.Derived
   protected abstract TokenTypeURI getTokenType();
 
-  @Value.Derived
   protected abstract Map<String, String> getDynamicTokenConfig();
 
-  @Value.Derived
   protected abstract String getDefaultAgentName();
 }

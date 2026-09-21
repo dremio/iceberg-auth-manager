@@ -92,6 +92,41 @@ class AssertionSupplierTest {
     }
   }
 
+  /**
+   * Guards against {@code getStaticAssertion()} being interned by {@code @Value.Derived}: the
+   * assertion file must be re-read on every call, so that a file rotated in place by an external
+   * process is picked up without restarting the agent.
+   */
+  @Test
+  void testSupplyAssertionAsyncFromRotatedFile(@TempDir Path tempDir) throws Exception {
+    Path assertionFile = tempDir.resolve("assertion.txt");
+    Files.writeString(assertionFile, "assertion-v1");
+    OAuth2Config config = createMainConfig(null, assertionFile, Map.of());
+    try (AssertionSupplier supplier = createSupplier(config)) {
+      assertThat(supplier.supplyAssertionAsync().toCompletableFuture().join())
+          .isEqualTo("assertion-v1");
+
+      Files.writeString(assertionFile, "  assertion-v2  ");
+
+      assertThat(supplier.supplyAssertionAsync().toCompletableFuture().join())
+          .isEqualTo("assertion-v2");
+    }
+  }
+
+  @Test
+  void testSupplyAssertionAsyncInlineAssertionTakesPrecedenceOverFile(@TempDir Path tempDir)
+      throws Exception {
+    Path assertionFile = tempDir.resolve("assertion.txt");
+    Files.writeString(assertionFile, "assertion-from-file");
+    OAuth2Config config = createMainConfig(ASSERTION_TOKEN, assertionFile, Map.of());
+    try (AssertionSupplier supplier = createSupplier(config)) {
+      // rotating or removing the file must not matter: the inline assertion wins
+      Files.delete(assertionFile);
+      assertThat(supplier.supplyAssertionAsync().toCompletableFuture().join())
+          .isEqualTo(ASSERTION_TOKEN);
+    }
+  }
+
   private static OAuth2Config createMainConfig(
       String assertion, Path assertionFile, Map<String, String> assertionConfig) {
     return OAuth2Config.from(createProperties(assertion, assertionFile, assertionConfig));
