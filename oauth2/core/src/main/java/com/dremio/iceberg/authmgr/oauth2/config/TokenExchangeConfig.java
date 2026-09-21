@@ -129,8 +129,8 @@ public interface TokenExchangeConfig {
    * <p>This is a prefix property; any property that can be set under the {@value
    * OAuth2Config#PREFIX} prefix can also be set under this prefix.
    *
-   * <p>The effective subject token fetch configuration will be the result of merging the
-   * subject-specific configuration with the main configuration.
+   * <p>This configuration is independent of the main configuration; properties set under the main
+   * {@value OAuth2Config#PREFIX} prefix are not inherited by the subject token agent.
    *
    * <p>Example:
    *
@@ -140,13 +140,14 @@ public interface TokenExchangeConfig {
    * rest.auth.oauth2.client-id=main-client-id
    * rest.auth.oauth2.client-secret=main-client-secret
    * rest.auth.oauth2.token-exchange.subject-token.grant-type=client_credentials
+   * rest.auth.oauth2.token-exchange.subject-token.token-endpoint=https://subject-token-endpoint.com/token
    * rest.auth.oauth2.token-exchange.subject-token.client-id=subject-client-id
    * rest.auth.oauth2.token-exchange.subject-token.client-secret=subject-client-secret
    * }</pre>
    *
    * The above configuration will result in a token exchange where the subject token is obtained
-   * using the client credentials grant type, with specific client ID and secret, but sharing the
-   * token endpoint, client authentication method and other settings with the main agent.
+   * using the client credentials grant type against a separate token endpoint, with its own client
+   * credentials.
    */
   @WithName(SUBJECT_TOKEN)
   Map<String, String> getSubjectTokenConfig();
@@ -158,8 +159,8 @@ public interface TokenExchangeConfig {
    * <p>This is a prefix property; any property that can be set under the {@value
    * OAuth2Config#PREFIX} prefix can also be set under this prefix.
    *
-   * <p>The effective actor token fetch configuration will be the result of merging the
-   * actor-specific configuration with the main configuration.
+   * <p>This configuration is independent of the main configuration; properties set under the main
+   * {@value OAuth2Config#PREFIX} prefix are not inherited by the actor token agent.
    *
    * <p>Example:
    *
@@ -169,13 +170,14 @@ public interface TokenExchangeConfig {
    * rest.auth.oauth2.client-id=main-client-id
    * rest.auth.oauth2.client-secret=main-client-secret
    * rest.auth.oauth2.token-exchange.actor-token.grant-type=client_credentials
+   * rest.auth.oauth2.token-exchange.actor-token.token-endpoint=https://actor-token-endpoint.com/token
    * rest.auth.oauth2.token-exchange.actor-token.client-id=actor-client-id
    * rest.auth.oauth2.token-exchange.actor-token.client-secret=actor-client-secret
    * }</pre>
    *
    * The above configuration will result in a token exchange where the actor token is obtained using
-   * the client credentials grant type, with specific client ID and secret, but sharing the token
-   * endpoint, client authentication method and other settings with the main agent.
+   * the client credentials grant type against a separate token endpoint, with its own client
+   * credentials.
    */
   @WithName(ACTOR_TOKEN)
   Map<String, String> getActorTokenConfig();

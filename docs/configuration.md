@@ -340,7 +340,7 @@ The configuration to use for fetching the subject token. Required if `rest.auth.
 
 This is a prefix property; any property that can be set under the `rest.auth.oauth2.` prefix can also be set under this prefix.
 
-The effective subject token fetch configuration will be the result of merging the subject-specific configuration with the main configuration.
+This configuration is independent of the main configuration; properties set under the main `rest.auth.oauth2.` prefix are not inherited by the subject token agent.
 
 Example:
 
@@ -350,11 +350,12 @@ rest.auth.oauth2.token-endpoint=https://main-token-endpoint.com/token
 rest.auth.oauth2.client-id=main-client-id
 rest.auth.oauth2.client-secret=main-client-secret
 rest.auth.oauth2.token-exchange.subject-token.grant-type=client_credentials
+rest.auth.oauth2.token-exchange.subject-token.token-endpoint=https://subject-token-endpoint.com/token
 rest.auth.oauth2.token-exchange.subject-token.client-id=subject-client-id
 rest.auth.oauth2.token-exchange.subject-token.client-secret=subject-client-secret
 ```
 
-The above configuration will result in a token exchange where the subject token is obtained using the client credentials grant type, with specific client ID and secret, but sharing the token endpoint, client authentication method and other settings with the main agent.
+The above configuration will result in a token exchange where the subject token is obtained using the client credentials grant type against a separate token endpoint, with its own client credentials.
 
 ### `rest.auth.oauth2.token-exchange.actor-token.*`
 
@@ -362,7 +363,7 @@ The configuration to use for fetching the actor token. Optional; required only i
 
 This is a prefix property; any property that can be set under the `rest.auth.oauth2.` prefix can also be set under this prefix.
 
-The effective actor token fetch configuration will be the result of merging the actor-specific configuration with the main configuration.
+This configuration is independent of the main configuration; properties set under the main `rest.auth.oauth2.` prefix are not inherited by the actor token agent.
 
 Example:
 
@@ -372,11 +373,12 @@ rest.auth.oauth2.token-endpoint=https://main-token-endpoint.com/token
 rest.auth.oauth2.client-id=main-client-id
 rest.auth.oauth2.client-secret=main-client-secret
 rest.auth.oauth2.token-exchange.actor-token.grant-type=client_credentials
+rest.auth.oauth2.token-exchange.actor-token.token-endpoint=https://actor-token-endpoint.com/token
 rest.auth.oauth2.token-exchange.actor-token.client-id=actor-client-id
 rest.auth.oauth2.token-exchange.actor-token.client-secret=actor-client-secret
 ```
 
-The above configuration will result in a token exchange where the actor token is obtained using the client credentials grant type, with specific client ID and secret, but sharing the token endpoint, client authentication method and other settings with the main agent.
+The above configuration will result in a token exchange where the actor token is obtained using the client credentials grant type against a separate token endpoint, with its own client credentials.
 
 ### `rest.auth.oauth2.token-exchange.resources`
 
