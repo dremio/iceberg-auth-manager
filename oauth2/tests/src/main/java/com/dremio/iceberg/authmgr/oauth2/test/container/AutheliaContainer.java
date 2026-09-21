@@ -36,7 +36,7 @@ public class AutheliaContainer extends GenericContainer<AutheliaContainer> {
 
   @SuppressWarnings("resource")
   public AutheliaContainer(Path privateKeyPath, Path certificatePath) {
-    super("authelia/authelia:4.39.19");
+    super("authelia/authelia:4.39.28");
     this.hostPort = allocateFreePort();
     addFixedExposedPort(hostPort, 9091);
     withEnv("X_AUTHELIA_CONFIG_FILTERS", "template");
