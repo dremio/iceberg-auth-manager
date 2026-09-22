@@ -37,8 +37,8 @@ plugins {
 // Create configurations to hold the core project's source and javadoc artifacts
 // These will be used to copy the core project's source and javadoc jars into this project's
 // artifacts
-val coreSources by
-  configurations.creating {
+val coreSources =
+  configurations.create("coreSources") {
     isCanBeConsumed = false
     isCanBeResolved = true
     attributes {
@@ -48,8 +48,8 @@ val coreSources by
     }
   }
 
-val coreJavadoc by
-  configurations.creating {
+val coreJavadoc =
+  configurations.create("coreJavadoc") {
     isCanBeConsumed = false
     isCanBeResolved = true
     attributes {
@@ -215,8 +215,8 @@ class BundleLicenseGenerator() : ReportRenderer {
 }
 
 // Task to verify that the production JAR is compatible with Java 17
-val checkJava17Compatibility by
-  tasks.registering {
+val checkJava17Compatibility =
+  tasks.register("checkJava17Compatibility") {
     description = "Verifies that all classes in the production JAR are compatible with Java 17"
     group = "verification"
     dependsOn(shadowJar)

@@ -27,12 +27,11 @@ description = "Core OAuth2 implementation for Dremio AuthManager for Apache Iceb
 
 ext { set("mavenName", "Auth Manager for Apache Iceberg - OAuth2 - Core") }
 
-val docs by
-  configurations.creating {
+val docs =
+  configurations.create("docs") {
     description = "Dependencies for generating configuration documentation"
     isCanBeResolved = true
     isCanBeConsumed = false
-    isVisible = false
   }
 
 dependencies {

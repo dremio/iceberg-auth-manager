@@ -23,7 +23,7 @@ description = "Immutables annotations for Dremio AuthManager for Apache Iceberg"
 
 ext { set("mavenName", "Auth Manager for Apache Iceberg - OAuth2 - Immutables") }
 
-val processor by configurations.creating
+val processor = configurations.create("processor")
 
 processor.extendsFrom(configurations.api.get())
 
