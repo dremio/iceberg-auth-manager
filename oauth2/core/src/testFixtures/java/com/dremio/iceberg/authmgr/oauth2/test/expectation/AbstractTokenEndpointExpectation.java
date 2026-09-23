@@ -83,13 +83,13 @@ public abstract class AbstractTokenEndpointExpectation extends AbstractExpectati
   protected ImmutableMap.Builder<String, String> requestBody() {
     ImmutableMap.Builder<String, String> builder =
         ImmutableMap.<String, String>builder().put("(extra1|extra2)", "(value1|value2)");
-    if (getTestEnvironment()
-        .getClientAuthenticationMethod()
-        .equals(ClientAuthenticationMethod.NONE)) {
+    ClientAuthenticationMethod method = getTestEnvironment().getClientAuthenticationMethod();
+    if (method.equals(ClientAuthenticationMethod.NONE)
+        || method.equals(ClientAuthenticationMethod.TLS_CLIENT_AUTH)
+        || method.equals(ClientAuthenticationMethod.SELF_SIGNED_TLS_CLIENT_AUTH)) {
+      // RFC 8705 §2.1.2 / §2.2: the client_id is sent in the form body, no client_secret.
       builder.put("client_id", String.format("(%s|%s)", CLIENT_ID1, CLIENT_ID2));
-    } else if (getTestEnvironment()
-        .getClientAuthenticationMethod()
-        .equals(ClientAuthenticationMethod.CLIENT_SECRET_POST)) {
+    } else if (method.equals(ClientAuthenticationMethod.CLIENT_SECRET_POST)) {
       builder.put("client_id", String.format("(%s|%s)", CLIENT_ID1, CLIENT_ID2));
       builder.put(
           "client_secret",

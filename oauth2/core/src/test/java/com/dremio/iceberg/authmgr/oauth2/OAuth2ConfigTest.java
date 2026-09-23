@@ -318,6 +318,26 @@ class OAuth2ConfigTest {
                 "HS256"),
             List.of(
                 "client authentication method 'private_key_jwt' is not compatible with JWS algorithm 'HS256' (rest.auth.oauth2.client-auth / rest.auth.oauth2.client-auth.jwt.algorithm)",
-                "client authentication method 'private_key_jwt' requires a private key (rest.auth.oauth2.client-auth / rest.auth.oauth2.client-auth.jwt.private-key)")));
+                "client authentication method 'private_key_jwt' requires a private key (rest.auth.oauth2.client-auth / rest.auth.oauth2.client-auth.jwt.private-key)")),
+        Arguments.of(
+            Map.of(
+                PREFIX + '.' + BasicConfig.TOKEN_ENDPOINT,
+                "https://example.com/token",
+                PREFIX + '.' + BasicConfig.CLIENT_ID,
+                "Client1",
+                PREFIX + '.' + BasicConfig.CLIENT_AUTH,
+                "tls_client_auth"),
+            List.of(
+                "client authentication method 'tls_client_auth' requires an HTTP key store to be configured (rest.auth.oauth2.client-auth / rest.auth.oauth2.http.ssl.key-store.path)")),
+        Arguments.of(
+            Map.of(
+                PREFIX + '.' + BasicConfig.TOKEN_ENDPOINT,
+                "https://example.com/token",
+                PREFIX + '.' + BasicConfig.CLIENT_ID,
+                "Client1",
+                PREFIX + '.' + BasicConfig.CLIENT_AUTH,
+                "self_signed_tls_client_auth"),
+            List.of(
+                "client authentication method 'self_signed_tls_client_auth' requires an HTTP key store to be configured (rest.auth.oauth2.client-auth / rest.auth.oauth2.http.ssl.key-store.path)")));
   }
 }

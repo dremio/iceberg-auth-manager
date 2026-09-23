@@ -47,6 +47,9 @@ public interface HttpConfig {
   String SSL_TRUST_ALL = "ssl.trust-all";
   String SSL_TRUSTSTORE_PATH = "ssl.trust-store.path";
   String SSL_TRUSTSTORE_PASSWORD = "ssl.trust-store.password";
+  String SSL_KEYSTORE_PATH = "ssl.key-store.path";
+  String SSL_KEYSTORE_PASSWORD = "ssl.key-store.password";
+  String SSL_KEYSTORE_ALIAS = "ssl.key-store.alias";
   String PROXY_HOST = "proxy.host";
   String PROXY_PORT = "proxy.port";
   String PROXY_USERNAME = "proxy.username";
@@ -190,6 +193,41 @@ public interface HttpConfig {
   Optional<String> getSslTrustStorePassword();
 
   /**
+   * Path to a key store containing the client certificate and private key to present to the OAuth2
+   * server during the TLS handshake. Used to enable mutual TLS (mTLS) client authentication on the
+   * token endpoint, as defined by <a href="https://www.rfc-editor.org/rfc/rfc8705">RFC 8705</a>.
+   *
+   * <p>The key store format is the platform default (typically PKCS#12). Optional; if not set, no
+   * client certificate is presented.
+   *
+   * <p>This setting is ignored when the {@linkplain #CLIENT_TYPE client type} is set to {@code
+   * default}.
+   */
+  @WithName(SSL_KEYSTORE_PATH)
+  Optional<Path> getSslKeyStorePath();
+
+  /**
+   * Password protecting the key store referenced by {@link #SSL_KEYSTORE_PATH}. The same password
+   * is used to unlock the private key entry (PKCS#12 key stores require both passwords to be
+   * identical). Optional; defaults to no password.
+   *
+   * <p>This setting is ignored when the {@linkplain #CLIENT_TYPE client type} is set to {@code
+   * default}, or if {@link #SSL_KEYSTORE_PATH} is not set.
+   */
+  @WithName(SSL_KEYSTORE_PASSWORD)
+  Optional<String> getSslKeyStorePassword();
+
+  /**
+   * The alias of the key entry to use from the key store. Optional; if not set, the first matching
+   * key in the store is used.
+   *
+   * <p>This setting is ignored when the {@linkplain #CLIENT_TYPE client type} is set to {@code
+   * default}, or if {@link #SSL_KEYSTORE_PATH} is not set.
+   */
+  @WithName(SSL_KEYSTORE_ALIAS)
+  Optional<String> getSslKeyStoreAlias();
+
+  /**
    * Proxy host to use for HTTP requests. Optional, defaults to no proxy. If set, the proxy port
    * must also be set.
    *
@@ -237,6 +275,19 @@ public interface HttpConfig {
           PREFIX + '.' + SSL_TRUSTSTORE_PATH,
           "http: SSL truststore path '%s' is not a file or is not readable",
           getSslTrustStorePath().get());
+    }
+    if (getSslKeyStorePath().isPresent()) {
+      validator.check(
+          Files.isReadable(getSslKeyStorePath().get()),
+          PREFIX + '.' + SSL_KEYSTORE_PATH,
+          "http: SSL keystore path '%s' is not a file or is not readable",
+          getSslKeyStorePath().get());
+    }
+    if (getSslKeyStoreAlias().isPresent()) {
+      validator.check(
+          getSslKeyStorePath().isPresent(),
+          PREFIX + '.' + SSL_KEYSTORE_ALIAS,
+          "http: SSL keystore alias requires a keystore path to be configured");
     }
     validator.validate();
   }

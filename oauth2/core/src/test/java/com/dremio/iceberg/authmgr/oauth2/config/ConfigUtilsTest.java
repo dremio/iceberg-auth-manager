@@ -40,6 +40,25 @@ class ConfigUtilsTest {
         Arguments.of(ClientAuthenticationMethod.CLIENT_SECRET_POST, true),
         Arguments.of(ClientAuthenticationMethod.CLIENT_SECRET_JWT, true),
         Arguments.of(ClientAuthenticationMethod.NONE, false),
+        Arguments.of(ClientAuthenticationMethod.PRIVATE_KEY_JWT, false),
+        Arguments.of(ClientAuthenticationMethod.TLS_CLIENT_AUTH, false),
+        Arguments.of(ClientAuthenticationMethod.SELF_SIGNED_TLS_CLIENT_AUTH, false));
+  }
+
+  @ParameterizedTest
+  @MethodSource
+  void requiresClientCertificate(ClientAuthenticationMethod method, boolean expectedResult) {
+    assertThat(ConfigUtils.requiresClientCertificate(method)).isEqualTo(expectedResult);
+  }
+
+  static Stream<Arguments> requiresClientCertificate() {
+    return Stream.of(
+        Arguments.of(ClientAuthenticationMethod.TLS_CLIENT_AUTH, true),
+        Arguments.of(ClientAuthenticationMethod.SELF_SIGNED_TLS_CLIENT_AUTH, true),
+        Arguments.of(ClientAuthenticationMethod.NONE, false),
+        Arguments.of(ClientAuthenticationMethod.CLIENT_SECRET_BASIC, false),
+        Arguments.of(ClientAuthenticationMethod.CLIENT_SECRET_POST, false),
+        Arguments.of(ClientAuthenticationMethod.CLIENT_SECRET_JWT, false),
         Arguments.of(ClientAuthenticationMethod.PRIVATE_KEY_JWT, false));
   }
 

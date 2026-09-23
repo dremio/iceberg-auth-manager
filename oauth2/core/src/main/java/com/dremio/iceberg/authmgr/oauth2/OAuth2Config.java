@@ -191,6 +191,14 @@ public interface OAuth2Config {
           GrantType.JWT_BEARER.getValue());
     }
     ClientAuthenticationMethod method = getBasicConfig().getClientAuthenticationMethod();
+    if (ConfigUtils.requiresClientCertificate(method)) {
+      validator.check(
+          getHttpConfig().getSslKeyStorePath().isPresent(),
+          List.of(
+              PREFIX + '.' + CLIENT_AUTH, HttpConfig.PREFIX + '.' + HttpConfig.SSL_KEYSTORE_PATH),
+          "client authentication method '%s' requires an HTTP key store to be configured",
+          method.getValue());
+    }
     if (ConfigUtils.requiresJwsAlgorithm(method)) {
       if (method.equals(ClientAuthenticationMethod.CLIENT_SECRET_JWT)) {
         if (getJwtClientAuthConfig().getAlgorithm().isPresent()) {

@@ -140,6 +140,13 @@ public interface BasicConfig {
    *       used to sign a JWT token.
    *   <li>{@link ClientAuthenticationMethod#PRIVATE_KEY_JWT private_key_jwt}: client authenticates
    *       with a JWT assertion signed with a private key.
+   *   <li>{@code tls_client_auth}: client authenticates at the TLS layer with a certificate
+   *       validated against a PKI trust anchor (RFC 8705 §2.1). Requires a client key store to be
+   *       configured via {@link HttpConfig#SSL_KEYSTORE_PATH}.
+   *   <li>{@code self_signed_tls_client_auth}: client authenticates at the TLS layer with a
+   *       self-signed certificate whose thumbprint is registered with the authorization server (RFC
+   *       8705 §2.2). Requires a client key store to be configured via {@link
+   *       HttpConfig#SSL_KEYSTORE_PATH}.
    * </ul>
    *
    * The default is {@code client_secret_basic}.
@@ -241,6 +248,12 @@ public interface BasicConfig {
             getClientAuthenticationMethod().getValue());
       } else if (getClientAuthenticationMethod()
           .equals(ClientAuthenticationMethod.PRIVATE_KEY_JWT)) {
+        validator.check(
+            getClientSecret().isEmpty(),
+            List.of(PREFIX + '.' + CLIENT_AUTH, PREFIX + '.' + CLIENT_SECRET),
+            "client secret must not be set when client authentication is '%s'",
+            getClientAuthenticationMethod().getValue());
+      } else if (ConfigUtils.requiresClientCertificate(getClientAuthenticationMethod())) {
         validator.check(
             getClientSecret().isEmpty(),
             List.of(PREFIX + '.' + CLIENT_AUTH, PREFIX + '.' + CLIENT_SECRET),

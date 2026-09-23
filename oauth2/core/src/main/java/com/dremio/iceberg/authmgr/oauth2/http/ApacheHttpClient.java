@@ -22,11 +22,17 @@ import com.nimbusds.oauth2.sdk.http.ReadOnlyHTTPRequest;
 import com.nimbusds.oauth2.sdk.http.ReadOnlyHTTPResponse;
 import com.nimbusds.oauth2.sdk.util.StringUtils;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.security.KeyStore;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import javax.net.ssl.SSLContext;
 import org.apache.hc.client5.http.auth.AuthScope;
@@ -58,6 +64,7 @@ import org.apache.hc.core5.http.message.StatusLine;
 import org.apache.hc.core5.pool.PoolConcurrencyPolicy;
 import org.apache.hc.core5.pool.PoolReusePolicy;
 import org.apache.hc.core5.reactor.ssl.SSLBufferMode;
+import org.apache.hc.core5.ssl.PrivateKeyStrategy;
 import org.apache.hc.core5.ssl.SSLContextBuilder;
 import org.apache.hc.core5.util.TimeValue;
 import org.apache.hc.core5.util.Timeout;
@@ -194,6 +201,13 @@ public class ApacheHttpClient implements HttpClient {
       } else if (config.isSslTrustAll()) {
         sslContextBuilder.loadTrustMaterial(TrustAllStrategy.INSTANCE);
       }
+      if (config.getSslKeyStorePath().isPresent()) {
+        loadKeyMaterial(
+            sslContextBuilder,
+            config.getSslKeyStorePath().get(),
+            config.getSslKeyStorePassword(),
+            config.getSslKeyStoreAlias());
+      }
       sslContext = sslContextBuilder.build();
     } catch (Exception e) {
       throw new RuntimeException(e);
@@ -247,5 +261,37 @@ public class ApacheHttpClient implements HttpClient {
     }
 
     return builder;
+  }
+
+  private static void loadKeyMaterial(
+      SSLContextBuilder sslContextBuilder,
+      Path keyStorePath,
+      Optional<String> keyStorePassword,
+      Optional<String> keyStoreAlias)
+      throws Exception {
+    // PKCS#12 keystores require the store password and the key password to be identical, so a
+    // single password covers both. KeyStore.load() accepts a null password ("no protection") while
+    // KeyManagerFactory.init() expects a non-null array (empty array means "empty password").
+    char[] storePassword = keyStorePassword.map(String::toCharArray).orElse(null);
+    char[] keyPassword = keyStorePassword.map(String::toCharArray).orElse(new char[0]);
+
+    KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
+    try (InputStream is = Files.newInputStream(keyStorePath)) {
+      keyStore.load(is, storePassword);
+    }
+
+    PrivateKeyStrategy strategy = null;
+    if (keyStoreAlias.isPresent()) {
+      String alias = keyStoreAlias.get();
+      if (!keyStore.containsAlias(alias)) {
+        throw new IllegalArgumentException(
+            String.format(
+                "Key alias '%s' not found in keystore. Available aliases: %s",
+                alias, Collections.list(keyStore.aliases())));
+      }
+      strategy = (aliases, socket) -> alias;
+    }
+
+    sslContextBuilder.loadKeyMaterial(keyStore, keyPassword, strategy);
   }
 }

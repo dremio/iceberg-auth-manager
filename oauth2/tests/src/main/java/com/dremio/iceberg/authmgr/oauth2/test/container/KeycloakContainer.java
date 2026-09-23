@@ -19,6 +19,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import dasniko.testcontainers.keycloak.ExtendableKeycloakContainer;
+import dasniko.testcontainers.keycloak.HttpsClientAuth;
+import jakarta.annotation.Nullable;
 import jakarta.ws.rs.core.Response;
 import java.io.IOException;
 import java.net.URI;
@@ -47,6 +49,7 @@ import org.keycloak.representations.idm.authorization.ResourceServerRepresentati
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
+import org.testcontainers.utility.MountableFile;
 
 public class KeycloakContainer extends ExtendableKeycloakContainer<KeycloakContainer> {
 
@@ -79,7 +82,9 @@ public class KeycloakContainer extends ExtendableKeycloakContainer<KeycloakConta
     withNetworkAliases("keycloak");
     withLogConsumer(new Slf4jLogConsumer(LOGGER));
     withEnv("KC_LOG_LEVEL", getRootLoggerLevel() + ",org.keycloak:" + getKeycloakLoggerLevel());
-    // DPoP is still a preview feature in Keycloak 26.x and must be enabled explicitly.
+    // DPoP is still a preview feature in Keycloak 26.x and must be enabled explicitly. mTLS
+    // client authentication (RFC 8705) uses Keycloak's built-in client-x509 authenticator and is
+    // available without an explicit feature flag.
     withFeaturesEnabled("dpop");
     // Useful when debugging Keycloak REST endpoints:
     addExposedPorts(5005);
@@ -107,6 +112,20 @@ public class KeycloakContainer extends ExtendableKeycloakContainer<KeycloakConta
     return this;
   }
 
+  /**
+   * Registers a client that authenticates at the token endpoint with a TLS client certificate (RFC
+   * 8705 §2). {@code certBase64} is the DER-encoded certificate without PEM headers, as returned by
+   * {@code TestCertificates#getRsaCertificateBase64()}. When {@code certBound} is true, the issued
+   * access token will carry a {@code cnf.x5t#S256} confirmation claim binding it to the cert (RFC
+   * 8705 §3).
+   */
+  @CanIgnoreReturnValue
+  public KeycloakContainer withMtlsClient(
+      String clientId, String authenticationMethod, String certBase64, boolean certBound) {
+    clients.add(newMtlsClient(clientId, authenticationMethod, certBase64, certBound));
+    return this;
+  }
+
   @CanIgnoreReturnValue
   public KeycloakContainer withUser(String username, String password) {
     users.add(newUser(username, password));
@@ -125,6 +144,35 @@ public class KeycloakContainer extends ExtendableKeycloakContainer<KeycloakConta
       String username, String providerAlias, String externalUserId, String externalUsername) {
     federatedIdentities.add(
         new FederatedIdentity(username, providerAlias, externalUserId, externalUsername));
+    return this;
+  }
+
+  /**
+   * Enables HTTPS termination on the Keycloak container (using the dasniko-bundled server cert),
+   * requests a client certificate during the TLS handshake, and (if {@code clientCertPath} is
+   * provided) adds it to Keycloak's truststore so the handshake completes. The actual client
+   * identity check is delegated to the Keycloak client's X.509 authenticator (see {@link
+   * #withMtlsClient}).
+   *
+   * <p>{@code HttpsClientAuth.REQUEST} (rather than {@code REQUIRED}) is used so that connections
+   * without a client cert (e.g. health probes) still succeed; when a cert is presented, Keycloak
+   * validates it against the configured truststore.
+   *
+   * <p>{@code clientCertPath} is a host-side path to a PEM-encoded X.509 certificate (e.g. the one
+   * produced by {@code TestCertificates#getRsaCertificatePem()}). It is copied into the container
+   * and registered via the Keycloak 26 {@code --truststore-paths} option (env var {@code
+   * KC_TRUSTSTORE_PATHS}), which accepts PEM files directly.
+   */
+  @CanIgnoreReturnValue
+  public KeycloakContainer withMutualTls(@Nullable Path clientCertPath) {
+    useTls();
+    withHttpsClientAuth(HttpsClientAuth.REQUEST);
+    if (clientCertPath != null) {
+      String inContainer = "/opt/keycloak/conf/authmgr-client-ca.pem";
+      withCopyFileToContainer(
+          MountableFile.forHostPath(clientCertPath.toAbsolutePath()), inContainer);
+      withEnv("KC_TRUSTSTORE_PATHS", inContainer);
+    }
     return this;
   }
 
@@ -354,6 +402,36 @@ public class KeycloakContainer extends ExtendableKeycloakContainer<KeycloakConta
       ResourceServerRepresentation settings = new ResourceServerRepresentation();
       settings.setPolicyEnforcementMode(PolicyEnforcementMode.DISABLED);
       client.setAuthorizationSettings(settings);
+    }
+    client.setAttributes(attributes.build());
+    return client;
+  }
+
+  private static ClientRepresentation newMtlsClient(
+      String clientId, String authenticationMethod, String certBase64, boolean certBound) {
+    ClientRepresentation client = new ClientRepresentation();
+    client.setId(UUID.randomUUID().toString());
+    client.setClientId(clientId);
+    client.setPublicClient(false);
+    client.setServiceAccountsEnabled(true);
+    client.setDirectAccessGrantsEnabled(true);
+    client.setStandardFlowEnabled(true);
+    client.setRedirectUris(List.of("http://localhost:*", "https://localhost:*"));
+    // Keycloak uses a single X.509 authenticator with a "method-discriminator" attribute to
+    // distinguish PKI-validated (`tls_client_auth`) from self-signed
+    // (`self_signed_tls_client_auth`) mTLS flavors. The authenticator id is "client-x509".
+    client.setClientAuthenticatorType("client-x509");
+    ImmutableMap.Builder<String, String> attributes =
+        ImmutableMap.<String, String>builder()
+            .put("use.refresh.tokens", "true")
+            .put("client_credentials.use_refresh_token", "false")
+            .put("oauth2.device.authorization.grant.enabled", "true")
+            .put("tls.client.certificate.bound.access.tokens", String.valueOf(certBound))
+            .put("x509.subjectdn", ".*")
+            .put("x509.allow.regex.pattern.comparison", "true");
+    if (authenticationMethod.equals("self_signed_tls_client_auth")) {
+      attributes.put("x509.use.self.signed.certificate", "true");
+      attributes.put("jwt.credential.certificate", certBase64);
     }
     client.setAttributes(attributes.build());
     return client;

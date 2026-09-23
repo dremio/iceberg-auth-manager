@@ -788,6 +788,13 @@ public abstract class TestEnvironment implements AutoCloseable {
     getSslTrustStorePassword()
         .ifPresent(
             v -> builder.put(HttpConfig.PREFIX + '.' + HttpConfig.SSL_TRUSTSTORE_PASSWORD, v));
+    getSslKeyStorePath()
+        .ifPresent(
+            v -> builder.put(HttpConfig.PREFIX + '.' + HttpConfig.SSL_KEYSTORE_PATH, v.toString()));
+    getSslKeyStorePassword()
+        .ifPresent(v -> builder.put(HttpConfig.PREFIX + '.' + HttpConfig.SSL_KEYSTORE_PASSWORD, v));
+    getSslKeyStoreAlias()
+        .ifPresent(v -> builder.put(HttpConfig.PREFIX + '.' + HttpConfig.SSL_KEYSTORE_ALIAS, v));
     return builder.build();
   }
 

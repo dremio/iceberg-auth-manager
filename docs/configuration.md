@@ -120,6 +120,8 @@ The OAuth2 client authentication method to use. Valid values are:
 - `client_secret_post`: client secret is sent in the request body as a form parameter.
 - `client_secret_jwt`: client secret is used to sign a JWT token.
 - `private_key_jwt`: client authenticates with a JWT assertion signed with a private key.
+- `tls_client_auth`: client authenticates at the TLS layer with a certificate validated against a PKI trust anchor (RFC 8705 §2.1). Requires a client key store to be configured via `rest.auth.oauth2.http.ssl.key-store.path`.
+- `self_signed_tls_client_auth`: client authenticates at the TLS layer with a self-signed certificate whose thumbprint is registered with the authorization server (RFC 8705 §2.2). Requires a client key store to be configured via `rest.auth.oauth2.http.ssl.key-store.path`.
 
 The default is `client_secret_basic`.
 
@@ -590,6 +592,26 @@ This setting is ignored when the client type (`rest.auth.oauth2.http.client-type
 Password for the trust store to use for HTTPS requests. Optional, defaults to no password.
 
 This setting is ignored when the client type (`rest.auth.oauth2.http.client-type`) is set to `default`, or if `rest.auth.oauth2.http.ssl.trust-store.path` is not set.
+
+### `rest.auth.oauth2.http.ssl.key-store.path`
+
+Path to a key store containing the client certificate and private key to present to the OAuth2 server during the TLS handshake. Used to enable mutual TLS (mTLS) client authentication on the token endpoint, as defined by [RFC 8705](https://www.rfc-editor.org/rfc/rfc8705).
+
+The key store format is the platform default (typically PKCS#12). Optional; if not set, no client certificate is presented.
+
+This setting is ignored when the client type (`rest.auth.oauth2.http.client-type`) is set to `default`.
+
+### `rest.auth.oauth2.http.ssl.key-store.password`
+
+Password protecting the key store referenced by `rest.auth.oauth2.http.ssl.key-store.path`. The same password is used to unlock the private key entry (PKCS#12 key stores require both passwords to be identical). Optional; defaults to no password.
+
+This setting is ignored when the client type (`rest.auth.oauth2.http.client-type`) is set to `default`, or if `rest.auth.oauth2.http.ssl.key-store.path` is not set.
+
+### `rest.auth.oauth2.http.ssl.key-store.alias`
+
+The alias of the key entry to use from the key store. Optional; if not set, the first matching key in the store is used.
+
+This setting is ignored when the client type (`rest.auth.oauth2.http.client-type`) is set to `default`, or if `rest.auth.oauth2.http.ssl.key-store.path` is not set.
 
 ### `rest.auth.oauth2.http.proxy.host`
 

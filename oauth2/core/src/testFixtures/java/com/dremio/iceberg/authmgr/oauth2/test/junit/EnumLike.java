@@ -95,6 +95,9 @@ class EnumLikeMethodArgumentsProvider implements CartesianParameterArgumentsProv
       return ConfigUtils.SUPPORTED_CLIENT_AUTH_METHODS.stream()
           // In unit tests, we don't support (yet) JWS-based authentication methods
           .filter(method -> !ConfigUtils.requiresJwsAlgorithm(method))
+          // TLS-based methods require a client keystore and a Keycloak-like server that terminates
+          // TLS with client-cert validation; covered separately by Keycloak integration tests.
+          .filter(method -> !ConfigUtils.requiresClientCertificate(method))
           .map(Object.class::cast)
           .toList();
     } else {

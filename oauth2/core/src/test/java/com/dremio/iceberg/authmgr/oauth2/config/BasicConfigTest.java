@@ -224,7 +224,31 @@ class BasicConfigTest {
                 PREFIX + '.' + BasicConfig.TOKEN_ENDPOINT,
                 "https://example.com/token"),
             singletonList(
-                "client authentication method must be one of: 'none', 'client_secret_basic', 'client_secret_post', 'client_secret_jwt', 'private_key_jwt' (rest.auth.oauth2.client-auth)")),
+                "client authentication method must be one of: 'none', 'client_secret_basic', 'client_secret_post', 'client_secret_jwt', 'private_key_jwt', 'tls_client_auth', 'self_signed_tls_client_auth' (rest.auth.oauth2.client-auth)")),
+        Arguments.of(
+            Map.of(
+                PREFIX + '.' + BasicConfig.CLIENT_ID,
+                "Client1",
+                PREFIX + '.' + BasicConfig.CLIENT_SECRET,
+                "s3cr3t",
+                PREFIX + '.' + BasicConfig.CLIENT_AUTH,
+                ClientAuthenticationMethod.TLS_CLIENT_AUTH.getValue(),
+                PREFIX + '.' + BasicConfig.TOKEN_ENDPOINT,
+                "https://example.com/token"),
+            singletonList(
+                "client secret must not be set when client authentication is 'tls_client_auth' (rest.auth.oauth2.client-auth / rest.auth.oauth2.client-secret)")),
+        Arguments.of(
+            Map.of(
+                PREFIX + '.' + BasicConfig.CLIENT_ID,
+                "Client1",
+                PREFIX + '.' + BasicConfig.CLIENT_SECRET,
+                "s3cr3t",
+                PREFIX + '.' + BasicConfig.CLIENT_AUTH,
+                ClientAuthenticationMethod.SELF_SIGNED_TLS_CLIENT_AUTH.getValue(),
+                PREFIX + '.' + BasicConfig.TOKEN_ENDPOINT,
+                "https://example.com/token"),
+            singletonList(
+                "client secret must not be set when client authentication is 'self_signed_tls_client_auth' (rest.auth.oauth2.client-auth / rest.auth.oauth2.client-secret)")),
         Arguments.of(
             Map.of(
                 PREFIX + '.' + BasicConfig.TIMEOUT,
