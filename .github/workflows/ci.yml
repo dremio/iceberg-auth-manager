@@ -41,10 +41,10 @@ jobs:
     steps:
 
       - name: Checkout Project
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           java-version: '21'
           distribution: 'temurin'
@@ -52,7 +52,7 @@ jobs:
       # Configure Gradle for optimal use in GiHub Actions, including caching of downloaded dependencies.
       # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
         with:
           # The setup-gradle action fails, if the wrapper is not using the right version or is not present.
           # Our `gradlew` validates the integrity of the `gradle-wrapper.jar`, so it's safe to disable this.
@@ -76,7 +76,7 @@ jobs:
           fi
 
       - name: Archive Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: build-test-results
@@ -93,16 +93,16 @@ jobs:
     steps:
 
       - name: Checkout Project
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           java-version: '21'
           distribution: 'temurin'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
         with:
           validate-wrappers: false
 
@@ -111,7 +111,7 @@ jobs:
           ./gradlew --continue --scan :authmgr-oauth2-core:longTest -Dauthmgr.it.long.total=PT1M
 
       - name: Archive Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: long-tests-results
@@ -128,16 +128,16 @@ jobs:
     steps:
 
       - name: Checkout Project
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           java-version: '21'
           distribution: 'temurin'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
         with:
           validate-wrappers: false
 
@@ -148,7 +148,7 @@ jobs:
             :authmgr-oauth2-spark-tests:intTestMatrix
 
       - name: Archive Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: spark-tests-results
@@ -165,16 +165,16 @@ jobs:
     steps:
 
       - name: Checkout Project
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           java-version: '21'
           distribution: 'temurin'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
         with:
           validate-wrappers: false
 
@@ -185,7 +185,7 @@ jobs:
             :authmgr-oauth2-flink-tests:intTestMatrix
 
       - name: Archive Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: flink-tests-results
@@ -202,16 +202,16 @@ jobs:
     steps:
 
       - name: Checkout Project
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           java-version: '21'
           distribution: 'temurin'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
         with:
           validate-wrappers: false
 
@@ -222,7 +222,7 @@ jobs:
             :authmgr-oauth2-kafka-tests:intTestMatrix
 
       - name: Archive Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: kafka-tests-results
