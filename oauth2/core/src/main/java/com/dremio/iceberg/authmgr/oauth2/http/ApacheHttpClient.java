@@ -283,10 +283,10 @@ public class ApacheHttpClient implements HttpClient {
     PrivateKeyStrategy strategy = null;
     if (keyStoreAlias.isPresent()) {
       String alias = keyStoreAlias.get();
-      if (!keyStore.containsAlias(alias)) {
+      if (!keyStore.isKeyEntry(alias)) {
         throw new IllegalArgumentException(
             String.format(
-                "Key alias '%s' not found in keystore. Available aliases: %s",
+                "Key alias '%s' not found in keystore or is not a private-key entry. Available aliases: %s",
                 alias, Collections.list(keyStore.aliases())));
       }
       strategy = (aliases, socket) -> alias;

@@ -52,8 +52,9 @@ import org.junitpioneer.jupiter.cartesian.CartesianTest.Values;
  * terminates HTTPS with the dasniko-bundled server cert and trusts the {@link TestCertificates} RSA
  * cert as the client cert. Four clients are pre-registered (cartesian product of {@code
  * tls_client_auth} / {@code self_signed_tls_client_auth} × cert-bound / non-cert-bound); each test
- * selects one and walks the agent through initial grant + refresh + renew, asserting that the
- * issued access tokens have the expected {@code cnf.x5t#S256} confirmation claim when cert-bound.
+ * selects one and walks the agent through initial grant + re-grant (Keycloak does not issue refresh
+ * tokens for client-credentials), asserting that access tokens have the expected {@code
+ * cnf.x5t#S256} confirmation claim when cert-bound.
  */
 @ExtendWith(MtlsKeycloakExtension.class)
 @ExtendWith(SoftAssertionsExtension.class)
