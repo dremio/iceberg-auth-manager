@@ -70,9 +70,8 @@ With this configuration the auth manager:
    and private key, and uses it for every TLS handshake to the token endpoint.
 2. Sends the token request with `client_id` in the form body and no `client_secret` — the TLS
    handshake itself is the proof of identity (RFC 8705 §2.1.2).
-3. If the AS issued a certificate-bound access token, the auth manager extracts the
-   `cnf.x5t#S256` claim and verifies it matches the configured client cert's thumbprint, logging
-   a warning on mismatch.
+3. If the AS issues a certificate-bound access token, the auth manager passes it through unchanged;
+   the resource server is responsible for enforcing the `cnf.x5t#S256` binding.
 
 For `self_signed_tls_client_auth`, change `client-auth=self_signed_tls_client_auth`. The keystore
 configuration is identical; the AS just validates the cert differently.

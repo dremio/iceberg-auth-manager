@@ -39,8 +39,6 @@ import java.security.MessageDigest;
 import java.text.ParseException;
 import java.util.Base64;
 import java.util.Map;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
 import org.assertj.core.api.SoftAssertions;
 import org.assertj.core.api.junit.jupiter.InjectSoftAssertions;
 import org.assertj.core.api.junit.jupiter.SoftAssertionsExtension;
