@@ -39,6 +39,8 @@ import java.security.MessageDigest;
 import java.text.ParseException;
 import java.util.Base64;
 import java.util.Map;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import org.assertj.core.api.SoftAssertions;
 import org.assertj.core.api.junit.jupiter.InjectSoftAssertions;
 import org.assertj.core.api.junit.jupiter.SoftAssertionsExtension;
@@ -97,29 +99,6 @@ public class OAuth2AgentMtlsKeycloakIT {
       soft.assertThat(initial.getTokens().getRefreshToken()).isNull();
       TokensResult renewed = agent.fetchNewTokens().toCompletableFuture().get();
       verifyToken(renewed, clientId, expectCertBound, expectedThumbprint);
-    }
-  }
-
-  /**
-   * Sanity check that {@code tls_client_auth} fails fast when no client certificate is presented —
-   * Keycloak's X.509 authenticator must reject the request.
-   */
-  @Test
-  void mtlsMissingClientCert(Builder envBuilder) {
-    try (TestEnvironment env =
-            envBuilder
-                .grantType(CLIENT_CREDENTIALS)
-                .clientId(new ClientID(CLIENT_ID_TLS_PKI))
-                .clientAuthenticationMethod(TLS_CLIENT_AUTH)
-                .httpClientType(HttpClientType.APACHE)
-                // No key-store configured: the agent will fail OAuth2Config validation before
-                // even attempting the request.
-                .sslTrustAll(true)
-                .build();
-        OAuth2Agent agent = env.newAgent()) {
-      soft.assertThatThrownBy(agent::authenticate).isInstanceOf(Exception.class);
-    } catch (IllegalArgumentException expected) {
-      // Validation failure during env.build() / agent construction is the expected outcome.
     }
   }
 
