@@ -21,13 +21,13 @@ import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import com.nimbusds.oauth2.sdk.AbstractConfigurationRequest;
 import com.nimbusds.oauth2.sdk.ParseException;
 import com.nimbusds.oauth2.sdk.as.AuthorizationServerConfigurationRequest;
-import com.nimbusds.oauth2.sdk.as.AuthorizationServerEndpointMetadata;
+import com.nimbusds.oauth2.sdk.as.AuthorizationServerMetadata;
 import com.nimbusds.oauth2.sdk.as.ReadOnlyAuthorizationServerEndpointMetadata;
+import com.nimbusds.oauth2.sdk.as.ReadOnlyAuthorizationServerMetadata;
 import com.nimbusds.oauth2.sdk.http.HTTPRequestSender;
 import com.nimbusds.oauth2.sdk.http.HTTPResponse;
 import com.nimbusds.oauth2.sdk.id.Issuer;
 import com.nimbusds.openid.connect.sdk.op.OIDCProviderConfigurationRequest;
-import com.nimbusds.openid.connect.sdk.op.OIDCProviderEndpointMetadata;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
@@ -93,6 +93,25 @@ public abstract class EndpointProvider {
     return getTokenEndpoint().orElseGet(() -> getOpenIdProviderMetadata().getTokenEndpointURI());
   }
 
+  /**
+   * Returns the token endpoint URI to use for mTLS client authentication, preferring {@code
+   * mtls_endpoint_aliases.token_endpoint} from server metadata per RFC 8705 §9.2, with fallback to
+   * the plain {@code token_endpoint}. If the token endpoint was explicitly configured, it is
+   * returned as-is (explicit configuration always takes priority over discovery).
+   */
+  @Value.Lazy
+  public URI getResolvedMtlsTokenEndpoint() {
+    if (getTokenEndpoint().isPresent()) {
+      return getTokenEndpoint().get();
+    }
+    ReadOnlyAuthorizationServerMetadata metadata = getOpenIdProviderMetadata();
+    ReadOnlyAuthorizationServerEndpointMetadata aliases = metadata.getReadOnlyMtlsEndpointAliases();
+    if (aliases != null && aliases.getTokenEndpointURI() != null) {
+      return aliases.getTokenEndpointURI();
+    }
+    return metadata.getTokenEndpointURI();
+  }
+
   @Value.Lazy
   public URI getResolvedAuthorizationEndpoint() {
     return getAuthorizationEndpoint()
@@ -113,13 +132,13 @@ public abstract class EndpointProvider {
   }
 
   @Value.Lazy
-  protected ReadOnlyAuthorizationServerEndpointMetadata getOpenIdProviderMetadata() {
+  protected ReadOnlyAuthorizationServerMetadata getOpenIdProviderMetadata() {
     URI issuerUrl =
         getIssuerUrl().orElseThrow(() -> new IllegalStateException("No issuer URL configured"));
     return fetchOpenIdProviderMetadata(issuerUrl);
   }
 
-  private ReadOnlyAuthorizationServerEndpointMetadata fetchOpenIdProviderMetadata(URI issuerUrl) {
+  private ReadOnlyAuthorizationServerMetadata fetchOpenIdProviderMetadata(URI issuerUrl) {
     Issuer issuer = new Issuer(issuerUrl);
     List<Exception> failures = null;
     for (MetadataProvider provider :
@@ -140,22 +159,26 @@ public abstract class EndpointProvider {
     throw e;
   }
 
-  private ReadOnlyAuthorizationServerEndpointMetadata oidcProvider(Issuer issuer)
+  private ReadOnlyAuthorizationServerMetadata oidcProvider(Issuer issuer)
       throws IOException, ParseException {
     AbstractConfigurationRequest request = new OIDCProviderConfigurationRequest(issuer);
     HTTPResponse httpResponse = request.toHTTPRequest().send(getHttpClient());
     if (httpResponse.indicatesSuccess()) {
-      return OIDCProviderEndpointMetadata.parse(httpResponse.getBodyAsJSONObject());
+      // Parse as AuthorizationServerMetadata rather than OIDCProviderMetadata: the AS variant is
+      // more lenient (only requires "issuer") and covers all the fields we actually consume
+      // (token_endpoint, authorization_endpoint, device_authorization_endpoint,
+      // mtls_endpoint_aliases). OIDC-specific fields (jwks_uri, etc.) are unused here.
+      return AuthorizationServerMetadata.parse(httpResponse.getBodyAsJSONObject());
     }
     throw providerFailure("OIDC", httpResponse);
   }
 
-  private ReadOnlyAuthorizationServerEndpointMetadata oauthProvider(Issuer issuer)
+  private ReadOnlyAuthorizationServerMetadata oauthProvider(Issuer issuer)
       throws IOException, ParseException {
     AbstractConfigurationRequest request = new AuthorizationServerConfigurationRequest(issuer);
     HTTPResponse httpResponse = request.toHTTPRequest().send(getHttpClient());
     if (httpResponse.indicatesSuccess()) {
-      return AuthorizationServerEndpointMetadata.parse(httpResponse.getBodyAsJSONObject());
+      return AuthorizationServerMetadata.parse(httpResponse.getBodyAsJSONObject());
     }
     throw providerFailure("OAuth", httpResponse);
   }
@@ -169,7 +192,7 @@ public abstract class EndpointProvider {
 
   @FunctionalInterface
   private interface MetadataProvider {
-    ReadOnlyAuthorizationServerEndpointMetadata fetchMetadata(Issuer issuer)
+    ReadOnlyAuthorizationServerMetadata fetchMetadata(Issuer issuer)
         throws IOException, ParseException;
   }
 }

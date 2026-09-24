@@ -144,6 +144,16 @@ public abstract class TestEnvironment implements AutoCloseable {
   }
 
   @Value.Default
+  public boolean isIncludeMtlsEndpointAliasesInDiscoveryMetadata() {
+    return false;
+  }
+
+  @Value.Default
+  public URI getMtlsTokenEndpoint() {
+    return getAuthorizationServerUrl().resolve("protocol/openid-connect/mtls-token");
+  }
+
+  @Value.Default
   public boolean isCreateDefaultExpectations() {
     return isUnitTest();
   }

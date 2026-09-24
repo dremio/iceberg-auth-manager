@@ -24,6 +24,7 @@ import static com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod.TLS_CLIENT
 
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Config;
 import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2AgentRuntime;
+import com.dremio.iceberg.authmgr.oauth2.config.ConfigUtils;
 import com.dremio.iceberg.authmgr.oauth2.crypto.PemReader;
 import com.dremio.iceberg.authmgr.oauth2.dpop.DpopContext;
 import com.dremio.iceberg.authmgr.oauth2.dpop.DpopScope;
@@ -142,7 +143,7 @@ abstract class AbstractFlow implements Flow {
   }
 
   TokenRequest.Builder newTokenRequestBuilder(AuthorizationGrant grant) {
-    URI tokenEndpoint = getEndpointProvider().getResolvedTokenEndpoint();
+    URI tokenEndpoint = resolveTokenEndpoint();
     ClientID clientID = getConfig().getBasicConfig().getClientId().orElseThrow();
     TokenRequest.Builder builder =
         isPublicClient()
@@ -203,8 +204,16 @@ abstract class AbstractFlow implements Flow {
         .equals(ClientAuthenticationMethod.NONE);
   }
 
+  private URI resolveTokenEndpoint() {
+    ClientAuthenticationMethod method =
+        getConfig().getBasicConfig().getClientAuthenticationMethod();
+    return ConfigUtils.requiresClientCertificate(method)
+        ? getEndpointProvider().getResolvedMtlsTokenEndpoint()
+        : getEndpointProvider().getResolvedTokenEndpoint();
+  }
+
   ClientAuthentication createClientAuthentication() {
-    URI tokenEndpoint = getEndpointProvider().getResolvedTokenEndpoint();
+    URI tokenEndpoint = resolveTokenEndpoint();
 
     ClientAuthenticationMethod method =
         getConfig().getBasicConfig().getClientAuthenticationMethod();
