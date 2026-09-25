@@ -19,9 +19,12 @@ import static com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod.CLIENT_SEC
 import static com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod.CLIENT_SECRET_JWT;
 import static com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod.CLIENT_SECRET_POST;
 import static com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod.PRIVATE_KEY_JWT;
+import static com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod.SELF_SIGNED_TLS_CLIENT_AUTH;
+import static com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod.TLS_CLIENT_AUTH;
 
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Config;
 import com.dremio.iceberg.authmgr.oauth2.agent.OAuth2AgentRuntime;
+import com.dremio.iceberg.authmgr.oauth2.config.ConfigUtils;
 import com.dremio.iceberg.authmgr.oauth2.crypto.PemReader;
 import com.dremio.iceberg.authmgr.oauth2.dpop.DpopContext;
 import com.dremio.iceberg.authmgr.oauth2.dpop.DpopScope;
@@ -43,8 +46,10 @@ import com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod;
 import com.nimbusds.oauth2.sdk.auth.ClientSecretBasic;
 import com.nimbusds.oauth2.sdk.auth.ClientSecretJWT;
 import com.nimbusds.oauth2.sdk.auth.ClientSecretPost;
+import com.nimbusds.oauth2.sdk.auth.PKITLSClientAuthentication;
 import com.nimbusds.oauth2.sdk.auth.PrivateKeyJWT;
 import com.nimbusds.oauth2.sdk.auth.Secret;
+import com.nimbusds.oauth2.sdk.auth.SelfSignedTLSClientAuthentication;
 import com.nimbusds.oauth2.sdk.http.HTTPRequest;
 import com.nimbusds.oauth2.sdk.http.HTTPRequestSender;
 import com.nimbusds.oauth2.sdk.http.HTTPResponse;
@@ -65,6 +70,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import javax.net.ssl.SSLSocketFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -137,7 +143,7 @@ abstract class AbstractFlow implements Flow {
   }
 
   TokenRequest.Builder newTokenRequestBuilder(AuthorizationGrant grant) {
-    URI tokenEndpoint = getEndpointProvider().getResolvedTokenEndpoint();
+    URI tokenEndpoint = resolveTokenEndpoint();
     ClientID clientID = getConfig().getBasicConfig().getClientId().orElseThrow();
     TokenRequest.Builder builder =
         isPublicClient()
@@ -198,8 +204,16 @@ abstract class AbstractFlow implements Flow {
         .equals(ClientAuthenticationMethod.NONE);
   }
 
+  private URI resolveTokenEndpoint() {
+    ClientAuthenticationMethod method =
+        getConfig().getBasicConfig().getClientAuthenticationMethod();
+    return ConfigUtils.requiresClientCertificate(method)
+        ? getEndpointProvider().getResolvedMtlsTokenEndpoint()
+        : getEndpointProvider().getResolvedTokenEndpoint();
+  }
+
   ClientAuthentication createClientAuthentication() {
-    URI tokenEndpoint = getEndpointProvider().getResolvedTokenEndpoint();
+    URI tokenEndpoint = resolveTokenEndpoint();
 
     ClientAuthenticationMethod method =
         getConfig().getBasicConfig().getClientAuthenticationMethod();
@@ -240,6 +254,21 @@ abstract class AbstractFlow implements Flow {
       } catch (JOSEException e) {
         throw new RuntimeException(e);
       }
+
+    } else if (method.equals(TLS_CLIENT_AUTH)) {
+      // RFC 8705 §2.1: the TLS handshake authenticates the client. The token request body carries
+      // only client_id; the underlying ApacheHttpClient supplies the client certificate via the
+      // SSLContext loaded from rest.auth.oauth2.http.ssl.key-store.*. The SSLSocketFactory argument
+      // is unused on the outgoing path because we send via our own HTTP client, not Nimbus's
+      // default URLConnection-based one.
+      return new PKITLSClientAuthentication(
+          getConfig().getBasicConfig().getClientId().orElseThrow(), (SSLSocketFactory) null);
+
+    } else if (method.equals(SELF_SIGNED_TLS_CLIENT_AUTH)) {
+      // RFC 8705 §2.2: same handshake mechanism as TLS_CLIENT_AUTH, but the AS validates by
+      // matching the presented cert's thumbprint against the one registered for the client.
+      return new SelfSignedTLSClientAuthentication(
+          getConfig().getBasicConfig().getClientId().orElseThrow(), (SSLSocketFactory) null);
     }
 
     throw new IllegalArgumentException("Unsupported client authentication method: " + method);

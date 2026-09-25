@@ -22,6 +22,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.dremio.iceberg.authmgr.oauth2.config.AuthorizationCodeConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.BasicConfig;
+import com.dremio.iceberg.authmgr.oauth2.config.HttpConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.JwtClientAuthConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.ResourceOwnerConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.validator.ConfigValidator;
@@ -318,6 +319,54 @@ class OAuth2ConfigTest {
                 "HS256"),
             List.of(
                 "client authentication method 'private_key_jwt' is not compatible with JWS algorithm 'HS256' (rest.auth.oauth2.client-auth / rest.auth.oauth2.client-auth.jwt.algorithm)",
-                "client authentication method 'private_key_jwt' requires a private key (rest.auth.oauth2.client-auth / rest.auth.oauth2.client-auth.jwt.private-key)")));
+                "client authentication method 'private_key_jwt' requires a private key (rest.auth.oauth2.client-auth / rest.auth.oauth2.client-auth.jwt.private-key)")),
+        Arguments.of(
+            Map.of(
+                PREFIX + '.' + BasicConfig.TOKEN_ENDPOINT,
+                "https://example.com/token",
+                PREFIX + '.' + BasicConfig.CLIENT_ID,
+                "Client1",
+                PREFIX + '.' + BasicConfig.CLIENT_AUTH,
+                "tls_client_auth",
+                HttpConfig.PREFIX + '.' + HttpConfig.CLIENT_TYPE,
+                "APACHE"),
+            List.of(
+                "client authentication method 'tls_client_auth' requires an HTTP key store to be configured (rest.auth.oauth2.client-auth / rest.auth.oauth2.http.ssl.key-store.path)")),
+        Arguments.of(
+            Map.of(
+                PREFIX + '.' + BasicConfig.TOKEN_ENDPOINT,
+                "https://example.com/token",
+                PREFIX + '.' + BasicConfig.CLIENT_ID,
+                "Client1",
+                PREFIX + '.' + BasicConfig.CLIENT_AUTH,
+                "self_signed_tls_client_auth",
+                HttpConfig.PREFIX + '.' + HttpConfig.CLIENT_TYPE,
+                "APACHE"),
+            List.of(
+                "client authentication method 'self_signed_tls_client_auth' requires an HTTP key store to be configured (rest.auth.oauth2.client-auth / rest.auth.oauth2.http.ssl.key-store.path)")),
+        Arguments.of(
+            Map.of(
+                PREFIX + '.' + BasicConfig.TOKEN_ENDPOINT,
+                "https://example.com/token",
+                PREFIX + '.' + BasicConfig.CLIENT_ID,
+                "Client1",
+                PREFIX + '.' + BasicConfig.CLIENT_AUTH,
+                "tls_client_auth",
+                HttpConfig.PREFIX + '.' + HttpConfig.SSL_KEYSTORE_PATH,
+                tempFile.toString()),
+            List.of(
+                "client authentication method 'tls_client_auth' requires the Apache HTTP client (set rest.auth.oauth2.http.client-type=APACHE) (rest.auth.oauth2.client-auth / rest.auth.oauth2.http.client-type)")),
+        Arguments.of(
+            Map.of(
+                PREFIX + '.' + BasicConfig.TOKEN_ENDPOINT,
+                "https://example.com/token",
+                PREFIX + '.' + BasicConfig.CLIENT_ID,
+                "Client1",
+                PREFIX + '.' + BasicConfig.CLIENT_AUTH,
+                "self_signed_tls_client_auth",
+                HttpConfig.PREFIX + '.' + HttpConfig.SSL_KEYSTORE_PATH,
+                tempFile.toString()),
+            List.of(
+                "client authentication method 'self_signed_tls_client_auth' requires the Apache HTTP client (set rest.auth.oauth2.http.client-type=APACHE) (rest.auth.oauth2.client-auth / rest.auth.oauth2.http.client-type)")));
   }
 }

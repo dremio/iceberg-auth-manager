@@ -144,6 +144,16 @@ public abstract class TestEnvironment implements AutoCloseable {
   }
 
   @Value.Default
+  public boolean isIncludeMtlsEndpointAliasesInDiscoveryMetadata() {
+    return false;
+  }
+
+  @Value.Default
+  public URI getMtlsTokenEndpoint() {
+    return getAuthorizationServerUrl().resolve("protocol/openid-connect/mtls-token");
+  }
+
+  @Value.Default
   public boolean isCreateDefaultExpectations() {
     return isUnitTest();
   }
@@ -788,6 +798,13 @@ public abstract class TestEnvironment implements AutoCloseable {
     getSslTrustStorePassword()
         .ifPresent(
             v -> builder.put(HttpConfig.PREFIX + '.' + HttpConfig.SSL_TRUSTSTORE_PASSWORD, v));
+    getSslKeyStorePath()
+        .ifPresent(
+            v -> builder.put(HttpConfig.PREFIX + '.' + HttpConfig.SSL_KEYSTORE_PATH, v.toString()));
+    getSslKeyStorePassword()
+        .ifPresent(v -> builder.put(HttpConfig.PREFIX + '.' + HttpConfig.SSL_KEYSTORE_PASSWORD, v));
+    getSslKeyStoreAlias()
+        .ifPresent(v -> builder.put(HttpConfig.PREFIX + '.' + HttpConfig.SSL_KEYSTORE_ALIAS, v));
     return builder.build();
   }
 

@@ -25,7 +25,10 @@ These methods are based on the client authentication methods defined in [OpenID 
 
 For enhanced security, we recommend using JWS-based authentication methods (`client_secret_jwt` or `private_key_jwt`) when possible, especially for production environments.
 
-- Use `private_key_jwt` for the highest level of security;
+- Use `tls_client_auth` or `self_signed_tls_client_auth` (RFC 8705) when your deployment
+  provisions client TLS certificates — common in regulated finance, healthcare, and FAPI
+  environments. See [mtls.md](./mtls.md) for the dedicated guide.
+- Use `private_key_jwt` for the highest level of security with asymmetric keys but no client cert;
 - Use `client_secret_jwt` when you have a client secret but cannot use asymmetric keys;
 - Use `client_secret_basic` or `client_secret_post` for simpler setups;
 - Use `none` only for public clients that don't have a client secret (not recommended).
@@ -170,3 +173,29 @@ And finally, extra claims can be added to the JWT assertion using the `rest.auth
 ```properties
 rest.auth.oauth2.client-auth.jwt.extra-claims.my-claim=my-value
 ```
+
+### Mutual TLS (RFC 8705)
+
+#### `tls_client_auth`
+
+The client authenticates by presenting an X.509 certificate during the TLS handshake on the token
+endpoint. The authorization server validates the certificate against a configured PKI trust
+anchor (CA) and matches the cert's subject DN / SAN against the registered client.
+
+#### `self_signed_tls_client_auth`
+
+Same TLS handshake as `tls_client_auth`, but the certificate is self-signed and the authorization
+server matches its SHA-256 thumbprint against the value registered with the client.
+
+Both methods require a PKCS#12 client keystore configured via `rest.auth.oauth2.http.ssl.key-store.*`:
+
+```properties
+rest.auth.oauth2.client-auth=tls_client_auth
+rest.auth.oauth2.client-id=my-client
+rest.auth.oauth2.http.client-type=APACHE
+rest.auth.oauth2.http.ssl.key-store.path=/etc/iceberg/client.p12
+rest.auth.oauth2.http.ssl.key-store.password=changeit
+```
+
+See [mtls.md](./mtls.md) for setup details, certificate-bound access tokens (RFC 8705 §3), and
+the interaction with Iceberg's REST catalog HTTP client.

@@ -34,7 +34,8 @@ import org.mockserver.model.MediaType;
 
 class EndpointProviderTest {
 
-  private static final String INVALID_METADATA = "{\"authorization_endpoint\":\" invalid \"}";
+  private static final String INVALID_METADATA =
+      "{\"issuer\":\"https://example.com\",\"authorization_endpoint\":\" invalid \"}";
 
   @Test
   void withoutDiscovery() {
@@ -77,6 +78,40 @@ class EndpointProviderTest {
             .hasMessage(
                 "OpenID provider metadata does not contain a device authorization endpoint");
       }
+    }
+  }
+
+  @Test
+  void withDiscoveryMtlsAlias() {
+    try (TestEnvironment env =
+        TestEnvironment.builder().includeMtlsEndpointAliasesInDiscoveryMetadata(true).build()) {
+      EndpointProvider endpointProvider =
+          EndpointProvider.create(env.getOAuth2Config(), HttpClient.DEFAULT);
+      assertThat(endpointProvider.getResolvedMtlsTokenEndpoint())
+          .isEqualTo(env.getMtlsTokenEndpoint());
+      // Plain token endpoint resolution is unaffected by mtls_endpoint_aliases
+      assertThat(endpointProvider.getResolvedTokenEndpoint()).isEqualTo(env.getTokenEndpoint());
+    }
+  }
+
+  @Test
+  void withDiscoveryNoMtlsAlias() {
+    try (TestEnvironment env =
+        TestEnvironment.builder().includeMtlsEndpointAliasesInDiscoveryMetadata(false).build()) {
+      EndpointProvider endpointProvider =
+          EndpointProvider.create(env.getOAuth2Config(), HttpClient.DEFAULT);
+      // No alias present: fall back to the plain token_endpoint from discovery
+      assertThat(endpointProvider.getResolvedMtlsTokenEndpoint()).isEqualTo(env.getTokenEndpoint());
+    }
+  }
+
+  @Test
+  void withoutDiscoveryMtlsTokenEndpoint() {
+    try (TestEnvironment env = TestEnvironment.builder().discoveryEnabled(false).build()) {
+      EndpointProvider endpointProvider =
+          EndpointProvider.create(env.getOAuth2Config(), HttpClient.DEFAULT);
+      // Explicit token endpoint config takes priority; discovery is never consulted
+      assertThat(endpointProvider.getResolvedMtlsTokenEndpoint()).isEqualTo(env.getTokenEndpoint());
     }
   }
 

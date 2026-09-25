@@ -44,6 +44,12 @@ public abstract class MetadataDiscoveryExpectation extends AbstractExpectation {
             "device_authorization_endpoint",
             getTestEnvironment().getDeviceAuthorizationEndpoint().toString());
       }
+      if (getTestEnvironment().isIncludeMtlsEndpointAliasesInDiscoveryMetadata()) {
+        builder.put(
+            "mtls_endpoint_aliases",
+            ImmutableMap.of(
+                "token_endpoint", getTestEnvironment().getMtlsTokenEndpoint().toString()));
+      }
       TestServer.getInstance()
           .when(HttpRequest.request().withMethod("GET").withPath(discoveryEndpoint.getPath()))
           .respond(HttpResponse.response().withBody(getJsonBody(builder.build())));

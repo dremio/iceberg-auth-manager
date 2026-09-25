@@ -35,6 +35,7 @@ import com.dremio.iceberg.authmgr.oauth2.config.SystemConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.TokenExchangeConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.TokenRefreshConfig;
 import com.dremio.iceberg.authmgr.oauth2.config.validator.ConfigValidator;
+import com.dremio.iceberg.authmgr.oauth2.http.HttpClientType;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.oauth2.sdk.GrantType;
 import com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod;
@@ -191,6 +192,21 @@ public interface OAuth2Config {
           GrantType.JWT_BEARER.getValue());
     }
     ClientAuthenticationMethod method = getBasicConfig().getClientAuthenticationMethod();
+    if (ConfigUtils.requiresClientCertificate(method)) {
+      validator.check(
+          getHttpConfig().getSslKeyStorePath().isPresent(),
+          List.of(
+              PREFIX + '.' + CLIENT_AUTH, HttpConfig.PREFIX + '.' + HttpConfig.SSL_KEYSTORE_PATH),
+          "client authentication method '%s' requires an HTTP key store to be configured",
+          method.getValue());
+      validator.check(
+          getHttpConfig().getClientType() == HttpClientType.APACHE,
+          List.of(PREFIX + '.' + CLIENT_AUTH, HttpConfig.PREFIX + '.' + HttpConfig.CLIENT_TYPE),
+          "client authentication method '%s' requires the Apache HTTP client (set %s.%s=APACHE)",
+          method.getValue(),
+          HttpConfig.PREFIX,
+          HttpConfig.CLIENT_TYPE);
+    }
     if (ConfigUtils.requiresJwsAlgorithm(method)) {
       if (method.equals(ClientAuthenticationMethod.CLIENT_SECRET_JWT)) {
         if (getJwtClientAuthConfig().getAlgorithm().isPresent()) {

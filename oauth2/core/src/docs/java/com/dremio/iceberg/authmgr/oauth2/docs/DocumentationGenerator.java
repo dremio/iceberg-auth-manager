@@ -71,8 +71,12 @@ public class DocumentationGenerator {
     refs.put("ClientAuthenticationMethod#CLIENT_SECRET_POST", "client_secret_post");
     refs.put("ClientAuthenticationMethod#CLIENT_SECRET_JWT", "client_secret_jwt");
     refs.put("ClientAuthenticationMethod#PRIVATE_KEY_JWT", "private_key_jwt");
+    refs.put("ClientAuthenticationMethod#TLS_CLIENT_AUTH", "tls_client_auth");
+    refs.put(
+        "ClientAuthenticationMethod#SELF_SIGNED_TLS_CLIENT_AUTH", "self_signed_tls_client_auth");
     refs.put("HttpClientType#DEFAULT", "default");
     refs.put("HttpClientType#APACHE", "apache");
+    refs.put("HttpConfig#SSL_KEYSTORE_PATH", "rest.auth.oauth2.http.ssl.key-store.path");
     KNOWN_REFS = Map.copyOf(refs);
   }
 

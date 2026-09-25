@@ -15,6 +15,8 @@
  */
 package com.dremio.iceberg.authmgr.oauth2.config;
 
+import static com.dremio.iceberg.authmgr.oauth2.config.HttpConfig.SSL_KEYSTORE_ALIAS;
+import static com.dremio.iceberg.authmgr.oauth2.config.HttpConfig.SSL_KEYSTORE_PATH;
 import static com.dremio.iceberg.authmgr.oauth2.config.HttpConfig.SSL_TRUSTSTORE_PATH;
 import static java.util.Collections.singletonList;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
@@ -63,6 +65,14 @@ class HttpConfigTest {
         Arguments.of(
             Map.of(HttpConfig.PREFIX + '.' + SSL_TRUSTSTORE_PATH, "/invalid/path"),
             singletonList(
-                "http: SSL truststore path '/invalid/path' is not a file or is not readable (rest.auth.oauth2.http.ssl.trust-store.path)")));
+                "http: SSL truststore path '/invalid/path' is not a file or is not readable (rest.auth.oauth2.http.ssl.trust-store.path)")),
+        Arguments.of(
+            Map.of(HttpConfig.PREFIX + '.' + SSL_KEYSTORE_PATH, "/invalid/path"),
+            singletonList(
+                "http: SSL keystore path '/invalid/path' is not a file or is not readable (rest.auth.oauth2.http.ssl.key-store.path)")),
+        Arguments.of(
+            Map.of(HttpConfig.PREFIX + '.' + SSL_KEYSTORE_ALIAS, "some-alias"),
+            singletonList(
+                "http: SSL keystore alias requires a keystore path to be configured (rest.auth.oauth2.http.ssl.key-store.alias)")));
   }
 }

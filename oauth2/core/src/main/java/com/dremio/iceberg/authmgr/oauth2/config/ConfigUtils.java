@@ -42,7 +42,9 @@ public final class ConfigUtils {
           ClientAuthenticationMethod.CLIENT_SECRET_BASIC,
           ClientAuthenticationMethod.CLIENT_SECRET_POST,
           ClientAuthenticationMethod.CLIENT_SECRET_JWT,
-          ClientAuthenticationMethod.PRIVATE_KEY_JWT);
+          ClientAuthenticationMethod.PRIVATE_KEY_JWT,
+          ClientAuthenticationMethod.TLS_CLIENT_AUTH,
+          ClientAuthenticationMethod.SELF_SIGNED_TLS_CLIENT_AUTH);
 
   public static final List<CodeChallengeMethod> SUPPORTED_CODE_CHALLENGE_METHODS =
       List.of(CodeChallengeMethod.PLAIN, CodeChallengeMethod.S256);
@@ -70,6 +72,16 @@ public final class ConfigUtils {
   public static boolean requiresJwsAlgorithm(ClientAuthenticationMethod method) {
     return method.equals(ClientAuthenticationMethod.PRIVATE_KEY_JWT)
         || method.equals(ClientAuthenticationMethod.CLIENT_SECRET_JWT);
+  }
+
+  /**
+   * Whether the given client authentication method relies on a client TLS certificate (RFC 8705).
+   * When true, a key store containing the client certificate and private key must be configured on
+   * the HTTP client used to call the token endpoint.
+   */
+  public static boolean requiresClientCertificate(ClientAuthenticationMethod method) {
+    return method.equals(ClientAuthenticationMethod.TLS_CLIENT_AUTH)
+        || method.equals(ClientAuthenticationMethod.SELF_SIGNED_TLS_CLIENT_AUTH);
   }
 
   public static boolean requiresUserInteraction(GrantType grantType) {
