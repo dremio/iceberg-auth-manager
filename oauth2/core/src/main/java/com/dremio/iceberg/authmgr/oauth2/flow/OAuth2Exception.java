@@ -17,29 +17,75 @@ package com.dremio.iceberg.authmgr.oauth2.flow;
 
 import com.nimbusds.oauth2.sdk.ErrorObject;
 import com.nimbusds.oauth2.sdk.ErrorResponse;
+import jakarta.annotation.Nullable;
+import java.time.Duration;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import net.minidev.json.JSONObject;
 
 /** An exception thrown when the server replies with an OAuth2 error. */
 public final class OAuth2Exception extends RuntimeException {
 
+  /** HTTP 429 Too Many Requests (RFC 6585 §4), which Nimbus has no constant for. */
+  private static final int SC_TOO_MANY_REQUESTS = 429;
+
   private final ErrorObject errorObject;
+  @Nullable private final Duration retryAfter;
 
   OAuth2Exception(ErrorResponse errorResponse) {
-    this(errorResponse.getErrorObject());
+    this(errorResponse, null);
+  }
+
+  OAuth2Exception(ErrorResponse errorResponse, @Nullable Duration retryAfter) {
+    this(errorResponse.getErrorObject(), retryAfter);
   }
 
   OAuth2Exception(ErrorObject errorObject) {
-    this("OAuth2 request failed: " + formatErrorObject(errorObject.toJSONObject()), errorObject);
+    this(errorObject, null);
+  }
+
+  OAuth2Exception(ErrorObject errorObject, @Nullable Duration retryAfter) {
+    this(
+        "OAuth2 request failed: " + formatErrorObject(errorObject.toJSONObject()),
+        errorObject,
+        retryAfter);
   }
 
   OAuth2Exception(String message, ErrorObject errorObject) {
+    this(message, errorObject, null);
+  }
+
+  OAuth2Exception(String message, ErrorObject errorObject, @Nullable Duration retryAfter) {
     super(message);
     this.errorObject = errorObject;
+    this.retryAfter = retryAfter;
   }
 
   public ErrorObject getErrorObject() {
     return errorObject;
+  }
+
+  /**
+   * The HTTP status code of the error response, or 0 if unknown.
+   *
+   * @see ErrorObject#getHTTPStatusCode()
+   */
+  public int getHttpStatusCode() {
+    return errorObject.getHTTPStatusCode();
+  }
+
+  /** Whether the server rejected the request because the client is being rate-limited (429). */
+  public boolean isRateLimited() {
+    return getHttpStatusCode() == SC_TOO_MANY_REQUESTS;
+  }
+
+  /**
+   * The delay the server asked the client to wait before trying again, as conveyed by the {@code
+   * Retry-After} header of the error response, if present and well-formed. Typically sent along
+   * with 429 and 503 responses.
+   */
+  public Optional<Duration> getRetryAfter() {
+    return Optional.ofNullable(retryAfter);
   }
 
   private static String formatErrorObject(JSONObject jsonObject) {

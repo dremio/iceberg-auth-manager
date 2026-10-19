@@ -171,7 +171,8 @@ abstract class AbstractFlow implements Flow {
       TokenResponse response = TokenResponse.parse(httpResponse);
       if (!response.indicatesSuccess()) {
         TokenErrorResponse errorResponse = response.toErrorResponse();
-        throw new OAuth2Exception(errorResponse);
+        throw new OAuth2Exception(
+            errorResponse, RetryAfterHeader.parse(httpResponse, getRuntime().getClock().instant()));
       }
       return response.toSuccessResponse();
     } catch (ParseException e) {

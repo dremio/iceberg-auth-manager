@@ -33,10 +33,12 @@ public interface TokenRefreshConfig {
   String ACCESS_TOKEN_LIFESPAN = "access-token-lifespan";
   String SAFETY_WINDOW = "safety-window";
   String IDLE_TIMEOUT = "idle-timeout";
+  String MAX_RETRIES = "max-retries";
 
   String DEFAULT_ACCESS_TOKEN_LIFESPAN = "PT1H";
   String DEFAULT_SAFETY_WINDOW = "PT10S";
   String DEFAULT_IDLE_TIMEOUT = "PT30S";
+  String DEFAULT_MAX_RETRIES = "3";
 
   /**
    * Whether to enable token refresh. If enabled, the agent will automatically refresh its access
@@ -79,6 +81,28 @@ public interface TokenRefreshConfig {
   @WithName(IDLE_TIMEOUT)
   @WithDefault(DEFAULT_IDLE_TIMEOUT)
   Duration getIdleTimeout();
+
+  /**
+   * Maximum number of times a token refresh that failed with a transient error is retried before
+   * falling back to fetching brand-new tokens with the configured initial grant.
+   *
+   * <p>A transient error is one that is likely to go away on its own: a timeout, an I/O error, or a
+   * server error (HTTP 5xx). Falling back to the initial grant in such cases is unlikely to
+   * succeed, since it hits the same token endpoint, and may be harmful: the initial grant's
+   * credentials may no longer be valid, or may require user interaction. Instead, the agent keeps
+   * the current tokens and retries the refresh with an exponential backoff, honoring the {@code
+   * Retry-After} header if any. Other errors, e.g. an invalid or revoked refresh token, trigger the
+   * fallback immediately. Retries continue even if the current access token expires in the
+   * meantime.
+   *
+   * <p>Note: a rate-limited refresh (HTTP 429) never falls back, regardless of this setting.
+   *
+   * <p>Optional, defaults to {@value #DEFAULT_MAX_RETRIES}. Setting this property to zero disables
+   * retries: the agent falls back to the initial grant as soon as a refresh fails.
+   */
+  @WithName(MAX_RETRIES)
+  @WithDefault(DEFAULT_MAX_RETRIES)
+  int getMaxRetries();
 
   /**
    * The minimum access token lifespan. Optional, defaults to {@code 30 seconds}.
@@ -135,6 +159,10 @@ public interface TokenRefreshConfig {
           PREFIX + '.' + IDLE_TIMEOUT,
           "token refresh idle timeout must be greater than or equal to %s",
           getMinIdleTimeout());
+      validator.check(
+          getMaxRetries() >= 0,
+          PREFIX + '.' + MAX_RETRIES,
+          "token refresh max retries must not be negative");
       validator.validate();
     }
   }

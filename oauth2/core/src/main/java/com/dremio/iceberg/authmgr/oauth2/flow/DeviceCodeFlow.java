@@ -138,7 +138,8 @@ abstract class DeviceCodeFlow extends AbstractFlow {
       DeviceAuthorizationResponse response = DeviceAuthorizationResponse.parse(httpResponse);
       if (!response.indicatesSuccess()) {
         DeviceAuthorizationErrorResponse errorResponse = response.toErrorResponse();
-        throw new OAuth2Exception(errorResponse);
+        throw new OAuth2Exception(
+            errorResponse, RetryAfterHeader.parse(httpResponse, getRuntime().getClock().instant()));
       }
       return response.toSuccessResponse();
     } catch (ParseException e) {

@@ -16,7 +16,9 @@
 package com.dremio.iceberg.authmgr.oauth2.concurrent;
 
 import jakarta.annotation.Nullable;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Future;
 
 /** Utilities for working with futures. */
@@ -34,6 +36,24 @@ public final class Futures {
     if (future != null) {
       if (future.isDone() && !future.isCompletedExceptionally() && !future.isCancelled()) {
         return future.join();
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Returns the error of the given stage if it is already completed exceptionally, or null
+   * otherwise. If the error is a {@link CompletionException}, its cause is returned instead.
+   */
+  @Nullable
+  public static Throwable getErrorNow(@Nullable CompletableFuture<?> future) {
+    if (future != null && future.isCompletedExceptionally()) {
+      try {
+        future.join();
+      } catch (CompletionException e) {
+        return e.getCause() != null ? e.getCause() : e;
+      } catch (CancellationException e) {
+        return e;
       }
     }
     return null;

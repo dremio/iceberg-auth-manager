@@ -21,7 +21,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import org.junit.jupiter.api.Test;
 
 class FuturesTest {
@@ -38,6 +40,26 @@ class FuturesTest {
     CompletableFuture<Object> cancelled = new CompletableFuture<>();
     cancelled.cancel(true);
     assertThat(Futures.getNow(cancelled)).isNull();
+  }
+
+  @Test
+  void getErrorNow() {
+    assertThat(Futures.getErrorNow(null)).isNull();
+    assertThat(Futures.getErrorNow(new CompletableFuture<>())).isNull();
+    assertThat(Futures.getErrorNow(CompletableFuture.completedFuture("value"))).isNull();
+    // failed future
+    Exception error = new Exception("test");
+    assertThat(Futures.getErrorNow(CompletableFuture.failedFuture(error))).isSameAs(error);
+    // failed dependent future: the CompletionException is unwrapped
+    CompletableFuture<Object> dependent = CompletableFuture.failedFuture(error).thenApply(v -> v);
+    assertThat(Futures.getErrorNow(dependent)).isSameAs(error);
+    // failed with a CompletionException without cause
+    CompletionException noCause = new CompletionException(null);
+    assertThat(Futures.getErrorNow(CompletableFuture.failedFuture(noCause))).isSameAs(noCause);
+    // cancelled future
+    CompletableFuture<Object> cancelled = new CompletableFuture<>();
+    cancelled.cancel(true);
+    assertThat(Futures.getErrorNow(cancelled)).isInstanceOf(CancellationException.class);
   }
 
   @Test

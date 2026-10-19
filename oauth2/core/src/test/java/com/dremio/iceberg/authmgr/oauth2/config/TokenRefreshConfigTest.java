@@ -17,6 +17,7 @@ package com.dremio.iceberg.authmgr.oauth2.config;
 
 import static com.dremio.iceberg.authmgr.oauth2.config.TokenRefreshConfig.ACCESS_TOKEN_LIFESPAN;
 import static com.dremio.iceberg.authmgr.oauth2.config.TokenRefreshConfig.IDLE_TIMEOUT;
+import static com.dremio.iceberg.authmgr.oauth2.config.TokenRefreshConfig.MAX_RETRIES;
 import static com.dremio.iceberg.authmgr.oauth2.config.TokenRefreshConfig.PREFIX;
 import static com.dremio.iceberg.authmgr.oauth2.config.TokenRefreshConfig.SAFETY_WINDOW;
 import static java.util.Arrays.asList;
@@ -72,6 +73,10 @@ class TokenRefreshConfigTest {
         Arguments.of(
             Map.of(PREFIX + '.' + IDLE_TIMEOUT, "PT0.1S"),
             singletonList(
-                "token refresh idle timeout must be greater than or equal to PT30S (rest.auth.oauth2.token-refresh.idle-timeout)")));
+                "token refresh idle timeout must be greater than or equal to PT30S (rest.auth.oauth2.token-refresh.idle-timeout)")),
+        Arguments.of(
+            Map.of(PREFIX + '.' + MAX_RETRIES, "-1"),
+            singletonList(
+                "token refresh max retries must not be negative (rest.auth.oauth2.token-refresh.max-retries)")));
   }
 }
