@@ -120,6 +120,9 @@ OAuth2Agent copy = agent.copy();
    - `AtomicBoolean sleeping`: Flag indicating if the agent is sleeping.
    - `CompletableFuture<Void> agentAccessed`: Future that is completed when the agent is accessed.
    - `Instant lastAccess`: The timestamp of the last agent access.
+   - `int consecutiveFailures`: The number of renewals that failed in a row; drives the backoff between renewals.
+   - `int refreshRetries`: How many times in a row a token refresh failed with a transient error and was retried
+     instead of falling back to the initial grant; this is the retry budget of the current refresh token.
 5. **Logging**
    - `Instant lastWarn`: The timestamp of the last warning log.
 
@@ -129,10 +132,14 @@ OAuth2Agent copy = agent.copy();
    - `fetchNewTokens()`: Fetches new tokens from the OAuth2 server.
    - `refreshCurrentTokens(Tokens)`: Refreshes the current tokens.
    - `renewTokens()`: Renews tokens by either refreshing or fetching new ones.
+   - `handleRefreshResult(Tokens, Throwable)`: Handles refresh results and falls back to fetching new tokens if needed,
+     unless the refresh was rate-limited or failed with a transient error that is worth retrying.
+   - `handleRenewalResult(Tokens, Tokens, Throwable)`: Handles renewal results and keeps the old tokens on failure.
 2. **Token refresh scheduling**
-   - `maybeScheduleTokensRenewal(Tokens)`: Decides whether to schedule a token renewal task.
+   - `maybeScheduleTokensRenewal(Tokens, Throwable)`: Decides whether to schedule a token renewal task.
    - `scheduleTokensRenewal(Duration)`: Schedules the next token renewal task.
-   - `nextTokenRefresh(Tokens, Instant)`: Calculates the delay until the next token refresh.
+   - `nextTokenRefresh(Tokens, Instant, Throwable, int)`: Calculates the delay until the next token refresh, backing off
+     after failed renewals and honoring the `Retry-After` header, if any.
 3. **State management**
    - `maybeSleep()`: Decides whether to enter the "sleeping" state.
    - `sleep()`: Enters the "sleeping" state.
@@ -208,6 +215,47 @@ The agent uses a proactive token refresh strategy: tokens are refreshed before e
 window. The safety window prevents last-minute refresh failures.
 
 See the [sequence diagram below](#refresh-token-sequence-diagram) for a detailed view of the token refresh flow.
+
+### Failures, Retries & Rate Limiting
+
+When a renewal fails, the agent keeps the old tokens, if any, and schedules another renewal. Consecutive failures back
+off exponentially: the delay before the next attempt starts at the minimum refresh delay (5 seconds) and doubles with
+every consecutive failure, up to 1 minute (`OAuth2Agent.MAX_BACKOFF`). A successful renewal resets the backoff. The
+delay is never shorter than the one computed from the current tokens' expiration time.
+
+If the server sent a `Retry-After` header along with its error response (typically with a 429 or 503 status), the next
+renewal is scheduled no earlier than that delay, capped at 5 minutes (`OAuth2Agent.MAX_RETRY_AFTER`) so that a bogus
+header cannot park the agent for hours. Both forms of the header are supported: a number of seconds, and an HTTP-date.
+If the access token will expire before then, a warning is logged. The agent never waits inline for the `Retry-After`
+delay: for this reason, the automatic retries of the Apache HTTP client are disabled, since they would block the
+executor thread for as long as the server says.
+
+A refresh that was rate-limited (429 Too Many Requests) does not fall back to fetching new tokens with the initial
+grant: that would hit the same token endpoint right away, and, for interactive grants, needlessly prompt the user
+although the refresh token is most likely still valid. The renewal fails, and the next one tries refreshing the tokens
+again, honoring `Retry-After`.
+
+A refresh that fails with a transient error is handled similarly. Transient errors are timeouts, I/O errors (connection
+refused or reset, read timeout, etc.) and server errors (HTTP 5xx); anything else, e.g. an `invalid_grant` error, is
+not. For such errors:
+
+- The refresh does not fall back to fetching new tokens with the initial grant right away, for the same reasons as
+  above, and also because the initial grant may not be usable anymore (e.g. a password that changed, or a subject token
+  that expired). The renewal fails, the old tokens are kept, and the next renewal tries refreshing them again, with the
+  usual backoff.
+- Retries continue even if the access token expires in the meantime: what matters is whether the refresh token is
+  still valid, and the agent already falls back to the initial grant when it is about to expire.
+- After `rest.auth.oauth2.token-refresh.max-retries` retries (3 by default), the agent falls back to the initial grant.
+  The retry budget is reset after each fallback, and by each successful refresh. Setting the option to zero disables
+  retries altogether.
+
+Note that if the server uses refresh token rotation, a refresh that timed out may actually have succeeded on the server
+side, in which case retrying it with the old refresh token yields an `invalid_grant` error, and the agent falls back to
+the initial grant. Servers with refresh token reuse detection may also revoke the whole token family in this case,
+unless they allow a grace period for reusing the old refresh token.
+
+Waking up from sleep is not throttled: if the agent is accessed while sleeping and its tokens are expired, it renews
+them immediately, regardless of any pending backoff or `Retry-After` delay.
 
 ## Architecture Diagrams
 
@@ -315,11 +363,19 @@ sequenceDiagram
         OAuth2Agent->>OAuth2Agent: fetchNewTokens()
         Note right of OAuth2Agent: Same as initial acquisition flow above
     end
+
+    OAuth2Agent->>OAuth2Agent: handleRefreshResult(newTokens, error)
+    alt Refresh rate-limited (429), or transient error with retries left
+        Note right of OAuth2Agent: Renewal fails without falling back: the next one retries the refresh
+    else Refresh failed otherwise, or refreshed token too short
+        OAuth2Agent->>OAuth2Agent: fetchNewTokens()
+    end
     
     OAuth2Agent->>OAuth2Agent: currentTokensFuture = newTokensFuture
-    OAuth2Agent->>OAuth2Agent: log(tokens, null)
+    OAuth2Agent->>OAuth2Agent: log(tokens, error)
     par Schedule Token Refresh
-        OAuth2Agent->>OAuth2Agent: maybeScheduleTokensRenewal(tokens)
+        OAuth2Agent->>OAuth2Agent: maybeScheduleTokensRenewal(tokens, error)
+        Note right of OAuth2Agent: After a failure, nextDelay backs off exponentially and honors Retry-After
         OAuth2Agent->>OAuth2Agent: scheduleTokensRenewal(nextDelay)
         OAuth2Agent->>Executor: schedule(renewTokens, nextDelay)
     end

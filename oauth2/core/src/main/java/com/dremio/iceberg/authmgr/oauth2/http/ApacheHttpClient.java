@@ -161,7 +161,19 @@ public class ApacheHttpClient implements HttpClient {
   public static HttpClientBuilder createApacheClientBuilder(HttpConfig config) {
 
     HttpClientBuilder builder =
-        HttpClients.custom().useSystemProperties().disableAuthCaching().disableCookieManagement();
+        HttpClients.custom()
+            .useSystemProperties()
+            .disableAuthCaching()
+            .disableCookieManagement()
+            // Apache's default retry strategy transparently re-sends a request once after a 429 or
+            // 503 response (any method, as long as the body is repeatable), sleeping for as long as
+            // the server's Retry-After header says before doing so, and after some I/O errors
+            // (idempotent methods only, so never token requests). Neither is wanted here: the
+            // Retry-After sleep blocks the executor thread that runs the flow for an arbitrary,
+            // server-chosen time, bounded only by the flow timeout. Errors are reported to the
+            // agent as they happen; it decides when to try again, and honors Retry-After from its
+            // scheduler instead.
+            .disableAutomaticRetries();
 
     List<BasicHeader> defaultHeaders =
         config.getHeaders().entrySet().stream()

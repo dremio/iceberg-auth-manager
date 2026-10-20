@@ -178,6 +178,16 @@ Refresh safety window to use; a new token will be fetched when the current token
 
 Defines for how long the OAuth2 manager should keep the tokens fresh, if the agent is not being actively used. Setting this value too high may cause an excessive usage of network I/O and thread resources; conversely, when setting it too low, if the agent is used again, the calling thread may block if the tokens are expired and need to be renewed synchronously. Optional, defaults to `PT30S`. Must be a valid [ISO-8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations).
 
+### `rest.auth.oauth2.token-refresh.max-retries`
+
+Maximum number of times a token refresh that failed with a transient error is retried before falling back to fetching brand-new tokens with the configured initial grant.
+
+A transient error is one that is likely to go away on its own: a timeout, an I/O error, or a server error (HTTP 5xx). Falling back to the initial grant in such cases is unlikely to succeed, since it hits the same token endpoint, and may be harmful: the initial grant's credentials may no longer be valid, or may require user interaction. Instead, the agent keeps the current tokens and retries the refresh with an exponential backoff, honoring the `Retry-After` header if any. Other errors, e.g. an invalid or revoked refresh token, trigger the fallback immediately. Retries continue even if the current access token expires in the meantime.
+
+Note: a rate-limited refresh (HTTP 429) never falls back, regardless of this setting.
+
+Optional, defaults to `3`. Setting this property to zero disables retries: the agent falls back to the initial grant as soon as a refresh fails.
+
 ## Resource Owner Settings
 
 Configuration properties for the [Resource Owner Password Credentials Grant](https://datatracker.ietf.org/doc/html/rfc6749#section-4.3) flow.

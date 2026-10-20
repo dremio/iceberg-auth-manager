@@ -390,6 +390,9 @@ public abstract class TestEnvironment implements AutoCloseable {
             getAccessTokenLifespan().toString())
         .put(TokenRefreshConfig.PREFIX + '.' + TokenRefreshConfig.SAFETY_WINDOW, "PT5S")
         .put(TokenRefreshConfig.PREFIX + '.' + TokenRefreshConfig.IDLE_TIMEOUT, "PT5S")
+        .put(
+            TokenRefreshConfig.PREFIX + '.' + TokenRefreshConfig.MAX_RETRIES,
+            String.valueOf(getTokenRefreshMaxRetries()))
         .put(TokenRefreshConfig.PREFIX + '.' + "min-refresh-delay", "PT5S")
         .put(TokenRefreshConfig.PREFIX + '.' + "min-idle-timeout", "PT5S")
         .put(TokenRefreshConfig.PREFIX + '.' + "min-access-token-lifespan", "PT5S")
@@ -399,6 +402,11 @@ public abstract class TestEnvironment implements AutoCloseable {
   @Value.Default
   public boolean isTokenRefreshEnabled() {
     return true;
+  }
+
+  @Value.Default
+  public int getTokenRefreshMaxRetries() {
+    return 3;
   }
 
   @Value.Default

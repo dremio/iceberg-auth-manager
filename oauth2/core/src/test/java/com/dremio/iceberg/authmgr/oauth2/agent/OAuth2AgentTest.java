@@ -36,6 +36,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.mockserver.model.HttpRequest.request;
 import static org.mockserver.model.HttpResponse.response;
+import static org.mockserver.model.RegexBody.regex;
 import static org.mockserver.verify.VerificationTimes.atLeast;
 
 import com.dremio.iceberg.authmgr.oauth2.flow.OAuth2Exception;
@@ -45,6 +46,7 @@ import com.dremio.iceberg.authmgr.oauth2.test.TestCertificates;
 import com.dremio.iceberg.authmgr.oauth2.test.TestClock;
 import com.dremio.iceberg.authmgr.oauth2.test.TestConstants;
 import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
+import com.dremio.iceberg.authmgr.oauth2.test.TestServer;
 import com.dremio.iceberg.authmgr.oauth2.test.junit.EnumLike;
 import com.dremio.iceberg.authmgr.oauth2.test.user.UserBehavior;
 import com.nimbusds.jose.JWSAlgorithm;
@@ -61,30 +63,42 @@ import com.nimbusds.oauth2.sdk.token.BearerAccessToken;
 import com.nimbusds.oauth2.sdk.token.RefreshToken;
 import com.nimbusds.oauth2.sdk.token.Tokens;
 import com.nimbusds.oauth2.sdk.token.TypelessAccessToken;
+import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Duration;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.assertj.core.api.SoftAssertions;
 import org.assertj.core.api.junit.jupiter.InjectSoftAssertions;
 import org.assertj.core.api.junit.jupiter.SoftAssertionsExtension;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junitpioneer.jupiter.cartesian.CartesianTest;
 import org.junitpioneer.jupiter.cartesian.CartesianTest.Enum;
 import org.junitpioneer.jupiter.cartesian.CartesianTest.Values;
 import org.mockserver.integration.ClientAndServer;
 import org.mockserver.model.HttpForward;
+import org.mockserver.model.HttpRequest;
+import org.mockserver.model.HttpResponse;
+import org.mockserver.model.MediaType;
 
 @ExtendWith(SoftAssertionsExtension.class)
 class OAuth2AgentTest {
@@ -1038,6 +1052,223 @@ class OAuth2AgentTest {
     }
   }
 
+  @ParameterizedTest
+  @EnumSource(HttpClientType.class)
+  void testRefreshRetriedOnTransientError(HttpClientType httpClientType) {
+
+    ScheduledExecutorService executor = mock(ScheduledExecutorService.class);
+    mockExecutorExecute(executor);
+    List<Duration> delays = new ArrayList<>();
+    AtomicReference<Runnable> currentRenewalTask = mockExecutorSchedule(executor, delays);
+
+    try (TestEnvironment env =
+            TestEnvironment.builder()
+                .grantType(GrantType.PASSWORD)
+                .httpClientType(httpClientType)
+                .executor(executor)
+                .discoveryEnabled(false)
+                .tokenRefreshMaxRetries(2)
+                .build();
+        OAuth2Agent agent = env.newAgent()) {
+
+      TestClock clock = (TestClock) env.getClock();
+      Duration normalDelay = ACCESS_TOKEN_LIFESPAN.minusSeconds(5);
+
+      soft.assertThat(agent.authenticate().getValue()).isEqualTo(ACCESS_TOKEN_INITIAL);
+      soft.assertThat(delays).containsExactly(normalDelay);
+
+      // The token endpoint now fails refreshes with a transient error, while the initial grant
+      // would still succeed. The access token expires before the scheduled refresh runs.
+      env.reset();
+      AtomicInteger passwordRequests =
+          respondToTokenRequests(env, "password", tokenResponse("access_fallback"));
+      AtomicInteger refreshRequests =
+          respondToTokenRequests(env, "refresh_token", response().withStatusCode(503));
+      clock.plus(ACCESS_TOKEN_LIFESPAN);
+      agent.authenticate(); // keep the agent from going idle
+
+      // 1st and 2nd failures: no fallback to the initial grant, old tokens kept, and the refresh is
+      // retried with an exponential backoff
+      currentRenewalTask.get().run();
+      currentRenewalTask.get().run();
+      soft.assertThat(agent.authenticate().getValue()).isEqualTo(ACCESS_TOKEN_INITIAL);
+      soft.assertThat(refreshRequests).hasValue(2);
+      soft.assertThat(passwordRequests).hasValue(0);
+      soft.assertThat(delays)
+          .containsExactly(normalDelay, Duration.ofSeconds(5), Duration.ofSeconds(10));
+
+      // 3rd failure: retry budget exhausted, fall back to the initial grant;
+      // on success, the backoff is reset
+      currentRenewalTask.get().run();
+      soft.assertThat(agent.authenticate().getValue()).isEqualTo("access_fallback");
+      soft.assertThat(refreshRequests).hasValue(3);
+      soft.assertThat(passwordRequests).hasValue(1);
+      soft.assertThat(delays).last().isEqualTo(normalDelay);
+
+      // The fallback reset the retry budget: the next transient failure is retried again
+      clock.plus(ACCESS_TOKEN_LIFESPAN);
+      agent.authenticate(); // keep the agent from going idle
+      currentRenewalTask.get().run();
+      soft.assertThat(agent.authenticate().getValue()).isEqualTo("access_fallback");
+      soft.assertThat(refreshRequests).hasValue(4);
+      soft.assertThat(passwordRequests).hasValue(1);
+      soft.assertThat(delays).last().isEqualTo(Duration.ofSeconds(5));
+    }
+  }
+
+  @Test
+  void testRefreshFallbackOnNonTransientError() {
+
+    ScheduledExecutorService executor = mock(ScheduledExecutorService.class);
+    mockExecutorExecute(executor);
+    AtomicReference<Runnable> currentRenewalTask = mockExecutorSchedule(executor);
+
+    try (TestEnvironment env =
+            TestEnvironment.builder()
+                .grantType(GrantType.PASSWORD)
+                .executor(executor)
+                .discoveryEnabled(false)
+                .build();
+        OAuth2Agent agent = env.newAgent()) {
+
+      soft.assertThat(agent.authenticate().getValue()).isEqualTo(ACCESS_TOKEN_INITIAL);
+
+      // The refresh token was revoked: fall back to the initial grant right away
+      env.reset();
+      AtomicInteger passwordRequests =
+          respondToTokenRequests(env, "password", tokenResponse("access_fallback"));
+      AtomicInteger refreshRequests =
+          respondToTokenRequests(
+              env,
+              "refresh_token",
+              response()
+                  .withStatusCode(400)
+                  .withContentType(MediaType.APPLICATION_JSON)
+                  .withBody("{\"error\":\"invalid_grant\"}"));
+
+      currentRenewalTask.get().run();
+      soft.assertThat(agent.authenticate().getValue()).isEqualTo("access_fallback");
+      soft.assertThat(refreshRequests).hasValue(1);
+      soft.assertThat(passwordRequests).hasValue(1);
+    }
+  }
+
+  @ParameterizedTest
+  @EnumSource(HttpClientType.class)
+  void testRefreshRateLimited(HttpClientType httpClientType) {
+
+    ScheduledExecutorService executor = mock(ScheduledExecutorService.class);
+    mockExecutorExecute(executor);
+    List<Duration> delays = new ArrayList<>();
+    AtomicReference<Runnable> currentRenewalTask = mockExecutorSchedule(executor, delays);
+
+    try (TestEnvironment env =
+            TestEnvironment.builder()
+                .grantType(GrantType.PASSWORD)
+                .httpClientType(httpClientType)
+                .executor(executor)
+                .discoveryEnabled(false)
+                // rate-limited refreshes never fall back, even with retries disabled
+                .tokenRefreshMaxRetries(0)
+                .build();
+        OAuth2Agent agent = env.newAgent()) {
+
+      TestClock clock = (TestClock) env.getClock();
+      Duration normalDelay = ACCESS_TOKEN_LIFESPAN.minusSeconds(5);
+
+      soft.assertThat(agent.authenticate().getValue()).isEqualTo(ACCESS_TOKEN_INITIAL);
+      clock.plus(ACCESS_TOKEN_LIFESPAN);
+      agent.authenticate(); // keep the agent from going idle
+
+      // Rate-limited with Retry-After in seconds: no fallback, next renewal after that delay
+      env.reset();
+      AtomicInteger passwordRequests =
+          respondToTokenRequests(env, "password", tokenResponse("access_fallback"));
+      AtomicInteger refreshRequests =
+          respondToTokenRequests(env, "refresh_token", rateLimitedResponse("120"));
+      currentRenewalTask.get().run();
+      soft.assertThat(agent.authenticate().getValue()).isEqualTo(ACCESS_TOKEN_INITIAL);
+      soft.assertThat(refreshRequests).hasValue(1);
+      soft.assertThat(passwordRequests).hasValue(0);
+      soft.assertThat(delays).last().isEqualTo(Duration.ofSeconds(120));
+
+      // Rate-limited with Retry-After as an HTTP-date far in the future: delay capped
+      env.reset();
+      passwordRequests = respondToTokenRequests(env, "password", tokenResponse("access_fallback"));
+      String date =
+          DateTimeFormatter.RFC_1123_DATE_TIME.format(
+              clock.instant().plus(Duration.ofDays(1)).atZone(ZoneOffset.UTC));
+      refreshRequests = respondToTokenRequests(env, "refresh_token", rateLimitedResponse(date));
+      currentRenewalTask.get().run();
+      soft.assertThat(agent.authenticate().getValue()).isEqualTo(ACCESS_TOKEN_INITIAL);
+      soft.assertThat(refreshRequests).hasValue(1);
+      soft.assertThat(passwordRequests).hasValue(0);
+      soft.assertThat(delays).last().isEqualTo(OAuth2Agent.MAX_RETRY_AFTER);
+
+      // The server recovers
+      env.reset();
+      env.createExpectations();
+      currentRenewalTask.get().run();
+      soft.assertThat(agent.authenticate().getValue()).isEqualTo(ACCESS_TOKEN_REFRESHED);
+      soft.assertThat(delays).last().isEqualTo(normalDelay);
+    }
+  }
+
+  @Test
+  void testInitialFetchBackoff() {
+
+    ScheduledExecutorService executor = mock(ScheduledExecutorService.class);
+    mockExecutorExecute(executor);
+    List<Duration> delays = new ArrayList<>();
+    AtomicReference<Runnable> currentRenewalTask = mockExecutorSchedule(executor, delays);
+
+    try (TestEnvironment env =
+            TestEnvironment.builder()
+                .grantType(GrantType.CLIENT_CREDENTIALS)
+                .executor(executor)
+                .createDefaultExpectations(false)
+                .discoveryEnabled(false)
+                .build();
+        OAuth2Agent agent = env.newAgent()) {
+
+      env.createErrorExpectations();
+      soft.assertThatThrownBy(agent::authenticate).isInstanceOf(OAuth2Exception.class);
+      for (int i = 0; i < 6; i++) {
+        currentRenewalTask.get().run();
+      }
+      soft.assertThatThrownBy(agent::authenticate).isInstanceOf(OAuth2Exception.class);
+      // backoff doubles with each failure, starting at the min refresh delay, up to MAX_BACKOFF
+      soft.assertThat(delays)
+          .containsExactly(
+              Duration.ofSeconds(5),
+              Duration.ofSeconds(10),
+              Duration.ofSeconds(20),
+              Duration.ofSeconds(40),
+              OAuth2Agent.MAX_BACKOFF,
+              OAuth2Agent.MAX_BACKOFF,
+              OAuth2Agent.MAX_BACKOFF);
+
+      // The server recovers: the backoff is reset
+      env.reset();
+      env.createExpectations();
+      currentRenewalTask.get().run();
+      soft.assertThat(agent.authenticate().getValue()).isEqualTo(ACCESS_TOKEN_INITIAL);
+      soft.assertThat(delays).last().isEqualTo(ACCESS_TOKEN_LIFESPAN.minusSeconds(5));
+    }
+  }
+
+  @Test
+  void testIsTransientError() {
+    soft.assertThat(OAuth2Agent.isTransientError(new TimeoutException())).isTrue();
+    soft.assertThat(OAuth2Agent.isTransientError(new IOException())).isTrue();
+    soft.assertThat(
+            OAuth2Agent.isTransientError(
+                new CompletionException(new RuntimeException(new IOException()))))
+        .isTrue();
+    soft.assertThat(OAuth2Agent.isTransientError(new RuntimeException())).isFalse();
+    soft.assertThat(OAuth2Agent.isTransientError(new IllegalStateException())).isFalse();
+  }
+
   @Test
   void testApplyAuthenticationBearer() {
     try (TestEnvironment env = TestEnvironment.builder().build();
@@ -1096,10 +1327,23 @@ class OAuth2AgentTest {
   }
 
   /**
+   * Mocks the executor's schedule() method to capture the scheduled task, and to record its delay.
+   */
+  private static AtomicReference<Runnable> mockExecutorSchedule(
+      ScheduledExecutorService executor, List<Duration> delays) {
+    return mockExecutorSchedule(executor, false, delays);
+  }
+
+  /**
    * Mocks the executor's schedule() method to capture the scheduled task, optionally rejecting it.
    */
   private static AtomicReference<Runnable> mockExecutorSchedule(
       ScheduledExecutorService executor, boolean rejectSchedule) {
+    return mockExecutorSchedule(executor, rejectSchedule, new ArrayList<>());
+  }
+
+  private static AtomicReference<Runnable> mockExecutorSchedule(
+      ScheduledExecutorService executor, boolean rejectSchedule, List<Duration> delays) {
     AtomicReference<Runnable> task = new AtomicReference<>();
     when(executor.schedule(any(Runnable.class), anyLong(), any()))
         .thenAnswer(
@@ -1108,9 +1352,55 @@ class OAuth2AgentTest {
                 throw new RejectedExecutionException("test");
               }
               Runnable runnable = invocation.getArgument(0);
+              long delay = invocation.getArgument(1);
+              TimeUnit unit = invocation.getArgument(2);
               task.set(runnable);
+              delays.add(Duration.ofMillis(unit.toMillis(delay)));
               return mock(ScheduledFuture.class);
             });
     return task;
+  }
+
+  private static HttpRequest tokenRequest(TestEnvironment env, String grantType) {
+    return request()
+        .withMethod("POST")
+        .withPath(env.getTokenEndpoint().getPath())
+        .withBody(regex(".*grant_type=" + grantType + ".*"));
+  }
+
+  /**
+   * Responds to token requests of the given grant type with the given response, and returns a
+   * counter of such requests. (MockServer's own request verification is unreliable here, as its
+   * event log is shared by all tests and capped.)
+   */
+  private static AtomicInteger respondToTokenRequests(
+      TestEnvironment env, String grantType, HttpResponse response) {
+    AtomicInteger count = new AtomicInteger();
+    TestServer.getInstance()
+        .when(tokenRequest(env, grantType))
+        .respond(
+            request -> {
+              count.incrementAndGet();
+              return response;
+            });
+    return count;
+  }
+
+  private static HttpResponse tokenResponse(String accessToken) {
+    return response()
+        .withContentType(MediaType.APPLICATION_JSON)
+        .withBody(
+            String.format(
+                "{\"access_token\":\"%s\",\"token_type\":\"bearer\",\"expires_in\":%d,"
+                    + "\"refresh_token\":\"%s\"}",
+                accessToken, ACCESS_TOKEN_LIFESPAN.toSeconds(), REFRESH_TOKEN_INITIAL));
+  }
+
+  private static HttpResponse rateLimitedResponse(String retryAfter) {
+    return response()
+        .withStatusCode(429)
+        .withHeader("Retry-After", retryAfter)
+        .withContentType(MediaType.APPLICATION_JSON)
+        .withBody("{\"error\":\"slow_down\"}");
   }
 }

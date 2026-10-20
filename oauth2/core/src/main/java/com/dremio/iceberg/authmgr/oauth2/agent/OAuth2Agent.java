@@ -33,6 +33,7 @@ import com.nimbusds.oauth2.sdk.token.RefreshToken;
 import com.nimbusds.oauth2.sdk.token.Tokens;
 import jakarta.annotation.Nullable;
 import java.io.Closeable;
+import java.io.IOException;
 import java.net.URI;
 import java.time.Clock;
 import java.time.Duration;
@@ -59,6 +60,19 @@ public final class OAuth2Agent implements Closeable {
 
   private static final Duration MIN_WARN_INTERVAL = Duration.ofSeconds(10);
 
+  /**
+   * The longest delay between two renewal attempts when renewals keep failing: the backoff starts
+   * at the minimum refresh delay and doubles with every consecutive failure up to this value.
+   */
+  static final Duration MAX_BACKOFF = Duration.ofMinutes(1);
+
+  /**
+   * The longest a server-requested {@code Retry-After} delay can push back a renewal. Rate-limiting
+   * servers ask for seconds or minutes; anything longer is treated as this value, so that a bogus
+   * or hostile header cannot park the agent for hours.
+   */
+  static final Duration MAX_RETRY_AFTER = Duration.ofMinutes(5);
+
   private static final CompletableFuture<TokensResult> MUST_FETCH_NEW_TOKENS_FUTURE =
       CompletableFuture.failedFuture(MustFetchNewTokensException.INSTANCE);
 
@@ -77,6 +91,34 @@ public final class OAuth2Agent implements Closeable {
 
   private volatile Instant lastAccess;
   private volatile Instant lastWarn;
+
+  /**
+   * The number of renewals that failed in a row, reset by the first successful one. Drives the
+   * exponential backoff between renewal attempts, see {@link #nextTokenRefresh(TokensResult,
+   * Instant, Throwable, int)}.
+   *
+   * <p>Only written by {@link #maybeScheduleTokensRenewal}, once a renewal (or the initial fetch)
+   * has completed. Renewals never overlap, as each one is scheduled by the completion of the
+   * previous one, so its read-modify-write is safe without locking.
+   */
+  private volatile int consecutiveFailures;
+
+  /**
+   * How many times in a row the refresh of the current tokens failed with a transient error and was
+   * left to a later renewal, instead of falling back to the initial grant; see {@link
+   * #handleRefreshResult}. Reset when a refresh succeeds, and when the agent falls back to the
+   * initial grant.
+   *
+   * <p>Not to be confused with {@link #consecutiveFailures}, which counts failed renewals of any
+   * kind to space out renewal attempts, and is only reset by a successful renewal. This counter is
+   * the retry budget of a refresh token instead: resetting it on fallback means that during a long
+   * outage, the agent falls back to the initial grant only once every {@code max-retries + 1}
+   * renewals, rather than on every renewal once the budget is exhausted.
+   *
+   * <p>Only written by {@link #handleRefreshResult}, in the renewal chain; renewals never overlap,
+   * so its read-modify-write is safe without locking.
+   */
+  private volatile int refreshRetries;
 
   public OAuth2Agent(OAuth2Config config, OAuth2AgentRuntime runtime) {
     this.config = config;
@@ -99,7 +141,7 @@ public final class OAuth2Agent implements Closeable {
   private void initWithStaticToken(AccessToken token) {
     TokensResult currentTokens = TokensResult.of(token);
     currentTokensFuture = CompletableFuture.completedFuture(currentTokens);
-    maybeScheduleTokensRenewal(currentTokens);
+    maybeScheduleTokensRenewal(currentTokens, null);
   }
 
   /**
@@ -120,7 +162,7 @@ public final class OAuth2Agent implements Closeable {
         agentReady
             .thenComposeAsync(v -> fetchNewTokens(), executor)
             .whenComplete(this::log)
-            .whenComplete((tokens, error) -> maybeScheduleTokensRenewal(tokens));
+            .whenComplete(this::maybeScheduleTokensRenewal);
   }
 
   /** Copy constructor. */
@@ -141,7 +183,7 @@ public final class OAuth2Agent implements Closeable {
             ? CompletableFuture.completedFuture(currentTokens)
             : CompletableFuture.supplyAsync(this::fetchNewTokens, executor)
                 .thenCompose(Function.identity());
-    currentTokensFuture.whenComplete((tokens, error) -> maybeScheduleTokensRenewal(tokens));
+    currentTokensFuture.whenComplete(this::maybeScheduleTokensRenewal);
   }
 
   public OAuth2Config getConfig() {
@@ -316,7 +358,15 @@ public final class OAuth2Agent implements Closeable {
     }
   }
 
-  private void maybeScheduleTokensRenewal(@Nullable TokensResult currentTokens) {
+  /**
+   * Schedules the next token renewal, unless the agent is idle, in which case it goes to sleep.
+   *
+   * @param currentTokens the current tokens, if any
+   * @param renewalError the error the previous renewal (or the initial fetch) failed with, or null
+   *     if it succeeded
+   */
+  private void maybeScheduleTokensRenewal(
+      @Nullable TokensResult currentTokens, @Nullable Throwable renewalError) {
     if (!config.getTokenRefreshConfig().isEnabled()) {
       LOGGER.debug(
           "[{}] Agent is not configured to keep tokens refreshed, skipping token renewal", name);
@@ -326,6 +376,8 @@ public final class OAuth2Agent implements Closeable {
       LOGGER.debug("[{}] Not checking if token renewal is required, agent is closing", name);
       return;
     }
+    int failures = renewalError == null ? 0 : consecutiveFailures + 1;
+    consecutiveFailures = failures;
     Instant now = clock.instant();
     Duration timeSinceLastAccess = Duration.between(lastAccess, now);
     boolean idle =
@@ -334,7 +386,7 @@ public final class OAuth2Agent implements Closeable {
     if (idle) {
       maybeSleep();
     } else {
-      Duration delay = nextTokenRefresh(currentTokens, now);
+      Duration delay = nextTokenRefresh(currentTokens, now, renewalError, failures);
       scheduleTokensRenewal(delay);
     }
   }
@@ -388,6 +440,105 @@ public final class OAuth2Agent implements Closeable {
     return delay;
   }
 
+  /**
+   * Same as {@link #nextTokenRefresh(TokensResult, Instant)}, but for the renewal following a
+   * failed one. The delay is never shorter than:
+   *
+   * <ul>
+   *   <li>an exponential backoff: the minimum refresh delay doubled for each consecutive failure
+   *       beyond the first, capped at {@link #MAX_BACKOFF}. A transient failure is thus retried
+   *       quickly, while a persistent one settles at one attempt per {@link #MAX_BACKOFF};
+   *   <li>the {@code Retry-After} delay the server sent along with the error, if any, capped at
+   *       {@link #MAX_RETRY_AFTER}. This is how the agent backs off when it is rate-limited: the
+   *       HTTP client never waits inline.
+   * </ul>
+   *
+   * @param renewalError the error the previous renewal failed with, or null if it succeeded
+   * @param consecutiveFailures how many renewals failed in a row, including the last one; 0 if it
+   *     succeeded
+   */
+  private Duration nextTokenRefresh(
+      @Nullable TokensResult currentTokens,
+      Instant now,
+      @Nullable Throwable renewalError,
+      int consecutiveFailures) {
+    Duration delay = nextTokenRefresh(currentTokens, now);
+    if (renewalError != null) {
+      if (consecutiveFailures > 0) {
+        Duration backoff = backoff(consecutiveFailures);
+        if (backoff.compareTo(delay) > 0) {
+          LOGGER.debug(
+              "[{}] {} consecutive renewal failure(s), backing off for {}",
+              name,
+              consecutiveFailures,
+              backoff);
+          delay = backoff;
+        }
+      }
+      Duration retryAfter = retryAfter(renewalError);
+      if (retryAfter != null && retryAfter.compareTo(delay) > 0) {
+        if (currentTokens != null
+            && !currentTokens.isAccessTokenExpired(now)
+            && currentTokens.isAccessTokenExpired(now.plus(retryAfter))) {
+          maybeWarn(
+              "[{}] Server asked to retry after {}, but the access token expires at {}: "
+                  + "it will expire before it can be renewed",
+              name,
+              retryAfter,
+              currentTokens.getAccessTokenExpirationTime());
+        } else {
+          LOGGER.debug(
+              "[{}] Server asked to retry after {}, delaying next renewal accordingly",
+              name,
+              retryAfter);
+        }
+        delay = retryAfter;
+      }
+    }
+    return delay;
+  }
+
+  /** The backoff delay for the given number of consecutive failures (at least 1). */
+  private Duration backoff(int consecutiveFailures) {
+    Duration minRefreshDelay = config.getTokenRefreshConfig().getMinRefreshDelay();
+    // 2^(n-1) times the minimum delay; the exponent is capped at 30 for security.
+    // In practice any exponent > 5 reaches MAX_BACKOFF.
+    Duration backoff = minRefreshDelay.multipliedBy(1L << Math.min(consecutiveFailures - 1, 30));
+    return backoff.compareTo(MAX_BACKOFF) > 0 ? MAX_BACKOFF : backoff;
+  }
+
+  /** The capped {@code Retry-After} delay carried by the given error, or null if none. */
+  @Nullable
+  private static Duration retryAfter(Throwable error) {
+    Throwable cause =
+        error instanceof CompletionException && error.getCause() != null ? error.getCause() : error;
+    if (cause instanceof OAuth2Exception oae) {
+      Duration retryAfter = oae.getRetryAfter().orElse(null);
+      if (retryAfter != null && retryAfter.compareTo(MAX_RETRY_AFTER) > 0) {
+        return MAX_RETRY_AFTER;
+      }
+      return retryAfter;
+    }
+    return null;
+  }
+
+  /**
+   * Whether the given error is likely to go away on its own: a timeout, an I/O error (e.g. a
+   * connection refused or reset, or a read timeout), or a server error (HTTP 5xx). Errors returned
+   * by the server with a 4xx status, e.g. {@code invalid_grant}, are not transient.
+   */
+  static boolean isTransientError(Throwable error) {
+    for (Throwable t = error; t != null; t = t.getCause()) {
+      if (t instanceof OAuth2Exception oae) {
+        return oae.getHttpStatusCode() >= 500;
+      }
+      if (t instanceof TimeoutException || t instanceof IOException) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   @SuppressWarnings("FutureReturnValueIgnored")
   private void renewTokens() {
     if (closing.get()) {
@@ -396,15 +547,22 @@ public final class OAuth2Agent implements Closeable {
     }
     CompletableFuture<TokensResult> oldTokensFuture = currentTokensFuture;
     TokensResult oldTokens = Futures.getNow(oldTokensFuture);
-    CompletableFuture<TokensResult> newTokensFuture =
+    CompletableFuture<TokensResult> renewalFuture =
         oldTokensFuture
-            // 1) try refreshing the current access token, if any, and if possible
+            // 1) try refreshing the current access token, if any, and if possible. If the previous
+            // renewal failed, there is nothing to refresh: new tokens must be fetched. Replacing
+            // that error here guarantees that any other error reaching step 2 comes from the
+            // refresh attempt itself.
+            .exceptionallyCompose(error -> MUST_FETCH_NEW_TOKENS_FUTURE)
             .thenCompose(this::refreshCurrentTokens)
-            // 2) if that fails, try fetching brand-new tokens using the configured initial grant
+            // 2) if that fails, try fetching brand-new tokens using the configured initial grant,
+            // unless the refresh failed with an error worth retrying later
             .handle(this::handleRefreshResult)
             .thenCompose(Function.identity())
             // 3) log the result of the token renewal attempt
-            .whenComplete(this::log)
+            .whenComplete(this::log);
+    CompletableFuture<TokensResult> newTokensFuture =
+        renewalFuture
             // 4) if the renewal attempt failed, keep the old tokens if available
             .handle((newTokens, error) -> handleRenewalResult(oldTokens, newTokens, error))
             .thenCompose(Function.identity());
@@ -413,8 +571,11 @@ public final class OAuth2Agent implements Closeable {
       // We raced with close(): cancel the future we just created.
       Futures.cancel(newTokensFuture);
     } else {
-      // 5) schedule the next token renewal
-      newTokensFuture.whenComplete((tokens, error) -> maybeScheduleTokensRenewal(tokens));
+      // 5) schedule the next token renewal; if the renewal attempt failed, back off, even if the
+      // old tokens were kept
+      newTokensFuture.whenComplete(
+          (tokens, error) ->
+              maybeScheduleTokensRenewal(tokens, Futures.getErrorNow(renewalFuture)));
     }
   }
 
@@ -422,10 +583,15 @@ public final class OAuth2Agent implements Closeable {
    * Handles the result of a token refresh attempt. If the refresh wasn't successful, or if the
    * refreshed access token lifespan is too short, the refreshed token is discarded and a new token
    * is fetched.
+   *
+   * <p>If the refresh was rate-limited, or failed with a transient error and the retry budget is
+   * not exhausted yet, no new tokens are fetched: the renewal fails, the current tokens are kept,
+   * and the next renewal, scheduled with a backoff, tries refreshing them again.
    */
   private CompletionStage<TokensResult> handleRefreshResult(
       @Nullable TokensResult newTokens, @Nullable Throwable error) {
     if (newTokens != null) {
+      refreshRetries = 0;
       Instant now = clock.instant();
       Instant expirationTime = expirationTime(newTokens);
       Duration safetyWindow = config.getTokenRefreshConfig().getSafetyWindow();
@@ -436,9 +602,31 @@ public final class OAuth2Agent implements Closeable {
       }
     } else if (error != null) {
       Throwable cause = error instanceof CompletionException ? error.getCause() : error;
+      if (cause instanceof OAuth2Exception oae && oae.isRateLimited()) {
+        // The token endpoint is throttling us: fetching new tokens would hit it again right away,
+        // and for interactive grants would needlessly prompt the user although the refresh token
+        // is most likely still valid. Fail this renewal; the next one honors Retry-After.
+        LOGGER.debug("[{}] Refresh was rate-limited, not fetching new tokens", name);
+        return CompletableFuture.failedFuture(cause);
+      }
+      int retries = refreshRetries;
+      if (retries < config.getTokenRefreshConfig().getMaxRetries() && isTransientError(cause)) {
+        // Same reasoning as above: the token endpoint is likely unavailable, and the initial grant
+        // may not be usable anymore. Fail this renewal; the next one retries the refresh with a
+        // backoff, even if the access token has expired by then.
+        refreshRetries = retries + 1;
+        LOGGER.debug(
+            "[{}] Refresh failed with a transient error, will retry (retry {}): {}",
+            name,
+            retries + 1,
+            cause.toString());
+        return CompletableFuture.failedFuture(cause);
+      }
       if (!(cause instanceof MustFetchNewTokensException)) {
         LOGGER.debug("[{}] Refresh failed unexpectedly, fetching new tokens instead", name, error);
       }
+      // Giving up on this refresh: the next one, if any, starts with a fresh retry budget.
+      refreshRetries = 0;
     }
     return fetchNewTokens();
   }
