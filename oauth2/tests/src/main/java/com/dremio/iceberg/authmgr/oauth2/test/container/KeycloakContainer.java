@@ -78,7 +78,7 @@ public class KeycloakContainer extends ExtendableKeycloakContainer<KeycloakConta
 
   @SuppressWarnings("resource")
   public KeycloakContainer() {
-    super("keycloak/keycloak:26.7.4-0");
+    super("keycloak/keycloak:26.8.1");
     withNetworkAliases("keycloak");
     withLogConsumer(new Slf4jLogConsumer(LOGGER));
     withEnv("KC_LOG_LEVEL", getRootLoggerLevel() + ",org.keycloak:" + getKeycloakLoggerLevel());
@@ -256,13 +256,14 @@ public class KeycloakContainer extends ExtendableKeycloakContainer<KeycloakConta
   protected void updateMasterRealm(RealmResource master) {
     RealmRepresentation masterRep = master.toRepresentation();
     masterRep.setAccessTokenLifespan((int) accessTokenLifespan.toSeconds());
-    // Refresh token lifespan will be equal to the smallest value between:
-    // SSO Session Idle, SSO Session Max, Client Session Idle, and Client Session Max.
     int sessionLifespanSeconds = (int) refreshTokenLifespan.toSeconds();
     masterRep.setClientSessionIdleTimeout(sessionLifespanSeconds);
     masterRep.setClientSessionMaxLifespan(sessionLifespanSeconds);
     masterRep.setSsoSessionIdleTimeout(sessionLifespanSeconds);
     masterRep.setSsoSessionMaxLifespan(sessionLifespanSeconds);
+    masterRep.setOfflineSessionIdleTimeout(sessionLifespanSeconds);
+    masterRep.setOfflineSessionMaxLifespan(sessionLifespanSeconds);
+    masterRep.setOfflineSessionMaxLifespanEnabled(true);
     // Minimum polling interval for device auth flow
     masterRep.setOAuth2DevicePollingInterval(1);
     master.update(masterRep);

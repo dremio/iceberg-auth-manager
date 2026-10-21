@@ -55,7 +55,7 @@ public abstract class UserFlow implements Runnable {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(UserFlow.class);
 
-  private static final Pattern LOGIN_FORM_ACTION_PATTERN =
+  private static final Pattern FORM_ACTION_PATTERN =
       Pattern.compile("<form.*action=\"([^\"]+)\".*>");
 
   /** The authorization URL to browse to. */
@@ -82,9 +82,7 @@ public abstract class UserFlow implements Runnable {
     LOGGER.debug("Performing login...");
     // receive login page
     String loginHtml = getHtmlPage(loginPageUrl, cookies);
-    Matcher matcher = LOGIN_FORM_ACTION_PATTERN.matcher(loginHtml);
-    assertThat(matcher.find()).isTrue();
-    URI loginActionUrl = new URI(matcher.group(1));
+    URI loginActionUrl = extractFormActionUrl(loginHtml);
     // send login form
     HttpURLConnection loginActionConn = openConnection(loginActionUrl);
     Map<String, String> data =
@@ -165,6 +163,14 @@ public abstract class UserFlow implements Runnable {
     readCookies(conn, cookies);
     LOGGER.debug("Redirected to: {}", location);
     return URI.create(location);
+  }
+
+  protected static URI extractFormActionUrl(String loginHtml) {
+    Matcher matcher = FORM_ACTION_PATTERN.matcher(loginHtml);
+    assertThat(matcher.find()).isTrue();
+    String url = matcher.group(1).replace("&amp;", "&");
+    LOGGER.debug("Form action URL: {}", url);
+    return URI.create(url);
   }
 
   protected static void readCookies(HttpURLConnection conn, Set<String> cookies) {
