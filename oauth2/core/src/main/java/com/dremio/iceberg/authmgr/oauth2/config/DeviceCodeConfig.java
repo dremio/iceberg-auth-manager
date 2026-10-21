@@ -17,6 +17,7 @@ package com.dremio.iceberg.authmgr.oauth2.config;
 
 import com.dremio.iceberg.authmgr.oauth2.OAuth2Config;
 import com.dremio.iceberg.authmgr.oauth2.config.validator.ConfigValidator;
+import io.smallrye.config.WithDefault;
 import io.smallrye.config.WithName;
 import java.net.URI;
 import java.util.Optional;
@@ -36,6 +37,8 @@ public interface DeviceCodeConfig {
 
   String ENDPOINT = "endpoint";
 
+  String USE_VERIFICATION_URI_COMPLETE = "use-verification-uri-complete";
+
   /**
    * URL of the OAuth2 device authorization endpoint. For Keycloak, this is typically {@code
    * http://<keycloak-server>/realms/<realm-name>/protocol/openid-connect/auth/device}.
@@ -45,6 +48,25 @@ public interface DeviceCodeConfig {
    */
   @WithName(ENDPOINT)
   Optional<URI> getDeviceAuthorizationEndpoint();
+
+  /**
+   * Whether to display the {@code verification_uri_complete} returned by the device authorization
+   * endpoint, instead of displaying the {@code verification_uri} and the user code separately. The
+   * default is {@code false}.
+   *
+   * <p>The complete verification URI already embeds the user code, so the user can simply open it
+   * without having to type the code manually.
+   *
+   * <p>This property is optional; if enabled, but the authorization server did not return a {@code
+   * verification_uri_complete}, the verification URI and the user code will be displayed
+   * separately.
+   *
+   * @see <a href="https://datatracker.ietf.org/doc/html/rfc8628#section-3.2">RFC 8628 Section
+   *     3.2</a>
+   */
+  @WithName(USE_VERIFICATION_URI_COMPLETE)
+  @WithDefault("false")
+  boolean isUseVerificationUriComplete();
 
   default void validate() {
     ConfigValidator validator = new ConfigValidator();

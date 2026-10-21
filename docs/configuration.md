@@ -306,6 +306,14 @@ URL of the OAuth2 device authorization endpoint. For Keycloak, this is typically
 
 If using the "Device Code" grant type, either this property or `rest.auth.oauth2.issuer-url` must be set.
 
+### `rest.auth.oauth2.device-code.use-verification-uri-complete`
+
+Whether to display the `verification_uri_complete` returned by the device authorization endpoint, instead of displaying the `verification_uri` and the user code separately. The default is `false`.
+
+The complete verification URI already embeds the user code, so the user can simply open it without having to type the code manually.
+
+This property is optional; if enabled, but the authorization server did not return a `verification_uri_complete`, the verification URI and the user code will be displayed separately.
+
 ## Token Exchange Settings
 
 Configuration properties for the [Token Exchange](https://datatracker.ietf.org/doc/html/rfc8693) flow.

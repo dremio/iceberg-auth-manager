@@ -28,6 +28,7 @@ import com.nimbusds.oauth2.sdk.http.HTTPRequest;
 import com.nimbusds.oauth2.sdk.http.HTTPResponse;
 import java.io.PrintStream;
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
@@ -94,10 +95,11 @@ abstract class DeviceCodeFlow extends AbstractFlow {
               synchronized (console) {
                 console.println();
                 console.println(getMsgPrefix() + OAUTH2_AGENT_TITLE);
-                console.println(getMsgPrefix() + OAUTH2_AGENT_OPEN_URL);
-                console.println(getMsgPrefix() + response.getVerificationURI());
-                console.println(getMsgPrefix() + "And enter the code:");
-                console.println(getMsgPrefix() + response.getUserCode().getValue());
+                formatInstructions(
+                        getMsgPrefix(),
+                        response,
+                        getConfig().getDeviceCodeConfig().isUseVerificationUriComplete())
+                    .forEach(console::println);
                 printExpirationNotice(response.getLifetime());
                 console.println();
                 console.flush();
@@ -145,6 +147,26 @@ abstract class DeviceCodeFlow extends AbstractFlow {
     } catch (ParseException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  /**
+   * Formats the lines instructing the user how to complete the device authorization.
+   *
+   * <p>If {@code useCompleteUri} is true and the authorization server returned a {@code
+   * verification_uri_complete}, only that URI is displayed, since it already embeds the user code.
+   * Otherwise, the {@code verification_uri} and the user code are displayed separately.
+   */
+  static List<String> formatInstructions(
+      String msgPrefix, DeviceAuthorizationSuccessResponse response, boolean useCompleteUri) {
+    if (useCompleteUri && response.getVerificationURIComplete() != null) {
+      return List.of(
+          msgPrefix + OAUTH2_AGENT_OPEN_URL, msgPrefix + response.getVerificationURIComplete());
+    }
+    return List.of(
+        msgPrefix + OAUTH2_AGENT_OPEN_URL,
+        msgPrefix + response.getVerificationURI(),
+        msgPrefix + "And enter the code:",
+        msgPrefix + response.getUserCode().getValue());
   }
 
   private void printExpirationNotice(long seconds) {

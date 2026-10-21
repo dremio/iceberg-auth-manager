@@ -17,7 +17,9 @@ package com.dremio.iceberg.authmgr.oauth2.config;
 
 import static com.dremio.iceberg.authmgr.oauth2.config.DeviceCodeConfig.ENDPOINT;
 import static com.dremio.iceberg.authmgr.oauth2.config.DeviceCodeConfig.PREFIX;
+import static com.dremio.iceberg.authmgr.oauth2.config.DeviceCodeConfig.USE_VERIFICATION_URI_COMPLETE;
 import static java.util.Collections.singletonList;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
 import com.dremio.iceberg.authmgr.oauth2.config.validator.ConfigValidator;
@@ -27,11 +29,32 @@ import io.smallrye.config.common.MapBackedConfigSource;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 class DeviceCodeConfigTest {
+
+  @Test
+  void useVerificationUriCompleteDefaultsToFalse() {
+    assertThat(load(Map.of()).isUseVerificationUriComplete()).isFalse();
+  }
+
+  @Test
+  void useVerificationUriCompleteEnabled() {
+    Map<String, String> properties = Map.of(PREFIX + '.' + USE_VERIFICATION_URI_COMPLETE, "true");
+    assertThat(load(properties).isUseVerificationUriComplete()).isTrue();
+  }
+
+  private static DeviceCodeConfig load(Map<String, String> properties) {
+    SmallRyeConfig smallRyeConfig =
+        new SmallRyeConfigBuilder()
+            .withMapping(DeviceCodeConfig.class, PREFIX)
+            .withSources(new MapBackedConfigSource("catalog-properties", properties, 1000) {})
+            .build();
+    return smallRyeConfig.getConfigMapping(DeviceCodeConfig.class, PREFIX);
+  }
 
   @ParameterizedTest
   @MethodSource
