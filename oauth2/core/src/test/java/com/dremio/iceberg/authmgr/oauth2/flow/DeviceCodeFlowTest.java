@@ -24,17 +24,13 @@ import com.dremio.iceberg.authmgr.oauth2.test.TestEnvironment;
 import com.dremio.iceberg.authmgr.oauth2.test.junit.EnumLike;
 import com.nimbusds.oauth2.sdk.GrantType;
 import com.nimbusds.oauth2.sdk.auth.ClientAuthenticationMethod;
-
-import java.net.URI;
-import java.util.List;
-
-import java.util.concurrent.ExecutionException;
-
 import com.nimbusds.oauth2.sdk.device.DeviceAuthorizationSuccessResponse;
 import com.nimbusds.oauth2.sdk.device.DeviceCode;
 import com.nimbusds.oauth2.sdk.device.UserCode;
+import java.net.URI;
+import java.util.List;
+import java.util.concurrent.ExecutionException;
 import org.junit.jupiter.api.Test;
-
 import org.junitpioneer.jupiter.cartesian.CartesianTest;
 import org.junitpioneer.jupiter.cartesian.CartesianTest.Values;
 
@@ -62,49 +58,49 @@ class DeviceCodeFlowTest {
 
   private static final URI VERIFICATION_URI = URI.create("https://example.com/device");
   private static final URI VERIFICATION_URI_COMPLETE =
-          URI.create("https://example.com/device?user_code=ABCD-EFGH");
+      URI.create("https://example.com/device?user_code=ABCD-EFGH");
 
   private static DeviceAuthorizationSuccessResponse response(URI verificationUriComplete) {
     return new DeviceAuthorizationSuccessResponse(
-            new DeviceCode("device-code"),
-            new UserCode("ABCD-EFGH"),
-            VERIFICATION_URI,
-            verificationUriComplete,
-            300,
-            5,
-            null);
+        new DeviceCode("device-code"),
+        new UserCode("ABCD-EFGH"),
+        VERIFICATION_URI,
+        verificationUriComplete,
+        300,
+        5,
+        null);
   }
 
   @Test
   void formatInstructionsSeparateByDefault() {
     assertThat(
             DeviceCodeFlow.formatInstructions(
-                    "[prefix] ", response(VERIFICATION_URI_COMPLETE), false))
-            .containsExactly(
-                    "[prefix] Please open the following URL to continue:",
-                    "[prefix] https://example.com/device",
-                    "[prefix] And enter the code:",
-                    "[prefix] ABCD-EFGH");
+                "[prefix] ", response(VERIFICATION_URI_COMPLETE), false))
+        .containsExactly(
+            "[prefix] Please open the following URL to continue:",
+            "[prefix] https://example.com/device",
+            "[prefix] And enter the code:",
+            "[prefix] ABCD-EFGH");
   }
 
   @Test
   void formatInstructionsCompleteUri() {
     assertThat(
             DeviceCodeFlow.formatInstructions(
-                    "[prefix] ", response(VERIFICATION_URI_COMPLETE), true))
-            .containsExactly(
-                    "[prefix] Please open the following URL to continue:",
-                    "[prefix] https://example.com/device?user_code=ABCD-EFGH");
+                "[prefix] ", response(VERIFICATION_URI_COMPLETE), true))
+        .containsExactly(
+            "[prefix] Please open the following URL to continue:",
+            "[prefix] https://example.com/device?user_code=ABCD-EFGH");
   }
 
   @Test
   void formatInstructionsCompleteUriRequestedButNotReturned() {
     List<String> lines = DeviceCodeFlow.formatInstructions("[prefix] ", response(null), true);
     assertThat(lines)
-            .containsExactly(
-                    "[prefix] Please open the following URL to continue:",
-                    "[prefix] https://example.com/device",
-                    "[prefix] And enter the code:",
-                    "[prefix] ABCD-EFGH");
+        .containsExactly(
+            "[prefix] Please open the following URL to continue:",
+            "[prefix] https://example.com/device",
+            "[prefix] And enter the code:",
+            "[prefix] ABCD-EFGH");
   }
 }

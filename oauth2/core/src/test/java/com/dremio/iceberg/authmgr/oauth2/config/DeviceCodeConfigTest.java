@@ -29,7 +29,6 @@ import io.smallrye.config.common.MapBackedConfigSource;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
-
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -50,13 +49,12 @@ class DeviceCodeConfigTest {
 
   private static DeviceCodeConfig load(Map<String, String> properties) {
     SmallRyeConfig smallRyeConfig =
-            new SmallRyeConfigBuilder()
-                    .withMapping(DeviceCodeConfig.class, PREFIX)
-                    .withSources(new MapBackedConfigSource("catalog-properties", properties, 1000) {})
-                    .build();
+        new SmallRyeConfigBuilder()
+            .withMapping(DeviceCodeConfig.class, PREFIX)
+            .withSources(new MapBackedConfigSource("catalog-properties", properties, 1000) {})
+            .build();
     return smallRyeConfig.getConfigMapping(DeviceCodeConfig.class, PREFIX);
   }
-
 
   @ParameterizedTest
   @MethodSource

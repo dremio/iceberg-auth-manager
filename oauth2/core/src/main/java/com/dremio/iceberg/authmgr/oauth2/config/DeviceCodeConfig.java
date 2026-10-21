@@ -62,7 +62,7 @@ public interface DeviceCodeConfig {
    * separately.
    *
    * @see <a href="https://datatracker.ietf.org/doc/html/rfc8628#section-3.2">RFC 8628 Section
-   * 3.2</a>
+   *     3.2</a>
    */
   @WithName(USE_VERIFICATION_URI_COMPLETE)
   @WithDefault("false")
@@ -72,9 +72,9 @@ public interface DeviceCodeConfig {
     ConfigValidator validator = new ConfigValidator();
     if (getDeviceAuthorizationEndpoint().isPresent()) {
       validator.checkEndpoint(
-              getDeviceAuthorizationEndpoint().get(),
-              PREFIX + '.' + ENDPOINT,
-              "device code flow: device authorization endpoint");
+          getDeviceAuthorizationEndpoint().get(),
+          PREFIX + '.' + ENDPOINT,
+          "device code flow: device authorization endpoint");
     }
     validator.validate();
   }

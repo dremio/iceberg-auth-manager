@@ -98,8 +98,8 @@ abstract class DeviceCodeFlow extends AbstractFlow {
                 formatInstructions(
                         getMsgPrefix(),
                         response,
-                        getConfig().getDeviceCodeConfig().isUseVerificationUriComplete()
-                ).forEach(console::println);
+                        getConfig().getDeviceCodeConfig().isUseVerificationUriComplete())
+                    .forEach(console::println);
                 printExpirationNotice(response.getLifetime());
                 console.println();
                 console.flush();
@@ -156,16 +156,16 @@ abstract class DeviceCodeFlow extends AbstractFlow {
    * Otherwise, the {@code verification_uri} and the user code are displayed separately.
    */
   static List<String> formatInstructions(
-          String msgPrefix, DeviceAuthorizationSuccessResponse response, boolean useCompleteUri) {
+      String msgPrefix, DeviceAuthorizationSuccessResponse response, boolean useCompleteUri) {
     if (useCompleteUri && response.getVerificationURIComplete() != null) {
       return List.of(
-              msgPrefix + OAUTH2_AGENT_OPEN_URL, msgPrefix + response.getVerificationURIComplete());
+          msgPrefix + OAUTH2_AGENT_OPEN_URL, msgPrefix + response.getVerificationURIComplete());
     }
     return List.of(
-            msgPrefix + OAUTH2_AGENT_OPEN_URL,
-            msgPrefix + response.getVerificationURI(),
-            msgPrefix + "And enter the code:",
-            msgPrefix + response.getUserCode().getValue());
+        msgPrefix + OAUTH2_AGENT_OPEN_URL,
+        msgPrefix + response.getVerificationURI(),
+        msgPrefix + "And enter the code:",
+        msgPrefix + response.getUserCode().getValue());
   }
 
   private void printExpirationNotice(long seconds) {
