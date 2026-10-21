@@ -37,9 +37,6 @@ public abstract class DeviceCodeUserFlow extends UserFlow {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(DeviceCodeUserFlow.class);
 
-  private static final Pattern FORM_ACTION_PATTERN =
-      Pattern.compile("<form.*action=\"([^\"]+)\".*>");
-
   private static final Pattern HIDDEN_CODE_PATTERN =
       Pattern.compile("<input type=\"hidden\" name=\"code\" value=\"([^\"]+)\">");
 
@@ -99,10 +96,8 @@ public abstract class DeviceCodeUserFlow extends UserFlow {
     LOGGER.debug("Authorizing device...");
     // receive consent page
     String consentHtml = getHtmlPage(consentPageUrl, cookies);
-    Matcher matcher = FORM_ACTION_PATTERN.matcher(consentHtml);
-    assertThat(matcher.find()).isTrue();
-    URI formAction = URI.create(matcher.group(1));
-    matcher = HIDDEN_CODE_PATTERN.matcher(consentHtml);
+    URI formAction = extractFormActionUrl(consentHtml);
+    Matcher matcher = HIDDEN_CODE_PATTERN.matcher(consentHtml);
     assertThat(matcher.find()).isTrue();
     String deviceCode = matcher.group(1);
     // send consent form

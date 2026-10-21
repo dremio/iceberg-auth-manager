@@ -614,10 +614,7 @@ public class OAuth2AgentKeycloakIT {
       TokensResult tokens = agent.authenticateInternal();
       JWT jwt = introspectToken(tokens.getTokens().getAccessToken(), CLIENT_ID1);
       soft.assertThat(jwt.getJWTClaimsSet().getStringClaim("scope")).contains("offline_access");
-      soft.assertThat(tokens.getTokens().getRefreshToken()).isNotNull();
-      // Keycloak does not include an expiration time for
-      // refresh tokens with offline_access
-      soft.assertThat(tokens.getRefreshTokenExpirationTime()).isNull();
+      assertAgent(agent, CLIENT_ID1, true);
     }
   }
 
@@ -683,8 +680,6 @@ public class OAuth2AgentKeycloakIT {
     TokensResult initial = agent.authenticateInternal();
     verifier.verify(initial);
     if (expectRefreshToken) {
-      // Refresh tokens without offline_access are bound by the user session;
-      // Keycloak returns the refresh token expiration time in these cases.
       soft.assertThat(initial.getTokens().getRefreshToken()).isNotNull();
       soft.assertThat(initial.getRefreshTokenExpirationTime()).isNotNull();
       TokensResult refreshed = agent.refreshCurrentTokens(initial).toCompletableFuture().get();
