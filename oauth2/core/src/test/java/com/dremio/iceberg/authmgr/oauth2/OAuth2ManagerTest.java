@@ -125,6 +125,38 @@ class OAuth2ManagerTest {
     }
 
     @Test
+    void catalogSessionWithInitAndExtraProperties() throws IOException {
+      try (TestEnvironment env = TestEnvironment.builder().build();
+          OAuth2Manager manager = new OAuth2Manager("test")) {
+        Map<String, String> initProperties =
+            Map.of(
+                PREFIX + '.' + BasicConfig.TOKEN_ENDPOINT,
+                env.getTokenEndpoint().toString(),
+                PREFIX + '.' + BasicConfig.CLIENT_ID,
+                TestConstants.CLIENT_ID1.getValue(),
+                PREFIX + '.' + BasicConfig.CLIENT_SECRET,
+                TestConstants.CLIENT_SECRET1.getValue(),
+                PREFIX + '.' + BasicConfig.SCOPE,
+                TestConstants.SCOPE1.toString(),
+                PREFIX + '.' + BasicConfig.EXTRA_PARAMS + ".extra1",
+                "value1");
+        // Non-OAuth2 properties merged from the server's /v1/config must not matter.
+        Map<String, String> catalogProperties = new java.util.HashMap<>(initProperties);
+        catalogProperties.put("prefix", "my-prefix");
+        catalogProperties.put("namespace-separator", "%2E");
+        try (HTTPClient httpClient = env.newIcebergRestClientBuilder(Map.of()).build();
+            OAuth2Session init = (OAuth2Session) manager.initSession(httpClient, initProperties)) {
+          init.authenticate(request);
+          try (AuthSession session = manager.catalogSession(httpClient, catalogProperties)) {
+            HTTPRequest actual = session.authenticate(request);
+            assertThat(actual.headers().entries("Authorization"))
+                .containsOnly(HTTPHeader.of("Authorization", "Bearer " + ACCESS_TOKEN_INITIAL));
+          }
+        }
+      }
+    }
+
+    @Test
     void contextualSessionEmptyContext() throws IOException {
       try (TestEnvironment env = TestEnvironment.builder().build();
           OAuth2Manager manager = new OAuth2Manager("test")) {
