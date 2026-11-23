@@ -517,12 +517,11 @@ class OAuth2ManagerTest {
             .satisfies(this::assertCatalogProperties);
         assertThat(catalog)
             .extracting(SESSION_CACHE, asMap())
-            .satisfies(
-                cache -> {
-                  assertThat(cache).hasSize(1);
-                  String key = cache.keySet().iterator().next();
-                  assertThat(key).isEqualTo(TestConstants.SESSION_CONTEXT.sessionId());
-                });
+            .satisfies(cache -> {
+              assertThat(cache).hasSize(1);
+              String key = cache.keySet().iterator().next();
+              assertThat(key).isEqualTo(TestConstants.SESSION_CONTEXT.sessionId());
+            });
       }
     }
 
@@ -562,12 +561,11 @@ class OAuth2ManagerTest {
             .satisfies(this::assertCatalogProperties);
         assertThat(catalog)
             .extracting(SESSION_CACHE, asMap())
-            .satisfies(
-                cache -> {
-                  assertThat(cache).hasSize(1);
-                  String key = cache.keySet().iterator().next();
-                  assertThat(key).isEqualTo(TestConstants.SESSION_CONTEXT.sessionId());
-                });
+            .satisfies(cache -> {
+              assertThat(cache).hasSize(1);
+              String key = cache.keySet().iterator().next();
+              assertThat(key).isEqualTo(TestConstants.SESSION_CONTEXT.sessionId());
+            });
       }
     }
 

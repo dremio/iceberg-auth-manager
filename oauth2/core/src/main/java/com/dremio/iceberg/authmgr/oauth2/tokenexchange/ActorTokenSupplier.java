@@ -46,9 +46,8 @@ public abstract class ActorTokenSupplier extends AbstractTokenSupplier {
     TokenExchangeConfig tokenExchangeConfig = getMainConfig().getTokenExchangeConfig();
     return tokenExchangeConfig
         .getActorToken()
-        .or(
-            () ->
-                tokenExchangeConfig.getActorTokenFile().map(ActorTokenSupplier::readTokenFromFile));
+        .or(() ->
+            tokenExchangeConfig.getActorTokenFile().map(ActorTokenSupplier::readTokenFromFile));
   }
 
   @Value.Derived

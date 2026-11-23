@@ -40,7 +40,7 @@ testing {
         libs
           .findLibrary("junit-bom")
           .orElseThrow { GradleException("junit-bom not declared in libs.versions.toml") }
-          .map { it.version!! }
+          .map { it.version!! },
       )
 
       dependencies {
@@ -49,17 +49,17 @@ testing {
         runtimeOnly(
           libs.findLibrary("logback-classic").orElseThrow {
             GradleException("logback-classic not declared in libs.versions.toml")
-          }
+          },
         )
         implementation(
           libs.findLibrary("assertj-core").orElseThrow {
             GradleException("assertj-core not declared in libs.versions.toml")
-          }
+          },
         )
         implementation(
           libs.findLibrary("mockito-core").orElseThrow {
             GradleException("mockito-core not declared in libs.versions.toml")
-          }
+          },
         )
       }
     }
@@ -83,18 +83,18 @@ dependencies {
     platform(
       libs.findLibrary("junit-bom").orElseThrow {
         GradleException("junit-bom not declared in libs.versions.toml")
-      }
-    )
+      },
+    ),
   )
   testFixturesImplementation("org.junit.jupiter:junit-jupiter")
   testFixturesImplementation(
     libs.findLibrary("assertj-core").orElseThrow {
       GradleException("assertj-core not declared in libs.versions.toml")
-    }
+    },
   )
   testFixturesImplementation(
     libs.findLibrary("mockito-core").orElseThrow {
       GradleException("mockito-core not declared in libs.versions.toml")
-    }
+    },
   )
 }

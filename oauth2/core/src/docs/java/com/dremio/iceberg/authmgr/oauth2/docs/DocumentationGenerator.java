@@ -134,10 +134,9 @@ public class DocumentationGenerator {
 
       if (method.getAnnotations().stream()
           .map(a -> a.getType().getSimpleName())
-          .noneMatch(
-              n ->
-                  n.equals("io.smallrye.config.WithName")
-                      || n.equals("io.smallrye.config.WithParentName"))) {
+          .noneMatch(n ->
+              n.equals("io.smallrye.config.WithName")
+                  || n.equals("io.smallrye.config.WithParentName"))) {
         continue;
       }
 
@@ -337,12 +336,11 @@ public class DocumentationGenerator {
             .filter(a -> a.getType().getSimpleName().equals("io.smallrye.config.WithName"))
             .map(a -> a.getNamedParameter("value").toString())
             .findFirst()
-            .ifPresent(
-                name -> {
-                  String propertyName = refs.get(name);
-                  String description = sanitizeDescription(this, method.getComment());
-                  properties.add(new Property(propertyName, description));
-                });
+            .ifPresent(name -> {
+              String propertyName = refs.get(name);
+              String description = sanitizeDescription(this, method.getComment());
+              properties.add(new Property(propertyName, description));
+            });
       }
     }
   }

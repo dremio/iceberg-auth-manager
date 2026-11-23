@@ -152,10 +152,9 @@ class ActorTokenSupplierTest {
         TokenExchangeConfig.PREFIX + '.' + TokenExchangeConfig.ACTOR_TOKEN_TYPE,
         actorTokenType.getURI().toString());
 
-    actorTokenConfig.forEach(
-        (k, v) ->
-            builder.put(
-                TokenExchangeConfig.PREFIX + '.' + TokenExchangeConfig.ACTOR_TOKEN + '.' + k, v));
+    actorTokenConfig.forEach((k, v) ->
+        builder.put(
+            TokenExchangeConfig.PREFIX + '.' + TokenExchangeConfig.ACTOR_TOKEN + '.' + k, v));
 
     if (actorToken != null) {
       builder.put(TokenExchangeConfig.PREFIX + '.' + TokenExchangeConfig.ACTOR_TOKEN, actorToken);

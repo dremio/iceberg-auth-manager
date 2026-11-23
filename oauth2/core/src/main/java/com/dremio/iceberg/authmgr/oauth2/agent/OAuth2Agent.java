@@ -573,9 +573,8 @@ public final class OAuth2Agent implements Closeable {
     } else {
       // 5) schedule the next token renewal; if the renewal attempt failed, back off, even if the
       // old tokens were kept
-      newTokensFuture.whenComplete(
-          (tokens, error) ->
-              maybeScheduleTokensRenewal(tokens, Futures.getErrorNow(renewalFuture)));
+      newTokensFuture.whenComplete((tokens, error) ->
+          maybeScheduleTokensRenewal(tokens, Futures.getErrorNow(renewalFuture)));
     }
   }
 

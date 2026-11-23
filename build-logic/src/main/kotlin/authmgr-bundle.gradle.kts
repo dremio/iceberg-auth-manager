@@ -169,7 +169,7 @@ class BundleLicenseGenerator() : ReportRenderer {
 
       // Write third-party dependencies section
       writer.write(
-        "\n================================================================================\n\n"
+        "\n================================================================================\n\n",
       )
       writer.write("THIRD-PARTY DEPENDENCIES\n\n")
       writer.write("This product includes software developed by the following third parties:\n\n")
@@ -178,7 +178,7 @@ class BundleLicenseGenerator() : ReportRenderer {
 
       dependenciesByGroup.forEach { (group, modules) ->
         writer.write(
-          "--------------------------------------------------------------------------------\n\n"
+          "--------------------------------------------------------------------------------\n\n",
         )
 
         writer.write("Group: $group\n")
@@ -253,7 +253,7 @@ val checkJava17Compatibility =
       if (incompatibleClasses.isNotEmpty()) {
         val errorMessage = buildString {
           appendLine(
-            "Found ${incompatibleClasses.size} class(es) incompatible with Java 17 in ${jar.name}:"
+            "Found ${incompatibleClasses.size} class(es) incompatible with Java 17 in ${jar.name}:",
           )
           incompatibleClasses
             .sortedBy { it.first }

@@ -52,7 +52,7 @@ gradle.projectsEvaluated {
               project.layout.buildDirectory
                 .dir("libs")
                 .get()
-                .file("${project.name}-${rootProject.version}.jar")
+                .file("${project.name}-${rootProject.version}.jar"),
             )
           }
         }
@@ -77,7 +77,7 @@ gradle.projectsEvaluated {
             echo "| Step | Outcome |" >> ${'$'}GITHUB_STEP_SUMMARY
             echo "| ---- | ------- |" >> ${'$'}GITHUB_STEP_SUMMARY
             """
-              .trimIndent()
+              .trimIndent(),
           )
         }
         success {
@@ -86,7 +86,7 @@ gradle.projectsEvaluated {
             """
             echo "| {{event.name}} | :white_check_mark: |" >> ${'$'}GITHUB_STEP_SUMMARY
             """
-              .trimIndent()
+              .trimIndent(),
           )
         }
         success {
@@ -95,7 +95,7 @@ gradle.projectsEvaluated {
             """
             echo "" >> ${'$'}GITHUB_STEP_SUMMARY
             """
-              .trimIndent()
+              .trimIndent(),
           )
         }
         failure {
@@ -104,7 +104,7 @@ gradle.projectsEvaluated {
             """
             echo "| {{event.name}} | :x: |" >> ${'$'}GITHUB_STEP_SUMMARY
             """
-              .trimIndent()
+              .trimIndent(),
           )
         }
         failure {
@@ -117,7 +117,7 @@ gradle.projectsEvaluated {
             echo "{{event.stacktrace}}\`\`\`" >> ${'$'}GITHUB_STEP_SUMMARY
             echo "" >> ${'$'}GITHUB_STEP_SUMMARY
             """
-              .trimIndent()
+              .trimIndent(),
           )
         }
       }
@@ -139,7 +139,7 @@ gradle.projectsEvaluated {
           // TODO enable when the CI user has permissions to close issues
           enabled.set(false)
           comment.set(
-            "🎉 This issue has been resolved in version {{projectVersionNumber}} ([Release Notes]({{releaseNotesUrl}}))"
+            "🎉 This issue has been resolved in version {{projectVersionNumber}} ([Release Notes]({{releaseNotesUrl}}))",
           )
           applyMilestone.set(Apply.ALWAYS)
         }
@@ -165,11 +165,11 @@ gradle.projectsEvaluated {
             {{changelogChanges}}
             {{changelogContributors}}
             """
-              .trimIndent()
+              .trimIndent(),
           )
           contributors {
             format.set(
-              "- {{contributorName}}{{#contributorUsernameAsLink}} ({{.}}){{/contributorUsernameAsLink}}"
+              "- {{contributorName}}{{#contributorUsernameAsLink}} ({{.}}){{/contributorUsernameAsLink}}",
             )
           }
           hide {
@@ -192,7 +192,7 @@ gradle.projectsEvaluated {
               .filter { it.plugins.hasPlugin("authmgr-maven") }
               .forEach {
                 stagingRepository(
-                  it.layout.buildDirectory.dir("staging-deploy").get().asFile.absolutePath
+                  it.layout.buildDirectory.dir("staging-deploy").get().asFile.absolutePath,
                 )
               }
           }

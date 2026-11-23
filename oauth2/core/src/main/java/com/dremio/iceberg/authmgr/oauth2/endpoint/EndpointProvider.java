@@ -121,14 +121,11 @@ public abstract class EndpointProvider {
   @Value.Lazy
   public URI getResolvedDeviceAuthorizationEndpoint() {
     return getDeviceAuthorizationEndpoint()
-        .or(
-            () ->
-                Optional.ofNullable(
-                    getOpenIdProviderMetadata().getDeviceAuthorizationEndpointURI()))
-        .orElseThrow(
-            () ->
-                new IllegalStateException(
-                    "OpenID provider metadata does not contain a device authorization endpoint"));
+        .or(() ->
+            Optional.ofNullable(getOpenIdProviderMetadata().getDeviceAuthorizationEndpointURI()))
+        .orElseThrow(() ->
+            new IllegalStateException(
+                "OpenID provider metadata does not contain a device authorization endpoint"));
   }
 
   @Value.Lazy

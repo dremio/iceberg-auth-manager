@@ -69,7 +69,7 @@ dependencies {
   // Add to intTestImplementation all Iceberg/Flink dependencies (with default versions)
   // that are required for compilation of test classes
   intTestImplementation(
-    "org.apache.iceberg:iceberg-flink-runtime-$defaultFlinkVersionMajorMinor:$defaultIcebergVersion"
+    "org.apache.iceberg:iceberg-flink-runtime-$defaultFlinkVersionMajorMinor:$defaultIcebergVersion",
   )
   intTestImplementation("org.apache.flink:flink-table-api-java:$defaultFlinkVersion")
 }
@@ -113,7 +113,7 @@ icebergVersions.forEach { icebergVersion ->
     dependencies {
       runtimeConfig(platform("org.apache.iceberg:iceberg-bom:$icebergVersion"))
       runtimeConfig(
-        "org.apache.iceberg:iceberg-flink-runtime-$flinkVersionMajorMinor:$icebergVersion"
+        "org.apache.iceberg:iceberg-flink-runtime-$flinkVersionMajorMinor:$icebergVersion",
       )
       runtimeConfig("org.apache.flink:flink-table-api-java:$flinkVersion")
       runtimeConfig("org.apache.flink:flink-table-runtime:$flinkVersion")

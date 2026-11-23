@@ -123,39 +123,36 @@ public abstract class AuthorizationCodeExpectation extends InitialTokenFetchExpe
     }
     TestServer.getInstance()
         .when(request)
-        .respond(
-            httpRequest -> {
-              Parameters parameters = httpRequest.getQueryStringParameters();
-              String redirectUri = parameters.getValues("redirect_uri").getFirst();
-              AuthorizationCode code = new AuthorizationCode();
-              String location =
-                  new URIBuilder(redirectUri)
-                      .addParameter("code", code.getValue())
-                      .addParameter("state", parameters.getValues("state").getFirst())
-                      .build()
-                      .toString();
-              CodeChallengeMethod method = null;
-              CodeChallenge codeChallenge = null;
-              if (getTestEnvironment().isPkceEnabled()) {
-                if (parameters.getValues("code_challenge_method").isEmpty()
-                    || parameters.getValues("code_challenge").isEmpty()) {
-                  return AUTHORIZATION_SERVER_ERROR_RESPONSE;
-                }
-                method =
-                    CodeChallengeMethod.parse(
-                        parameters.getValues("code_challenge_method").getFirst());
-                codeChallenge =
-                    CodeChallenge.parse(parameters.getValues("code_challenge").getFirst());
-              }
-              var pendingAuthRequest =
-                  ImmutableAuthorizationCodeExpectation.PendingAuthRequest.builder()
-                      .code(code)
-                      .codeChallengeMethod(Optional.ofNullable(method))
-                      .codeChallenge(Optional.ofNullable(codeChallenge))
-                      .build();
-              getPendingAuthRequests().put(redirectUri, pendingAuthRequest);
-              return HttpResponse.response().withStatusCode(302).withHeader("Location", location);
-            });
+        .respond(httpRequest -> {
+          Parameters parameters = httpRequest.getQueryStringParameters();
+          String redirectUri = parameters.getValues("redirect_uri").getFirst();
+          AuthorizationCode code = new AuthorizationCode();
+          String location =
+              new URIBuilder(redirectUri)
+                  .addParameter("code", code.getValue())
+                  .addParameter("state", parameters.getValues("state").getFirst())
+                  .build()
+                  .toString();
+          CodeChallengeMethod method = null;
+          CodeChallenge codeChallenge = null;
+          if (getTestEnvironment().isPkceEnabled()) {
+            if (parameters.getValues("code_challenge_method").isEmpty()
+                || parameters.getValues("code_challenge").isEmpty()) {
+              return AUTHORIZATION_SERVER_ERROR_RESPONSE;
+            }
+            method =
+                CodeChallengeMethod.parse(parameters.getValues("code_challenge_method").getFirst());
+            codeChallenge = CodeChallenge.parse(parameters.getValues("code_challenge").getFirst());
+          }
+          var pendingAuthRequest =
+              ImmutableAuthorizationCodeExpectation.PendingAuthRequest.builder()
+                  .code(code)
+                  .codeChallengeMethod(Optional.ofNullable(method))
+                  .codeChallenge(Optional.ofNullable(codeChallenge))
+                  .build();
+          getPendingAuthRequests().put(redirectUri, pendingAuthRequest);
+          return HttpResponse.response().withStatusCode(302).withHeader("Location", location);
+        });
   }
 
   @AuthManagerImmutable

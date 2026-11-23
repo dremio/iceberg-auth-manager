@@ -91,31 +91,30 @@ public abstract class DeviceCodeExpectation extends InitialTokenFetchExpectation
                 .withHeader("Content-Type", "application/x-www-form-urlencoded(; charset=UTF-8)?")
                 .withBody(
                     ParameterBody.params(param("scope", String.format("(%s|%s)", SCOPE1, SCOPE2)))))
-        .respond(
-            httpRequest -> {
-              UserCode userCode = new UserCode();
-              DeviceCode deviceCode = new DeviceCode();
-              var pendingAuthRequest = new PendingAuthRequest(userCode, deviceCode);
-              getPendingAuthRequests().put(userCode, pendingAuthRequest);
-              getPendingAuthRequests().put(deviceCode, pendingAuthRequest);
-              return HttpResponse.response()
-                  .withBody(
-                      JsonBody.json(
-                          Map.of(
-                              "device_code",
-                              deviceCode.getValue(),
-                              "user_code",
-                              userCode.getValue(),
-                              "verification_uri",
-                              getTestEnvironment().getDeviceVerificationEndpoint().toString(),
-                              "verification_uri_complete",
-                              getTestEnvironment().getDeviceVerificationEndpoint().toString(),
-                              "expires_in",
-                              300,
-                              // Zero is not a valid interval per the RFC, but speeds up unit tests
-                              "interval",
-                              0)));
-            });
+        .respond(httpRequest -> {
+          UserCode userCode = new UserCode();
+          DeviceCode deviceCode = new DeviceCode();
+          var pendingAuthRequest = new PendingAuthRequest(userCode, deviceCode);
+          getPendingAuthRequests().put(userCode, pendingAuthRequest);
+          getPendingAuthRequests().put(deviceCode, pendingAuthRequest);
+          return HttpResponse.response()
+              .withBody(
+                  JsonBody.json(
+                      Map.of(
+                          "device_code",
+                          deviceCode.getValue(),
+                          "user_code",
+                          userCode.getValue(),
+                          "verification_uri",
+                          getTestEnvironment().getDeviceVerificationEndpoint().toString(),
+                          "verification_uri_complete",
+                          getTestEnvironment().getDeviceVerificationEndpoint().toString(),
+                          "expires_in",
+                          300,
+                          // Zero is not a valid interval per the RFC, but speeds up unit tests
+                          "interval",
+                          0)));
+        });
   }
 
   private void createDeviceVerificationEndpointExpectation() {
@@ -146,25 +145,24 @@ public abstract class DeviceCodeExpectation extends InitialTokenFetchExpectation
                 .withPath(path)
                 .withHeader("Content-Type", "application/x-www-form-urlencoded(; charset=UTF-8)?")
                 .withBody(ParameterBody.params(param("device_user_code", "[a-zA-Z0-9-._~]+"))))
-        .respond(
-            httpRequest -> {
-              // See https://github.com/mock-server/mockserver/issues/1468
-              Map<String, List<String>> params = decodeBodyParameters(httpRequest);
-              List<String> userCode = params.get("device_user_code");
-              if (userCode == null || userCode.isEmpty()) {
-                return AUTHORIZATION_SERVER_ERROR_RESPONSE;
-              }
-              PendingAuthRequest pendingAuthRequest =
-                  getPendingAuthRequests().get(new UserCode(userCode.getFirst()));
-              if (pendingAuthRequest == null) {
-                return AUTHORIZATION_SERVER_ERROR_RESPONSE;
-              }
-              pendingAuthRequest.setUserCodeReceived(true);
-              return HttpResponse.response()
-                  .withBody(
-                      StringBody.exact(
-                          "<html><body>Device authorized</body></html>", MediaType.TEXT_HTML));
-            });
+        .respond(httpRequest -> {
+          // See https://github.com/mock-server/mockserver/issues/1468
+          Map<String, List<String>> params = decodeBodyParameters(httpRequest);
+          List<String> userCode = params.get("device_user_code");
+          if (userCode == null || userCode.isEmpty()) {
+            return AUTHORIZATION_SERVER_ERROR_RESPONSE;
+          }
+          PendingAuthRequest pendingAuthRequest =
+              getPendingAuthRequests().get(new UserCode(userCode.getFirst()));
+          if (pendingAuthRequest == null) {
+            return AUTHORIZATION_SERVER_ERROR_RESPONSE;
+          }
+          pendingAuthRequest.setUserCodeReceived(true);
+          return HttpResponse.response()
+              .withBody(
+                  StringBody.exact(
+                      "<html><body>Device authorized</body></html>", MediaType.TEXT_HTML));
+        });
   }
 
   public static final class PendingAuthRequest {

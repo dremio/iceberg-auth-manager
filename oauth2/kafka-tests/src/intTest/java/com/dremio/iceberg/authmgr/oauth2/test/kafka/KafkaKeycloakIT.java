@@ -249,12 +249,11 @@ public class KafkaKeycloakIT {
             + icebergConnectorVersion;
     ImageFromDockerfile image =
         new ImageFromDockerfile()
-            .withDockerfileFromBuilder(
-                builder ->
-                    builder
-                        .from("confluentinc/cp-kafka-connect:" + confluentVersion)
-                        .run(command) // must be run as root
-                        .build());
+            .withDockerfileFromBuilder(builder ->
+                builder
+                    .from("confluentinc/cp-kafka-connect:" + confluentVersion)
+                    .run(command) // must be run as root
+                    .build());
     return new GenericContainer<>(image)
         .withNetwork(network)
         .withNetworkAliases("connect")

@@ -67,10 +67,10 @@ dependencies {
   // Add to intTestImplementation all Iceberg/Spark dependencies (with default versions)
   // that are required for compilation of test classes
   intTestImplementation(
-    "org.apache.iceberg:iceberg-spark-runtime-${defaultSparkVersionMajorMinor}_$scalaVersion:$defaultIcebergVersion"
+    "org.apache.iceberg:iceberg-spark-runtime-${defaultSparkVersionMajorMinor}_$scalaVersion:$defaultIcebergVersion",
   )
   intTestImplementation(
-    "org.apache.iceberg:iceberg-spark-extensions-${defaultSparkVersionMajorMinor}_$scalaVersion:$defaultIcebergVersion"
+    "org.apache.iceberg:iceberg-spark-extensions-${defaultSparkVersionMajorMinor}_$scalaVersion:$defaultIcebergVersion",
   )
   intTestImplementation("org.apache.spark:spark-sql_$scalaVersion:$defaultSparkVersion")
 }
@@ -99,10 +99,10 @@ icebergVersions.forEach { icebergVersion ->
     dependencies {
       runtimeConfig(platform("org.apache.iceberg:iceberg-bom:$icebergVersion"))
       runtimeConfig(
-        "org.apache.iceberg:iceberg-spark-runtime-${sparkVersionMajorMinor}_$scalaVersion:$icebergVersion"
+        "org.apache.iceberg:iceberg-spark-runtime-${sparkVersionMajorMinor}_$scalaVersion:$icebergVersion",
       )
       runtimeConfig(
-        "org.apache.iceberg:iceberg-spark-extensions-${sparkVersionMajorMinor}_$scalaVersion:$icebergVersion"
+        "org.apache.iceberg:iceberg-spark-extensions-${sparkVersionMajorMinor}_$scalaVersion:$icebergVersion",
       )
       runtimeConfig("org.apache.iceberg:iceberg-aws-bundle:$icebergVersion")
       runtimeConfig("org.apache.spark:spark-sql_$scalaVersion:$sparkVersion")

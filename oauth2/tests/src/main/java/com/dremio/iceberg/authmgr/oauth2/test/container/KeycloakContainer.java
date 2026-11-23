@@ -329,10 +329,9 @@ public class KeycloakContainer extends ExtendableKeycloakContainer<KeycloakConta
         master.users().searchByUsername(link.username(), true).stream()
             .findFirst()
             .map(UserRepresentation::getId)
-            .orElseThrow(
-                () ->
-                    new IllegalStateException(
-                        "Failed to find user for federated identity link: " + link.username()));
+            .orElseThrow(() ->
+                new IllegalStateException(
+                    "Failed to find user for federated identity link: " + link.username()));
     FederatedIdentityRepresentation rep = new FederatedIdentityRepresentation();
     rep.setIdentityProvider(link.providerAlias());
     rep.setUserId(link.externalUserId());
