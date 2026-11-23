@@ -53,10 +53,14 @@ public class OAuth2Manager implements AuthManager {
   @Override
   public AuthSession catalogSession(
       RESTClient sharedClient, Map<String, String> catalogProperties) {
-    // Copy the existing session if the properties are the same as the init session
+    // Copy the existing session if the OAuth2 properties are the same as the init session
     // to avoid requiring from users to log in again, for human-based flows.
+    // Only OAuth2 properties are compared: the catalog properties typically contain extra,
+    // unrelated entries (e.g. 'prefix') merged from the server's /v1/config response.
     OAuth2Session catalogSession =
-        initSession != null && catalogProperties.equals(initSession.getProperties())
+        initSession != null
+                && oauth2Properties(catalogProperties)
+                    .equals(oauth2Properties(initSession.getProperties()))
             ? initSession.copy()
             : new OAuth2Session(catalogProperties, refreshExecutor());
     initSession = null; // already closed
@@ -118,6 +122,10 @@ public class OAuth2Manager implements AuthManager {
       this.sessionCache = null;
       this.refreshExecutor = null;
     }
+  }
+
+  private static Map<String, String> oauth2Properties(Map<String, String> properties) {
+    return RESTUtil.extractPrefixMap(properties, OAuth2Config.PREFIX + ".");
   }
 
   private ScheduledExecutorService refreshExecutor() {
