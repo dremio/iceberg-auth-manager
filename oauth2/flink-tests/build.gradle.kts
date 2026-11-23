@@ -74,12 +74,27 @@ dependencies {
   intTestImplementation("org.apache.flink:flink-table-api-java:$defaultFlinkVersion")
 }
 
+// Iceberg publishes iceberg-flink-runtime artifacts only for some Flink versions:
+// - Flink 1.20: all Iceberg versions
+// - Flink 2.0: Iceberg 1.10 and 1.11 only
+// - Flink 2.1: Iceberg 1.11 and later
+fun isSupported(icebergVersion: String, flinkVersion: String): Boolean {
+  val iceberg = icebergVersion.split(".").map { it.toInt() }
+  val icebergMinor = iceberg[0] * 1000 + iceberg[1]
+  val flinkMajorMinor = flinkVersion.substringBeforeLast(".")
+  return when (flinkMajorMinor) {
+    "2.0" -> icebergMinor in 1010..1011
+    "2.1" -> icebergMinor >= 1011
+    else -> !flinkVersion.startsWith("2.")
+  }
+}
+
 // Create matrix test tasks for each version combination
 val matrixTestTasks = mutableListOf<TaskProvider<Test>>()
 
 icebergVersions.forEach { icebergVersion ->
   flinkVersions.forEach flinkVersion@{ flinkVersion ->
-    if (flinkVersion.startsWith("2.") && icebergVersion.startsWith("1.9.")) {
+    if (!isSupported(icebergVersion, flinkVersion)) {
       return@flinkVersion
     }
 
