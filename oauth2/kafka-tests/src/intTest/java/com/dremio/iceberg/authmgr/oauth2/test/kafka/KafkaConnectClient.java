@@ -94,22 +94,21 @@ class KafkaConnectClient implements AutoCloseable {
             String.format(Locale.ROOT, "http://localhost:%d/connectors/%s/status", port, name));
     Awaitility.await()
         .atMost(60, TimeUnit.SECONDS)
-        .until(
-            () ->
-                httpClient.execute(
-                    request,
-                    response -> {
-                      if (response.getCode() == HttpStatus.SC_OK) {
-                        JsonNode root = MAPPER.readTree(response.getEntity().getContent());
-                        String connectorState = root.get("connector").get("state").asText();
-                        ArrayNode taskNodes = (ArrayNode) root.get("tasks");
-                        List<String> taskStates = Lists.newArrayList();
-                        taskNodes.forEach(node -> taskStates.add(node.get("state").asText()));
-                        return "RUNNING".equals(connectorState)
-                            && taskStates.stream().allMatch("RUNNING"::equals);
-                      }
-                      return false;
-                    }));
+        .until(() ->
+            httpClient.execute(
+                request,
+                response -> {
+                  if (response.getCode() == HttpStatus.SC_OK) {
+                    JsonNode root = MAPPER.readTree(response.getEntity().getContent());
+                    String connectorState = root.get("connector").get("state").asText();
+                    ArrayNode taskNodes = (ArrayNode) root.get("tasks");
+                    List<String> taskStates = Lists.newArrayList();
+                    taskNodes.forEach(node -> taskStates.add(node.get("state").asText()));
+                    return "RUNNING".equals(connectorState)
+                        && taskStates.stream().allMatch("RUNNING"::equals);
+                  }
+                  return false;
+                }));
   }
 
   void stopConnector(String name) {

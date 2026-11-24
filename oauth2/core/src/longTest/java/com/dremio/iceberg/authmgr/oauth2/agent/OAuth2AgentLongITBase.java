@@ -55,12 +55,11 @@ public abstract class OAuth2AgentLongITBase {
 
   private CompletableFuture<Void> schedule(OAuth2Agent agent, LongSupplier nextDelay) {
     return CompletableFuture.runAsync(() -> authenticate(agent))
-        .whenComplete(
-            (result, error) -> {
-              if (error != null) {
-                stop.completeExceptionally(error);
-              }
-            })
+        .whenComplete((result, error) -> {
+          if (error != null) {
+            stop.completeExceptionally(error);
+          }
+        })
         .thenComposeAsync(
             v -> schedule(agent, nextDelay), delayedExecutor(nextDelay.getAsLong(), SECONDS));
   }

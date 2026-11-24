@@ -107,14 +107,13 @@ public final class TestCertificates {
       baseDir = Files.createTempDirectory("authmgr-test-certs");
       Runtime.getRuntime()
           .addShutdownHook(
-              new Thread(
-                  () -> {
-                    try {
-                      MoreFiles.deleteRecursively(baseDir, RecursiveDeleteOption.ALLOW_INSECURE);
-                    } catch (IOException ignored) {
-                      // best effort
-                    }
-                  }));
+              new Thread(() -> {
+                try {
+                  MoreFiles.deleteRecursively(baseDir, RecursiveDeleteOption.ALLOW_INSECURE);
+                } catch (IOException ignored) {
+                  // best effort
+                }
+              }));
 
       bouncyCastleAvailable = probeForBouncyCastle();
 

@@ -89,32 +89,30 @@ abstract class DeviceCodeFlow extends AbstractFlow {
     // The device authorization endpoint call is a side effect:
     // on success it starts polling, on failure it completes getTokensFuture() exceptionally.
     invokeDeviceAuthorizationEndpoint()
-        .thenAccept(
-            response -> {
-              PrintStream console = getRuntime().getConsole();
-              synchronized (console) {
-                console.println();
-                console.println(getMsgPrefix() + OAUTH2_AGENT_TITLE);
-                formatInstructions(
-                        getMsgPrefix(),
-                        response,
-                        getConfig().getDeviceCodeConfig().isUseVerificationUriComplete())
-                    .forEach(console::println);
-                printExpirationNotice(response.getLifetime());
-                console.println();
-                console.flush();
-              }
-              getPoller().start(response.getInterval(), response.getDeviceCode());
-            })
-        .exceptionally(
-            error -> {
-              getTokensFuture()
-                  .completeExceptionally(
-                      error instanceof CompletionException && error.getCause() != null
-                          ? error.getCause()
-                          : error);
-              return null;
-            });
+        .thenAccept(response -> {
+          PrintStream console = getRuntime().getConsole();
+          synchronized (console) {
+            console.println();
+            console.println(getMsgPrefix() + OAUTH2_AGENT_TITLE);
+            formatInstructions(
+                    getMsgPrefix(),
+                    response,
+                    getConfig().getDeviceCodeConfig().isUseVerificationUriComplete())
+                .forEach(console::println);
+            printExpirationNotice(response.getLifetime());
+            console.println();
+            console.flush();
+          }
+          getPoller().start(response.getInterval(), response.getDeviceCode());
+        })
+        .exceptionally(error -> {
+          getTokensFuture()
+              .completeExceptionally(
+                  error instanceof CompletionException && error.getCause() != null
+                      ? error.getCause()
+                      : error);
+          return null;
+        });
     getTokensFuture().whenComplete((result, error) -> getPoller().stop());
     return getTokensFuture();
   }
@@ -213,39 +211,38 @@ abstract class DeviceCodeFlow extends AbstractFlow {
     private void poll(DeviceCode deviceCode) {
       LOGGER.debug("[{}] Device Auth Flow: polling for new tokens", getAgentName());
       invokeTokenEndpoint(new DeviceCodeGrant(deviceCode))
-          .whenComplete(
-              (tokens, error) -> {
-                if (error == null) {
-                  LOGGER.debug("[{}] Device Auth Flow: new tokens received", getAgentName());
-                  getTokensFuture().complete(tokens);
-                } else {
-                  Throwable cause = error;
-                  if (cause instanceof CompletionException) {
-                    cause = error.getCause();
-                  }
-                  if (cause instanceof OAuth2Exception) {
-                    switch (((OAuth2Exception) cause).getErrorObject().getCode()) {
-                      case "authorization_pending":
-                        LOGGER.debug(
-                            "[{}] Device Auth Flow: waiting for authorization to complete",
-                            getAgentName());
-                        scheduleNextPoll(deviceCode);
-                        break;
-                      case "slow_down":
-                        LOGGER.debug(
-                            "[{}] Device Auth Flow: server requested to slow down", getAgentName());
-                        Duration interval = pollInterval;
-                        pollInterval = interval.plus(interval);
-                        scheduleNextPoll(deviceCode);
-                        break;
-                      default:
-                        getTokensFuture().completeExceptionally(cause);
-                    }
-                  } else {
+          .whenComplete((tokens, error) -> {
+            if (error == null) {
+              LOGGER.debug("[{}] Device Auth Flow: new tokens received", getAgentName());
+              getTokensFuture().complete(tokens);
+            } else {
+              Throwable cause = error;
+              if (cause instanceof CompletionException) {
+                cause = error.getCause();
+              }
+              if (cause instanceof OAuth2Exception) {
+                switch (((OAuth2Exception) cause).getErrorObject().getCode()) {
+                  case "authorization_pending":
+                    LOGGER.debug(
+                        "[{}] Device Auth Flow: waiting for authorization to complete",
+                        getAgentName());
+                    scheduleNextPoll(deviceCode);
+                    break;
+                  case "slow_down":
+                    LOGGER.debug(
+                        "[{}] Device Auth Flow: server requested to slow down", getAgentName());
+                    Duration interval = pollInterval;
+                    pollInterval = interval.plus(interval);
+                    scheduleNextPoll(deviceCode);
+                    break;
+                  default:
                     getTokensFuture().completeExceptionally(cause);
-                  }
                 }
-              });
+              } else {
+                getTokensFuture().completeExceptionally(cause);
+              }
+            }
+          });
     }
 
     private void scheduleNextPoll(DeviceCode deviceCode) {

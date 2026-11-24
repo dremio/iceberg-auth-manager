@@ -60,7 +60,7 @@ afterEvaluate {
               skip()
             }
             javaComponent.withVariantsFromConfiguration(
-              configurations["testFixturesRuntimeElements"]
+              configurations["testFixturesRuntimeElements"],
             ) {
               skip()
             }

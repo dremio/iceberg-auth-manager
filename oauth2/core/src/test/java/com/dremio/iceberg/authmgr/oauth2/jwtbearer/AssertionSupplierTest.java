@@ -152,9 +152,8 @@ class AssertionSupplierTest {
     builder.put(PREFIX + '.' + BasicConfig.CLIENT_ID, "test-client");
     builder.put(PREFIX + '.' + BasicConfig.CLIENT_SECRET, "test-secret");
 
-    assertionConfig.forEach(
-        (k, v) ->
-            builder.put(JwtBearerConfig.PREFIX + '.' + JwtBearerConfig.ASSERTION + '.' + k, v));
+    assertionConfig.forEach((k, v) ->
+        builder.put(JwtBearerConfig.PREFIX + '.' + JwtBearerConfig.ASSERTION + '.' + k, v));
 
     if (assertion != null) {
       builder.put(JwtBearerConfig.PREFIX + '.' + JwtBearerConfig.ASSERTION, assertion);

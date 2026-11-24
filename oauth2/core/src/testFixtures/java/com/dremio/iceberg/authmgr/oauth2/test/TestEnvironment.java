@@ -462,10 +462,8 @@ public abstract class TestEnvironment implements AutoCloseable {
             u -> builder.put(prefix + '.' + AuthorizationCodeConfig.REDIRECT_URI, u.toString()));
     if (isCallbackHttps()) {
       getSslKeyStorePath()
-          .ifPresent(
-              p ->
-                  builder.put(
-                      prefix + '.' + AuthorizationCodeConfig.SSL_KEYSTORE_PATH, p.toString()));
+          .ifPresent(p ->
+              builder.put(prefix + '.' + AuthorizationCodeConfig.SSL_KEYSTORE_PATH, p.toString()));
       getSslKeyStorePassword()
           .ifPresent(
               p -> builder.put(prefix + '.' + AuthorizationCodeConfig.SSL_KEYSTORE_PASSWORD, p));
@@ -514,9 +512,8 @@ public abstract class TestEnvironment implements AutoCloseable {
   public Map<String, String> getJwtBearerGrantConfig() {
     ImmutableMap.Builder<String, String> builder = ImmutableMap.builder();
     getAssertionConfig()
-        .forEach(
-            (k, v) ->
-                builder.put(JwtBearerConfig.PREFIX + '.' + JwtBearerConfig.ASSERTION + '.' + k, v));
+        .forEach((k, v) ->
+            builder.put(JwtBearerConfig.PREFIX + '.' + JwtBearerConfig.ASSERTION + '.' + k, v));
     if (getAssertion() != null) {
       builder.put(JwtBearerConfig.PREFIX + '.' + JwtBearerConfig.ASSERTION, getAssertion());
     }
@@ -585,17 +582,13 @@ public abstract class TestEnvironment implements AutoCloseable {
                 TokenExchangeConfig.PREFIX + '.' + TokenExchangeConfig.REQUESTED_TOKEN_TYPE,
                 getRequestedTokenType().toString());
     getSubjectTokenConfig()
-        .forEach(
-            (k, v) ->
-                builder.put(
-                    TokenExchangeConfig.PREFIX + '.' + TokenExchangeConfig.SUBJECT_TOKEN + '.' + k,
-                    v));
+        .forEach((k, v) ->
+            builder.put(
+                TokenExchangeConfig.PREFIX + '.' + TokenExchangeConfig.SUBJECT_TOKEN + '.' + k, v));
     getActorTokenConfig()
-        .forEach(
-            (k, v) ->
-                builder.put(
-                    TokenExchangeConfig.PREFIX + '.' + TokenExchangeConfig.ACTOR_TOKEN + '.' + k,
-                    v));
+        .forEach((k, v) ->
+            builder.put(
+                TokenExchangeConfig.PREFIX + '.' + TokenExchangeConfig.ACTOR_TOKEN + '.' + k, v));
     if (getSubjectToken() != null) {
       builder.put(
           TokenExchangeConfig.PREFIX + '.' + TokenExchangeConfig.SUBJECT_TOKEN,
@@ -746,16 +739,13 @@ public abstract class TestEnvironment implements AutoCloseable {
   public Map<String, String> getJwtClientAuthConfig() {
     ImmutableMap.Builder<String, String> builder = ImmutableMap.builder();
     getJwtClientAuthAlgorithm()
-        .ifPresent(
-            v ->
-                builder.put(
-                    JwtClientAuthConfig.PREFIX + '.' + JwtClientAuthConfig.ALGORITHM, v.getName()));
+        .ifPresent(v ->
+            builder.put(
+                JwtClientAuthConfig.PREFIX + '.' + JwtClientAuthConfig.ALGORITHM, v.getName()));
     getJwtClientAuthPrivateKey()
-        .ifPresent(
-            v ->
-                builder.put(
-                    JwtClientAuthConfig.PREFIX + '.' + JwtClientAuthConfig.PRIVATE_KEY,
-                    v.toString()));
+        .ifPresent(v ->
+            builder.put(
+                JwtClientAuthConfig.PREFIX + '.' + JwtClientAuthConfig.PRIVATE_KEY, v.toString()));
     return builder.build();
   }
 
@@ -799,10 +789,8 @@ public abstract class TestEnvironment implements AutoCloseable {
     getProxyPassword()
         .ifPresent(v -> builder.put(HttpConfig.PREFIX + '.' + HttpConfig.PROXY_PASSWORD, v));
     getSslTrustStorePath()
-        .ifPresent(
-            v ->
-                builder.put(
-                    HttpConfig.PREFIX + '.' + HttpConfig.SSL_TRUSTSTORE_PATH, v.toString()));
+        .ifPresent(v ->
+            builder.put(HttpConfig.PREFIX + '.' + HttpConfig.SSL_TRUSTSTORE_PATH, v.toString()));
     getSslTrustStorePassword()
         .ifPresent(
             v -> builder.put(HttpConfig.PREFIX + '.' + HttpConfig.SSL_TRUSTSTORE_PASSWORD, v));
@@ -941,14 +929,13 @@ public abstract class TestEnvironment implements AutoCloseable {
     RESTCatalog catalog =
         new RESTCatalog(getSessionContext(), config -> newIcebergRestClientBuilder(config).build());
     UserEmulator user = getUser();
-    user.addErrorListener(
-        e -> {
-          try {
-            catalog.close();
-          } catch (IOException ex) {
-            throw new RuntimeException(ex);
-          }
-        });
+    user.addErrorListener(e -> {
+      try {
+        catalog.close();
+      } catch (IOException ex) {
+        throw new RuntimeException(ex);
+      }
+    });
     catalog.initialize("catalog-" + java.lang.System.nanoTime(), getCatalogProperties());
     return catalog;
   }

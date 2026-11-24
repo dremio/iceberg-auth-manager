@@ -151,10 +151,10 @@ class JcaPemReaderTest {
     Files.writeString(
         invalidBase64File,
         """
-            -----BEGIN PRIVATE KEY-----
-            This is not valid base64 content!!!
-            -----END PRIVATE KEY-----
-            """);
+        -----BEGIN PRIVATE KEY-----
+        This is not valid base64 content!!!
+        -----END PRIVATE KEY-----
+        """);
 
     // When - Then
     assertThatThrownBy(() -> new JcaPemReader().readPrivateKey(invalidBase64File))

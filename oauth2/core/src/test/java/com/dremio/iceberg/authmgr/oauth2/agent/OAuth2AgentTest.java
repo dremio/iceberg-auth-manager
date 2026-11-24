@@ -131,11 +131,10 @@ class OAuth2AgentTest {
       soft.assertThatThrownBy(agent::authenticate)
           .asInstanceOf(throwable(OAuth2Exception.class))
           .extracting(OAuth2Exception::getErrorObject)
-          .satisfies(
-              r -> {
-                soft.assertThat(r.getCode()).isEqualTo("invalid_request");
-                soft.assertThat(r.getDescription()).contains("Invalid request");
-              });
+          .satisfies(r -> {
+            soft.assertThat(r.getCode()).isEqualTo("invalid_request");
+            soft.assertThat(r.getDescription()).contains("Invalid request");
+          });
     }
   }
 
@@ -169,11 +168,10 @@ class OAuth2AgentTest {
       soft.assertThatThrownBy(agent::authenticate)
           .asInstanceOf(throwable(OAuth2Exception.class))
           .extracting(OAuth2Exception::getErrorObject)
-          .satisfies(
-              r -> {
-                soft.assertThat(r.getCode()).isEqualTo("invalid_request");
-                soft.assertThat(r.getDescription()).contains("Invalid request");
-              });
+          .satisfies(r -> {
+            soft.assertThat(r.getCode()).isEqualTo("invalid_request");
+            soft.assertThat(r.getDescription()).contains("Invalid request");
+          });
     }
   }
 
@@ -223,11 +221,10 @@ class OAuth2AgentTest {
       soft.assertThatThrownBy(agent::authenticate)
           .asInstanceOf(throwable(OAuth2Exception.class))
           .extracting(OAuth2Exception::getErrorObject)
-          .satisfies(
-              r -> {
-                soft.assertThat(r.getCode()).isEqualTo("invalid_request");
-                soft.assertThat(r.getDescription()).contains("Invalid request");
-              });
+          .satisfies(r -> {
+            soft.assertThat(r.getCode()).isEqualTo("invalid_request");
+            soft.assertThat(r.getDescription()).contains("Invalid request");
+          });
     }
   }
 
@@ -470,11 +467,10 @@ class OAuth2AgentTest {
       soft.assertThatThrownBy(agent::authenticate)
           .asInstanceOf(throwable(OAuth2Exception.class))
           .extracting(OAuth2Exception::getErrorObject)
-          .satisfies(
-              r -> {
-                soft.assertThat(r.getCode()).isEqualTo("invalid_request");
-                soft.assertThat(r.getDescription()).contains("Invalid request");
-              });
+          .satisfies(r -> {
+            soft.assertThat(r.getCode()).isEqualTo("invalid_request");
+            soft.assertThat(r.getDescription()).contains("Invalid request");
+          });
     }
   }
 
@@ -489,11 +485,10 @@ class OAuth2AgentTest {
       soft.assertThatThrownBy(agent::authenticate)
           .asInstanceOf(throwable(OAuth2Exception.class))
           .extracting(OAuth2Exception::getErrorObject)
-          .satisfies(
-              r -> {
-                soft.assertThat(r.getCode()).isEqualTo("invalid_request");
-                soft.assertThat(r.getDescription()).contains("Invalid request");
-              });
+          .satisfies(r -> {
+            soft.assertThat(r.getCode()).isEqualTo("invalid_request");
+            soft.assertThat(r.getDescription()).contains("Invalid request");
+          });
     }
   }
 
@@ -584,11 +579,10 @@ class OAuth2AgentTest {
       soft.assertThatThrownBy(agent::authenticate)
           .asInstanceOf(throwable(OAuth2Exception.class))
           .extracting(OAuth2Exception::getErrorObject)
-          .satisfies(
-              r -> {
-                soft.assertThat(r.getCode()).isEqualTo("invalid_request");
-                soft.assertThat(r.getDescription()).contains("Invalid request");
-              });
+          .satisfies(r -> {
+            soft.assertThat(r.getCode()).isEqualTo("invalid_request");
+            soft.assertThat(r.getDescription()).contains("Invalid request");
+          });
     }
   }
 
@@ -1346,18 +1340,17 @@ class OAuth2AgentTest {
       ScheduledExecutorService executor, boolean rejectSchedule, List<Duration> delays) {
     AtomicReference<Runnable> task = new AtomicReference<>();
     when(executor.schedule(any(Runnable.class), anyLong(), any()))
-        .thenAnswer(
-            invocation -> {
-              if (rejectSchedule) {
-                throw new RejectedExecutionException("test");
-              }
-              Runnable runnable = invocation.getArgument(0);
-              long delay = invocation.getArgument(1);
-              TimeUnit unit = invocation.getArgument(2);
-              task.set(runnable);
-              delays.add(Duration.ofMillis(unit.toMillis(delay)));
-              return mock(ScheduledFuture.class);
-            });
+        .thenAnswer(invocation -> {
+          if (rejectSchedule) {
+            throw new RejectedExecutionException("test");
+          }
+          Runnable runnable = invocation.getArgument(0);
+          long delay = invocation.getArgument(1);
+          TimeUnit unit = invocation.getArgument(2);
+          task.set(runnable);
+          delays.add(Duration.ofMillis(unit.toMillis(delay)));
+          return mock(ScheduledFuture.class);
+        });
     return task;
   }
 
@@ -1378,11 +1371,10 @@ class OAuth2AgentTest {
     AtomicInteger count = new AtomicInteger();
     TestServer.getInstance()
         .when(tokenRequest(env, grantType))
-        .respond(
-            request -> {
-              count.incrementAndGet();
-              return response;
-            });
+        .respond(request -> {
+          count.incrementAndGet();
+          return response;
+        });
     return count;
   }
 

@@ -198,7 +198,7 @@ public class KafkaKeycloakIT {
 
   @SuppressWarnings("resource")
   private S3MockContainer createS3Container() {
-    return new S3MockContainer("5.0.0")
+    return new S3MockContainer("5.2.3")
         .withNetwork(network)
         .withNetworkAliases("s3")
         .withInitialBuckets("test-bucket");
@@ -249,12 +249,11 @@ public class KafkaKeycloakIT {
             + icebergConnectorVersion;
     ImageFromDockerfile image =
         new ImageFromDockerfile()
-            .withDockerfileFromBuilder(
-                builder ->
-                    builder
-                        .from("confluentinc/cp-kafka-connect:" + confluentVersion)
-                        .run(command) // must be run as root
-                        .build());
+            .withDockerfileFromBuilder(builder ->
+                builder
+                    .from("confluentinc/cp-kafka-connect:" + confluentVersion)
+                    .run(command) // must be run as root
+                    .build());
     return new GenericContainer<>(image)
         .withNetwork(network)
         .withNetworkAliases("connect")

@@ -76,19 +76,18 @@ public final class RemoteAuthServerSupport {
   private RemoteAuthServerSupport() {}
 
   private static final Supplier<Map<String, String>> AGENT_CONFIG =
-      Suppliers.memoize(
-          () -> {
-            Path agentConfigPath = Path.of(System.getenv(OAUTH2_AGENT_CONFIG_ENV));
-            Properties props = new Properties();
-            try (var in = Files.newInputStream(agentConfigPath)) {
-              props.load(in);
-            } catch (IOException e) {
-              throw new RuntimeException(e);
-            }
-            @SuppressWarnings({"rawtypes", "unchecked"})
-            Map<String, String> map = (Map) props;
-            return map;
-          });
+      Suppliers.memoize(() -> {
+        Path agentConfigPath = Path.of(System.getenv(OAUTH2_AGENT_CONFIG_ENV));
+        Properties props = new Properties();
+        try (var in = Files.newInputStream(agentConfigPath)) {
+          props.load(in);
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
+        @SuppressWarnings({"rawtypes", "unchecked"})
+        Map<String, String> map = (Map) props;
+        return map;
+      });
 
   public Map<String, String> getAgentConfig() {
     return AGENT_CONFIG.get();

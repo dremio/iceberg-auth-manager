@@ -177,10 +177,9 @@ class SubjectTokenSupplierTest {
         TokenExchangeConfig.PREFIX + '.' + TokenExchangeConfig.SUBJECT_TOKEN_TYPE,
         subjectTokenType.getURI().toString());
 
-    subjectTokenConfig.forEach(
-        (k, v) ->
-            builder.put(
-                TokenExchangeConfig.PREFIX + '.' + TokenExchangeConfig.SUBJECT_TOKEN + '.' + k, v));
+    subjectTokenConfig.forEach((k, v) ->
+        builder.put(
+            TokenExchangeConfig.PREFIX + '.' + TokenExchangeConfig.SUBJECT_TOKEN + '.' + k, v));
 
     if (subjectToken != null) {
       builder.put(

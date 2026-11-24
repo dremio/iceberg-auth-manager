@@ -164,7 +164,7 @@ icebergConnectorVersions.forEach { icebergConnectorVersion ->
 
 tasks.named<Test>("intTest").configure {
   dependsOn(
-    tasks.named(suiteName(defaultIcebergConnectorVersion, defaultKafkaVersion, defaultCpVersion))
+    tasks.named(suiteName(defaultIcebergConnectorVersion, defaultKafkaVersion, defaultCpVersion)),
   )
   // the task itself should not run any tests
   enabled = false
@@ -196,7 +196,7 @@ tasks.register("printTestMatrix") {
       val kafkaVersion = task.get().inputs.properties["kafkaVersion"]
       val cpVersion = task.get().inputs.properties["cpVersion"]
       println(
-        "  - ${task.name} uses: Iceberg Connector $icebergConnectorVersion, Kafka $kafkaVersion and Confluent Platform $cpVersion"
+        "  - ${task.name} uses: Iceberg Connector $icebergConnectorVersion, Kafka $kafkaVersion and Confluent Platform $cpVersion",
       )
     }
   }

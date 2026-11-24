@@ -54,11 +54,8 @@ public abstract class SubjectTokenSupplier extends AbstractTokenSupplier {
     TokenExchangeConfig tokenExchangeConfig = getMainConfig().getTokenExchangeConfig();
     return tokenExchangeConfig
         .getSubjectToken()
-        .or(
-            () ->
-                tokenExchangeConfig
-                    .getSubjectTokenFile()
-                    .map(SubjectTokenSupplier::readTokenFromFile));
+        .or(() ->
+            tokenExchangeConfig.getSubjectTokenFile().map(SubjectTokenSupplier::readTokenFromFile));
   }
 
   @Value.Derived
